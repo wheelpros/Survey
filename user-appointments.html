@@ -541,6 +541,54 @@ th {
 
 .btn-accept { background: #20a95a; color: #ffffff; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-weight: bold; }
 .btn-reject { background: #c9000b; color: #ffffff; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-weight: bold; margin-left: 5px; }
+.calendar-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+  padding: 20px;
+}
+
+.calendar-modal.show {
+  display: flex;
+}
+
+.calendar-modal-box {
+  width: 100%;
+  max-width: 450px;
+  background: #fff;
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.2);
+}
+
+.calendar-modal-header {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:20px;
+}
+
+.calendar-modal-header button {
+  width:32px;
+  height:32px;
+  border:none;
+  border-radius:50%;
+  background:#1b1e3a;
+  color:white;
+  cursor:pointer;
+}
+
+.day-details-item {
+  padding:12px;
+  border-radius:10px;
+  background:#f8fafc;
+  margin-bottom:10px;
+  font-size:13px;
+}
 </style>
 
 <script>
@@ -798,8 +846,11 @@ function renderCalendar() {
     const dayDiv = document.createElement("div");
     const isToday = isCurrentMonthReal && day === today.getDate();
     dayDiv.className = `day-cell ${isToday ? 'today-cell' : ''}`;
-    dayDiv.innerHTML = `<span>${day}</span>`;
+dayDiv.innerHTML = `<span>${day}</span>`;
 
+dayDiv.onclick = () => {
+  openCalendarDay(dateStr);
+};
     const formattedMonth = String(month + 1).padStart(2, '0');
     const formattedDay = String(day).padStart(2, '0');
     const dateStr = `${year}-${formattedMonth}-${formattedDay}`;
@@ -1045,6 +1096,74 @@ async function saveSettings() {
     status.innerText = "Connection error";
   }
 }
+function openCalendarDay(date){
+
+  const modal = document.getElementById("calendarModal");
+  const title = document.getElementById("calendarModalTitle");
+  const content = document.getElementById("calendarModalContent");
+
+  title.innerText = date;
+
+  let html = "";
+
+  const apps = calendarEvents.appointments.filter(a => a.date === date);
+  const blocked = calendarEvents.blocked.filter(b => b.date === date);
+
+
+  if(apps.length === 0 && blocked.length === 0){
+    html = `
+      <div class="day-details-item">
+        No appointments or blocked slots.
+      </div>
+    `;
+  }
+
+
+  apps.forEach(a=>{
+    html += `
+      <div class="day-details-item">
+        📅 <b>${a.title}</b><br>
+        Time: ${a.time}<br>
+        Status:
+        <span class="badge ${a.status}">
+          ${a.status}
+        </span>
+      </div>
+    `;
+  });
+
+
+  blocked.forEach(b=>{
+    html += `
+      <div class="day-details-item">
+        🚫 <b>Blocked Time</b><br>
+        ${b.start_time} - ${b.end_time}
+      </div>
+    `;
+  });
+
+
+  content.innerHTML = html;
+  modal.classList.add("show");
+}
+
+
+function closeCalendarModal(){
+  document.getElementById("calendarModal")
+  .classList.remove("show");
+}
 </script>
+<div class="calendar-modal" id="calendarModal">
+  <div class="calendar-modal-box">
+
+    <div class="calendar-modal-header">
+      <h3 id="calendarModalTitle">Day Details</h3>
+      <button onclick="closeCalendarModal()">×</button>
+    </div>
+
+    <div id="calendarModalContent"></div>
+
+  </div>
+</div>
 </body>
 </html>
