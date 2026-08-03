@@ -5,6 +5,21 @@ header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
+require_once "db.php";
+
+
+
+
+// استخراج الـ Bearer Token من الهيدر
+$headers = getallheaders();
+$authHeader = $headers["Authorization"] ?? $headers["authorization"] ?? "";
+$token = str_replace("Bearer ", "", $authHeader);
+
+if (!$token) {
+    echo json_encode(["success" => false, "message" => "No token provided"]);
+    exit;
+}
+
 if(isset($_GET["action"]) && $_GET["action"]=="send_appointment"){
 
     $input=json_decode(file_get_contents("php://input"),true);
@@ -44,17 +59,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-require_once "db.php";
-
-// استخراج الـ Bearer Token من الهيدر
-$headers = getallheaders();
-$authHeader = $headers["Authorization"] ?? $headers["authorization"] ?? "";
-$token = str_replace("Bearer ", "", $authHeader);
-
-if (!$token) {
-    echo json_encode(["success" => false, "message" => "No token provided"]);
-    exit;
-}
 
 // فحص هويّة المستخدم (User أو Admin)
 $stmt = $pdo->prepare("SELECT id FROM users WHERE session_token = ? LIMIT 1");
