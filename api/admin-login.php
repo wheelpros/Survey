@@ -35,7 +35,7 @@ if (!$admin || (int)$admin["active"] !== 1) {
     exit;
 }
 
-if ($password !== $admin["password"]) {
+if (!password_verify($password, $admin["password"])) {
     echo json_encode([
         "success" => false,
         "message" => "Invalid email or password"

@@ -155,7 +155,6 @@ if ($action === 'get_user_calendar' && $user) {
 }
 
 // ---------------- ADMIN ACTIONS ----------------
-
 if ($action === 'create_appointment' && $adminId) {
     $targetUserId = $inputData['user_id'] ?? $_POST['user_id'] ?? 0;
     $title = $inputData['title'] ?? $_POST['title'] ?? 'Meeting';
