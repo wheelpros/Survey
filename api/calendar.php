@@ -5,6 +5,40 @@ header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
+if(isset($_GET["action"]) && $_GET["action"]=="send_appointment"){
+
+    $input=json_decode(file_get_contents("php://input"),true);
+
+    $stmt=$pdo->prepare("
+    INSERT INTO appointments
+    (
+        user_id,
+        title,
+        date,
+        time,
+        status
+    )
+    VALUES(?,?,?,?,?)
+    ");
+
+    $stmt->execute([
+
+        $input["user_id"],
+        $input["title"],
+        $input["date"],
+        $input["time"],
+        "approved"
+
+    ]);
+
+    echo json_encode([
+        "success"=>true,
+        "message"=>"Appointment sent successfully."
+    ]);
+
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();

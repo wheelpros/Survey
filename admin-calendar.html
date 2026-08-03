@@ -470,18 +470,36 @@ document.addEventListener("DOMContentLoaded", function () {
     </div>
   </div>
 </div>
+<!-- SEND APPOINTMENT DIRECTLY -->
+<div class="panel" id="sendSection" style="display:none;">
+  <div class="panel-body">
+    <h2>Send Appointment</h2>
 
-<h3>Send Appointment</h3>
+    <div class="form-grid">
+      <div>
+        <label>Appointment Title</label>
+        <input type="text" id="sendTitle" placeholder="Appointment Title">
+      </div>
 
-<form id="sendAppointmentForm">
-  <select id="sendUserId" required></select>
+      <div>
+        <label>Date</label>
+        <input type="date" id="sendDate">
+      </div>
 
-  <input type="date" id="sendDate" required />
-  <input type="time" id="sendTime" required />
+      <div>
+        <label>Time</label>
+        <input type="time" id="sendTime">
+      </div>
 
-  <button type="submit">Send</button>
-</form>
+      <div>
+        <button class="btn-primary" onclick="sendAppointmentDirect()">
+          Send Appointment
+        </button>
+      </div>
+    </div>
 
+  </div>
+</div>
 <!-- 4. BLOCKED SLOTS BY USER & APPOINTMENTS LIST -->
 <div class="panel" id="calendarDataSection" style="display:none;">
   <div class="panel-body">
@@ -686,45 +704,32 @@ function renderAdminCalendar() {
 }
 
 // 1. Fetch Users Dropdown
-function loadUsersDropdown() {
-  fetch("api/get-users.php")
-    .then(res => res.json())
-    .then(users => {
-      const requestSelect = document.getElementById("userId");
-      const sendSelect = document.getElementById("sendUserId");
-
-      requestSelect.innerHTML = "";
-      sendSelect.innerHTML = "";
-
-      users.forEach(user => {
-        const option1 = new Option(user.name, user.id);
-        const option2 = new Option(user.name, user.id);
-
-        requestSelect.add(option1);
-        sendSelect.add(option2);
-      });
+async function loadUsersDropdown() {
+  try {
+    const res = await fetch("api/admin-users.php", {
+      headers: { Authorization: "Bearer " + adminToken }
     });
+    
+    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+
+    const data = await res.json();
+    const select = document.getElementById("calendarUserSelect");
+    select.innerHTML = `<option value="">-- Choose User --</option>`;
+
+    const usersList = data.users || data.data || [];
+
+    if (usersList.length > 0) {
+      usersList.forEach(u => {
+        const name = u.name || u.full_name || u.username || u.email;
+        select.innerHTML += `<option value="${u.id}">${name} (${u.email})</option>`;
+      });
+    } else {
+      select.innerHTML = `<option value="">-- No Users Found --</option>`;
+    }
+  } catch (err) {
+    console.error("Error fetching users:", err);
+  }
 }
-
-document.getElementById("sendAppointmentForm").addEventListener("submit", e => {
-  e.preventDefault();
-
-  fetch("api/send-appointment.php", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      user_id: document.getElementById("sendUserId").value,
-      date: document.getElementById("sendDate").value,
-      time: document.getElementById("sendTime").value
-    })
-  })
-  .then(res => res.json())
-  .then(data => {
-    alert(data.message);
-  });
-});
 
 // 2. Fetch User's Calendar & Blocked Slots
 async function loadUserCalendarData() {
@@ -734,6 +739,7 @@ async function loadUserCalendarData() {
 
   if (!userId) {
     bookingSection.style.display = "none";
+    document.getElementById("sendSection").style.display="none";
     dataSection.style.display = "none";
     activeUserCalendarData = { blocked: [], appointments: [] };
     renderAdminCalendar();
@@ -741,6 +747,7 @@ async function loadUserCalendarData() {
   }
 
   bookingSection.style.display = "block";
+  document.getElementById("sendSection").style.display = "block";
   dataSection.style.display = "block";
 
   try {
@@ -836,6 +843,56 @@ document.addEventListener("DOMContentLoaded", () => {
   renderAdminCalendar();
   loadUsersDropdown();
 });
+async function sendAppointmentDirect(){
+
+    const userId=document.getElementById("calendarUserSelect").value;
+
+    const title=document.getElementById("sendTitle").value.trim();
+
+    const date=document.getElementById("sendDate").value;
+
+    const time=document.getElementById("sendTime").value;
+
+    if(!userId || !title || !date || !time){
+        alert("Please fill all fields");
+        return;
+    }
+
+    const res=await fetch("api/calendar.php?action=send_appointment",{
+
+        method:"POST",
+
+        headers:{
+            "Content-Type":"application/json",
+            Authorization:"Bearer "+adminToken
+        },
+
+        body:JSON.stringify({
+
+            user_id:userId,
+            title:title,
+            date:date,
+            time:time
+
+        })
+
+    });
+
+    const data=await res.json();
+
+    alert(data.message);
+
+    if(data.success){
+
+        document.getElementById("sendTitle").value="";
+        document.getElementById("sendDate").value="";
+        document.getElementById("sendTime").value="";
+
+        loadUserCalendarData();
+
+    }
+
+}
 </script>
 
   </div>
