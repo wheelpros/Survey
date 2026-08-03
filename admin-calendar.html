@@ -661,6 +661,9 @@ function renderAdminCalendar() {
     const isToday = isCurrentMonthReal && day === today.getDate();
     cell.className = `ui-day-cell ${isToday ? 'is-today' : ''}`;
     cell.innerHTML = `<span class="num">${day}</span>`;
+    cell.onclick = function () {
+    showDayDetails(dateStr);
+};
 
     const formattedMonth = String(month + 1).padStart(2, '0');
     const formattedDay = String(day).padStart(2, '0');
@@ -893,6 +896,57 @@ async function sendAppointmentDirect(){
     }
 
 }
+function showDayDetails(date){
+
+    const dayApps = activeUserCalendarData.appointments.filter(a => a.date === date);
+    const dayBlocked = activeUserCalendarData.blocked.filter(b => b.date === date);
+
+    let content = `
+        <h2>Day Details</h2>
+        <p><b>Date:</b> ${date}</p>
+        <hr>
+    `;
+
+
+    if(dayApps.length){
+
+        content += `<h3>Appointments</h3>`;
+
+        dayApps.forEach(app => {
+            content += `
+                <div style="margin:10px 0;padding:10px;background:#f8fafc;border-radius:8px;">
+                    <b>Title:</b> ${app.title}<br>
+                    <b>Time:</b> ${app.time}<br>
+                    <b>Status:</b> ${app.status}
+                </div>
+            `;
+        });
+
+    } else {
+
+        content += `<p>No appointments on this day.</p>`;
+
+    }
+
+
+    if(dayBlocked.length){
+
+        content += `<h3 style="margin-top:15px;">Blocked Slots</h3>`;
+
+        dayBlocked.forEach(b => {
+            content += `
+                <div style="margin:10px 0;padding:10px;background:#ffe8e8;border-radius:8px;">
+                    🚫 ${b.start_time} - ${b.end_time}
+                </div>
+            `;
+        });
+
+    }
+
+
+    document.getElementById("dayPopupContent").innerHTML = content;
+    document.getElementById("dayPopup").style.display = "flex";
+}
 </script>
 
   </div>
@@ -913,6 +967,41 @@ async function sendAppointmentDirect(){
     </div>
   </div>
 </div>
+<div id="dayPopup" style="
+display:none;
+position:fixed;
+inset:0;
+background:rgba(0,0,0,.4);
+align-items:center;
+justify-content:center;
+z-index:99999;
+">
 
+<div style="
+background:white;
+width:400px;
+max-width:90%;
+padding:25px;
+border-radius:15px;
+box-shadow:0 20px 50px #0003;
+">
+
+<div id="dayPopupContent"></div>
+
+<button onclick="document.getElementById('dayPopup').style.display='none'"
+style="
+margin-top:15px;
+padding:10px 20px;
+border:none;
+border-radius:8px;
+background:#1b1e3a;
+color:white;
+cursor:pointer;
+">
+Close
+</button>
+
+</div>
+</div>
 </body>
 </html>

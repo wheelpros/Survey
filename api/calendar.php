@@ -121,10 +121,8 @@ if ($action === 'respond_appointment' && $user) {
 }
 
 // 3. جلب بيانات التقويم والمواعيد لليوزر
-// 3. جلب بيانات التقويم والمواعيد لليوزر
 if ($action === 'get_user_calendar' && $user) {
 
-    // جلب الأيام المقفولة
     $stmt = $pdo->prepare("
         SELECT * 
         FROM user_unavailability 
@@ -135,8 +133,6 @@ if ($action === 'get_user_calendar' && $user) {
     $stmt->execute([$user['id']]);
     $blocked = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-
-    // جلب المواعيد ماعدا المرفوضة
     $stmt = $pdo->prepare("
         SELECT * 
         FROM appointments 
@@ -160,7 +156,6 @@ if ($action === 'get_user_calendar' && $user) {
 
 // ---------------- ADMIN ACTIONS ----------------
 
-// 4. حجز موعد جديد للمستخدم بواسطة الأدمن
 if ($action === 'create_appointment' && $adminId) {
     $targetUserId = $inputData['user_id'] ?? $_POST['user_id'] ?? 0;
     $title = $inputData['title'] ?? $_POST['title'] ?? 'Meeting';
