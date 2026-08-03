@@ -132,9 +132,7 @@ if ($action === 'get_user_calendar' && $user) {
 
 $stmt->execute([$user['id']]);
 $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    $stmt = $pdo->prepare("SELECT * FROM appointments WHERE user_id = ? ORDER BY date DESC, time DESC");
-    $stmt->execute([$user['id']]);
-    $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
 
     echo json_encode([
         "success" => true,
