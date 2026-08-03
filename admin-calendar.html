@@ -312,6 +312,54 @@ body{padding:0}
 .acct-role{display:inline-block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--nav-active);background:#eef0f6;border-radius:20px;padding:5px 12px;margin-bottom:22px}
 .acct-logout{width:100%;height:46px;border:1px solid #f0d2d4;background:#fff;color:var(--brand);border-radius:12px;font-weight:800;font-size:14px;cursor:pointer}
 .acct-logout:hover{background:#fff5f5}
+.calendar-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+  padding: 20px;
+}
+
+.calendar-modal.show {
+  display: flex;
+}
+
+.calendar-modal-box {
+  width: 100%;
+  max-width: 450px;
+  background: #fff;
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.2);
+}
+
+.calendar-modal-header {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:20px;
+}
+
+.calendar-modal-header button {
+  width:32px;
+  height:32px;
+  border:none;
+  border-radius:50%;
+  background:#1b1e3a;
+  color:white;
+  cursor:pointer;
+}
+
+.day-details-item {
+  padding:12px;
+  border-radius:10px;
+  background:#f8fafc;
+  margin-bottom:10px;
+  font-size:13px;
+}
 </style>
 
 <script>
@@ -500,7 +548,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   </div>
 </div>
-<!-- 4. BLOCKED SLOTS BY USER & APPOINTMENTS LIST -->
+{% comment %} <!-- 4. BLOCKED SLOTS BY USER & APPOINTMENTS LIST -->
 <div class="panel" id="calendarDataSection" style="display:none;">
   <div class="panel-body">
     <h2>Blocked Slots by User</h2>
@@ -524,7 +572,7 @@ document.addEventListener("DOMContentLoaded", function () {
       </tbody>
     </table>
   </div>
-</div>
+</div> {% endcomment %}
 
 <!-- 5. REVIEW QUEUE PANEL -->
 <div class="panel">
