@@ -122,10 +122,16 @@ if ($action === 'respond_appointment' && $user) {
 
 // 3. جلب بيانات التقويم والمواعيد لليوزر
 if ($action === 'get_user_calendar' && $user) {
-    $stmt = $pdo->prepare("SELECT * FROM user_unavailability WHERE user_id = ? ORDER BY date DESC");
-    $stmt->execute([$user['id']]);
-    $blocked = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $stmt = $pdo->prepare("
+    SELECT * 
+    FROM appointments 
+    WHERE user_id = ? 
+    AND status != 'rejected'
+    ORDER BY date DESC, time DESC
+");
 
+$stmt->execute([$user['id']]);
+$appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $stmt = $pdo->prepare("SELECT * FROM appointments WHERE user_id = ? ORDER BY date DESC, time DESC");
     $stmt->execute([$user['id']]);
     $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
