@@ -87,6 +87,7 @@ if($user){
 
         "success"=>true,
         "message"=>"Password reset successfully"
+        "type"=>"user"
 
     ]);
 
@@ -139,6 +140,7 @@ if($admin){
 
         "success"=>true,
         "message"=>"Password reset successfully"
+        "type"=>"admin"
 
     ]);
 
