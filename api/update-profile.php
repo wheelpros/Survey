@@ -16,6 +16,8 @@ if (!$token) {
     exit;
 }
 
+ensureUserProfileColumns($pdo);
+
 $stmt = $pdo->prepare("
     SELECT id, name, email, approved, profile_image
     FROM users
@@ -35,12 +37,38 @@ if (!$user || (int)$user["approved"] !== 1) {
 }
 
 $name = trim($_POST["name"] ?? "");
+$companyName = trim($_POST["company_name"] ?? "");
+$website = trim($_POST["website"] ?? "");
+$description = trim($_POST["description"] ?? "");
+$phone = trim($_POST["phone"] ?? "");
 $profileImage = $user["profile_image"];
 
 if (!$name) {
     echo json_encode([
         "success" => false,
         "message" => "Name is required"
+    ]);
+    exit;
+}
+
+// The field is typed as a bare domain more often than not, so accept that and
+// store something a link can actually point at.
+if ($website !== "" && !preg_match("#^https?://#i", $website)) {
+    $website = "https://" . $website;
+}
+
+if ($website !== "" && !filter_var($website, FILTER_VALIDATE_URL)) {
+    echo json_encode([
+        "success" => false,
+        "message" => "Please enter a valid website address"
+    ]);
+    exit;
+}
+
+if ($phone !== "" && !preg_match("/^[0-9+\-\s().]{6,25}$/", $phone)) {
+    echo json_encode([
+        "success" => false,
+        "message" => "Please enter a valid phone number"
     ]);
     exit;
 }
@@ -81,13 +109,18 @@ if (!empty($_FILES["profile_image"]["name"])) {
 
 $stmt = $pdo->prepare("
     UPDATE users
-    SET name = ?, profile_image = ?
+    SET name = ?, profile_image = ?,
+        company_name = ?, website = ?, description = ?, phone = ?
     WHERE id = ?
 ");
 
 $stmt->execute([
     $name,
     $profileImage,
+    $companyName,
+    $website,
+    $description,
+    $phone,
     $user["id"]
 ]);
 
@@ -98,6 +131,10 @@ echo json_encode([
         "id" => $user["id"],
         "name" => $name,
         "email" => $user["email"],
-        "profile_image" => $profileImage
+        "profile_image" => $profileImage,
+        "company_name" => $companyName,
+        "website" => $website,
+        "description" => $description,
+        "phone" => $phone
     ]
 ]);

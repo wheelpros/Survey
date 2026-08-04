@@ -42,7 +42,7 @@ h1{
 label{
   display:block;
   font-size:13px;
-  font-weight:800;
+  font-weight:400;
   margin-bottom:8px;
 }
 
@@ -98,6 +98,31 @@ button{
 .toggle-password:hover{
   color:#1b1e3a;
 }
+
+/* Password label and its reset link share a row. */
+.label-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:baseline;
+  gap:12px;
+  margin-bottom:8px;
+}
+
+.label-row label{
+  margin-bottom:0;
+}
+
+.forgot{
+  font-size:12px;
+  font-weight:700;
+  color:#1b1e3a;
+  text-decoration:none;
+  white-space:nowrap;
+}
+
+.forgot:hover{
+  text-decoration:underline;
+}
 </style>
 </head>
 
@@ -107,10 +132,13 @@ button{
   <div class="logo">W zone</div>
   <h1>Admin Login</h1>
 
-  <label>Email</label>
+  <label for="email">Email</label>
   <input type="email" id="email" placeholder="admin@wzone.com">
 
-  <label>Password</label>
+  <div class="label-row">
+    <label for="password">Password</label>
+    <a class="forgot" href="forgot-password.html">Forgot password?</a>
+  </div>
 
 <div class="password-box">
   <input type="password" id="password" placeholder="Password">
@@ -124,23 +152,7 @@ button{
     </svg>
 </span>
 </div>
-<a href="forgot-password.html" 
-   style="
-   display:block;
-   text-align:right;
-   margin-bottom:18px;
-   font-size:13px;
-   color:#1b1e3a;
-   font-weight:700;
-   text-decoration:none;
-   ">
-   Forgot password?
-</a>
   <button onclick="loginAdmin()">Login</button>
-  <button type="button" onclick="devBypass()"
-    style="margin-top:12px;background:#101828">
-    🛠 Dev Mode — Skip Login
-  </button>
 
   <div class="status" id="status"></div>
 </div>
@@ -179,16 +191,6 @@ async function loginAdmin(){
   }catch(error){
     status.innerText = "Connection error";
   }
-}
-
-// Dev-only: skip real auth so the admin frontend can be edited without a backend.
-function devBypass() {
-  localStorage.setItem("admin_token", "bypass_admin_token");
-  localStorage.setItem(
-    "admin_user",
-    JSON.stringify({ id: 1, name: "Admin", role: "super_admin" })
-  );
-  window.location.href = "admin.html";
 }
 
 function togglePassword() {

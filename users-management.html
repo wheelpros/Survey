@@ -43,14 +43,13 @@ body{padding:0}
   background:#fff;
   border-right:1px solid var(--line);
   position:fixed;top:0;left:0;bottom:0;
-  padding:26px 18px 18px;
+  padding:26px 12px 18px;
   display:flex;flex-direction:column;justify-content:space-between;
   z-index:100;
 }
 .side-logo{padding:0 6px;margin-bottom:30px}
 .side-logo img{width:150px;max-width:100%;height:auto;display:block}
-.side-mark{display:none;font-size:22px;font-weight:900;color:var(--text);text-align:center;letter-spacing:-.5px}
-.side-mark span{color:var(--brand)}
+
 .side-nav a{
   display:flex;gap:12px;align-items:center;
   text-decoration:none;color:var(--muted);
@@ -84,11 +83,11 @@ body{padding:0}
   height:72px;background:#fff;border-bottom:1px solid var(--line);
   display:flex;align-items:center;justify-content:space-between;padding:0 32px;
 }
-.side-toggle,.admin-bell{
+.admin-bell{
   width:40px;height:40px;border-radius:50%;border:none;background:transparent;
   color:#344054;display:flex;align-items:center;justify-content:center;cursor:pointer;
 }
-.side-toggle:hover,.admin-bell:hover{background:#f6f7f9}
+.admin-bell:hover{background:#f6f7f9}
 .admin-bell{position:relative}
 .admin-bell .dot{position:absolute;top:9px;right:10px;width:8px;height:8px;border-radius:50%;background:var(--brand);border:2px solid #fff}
 .admin-content{padding:35px}
@@ -96,18 +95,17 @@ body{padding:0}
 /* ── Collapsible sidebar ── */
 :root.sidebar-collapsed{--sidebar-w:78px}
 .admin-sidebar,.admin-main{transition:width .18s ease,margin-left .18s ease}
-:root.sidebar-collapsed .admin-sidebar{padding:26px 10px 18px}
+:root.sidebar-collapsed .admin-sidebar{padding:26px 4px 18px}
 :root.sidebar-collapsed .side-logo{padding:0}
 :root.sidebar-collapsed .side-logo img{display:none}
-:root.sidebar-collapsed .side-mark{display:block}
+
 :root.sidebar-collapsed .side-nav a{justify-content:center;padding:12px 0}
 :root.sidebar-collapsed .side-nav a span{display:none}
 /* The account card is the only entry point to logout — collapse it, never hide it. */
 :root.sidebar-collapsed .side-user{justify-content:center;padding:8px}
 :root.sidebar-collapsed .side-meta,:root.sidebar-collapsed .side-dots{display:none}
 @media(max-width:950px){
-  /* Force-collapsed in JS below this width, so the toggle is redundant. */
-  .side-toggle{display:none}
+
   .admin-content{padding:24px 18px}
 }
 
@@ -124,6 +122,47 @@ body{padding:0}
 .acct-role{display:inline-block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--nav-active);background:#eef0f6;border-radius:20px;padding:5px 12px;margin-bottom:22px}
 .acct-logout{width:100%;height:46px;border:1px solid #f0d2d4;background:#fff;color:var(--brand);border-radius:12px;font-weight:800;font-size:14px;cursor:pointer}
 .acct-logout:hover{background:#fff5f5}
+
+/* ── Shell refresh: the collapse control lives in the sidebar head ── */
+.side-head{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  min-height:36px;margin-bottom:26px;padding:0 2px;
+}
+.side-logo{padding:0;margin:0;flex:1;min-width:0}
+.side-logo img{width:132px;max-width:100%;height:auto;display:block}
+
+.side-toggle{
+  width:34px;height:34px;flex:none;border-radius:9px;border:none;
+  background:transparent;color:var(--muted);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .15s,color .15s;
+}
+.side-toggle:hover{background:#f2f4f8;color:var(--text)}
+.side-toggle svg{width:18px;height:18px}
+
+/* Collapsed to 78px the wordmark is illegible, so the head keeps only the toggle. */
+:root.sidebar-collapsed .side-head{justify-content:center;margin-bottom:22px}
+:root.sidebar-collapsed .side-logo{display:none}
+
+/* Tighter nav rows: the active/hover pill was heavier than the label needs. */
+.side-nav a{gap:10px;padding:8px 10px;border-radius:9px;margin-bottom:2px}
+.side-nav a svg{width:17px;height:17px}
+:root.sidebar-collapsed .side-nav a{
+  width:38px;height:38px;padding:0;margin:0 auto 4px;
+  border-radius:10px;justify-content:center;
+}
+
+/* Header sits on the page background rather than its own white bar. */
+.admin-topbar{
+  height:64px;background:transparent;border-bottom:none;
+  justify-content:flex-end;padding:0 35px;
+}
+
+@media(max-width:950px){
+  /* Force-collapsed below this width, so the head has nothing left to show. */
+  .side-head{display:none}
+  .admin-topbar{padding:0 18px}
+}
 </style>
 
 <script>
@@ -160,9 +199,13 @@ document.addEventListener("DOMContentLoaded", function () {
 </script></head><body>
 <aside class="admin-sidebar">
   <div>
-    <div class="side-logo">
-      <img src="logo.png" alt="W|ZONE London" onerror="this.onerror=null;this.src='assets/WZONE%20source.png'">
-      <div class="side-mark">W<span>|</span></div>
+    <div class="side-head">
+      <div class="side-logo">
+        <img src="logo.png" alt="W|ZONE London" onerror="this.onerror=null;this.src='assets/WZONE%20source.png'">
+      </div>
+      <button class="side-toggle" type="button" onclick="toggleSidebar()" title="Toggle sidebar" aria-label="Toggle sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9.5 4v16"/></svg>
+      </button>
     </div>
     <nav class="side-nav">
       <a href="admin.html" title="Surveys">
@@ -208,9 +251,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
 <div class="admin-main">
   <header class="admin-topbar">
-    <button class="side-toggle" type="button" onclick="toggleSidebar()" title="Toggle sidebar" aria-label="Toggle sidebar">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9.5 4v16"/></svg>
-    </button>
     <button class="admin-bell" type="button" title="Notifications">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 6-3 7-3 7h18s-3-1-3-7"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
       <span class="dot"></span>

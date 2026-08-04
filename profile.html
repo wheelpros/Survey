@@ -1,0 +1,782 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wzone Profile</title>
+
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: Arial, sans-serif;
+      }
+      :root {
+        --brand: #c9000b;
+        --nav-active: #1b1e3a;
+        --text: #101828;
+        --muted: #667085;
+        --line: #eaecf0;
+        --sidebar-w: 260px;
+      }
+      body {
+        background: #f7f8fc;
+        color: var(--text);
+      }
+      .app {
+        display: flex;
+        min-height: 100vh;
+      }
+
+      /* ── Sidebar ── */
+      .sidebar {
+        width: var(--sidebar-w);
+        background: #fff;
+        border-right: 1px solid var(--line);
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        padding: 26px 12px 18px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+      .side-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        min-height: 36px;
+        margin-bottom: 26px;
+        padding: 0 2px;
+      }
+      .logo {
+        flex: 1;
+        min-width: 0;
+      }
+      .logo img {
+        width: 132px;
+        max-width: 100%;
+        height: auto;
+        display: block;
+      }
+      .sidebar-toggle {
+        width: 34px;
+        height: 34px;
+        flex: none;
+        border-radius: 9px;
+        border: none;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.15s, color 0.15s;
+      }
+      .sidebar-toggle:hover {
+        background: #f2f4f8;
+        color: var(--text);
+      }
+      .sidebar-toggle svg {
+        width: 18px;
+        height: 18px;
+      }
+      .nav a {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        text-decoration: none;
+        color: var(--muted);
+        padding: 8px 10px;
+        border-radius: 9px;
+        margin-bottom: 2px;
+        font-size: 14px;
+        font-weight: 600;
+        transition: background 0.15s, color 0.15s;
+      }
+      .nav a svg {
+        width: 17px;
+        height: 17px;
+        flex: none;
+      }
+      .nav a:hover {
+        background: #f6f7f9;
+        color: var(--text);
+      }
+      .nav a.active {
+        background: var(--nav-active);
+        color: #fff;
+      }
+      /* The account card opens a dropup; it is the only route to profile and logout. */
+      .account {
+        position: relative;
+      }
+      .account-menu {
+        position: absolute;
+        bottom: calc(100% + 8px);
+        left: 0;
+        min-width: 200px;
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        box-shadow: 0 16px 40px rgba(16, 24, 40, 0.14);
+        padding: 6px;
+        display: none;
+        z-index: 200;
+      }
+      .account.open .account-menu {
+        display: block;
+      }
+      .account-menu a,
+      .account-menu button {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border: none;
+        background: transparent;
+        border-radius: 9px;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text);
+        text-align: left;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      .account-menu a:hover,
+      .account-menu button:hover {
+        background: #f6f7f9;
+      }
+      .account-menu svg {
+        width: 16px;
+        height: 16px;
+        flex: none;
+        color: var(--muted);
+      }
+      .account-menu .danger,
+      .account-menu .danger svg {
+        color: var(--brand);
+      }
+      .account-menu .danger:hover {
+        background: #fff5f5;
+      }
+      .user-card {
+        width: 100%;
+        font: inherit;
+        text-align: left;
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 10px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        cursor: pointer;
+        transition: background 0.15s, border-color 0.15s;
+      }
+      .user-card:hover,
+      .user-card.active {
+        background: #fafbfc;
+        border-color: #d7dae0;
+      }
+      .avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: #dce3ff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 13px;
+        color: #3745a4;
+        background-size: cover;
+        background-position: center;
+        flex: none;
+      }
+      .user-meta {
+        flex: 1;
+        min-width: 0;
+      }
+      .user-meta h4 {
+        font-size: 13px;
+        font-weight: 700;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .user-meta p {
+        font-size: 11px;
+        color: #98a2b3;
+      }
+      .user-dots {
+        color: #98a2b3;
+        flex: none;
+      }
+
+      /* ── Main / header ── */
+      .main {
+        margin-left: var(--sidebar-w);
+        width: calc(100% - var(--sidebar-w));
+      }
+      .topbar {
+        height: 64px;
+        background: transparent;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        padding: 0 44px;
+      }
+      .bell {
+        position: relative;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: none;
+        background: transparent;
+        color: #344054;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+      }
+      .bell:hover {
+        background: #f6f7f9;
+      }
+      .bell .dot {
+        position: absolute;
+        top: 9px;
+        right: 10px;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--brand);
+        border: 2px solid #fff;
+      }
+      .content {
+        padding: 42px 44px;
+      }
+
+      /* ── Profile ── */
+      .page-title h1 {
+        font-size: 28px;
+        margin-bottom: 6px;
+      }
+      .page-title p {
+        color: var(--muted);
+        font-size: 14px;
+        margin-bottom: 28px;
+      }
+      .card {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 26px;
+        margin-bottom: 22px;
+      }
+      .card h2 {
+        font-size: 16px;
+        margin-bottom: 4px;
+      }
+      .card .hint {
+        color: var(--muted);
+        font-size: 13px;
+        margin-bottom: 22px;
+      }
+      .photo-row {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+      .photo {
+        width: 84px;
+        height: 84px;
+        border-radius: 50%;
+        background: #dce3ff;
+        color: #3745a4;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 28px;
+        background-size: cover;
+        background-position: center;
+        flex: none;
+      }
+      .photo-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .ghost-btn {
+        border: 1px solid #dfe3ea;
+        background: #fff;
+        color: var(--text);
+        border-radius: 10px;
+        padding: 10px 16px;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .ghost-btn:hover {
+        background: #f6f7f9;
+      }
+      .fields {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+      .field.wide {
+        grid-column: 1 / -1;
+      }
+      .field label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 13px;
+        font-weight: 800;
+      }
+      .field input,
+      .field textarea {
+        width: 100%;
+        border: 1px solid #dfe3ea;
+        border-radius: 12px;
+        padding: 0 14px;
+        height: 46px;
+        font-size: 14px;
+        outline: none;
+        background: #fff;
+        color: var(--text);
+      }
+      .field textarea {
+        height: 120px;
+        padding: 13px 14px;
+        resize: vertical;
+        line-height: 1.5;
+      }
+      .field input:focus,
+      .field textarea:focus {
+        border-color: var(--nav-active);
+        box-shadow: 0 0 0 3px rgba(27, 30, 58, 0.08);
+      }
+      .field input[readonly] {
+        background: #f6f7f9;
+        color: var(--muted);
+      }
+      .field .note {
+        margin-top: 6px;
+        font-size: 12px;
+        color: #98a2b3;
+      }
+      .actions {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex-wrap: wrap;
+      }
+      .save-btn {
+        height: 46px;
+        padding: 0 26px;
+        border: none;
+        background: var(--nav-active);
+        color: #fff;
+        border-radius: 12px;
+        font-weight: 800;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      .save-btn:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+      .status {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      /* Claims no space (nor a flex gap) until there is something to say. */
+      .status:empty {
+        display: none;
+      }
+      .status.ok {
+        color: #067647;
+      }
+      .status.err {
+        color: var(--brand);
+      }
+      /* ── Collapsible sidebar ── */
+      :root.sidebar-collapsed {
+        --sidebar-w: 78px;
+      }
+      .sidebar,
+      .main {
+        transition: width 0.18s ease, margin-left 0.18s ease;
+      }
+      :root.sidebar-collapsed .sidebar {
+        padding: 26px 4px 18px;
+      }
+      /* Collapsed to 78px the wordmark is illegible, so the head keeps only the toggle. */
+      :root.sidebar-collapsed .side-head {
+        justify-content: center;
+        margin-bottom: 22px;
+      }
+      :root.sidebar-collapsed .logo {
+        display: none;
+      }
+      :root.sidebar-collapsed .nav a {
+        width: 38px;
+        height: 38px;
+        padding: 0;
+        margin: 0 auto 4px;
+        border-radius: 10px;
+        justify-content: center;
+      }
+      :root.sidebar-collapsed .nav a span {
+        display: none;
+      }
+      /* The user card is the route to this page — collapse it, never hide it. */
+      :root.sidebar-collapsed .user-card {
+        justify-content: center;
+        padding: 8px;
+      }
+      :root.sidebar-collapsed .user-meta,
+      :root.sidebar-collapsed .user-dots {
+        display: none;
+      }
+
+      /* ── Responsive ── */
+      @media (max-width: 950px) {
+        /* Force-collapsed below this width, so the head has nothing left to show. */
+        .side-head {
+          display: none;
+        }
+        .topbar {
+          padding: 0 20px;
+        }
+        .content {
+          padding: 16px 20px 40px;
+        }
+        .fields {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+
+    <script>
+      // Runs before paint so the collapsed state never flashes open on load.
+      (function () {
+        var root = document.documentElement;
+        var KEY = "wz_sidebar_collapsed";
+        var MOBILE = 950;
+        function prefersCollapsed() {
+          return localStorage.getItem(KEY) === "1";
+        }
+        function apply() {
+          root.classList.toggle(
+            "sidebar-collapsed",
+            window.innerWidth <= MOBILE || prefersCollapsed()
+          );
+        }
+        window.toggleSidebar = function () {
+          if (window.innerWidth <= MOBILE) return; // forced collapsed, nothing to toggle
+          localStorage.setItem(KEY, prefersCollapsed() ? "0" : "1");
+          apply();
+        };
+        apply();
+        window.addEventListener("resize", apply);
+      })();
+
+      // Sidebar account card -> dropup with Profile / Logout.
+      (function () {
+        function menu() { return document.getElementById("account"); }
+        function close() {
+          var el = menu();
+          if (!el || !el.classList.contains("open")) return;
+          el.classList.remove("open");
+          el.querySelector(".user-card").setAttribute("aria-expanded", "false");
+        }
+        window.toggleAccountMenu = function () {
+          var el = menu();
+          var open = el.classList.toggle("open");
+          el.querySelector(".user-card").setAttribute("aria-expanded", open ? "true" : "false");
+        };
+        document.addEventListener("click", function (e) {
+          var el = menu();
+          if (el && !el.contains(e.target)) close();
+        });
+        document.addEventListener("keydown", function (e) {
+          if (e.key === "Escape") close();
+        });
+      })();
+    </script>
+  </head>
+
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <div>
+          <div class="side-head">
+            <div class="logo">
+              <img src="logo.png" alt="W|ZONE London" onerror="this.onerror=null;this.src='assets/WZONE%20source.png'" />
+            </div>
+            <button class="sidebar-toggle" type="button" onclick="toggleSidebar()" title="Toggle sidebar" aria-label="Toggle sidebar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9.5 4v16"/></svg>
+            </button>
+          </div>
+
+          <nav class="nav">
+            <a href="dashboard.html" title="Dashboard">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+              <span>Dashboard</span>
+            </a>
+            <a href="user-appointments.html" title="Appointments">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>
+              <span>Appointments</span>
+            </a>
+            <a href="articles.html" title="Reports &amp; Articles">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h5M9 13h6M9 17h4"/></svg>
+              <span>Reports &amp; Articles</span>
+            </a>
+            <a href="help.html" title="Help Center">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M9.5 9.5a2.6 2.6 0 1 1 3.4 2.5c-.6.2-.9.8-.9 1.4v.4"/><path d="M12 17h.01"/></svg>
+              <span>Help Center</span>
+            </a>
+          </nav>
+        </div>
+
+        <div class="account" id="account">
+          <button class="user-card active" type="button" onclick="toggleAccountMenu()" aria-haspopup="true" aria-expanded="false" title="Account">
+            <div class="avatar" id="sideAvatar">U</div>
+            <div class="user-meta">
+              <h4 id="sideName">User</h4>
+              <p>Pro Member</p>
+            </div>
+            <svg class="user-dots" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
+          </button>
+          <div class="account-menu" role="menu">
+            <a role="menuitem" href="profile.html" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Profile</span></a>
+            <button role="menuitem" type="button" class="danger" onclick="logout()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>Logout</span></button>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <button class="bell" type="button" title="Notifications">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 6-3 7-3 7h18s-3-1-3-7"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+            <span class="dot"></span>
+          </button>
+        </header>
+
+        <section class="content">
+          <div class="page-title">
+            <h1>Profile &amp; Settings</h1>
+            <p>Update the details we show alongside your survey responses.</p>
+          </div>
+
+          <form id="profileForm">
+            <div class="card">
+              <h2>Profile photo</h2>
+              <p class="hint">Shown on your account card and next to your responses.</p>
+              <div class="photo-row">
+                <div class="photo" id="photoPreview">U</div>
+                <div class="photo-actions">
+                  <button class="ghost-btn" type="button" onclick="document.getElementById('profileImageInput').click()">Change photo</button>
+                  <button class="ghost-btn" type="button" id="resetPhotoBtn" hidden onclick="resetPhoto()">Undo</button>
+                </div>
+                <input type="file" id="profileImageInput" accept="image/*" hidden />
+              </div>
+            </div>
+
+            <div class="card">
+              <h2>Your details</h2>
+              <p class="hint">How we address you and how to reach you.</p>
+              <div class="fields">
+                <div class="field">
+                  <label for="fName">Full name</label>
+                  <input type="text" id="fName" name="name" required />
+                </div>
+                <div class="field">
+                  <label for="fEmail">Email</label>
+                  <input type="email" id="fEmail" readonly />
+                  <p class="note">Contact an administrator to change your email.</p>
+                </div>
+                <div class="field">
+                  <label for="fPhone">Phone number</label>
+                  <input type="tel" id="fPhone" name="phone" placeholder="+44 20 1234 5678" />
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <h2>Company</h2>
+              <p class="hint">Used on reports and when an administrator reviews your submissions.</p>
+              <div class="fields">
+                <div class="field">
+                  <label for="fCompany">Company name</label>
+                  <input type="text" id="fCompany" name="company_name" />
+                </div>
+                <div class="field">
+                  <label for="fWebsite">Website</label>
+                  <input type="text" id="fWebsite" name="website" placeholder="example.com" />
+                  <p class="note">https:// is added for you if you leave it off.</p>
+                </div>
+                <div class="field wide">
+                  <label for="fDescription">Description</label>
+                  <textarea id="fDescription" name="description" placeholder="What your company does, in a couple of sentences."></textarea>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="actions">
+                <button class="save-btn" type="submit" id="saveBtn">Save changes</button>
+                <span class="status" id="status"></span>
+              </div>
+            </div>
+          </form>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      let token = localStorage.getItem("portal_token");
+      if (!token) {
+        window.location.href = "login.html";
+      }
+
+      const photoPreview = document.getElementById("photoPreview");
+      const imageInput = document.getElementById("profileImageInput");
+      const resetPhotoBtn = document.getElementById("resetPhotoBtn");
+      const status = document.getElementById("status");
+
+      // The saved image, so "Undo" can drop a pick that has not been saved yet.
+      let savedImage = "";
+      let savedInitial = "U";
+
+      function paintPhoto(el, image, name) {
+        const letter = (name || "User").charAt(0).toUpperCase();
+        if (image) {
+          el.innerText = "";
+          el.style.backgroundImage = `url('${image}')`;
+        } else {
+          el.innerText = letter;
+          el.style.backgroundImage = "";
+        }
+      }
+
+      function fill(user) {
+        savedImage = user.profile_image || "";
+        savedInitial = (user.name || "User").charAt(0).toUpperCase();
+
+        document.getElementById("fName").value = user.name || "";
+        document.getElementById("fEmail").value = user.email || "";
+        document.getElementById("fPhone").value = user.phone || "";
+        document.getElementById("fCompany").value = user.company_name || "";
+        document.getElementById("fWebsite").value = user.website || "";
+        document.getElementById("fDescription").value = user.description || "";
+
+        document.getElementById("sideName").innerText = user.name || "User";
+        paintPhoto(document.getElementById("sideAvatar"), savedImage, user.name);
+        paintPhoto(photoPreview, savedImage, user.name);
+      }
+
+      function setStatus(message, kind) {
+        status.innerText = message;
+        status.className = "status" + (kind ? " " + kind : "");
+      }
+
+      imageInput.addEventListener("change", function () {
+        const file = this.files[0];
+        if (!file) return;
+        photoPreview.innerText = "";
+        photoPreview.style.backgroundImage = `url('${URL.createObjectURL(file)}')`;
+        resetPhotoBtn.hidden = false;
+      });
+
+      function resetPhoto() {
+        imageInput.value = "";
+        resetPhotoBtn.hidden = true;
+        paintPhoto(photoPreview, savedImage, savedInitial);
+      }
+
+      function logout() {
+        localStorage.clear();
+        window.location.href = "login.html";
+      }
+
+      async function loadProfile() {
+        // Show what we already have so the form is never blank while the request runs.
+        try {
+          fill(JSON.parse(localStorage.getItem("portal_user") || "{}"));
+        } catch (e) {}
+
+        try {
+          const res = await fetch("api/check-auth.php", {
+            headers: { Authorization: "Bearer " + token }
+          });
+          const data = await res.json();
+          if (data.success) {
+            localStorage.setItem("portal_user", JSON.stringify(data.user));
+            fill(data.user);
+          }
+        } catch (e) {
+          setStatus("Could not refresh your profile — showing the last saved copy.", "err");
+        }
+      }
+
+      document.getElementById("profileForm").addEventListener("submit", async function (event) {
+        event.preventDefault();
+
+        const saveBtn = document.getElementById("saveBtn");
+        const name = document.getElementById("fName").value.trim();
+        if (!name) {
+          setStatus("Name is required", "err");
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append("name", name);
+        formData.append("phone", document.getElementById("fPhone").value.trim());
+        formData.append("company_name", document.getElementById("fCompany").value.trim());
+        formData.append("website", document.getElementById("fWebsite").value.trim());
+        formData.append("description", document.getElementById("fDescription").value.trim());
+
+        const file = imageInput.files[0];
+        if (file) formData.append("profile_image", file);
+
+        saveBtn.disabled = true;
+        setStatus("Saving...");
+
+        try {
+          const res = await fetch("api/update-profile.php", {
+            method: "POST",
+            headers: { Authorization: "Bearer " + token },
+            body: formData
+          });
+          const data = await res.json();
+
+          if (data.success) {
+            localStorage.setItem("portal_user", JSON.stringify(data.user));
+            imageInput.value = "";
+            resetPhotoBtn.hidden = true;
+            fill(data.user);
+            setStatus(data.message, "ok");
+          } else {
+            setStatus(data.message || "Could not save your changes", "err");
+          }
+        } catch (error) {
+          setStatus("Connection error", "err");
+        } finally {
+          saveBtn.disabled = false;
+        }
+      });
+
+      loadProfile();
+    </script>
+  </body>
+</html>
