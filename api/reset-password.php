@@ -86,8 +86,8 @@ if($user){
     echo json_encode([
 
         "success"=>true,
-        "message"=>"Password reset successfully"
-        "type"=>"user"
+        "message"=>"Password reset successfully",
+        "type"=>"user"  
 
     ]);
 
@@ -139,7 +139,7 @@ if($admin){
     echo json_encode([
 
         "success"=>true,
-        "message"=>"Password reset successfully"
+        "message"=>"Password reset successfully",
         "type"=>"admin"
 
     ]);
