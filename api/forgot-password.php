@@ -113,8 +113,7 @@ if($admin){
 }
 
 $resetLink = 
-"https://https://survey.websitezone.co.uk//reset-password.html?token=".$token;
-
+"https://survey.websitezone.co.uk/reset-password.html?token=".$token;
 
 $mail = new PHPMailer(true);
 
@@ -139,7 +138,7 @@ try {
 
 
     $mail->setFrom(
-        "no-reply@https://survey.websitezone.co.uk/",
+        "https://survey.websitezone.co.uk/",
         "W Zone"
     );
 
@@ -182,7 +181,7 @@ catch(Exception $e){
 
     echo json_encode([
         "success"=>false,
-        "message"=>"Email sending failed"
+        "message"=>$mail->ErrorInfo
     ]);
 
     exit;
