@@ -1,7 +1,12 @@
 <?php
 
 require_once "db.php";
+require_once "../PHPMailer/src/Exception.php";
+require_once "../PHPMailer/src/PHPMailer.php";
+require_once "../PHPMailer/src/SMTP.php";
 
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
 header("Content-Type: application/json");
 
 
@@ -107,7 +112,82 @@ if($admin){
 
 }
 
+$resetLink = 
+"https://https://survey.websitezone.co.uk//reset-password.html?token=".$token;
 
+
+$mail = new PHPMailer(true);
+
+
+try {
+
+    $mail->isSMTP();
+
+    $mail->Host = "smtp.hostinger.com";
+
+    $mail->SMTPAuth = true;
+
+    $mail->Username = "survey@wzonevr.com";
+
+    $mail->Password = "Survey1@!t";
+
+
+    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+
+    $mail->Port = 587;
+
+
+
+    $mail->setFrom(
+        "no-reply@https://survey.websitezone.co.uk/",
+        "W Zone"
+    );
+
+
+    $mail->addAddress($email);
+
+
+
+    $mail->isHTML(true);
+
+
+    $mail->Subject = "Reset Password";
+
+
+    $mail->Body = "
+
+    <h2>Password Reset Request</h2>
+
+    <p>
+    Click the button below to reset your password:
+    </p>
+
+    <a href='$resetLink'>
+    Reset Password
+    </a>
+
+    <p>
+    This link will expire after 30 minutes.
+    </p>
+
+    ";
+
+
+    $mail->send();
+
+
+}
+
+catch(Exception $e){
+
+    echo json_encode([
+        "success"=>false,
+        "message"=>"Email sending failed"
+    ]);
+
+    exit;
+
+}
 
 echo json_encode([
 
