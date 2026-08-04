@@ -138,7 +138,7 @@ try {
 
 
     $mail->setFrom(
-        "https://survey.websitezone.co.uk/",
+        "survey@wzonevr.com",
         "W Zone"
     );
 
