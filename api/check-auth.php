@@ -15,9 +15,12 @@ if (!$token) {
     exit;
 }
 
+ensureUserProfileColumns($pdo);
+
 $stmt = $pdo->prepare("
-    SELECT id, name, email, approved, profile_image 
-    FROM users 
+    SELECT id, name, email, approved, profile_image,
+           company_name, website, description, phone
+    FROM users
     WHERE session_token = ?
     LIMIT 1
 ");
@@ -39,6 +42,10 @@ echo json_encode([
         "id" => $user["id"],
         "name" => $user["name"],
         "email" => $user["email"],
-        "profile_image" => $user["profile_image"]
+        "profile_image" => $user["profile_image"],
+        "company_name" => $user["company_name"],
+        "website" => $user["website"],
+        "description" => $user["description"],
+        "phone" => $user["phone"]
     ]
 ]);

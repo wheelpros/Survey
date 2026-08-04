@@ -39,7 +39,7 @@
         top: 0;
         left: 0;
         bottom: 0;
-        padding: 26px 18px 18px;
+        padding: 26px 12px 18px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
@@ -175,21 +175,6 @@
         border-radius: 50%;
         background: var(--brand);
         border: 2px solid #fff;
-      }
-      .logout-settings {
-        width: 100%;
-        height: 46px;
-        margin-top: 14px;
-        border: 1px solid #f0d2d4;
-        background: #fff;
-        color: #c9000b;
-        border-radius: 12px;
-        font-weight: 800;
-        font-size: 14px;
-        cursor: pointer;
-      }
-      .logout-settings:hover {
-        background: #fff5f5;
       }
 
       /* ── Help Content ── */
@@ -435,94 +420,6 @@
         color: #fff;
       }
 
-      /* ── Settings Modal (reused from dashboard) ── */
-      .settings-modal {
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.45);
-        display: none;
-        align-items: center;
-        justify-content: center;
-        z-index: 99999;
-        padding: 20px;
-      }
-      .settings-modal.show {
-        display: flex;
-      }
-      .settings-box {
-        width: 100%;
-        max-width: 440px;
-        background: #fff;
-        border-radius: 22px;
-        overflow: hidden;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
-      }
-      .settings-head {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 22px 26px;
-        border-bottom: 1px solid #eee;
-      }
-      .settings-head button {
-        border: none;
-        background: var(--nav-active);
-        color: white;
-        width: 34px;
-        height: 34px;
-        border-radius: 50%;
-        font-size: 22px;
-        cursor: pointer;
-      }
-      .settings-body {
-        padding: 26px;
-      }
-      .profile-preview {
-        width: 82px;
-        height: 82px;
-        border-radius: 50%;
-        background: #dce3ff;
-        color: #3745a4;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 800;
-        font-size: 28px;
-        margin: 0 auto 22px;
-        background-size: cover;
-        background-position: center;
-      }
-      .settings-body label {
-        display: block;
-        margin-bottom: 8px;
-        font-size: 13px;
-        font-weight: 800;
-      }
-      .settings-body input {
-        width: 100%;
-        height: 46px;
-        border: 1px solid #dfe3ea;
-        border-radius: 12px;
-        padding: 0 14px;
-        margin-bottom: 16px;
-        outline: none;
-      }
-      .save-settings {
-        width: 100%;
-        height: 50px;
-        border: none;
-        background: var(--nav-active);
-        color: white;
-        border-radius: 12px;
-        font-weight: 800;
-        cursor: pointer;
-      }
-      .settings-status {
-        margin-top: 12px;
-        font-size: 13px;
-        color: #667085;
-      }
-
       /* ── Collapsible sidebar ── */
       :root.sidebar-collapsed {
         --sidebar-w: 78px;
@@ -531,19 +428,9 @@
       .main {
         transition: width 0.18s ease, margin-left 0.18s ease;
       }
-      .logo-mark {
-        display: none;
-        font-size: 22px;
-        font-weight: 900;
-        color: var(--text);
-        text-align: center;
-        letter-spacing: -0.5px;
-      }
-      .logo-mark span {
-        color: var(--brand);
-      }
+
       :root.sidebar-collapsed .sidebar {
-        padding: 26px 10px 18px;
+        padding: 26px 4px 18px;
       }
       :root.sidebar-collapsed .logo {
         padding: 0;
@@ -551,9 +438,7 @@
       :root.sidebar-collapsed .logo img {
         display: none;
       }
-      :root.sidebar-collapsed .logo-mark {
-        display: block;
-      }
+
       :root.sidebar-collapsed .nav a {
         justify-content: center;
         padding: 12px 0;
@@ -561,7 +446,7 @@
       :root.sidebar-collapsed .nav a span {
         display: none;
       }
-      /* The user card is the only entry point to settings/logout — collapse it, never hide it. */
+      /* The account card is the only route to profile and logout — collapse it, never hide it. */
       :root.sidebar-collapsed .user-card {
         justify-content: center;
         padding: 8px;
@@ -570,28 +455,10 @@
       :root.sidebar-collapsed .user-dots {
         display: none;
       }
-      .sidebar-toggle {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        border: none;
-        background: transparent;
-        color: #344054;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-      }
-      .sidebar-toggle:hover {
-        background: #f6f7f9;
-      }
 
       /* ── Responsive ── */
       @media (max-width: 950px) {
-        /* Below this width the sidebar is force-collapsed in JS, so the toggle is redundant. */
-        .sidebar-toggle {
-          display: none;
-        }
+
         .how-grid,
         .contact-grid {
           grid-template-columns: 1fr;
@@ -600,7 +467,67 @@
           padding: 28px 20px;
         }
       }
-    </style>
+    
+/* ── Shell refresh: the collapse control lives in the sidebar head ── */
+.side-head{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  min-height:36px;margin-bottom:26px;padding:0 2px;
+}
+.logo{padding:0;margin:0;flex:1;min-width:0}
+.logo img{width:132px;max-width:100%;height:auto;display:block}
+
+.sidebar-toggle{
+  width:34px;height:34px;flex:none;border-radius:9px;border:none;
+  background:transparent;color:var(--muted);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .15s,color .15s;
+}
+.sidebar-toggle:hover{background:#f2f4f8;color:var(--text)}
+.sidebar-toggle svg{width:18px;height:18px}
+
+/* Collapsed to 78px the wordmark is illegible, so the head keeps only the toggle. */
+:root.sidebar-collapsed .side-head{justify-content:center;margin-bottom:22px}
+:root.sidebar-collapsed .logo{display:none}
+
+/* Tighter nav rows: the active/hover pill was heavier than the label needs. */
+.nav a{gap:10px;padding:8px 10px;border-radius:9px;margin-bottom:2px}
+.nav a svg{width:17px;height:17px}
+:root.sidebar-collapsed .nav a{
+  width:38px;height:38px;padding:0;margin:0 auto 4px;
+  border-radius:10px;justify-content:center;
+}
+
+/* The account card opens a dropup; it is the only route to profile and logout. */
+.account{position:relative}
+.account-menu{
+  position:absolute;bottom:calc(100% + 8px);left:0;min-width:200px;
+  background:#fff;border:1px solid var(--line);border-radius:12px;
+  box-shadow:0 16px 40px rgba(16,24,40,.14);padding:6px;display:none;z-index:200;
+}
+.account.open .account-menu{display:block}
+.account-menu a,.account-menu button{
+  width:100%;display:flex;align-items:center;gap:10px;
+  padding:10px 12px;border:none;background:transparent;border-radius:9px;
+  font:inherit;font-size:13px;font-weight:700;color:var(--text);
+  text-align:left;text-decoration:none;cursor:pointer;
+}
+.account-menu a:hover,.account-menu button:hover{background:#f6f7f9}
+.account-menu svg{width:16px;height:16px;flex:none;color:var(--muted)}
+.account-menu .danger,.account-menu .danger svg{color:var(--brand)}
+.account-menu .danger:hover{background:#fff5f5}
+
+/* Header sits on the page background rather than its own white bar. */
+.topbar{
+  height:64px;background:transparent;border-bottom:none;
+  justify-content:flex-end;padding:0 44px;
+}
+
+@media(max-width:950px){
+  /* Force-collapsed below this width, so the head has nothing left to show. */
+  .side-head{display:none}
+  .topbar{padding:0 20px}
+}
+</style>
 
     <script>
       // Runs before paint so the collapsed state never flashes open on load.
@@ -625,7 +552,30 @@
         apply();
         window.addEventListener("resize", apply);
       })();
-    </script>
+    
+// Sidebar account card -> dropup with Profile / Logout.
+(function () {
+  function menu() { return document.getElementById("account"); }
+  function close() {
+    var el = menu();
+    if (!el || !el.classList.contains("open")) return;
+    el.classList.remove("open");
+    el.querySelector(".user-card").setAttribute("aria-expanded", "false");
+  }
+  window.toggleAccountMenu = function () {
+    var el = menu();
+    var open = el.classList.toggle("open");
+    el.querySelector(".user-card").setAttribute("aria-expanded", open ? "true" : "false");
+  };
+  document.addEventListener("click", function (e) {
+    var el = menu();
+    if (el && !el.contains(e.target)) close();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") close();
+  });
+})();
+</script>
   </head>
 
   <body>
@@ -633,9 +583,13 @@
       <!-- ── Sidebar ── -->
       <aside class="sidebar">
         <div>
-          <div class="logo">
-            <img src="logo.png" alt="W|ZONE London" onerror="this.onerror=null;this.src='assets/WZONE%20source.png'" />
-            <div class="logo-mark">W<span>|</span></div>
+          <div class="side-head">
+            <div class="logo">
+              <img src="logo.png" alt="W|ZONE London" onerror="this.onerror=null;this.src='assets/WZONE%20source.png'" />
+            </div>
+            <button class="sidebar-toggle" type="button" onclick="toggleSidebar()" title="Toggle sidebar" aria-label="Toggle sidebar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9.5 4v16"/></svg>
+            </button>
           </div>
           <nav class="nav">
             <a href="dashboard.html" title="Dashboard">
@@ -657,23 +611,26 @@
           </nav>
         </div>
 
-        <button class="user-card" type="button" onclick="openSettings()" title="Account settings">
-          <div class="avatar" id="sideAvatar">U</div>
-          <div class="user-meta">
-            <h4 id="sideName">User</h4>
-            <p>Pro Member</p>
+        <div class="account" id="account">
+          <button class="user-card" type="button" onclick="toggleAccountMenu()" aria-haspopup="true" aria-expanded="false" title="Account">
+            <div class="avatar" id="sideAvatar">U</div>
+            <div class="user-meta">
+              <h4 id="sideName">User</h4>
+              <p>Pro Member</p>
+            </div>
+            <svg class="user-dots" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
+          </button>
+          <div class="account-menu" role="menu">
+            <a role="menuitem" href="profile.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Profile</span></a>
+            <button role="menuitem" type="button" class="danger" onclick="logout()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>Logout</span></button>
           </div>
-          <svg class="user-dots" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
-        </button>
+        </div>
       </aside>
 
       <!-- ── Main ── -->
       <main class="main">
         <!-- Topbar -->
         <header class="topbar">
-          <button class="sidebar-toggle" type="button" onclick="toggleSidebar()" title="Toggle sidebar" aria-label="Toggle sidebar">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9.5 4v16"/></svg>
-          </button>
           <button class="bell" type="button" title="Notifications">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 6-3 7-3 7h18s-3-1-3-7"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
             <span class="dot"></span>
@@ -813,38 +770,13 @@
     </div>
 
     <!-- Settings Modal (reused from dashboard) -->
-    <div class="settings-modal" id="settingsModal">
-      <div class="settings-box">
-        <div class="settings-head">
-          <h2>Settings</h2>
-          <button onclick="closeSettings()">×</button>
-        </div>
-        <div class="settings-body">
-          <div class="profile-preview" id="settingsImagePreview">U</div>
-          <label>Profile Image</label>
-          <input type="file" id="profileImageInput" accept="image/*" />
-          <label>Name</label>
-          <input type="text" id="settingsName" />
-          <label>Email</label>
-          <input type="email" id="settingsEmail" readonly />
-          <button class="save-settings" onclick="saveSettings()">Save Changes</button>
-          <button class="logout-settings" onclick="logout()">↩ Logout</button>
-          <div class="settings-status" id="settingsStatus"></div>
-        </div>
-      </div>
-    </div>
+
 
     <script>
       /* ── Auth Guard ── */
       let token = localStorage.getItem("portal_token");
       if (!token) {
-        // Dev-only: skip real auth so the frontend can be edited without a backend.
-        token = "bypass_token";
-        localStorage.setItem("portal_token", token);
-        localStorage.setItem(
-          "portal_user",
-          JSON.stringify({ id: 1, name: "Dev User", email: "dev@local", role: "user" })
-        );
+        window.location.href = "login.html";
       }
 
       /* ── Load User Info ── */
@@ -884,65 +816,9 @@
       }
 
       /* ── Settings Modal ── */
-      function openSettings() {
-        const user = JSON.parse(localStorage.getItem("portal_user") || "{}");
-        document.getElementById("settingsName").value = user.name || "";
-        document.getElementById("settingsEmail").value = user.email || "";
 
-        const preview = document.getElementById("settingsImagePreview");
-        if (user.profile_image) {
-          preview.innerText = "";
-          preview.style.backgroundImage = `url('${user.profile_image}')`;
-        } else {
-          preview.innerText = (user.name || "U").charAt(0).toUpperCase();
-          preview.style.backgroundImage = "";
-        }
-        document.getElementById("settingsModal").classList.add("show");
-      }
 
-      function closeSettings() {
-        document.getElementById("settingsModal").classList.remove("show");
-      }
 
-      document
-        .getElementById("profileImageInput")
-        .addEventListener("change", function () {
-          const file = this.files[0];
-          if (!file) return;
-          const preview = document.getElementById("settingsImagePreview");
-          preview.innerText = "";
-          preview.style.backgroundImage = `url('${URL.createObjectURL(file)}')`;
-        });
-
-      async function saveSettings() {
-        const status = document.getElementById("settingsStatus");
-        status.innerText = "Saving...";
-
-        const formData = new FormData();
-        formData.append("name", document.getElementById("settingsName").value.trim());
-
-        const file = document.getElementById("profileImageInput").files[0];
-        if (file) formData.append("profile_image", file);
-
-        try {
-          const res = await fetch("api/update-profile.php", {
-            method: "POST",
-            headers: { Authorization: "Bearer " + token },
-            body: formData,
-          });
-          const data = await res.json();
-          status.innerText = data.message;
-
-          if (data.success) {
-            localStorage.setItem("portal_user", JSON.stringify(data.user));
-            document.getElementById("sideName").innerText = data.user.name;
-            setAvatarImage(data.user);
-            setTimeout(closeSettings, 700);
-          }
-        } catch (error) {
-          status.innerText = "Connection error";
-        }
-      }
 
       /* ── Logout ── */
       function logout() {

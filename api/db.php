@@ -32,3 +32,41 @@ try {
     ]);
     exit;
 }
+
+/**
+ * Columns backing the profile page. Added lazily so a deploy does not need a
+ * manual migration step; sql/user_profile_fields.sql is the same change to run
+ * by hand if the DB user is not allowed to ALTER.
+ */
+const USER_PROFILE_COLUMNS = [
+    "company_name" => "VARCHAR(150) NULL",
+    "website"      => "VARCHAR(255) NULL",
+    "description"  => "TEXT NULL",
+    "phone"        => "VARCHAR(50) NULL",
+];
+
+function ensureUserProfileColumns(PDO $pdo)
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    try {
+        $stmt = $pdo->query("
+            SELECT COLUMN_NAME
+            FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'
+        ");
+        $existing = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+        foreach (USER_PROFILE_COLUMNS as $column => $type) {
+            if (!in_array($column, $existing, true)) {
+                $pdo->exec("ALTER TABLE users ADD COLUMN `$column` $type");
+            }
+        }
+    } catch (PDOException $e) {
+        // Read-only DB user: the callers below fall back to empty values.
+    }
+}

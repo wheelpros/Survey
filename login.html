@@ -77,14 +77,13 @@
       label {
         display: block;
         font-size: 14px;
-        font-weight: 800;
-        text-transform: uppercase;
+        font-weight: 400;
+        text-transform: capitalize;
         letter-spacing: 0.4px;
         margin-bottom: 8px;
       }
 
       .login-card label {
-        text-transform: none;
         letter-spacing: 0;
       }
 
@@ -213,7 +212,7 @@
       .terms a {
         color: #1b1e3a;
         text-decoration: none;
-        text-transform: uppercase;
+        font-weight: 800;
         letter-spacing: 0.3px;
       }
 
@@ -298,9 +297,7 @@
         <div class="form-group">
           <div class="form-row">
             <label>Password</label>
-            <a href="forgot-password.html" class="forgot">
-  Forgot password?
-</a>
+            <a href="forgot-password.html" class="forgot">Forgot password?</a>
           </div>
           <div class="input-box">
             <span>🔒</span>
@@ -316,18 +313,6 @@
         </div>
 
         <button class="submit" onclick="loginUser()">Log In →</button>
-        <button
-          class="submit"
-          type="button"
-          onclick="devBypass()"
-          style="
-            margin-top: 12px;
-            background: #101828;
-            box-shadow: none;
-          "
-        >
-          🛠 Dev Mode — Skip Login
-        </button>
         <div class="switch-text">
           New to the platform?
           <button
@@ -449,16 +434,6 @@
       function togglePassword(id) {
         const input = document.getElementById(id);
         input.type = input.type === "password" ? "text" : "password";
-      }
-
-      // Dev-only: skip real auth so the frontend can be edited without a backend.
-      function devBypass() {
-        localStorage.setItem("portal_token", "bypass_token");
-        localStorage.setItem(
-          "portal_user",
-          JSON.stringify({ id: 1, name: "Dev User", email: "dev@local", role: "user" })
-        );
-        window.location.href = "dashboard.html";
       }
 
       async function loginUser() {

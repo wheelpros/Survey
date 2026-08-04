@@ -324,21 +324,24 @@ input,textarea{
   line-height:1.6;
 }
 
-.answer-select{
-  width:100%;
-  background:#f8fafc;
-  border:1px solid #dfe3ea;
-  border-radius:14px;
-  padding:15px 16px;
-  font-size:14px;
-  color:#101828;
-  cursor:pointer;
-  outline:none;
+/* Checklist answers: one selected option per row. */
+.answer-list{
+  list-style:none;
+  margin:0;
+  padding:0;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
 }
 
-.answer-select option{
-  padding:6px 0;
+.answer-list li{
+  background:#f8fafc;
+  border:1px solid #dfe3ea;
+  border-radius:12px;
+  padding:12px 14px;
+  font-size:14px;
   color:#101828;
+  line-height:1.5;
 }
 
 .answer-image{
@@ -400,13 +403,7 @@ input,textarea{
 let token = localStorage.getItem("portal_token");
 
 if(!token){
-  // Dev-only: skip real auth so the frontend can be edited without a backend.
-  token = "bypass_token";
-  localStorage.setItem("portal_token", token);
-  localStorage.setItem(
-    "portal_user",
-    JSON.stringify({ id: 1, name: "Dev User", email: "dev@local", role: "user" })
-  );
+  window.location.href = "login.html";
 }
 
 const params = new URLSearchParams(window.location.search);
@@ -551,20 +548,29 @@ function renderQuestions(){
           .map(s => s.trim())
           .filter(Boolean);
 
-        answerHTML = `
-          <select class="answer-select" onchange="this.selectedIndex=0">
-            <option>${items.length} item${items.length === 1 ? "" : "s"} selected</option>
-            ${items.map(item => `<option>${item}</option>`).join("")}
-          </select>
-        `;
+        answerHTML = items.length
+          ? `<ul class="answer-list">${items.map(item => `<li>${item}</li>`).join("")}</ul>`
+          : `<div class="answer-box">${answerText}</div>`;
       }else{
         answerHTML = `<div class="answer-box">${answerText}</div>`;
       }
 
+      const typeBadge = isChecklist ? "Checklist" : (q.question_type === "file" ? "File Upload" : "Input");
+      const typeClass = isChecklist ? "badge-checklist" : (q.question_type === "file" ? "badge-file" : "badge-input");
+
       return `
-        <div class="field">
-          <label>${q.question_text}</label>
-          ${answerHTML}
+        <div class="collapsible-question-card">
+          <div class="collapsible-question-header" onclick="this.parentElement.classList.toggle('collapsed')">
+            <div style="display:flex; align-items:center; flex:1; gap:6px;">
+              <span class="type-tag ${typeClass}">${typeBadge}</span>
+              <span>${q.question_text}</span>
+            </div>
+            <span class="collapsible-toggle-icon">▼</span>
+          </div>
+
+          <div class="collapsible-question-body">
+            ${answerHTML}
+          </div>
         </div>
       `;
     }).join("");
