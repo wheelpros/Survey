@@ -139,7 +139,7 @@ try {
 
     $mail->setFrom(
         "survey@wzonevr.com",
-        "W Zone"
+        "Survey from WZone"
     );
 
 
