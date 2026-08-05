@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Create Content — Admin</title>
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+:root{--brand:#c9000b;--nav-active:#1b1e3a;--text:#101828;--muted:#667085;--line:#eaecf0;--sidebar-w:260px}
+body{background:#f6f7fb;color:var(--text);padding:0}
+
+/* ── Admin shell: sidebar + header (shared across admin pages) ── */
+.admin-sidebar{width:var(--sidebar-w);background:#fff;border-right:1px solid var(--line);position:fixed;top:0;left:0;bottom:0;padding:26px 12px 18px;display:flex;flex-direction:column;justify-content:space-between;z-index:100}
+.side-nav a{display:flex;gap:10px;align-items:center;text-decoration:none;color:var(--muted);padding:8px 10px;border-radius:9px;margin-bottom:2px;font-size:14px;font-weight:600;transition:background .15s,color .15s}
+.side-nav a svg{width:17px;height:17px;flex:none}
+.side-nav a:hover{background:#f6f7f9;color:var(--text)}
+.side-nav a.active{background:var(--nav-active);color:#fff}
+.side-user{width:100%;font:inherit;text-align:left;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;gap:10px;align-items:center;cursor:pointer;transition:background .15s,border-color .15s}
+.side-user:hover{background:#fafbfc;border-color:#d7dae0}
+.side-avatar{width:36px;height:36px;border-radius:50%;background:#dce3ff;color:#3745a4;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex:none}
+.side-meta{flex:1;min-width:0}
+.side-meta strong{display:block;font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.side-meta span{font-size:11px;color:#98a2b3}
+.side-dots{color:#98a2b3;flex:none}
+
+.admin-main{margin-left:var(--sidebar-w);width:calc(100% - var(--sidebar-w))}
+.admin-topbar{height:64px;background:transparent;display:flex;align-items:center;justify-content:flex-end;padding:0 35px}
+.admin-bell{position:relative;width:40px;height:40px;border-radius:50%;border:none;background:transparent;color:#344054;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.admin-bell:hover{background:#f6f7f9}
+.admin-bell .dot{position:absolute;top:9px;right:10px;width:8px;height:8px;border-radius:50%;background:var(--brand);border:2px solid #fff}
+.admin-content{padding:10px 35px 45px}
+
+.side-head{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:36px;margin-bottom:26px;padding:0 2px}
+.side-logo{padding:0;margin:0;flex:1;min-width:0}
+.side-logo img{width:132px;max-width:100%;height:auto;display:block}
+.side-toggle{width:34px;height:34px;flex:none;border-radius:9px;border:none;background:transparent;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s}
+.side-toggle:hover{background:#f2f4f8;color:var(--text)}
+.side-toggle svg{width:18px;height:18px}
+
+:root.sidebar-collapsed{--sidebar-w:78px}
+.admin-sidebar,.admin-main{transition:width .18s ease,margin-left .18s ease}
+:root.sidebar-collapsed .admin-sidebar{padding:26px 4px 18px}
+:root.sidebar-collapsed .side-head{justify-content:center;margin-bottom:22px}
+:root.sidebar-collapsed .side-logo{display:none}
+:root.sidebar-collapsed .side-nav a{width:38px;height:38px;padding:0;margin:0 auto 4px;border-radius:10px;justify-content:center}
+:root.sidebar-collapsed .side-nav a span{display:none}
+/* The account card is the only entry point to logout — collapse it, never hide it. */
+:root.sidebar-collapsed .side-user{justify-content:center;padding:8px}
+:root.sidebar-collapsed .side-meta,:root.sidebar-collapsed .side-dots{display:none}
+
+/* ── Account popup (sidebar card) ── */
+.acct-modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:99999;padding:20px}
+.acct-modal.show{display:flex}
+.acct-box{width:100%;max-width:380px;background:#fff;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.18);overflow:hidden}
+.acct-head{display:flex;justify-content:space-between;align-items:center;padding:20px 24px;border-bottom:1px solid #eef1f5}
+.acct-head h2{font-size:17px}
+.acct-head button{border:none;background:var(--nav-active);color:#fff;width:34px;height:34px;border-radius:50%;font-size:22px;line-height:1;cursor:pointer}
+.acct-body{padding:24px;text-align:center}
+.acct-avatar{width:72px;height:72px;border-radius:50%;background:#dce3ff;color:#3745a4;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:26px;margin:0 auto 16px}
+.acct-body strong{display:block;font-size:16px;margin-bottom:8px}
+.acct-role{display:inline-block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--nav-active);background:#eef0f6;border-radius:20px;padding:5px 12px;margin-bottom:22px}
+.acct-logout{width:100%;height:46px;border:1px solid #f0d2d4;background:#fff;color:var(--brand);border-radius:12px;font-weight:800;font-size:14px;cursor:pointer}
+.acct-logout:hover{background:#fff5f5}
+
+/* ── Page header ── */
+.page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:26px}
+.page-title h1{font-size:30px;margin-bottom:8px}
+.page-title p{font-size:14px;color:var(--muted);max-width:520px}
+.back-link{flex:none;display:inline-flex;align-items:center;gap:8px;border:1px solid #dfe3ea;background:#fff;color:var(--text);text-decoration:none;padding:11px 18px;border-radius:10px;font-size:13px;font-weight:800}
+.back-link:hover{background:#f6f7f9}
+.back-link svg{width:15px;height:15px}
+
+/* ── Panels & fields (same vocabulary as the other admin pages) ── */
+.form-wrap{display:grid;grid-template-columns:1fr 340px;gap:24px;align-items:start}
+.col{display:grid;gap:24px}
+.panel{background:#fff;border-radius:18px;box-shadow:0 14px 30px rgba(0,0,0,.05);overflow:hidden}
+.panel-head{padding:18px 22px;border-bottom:1px solid #eef1f5;display:flex;align-items:center;gap:10px}
+.panel-head svg{width:17px;height:17px;color:var(--muted);flex:none}
+.panel-head h2{font-size:15px}
+.panel-body{padding:22px}
+label{display:block;font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#667085;margin-bottom:8px}
+input[type=text],input[type=date],input[type=time],select,textarea{width:100%;border:1px solid #dfe3ea;background:#f8fafc;border-radius:12px;padding:12px 14px;outline:none;font-size:14px;color:var(--text)}
+input:focus,select:focus,textarea:focus{border-color:var(--nav-active);box-shadow:0 0 0 3px rgba(27,30,58,.10)}
+input:disabled{opacity:.5;cursor:not-allowed}
+.field-row{margin-bottom:18px}
+.field-row:last-child{margin-bottom:0}
+.hint{font-size:12px;color:#98a2b3;margin-top:7px}
+
+/* ── Content type chips ── */
+.chips{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.chip{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:78px;padding:12px 8px;border:1px solid #dfe3ea;background:#fff;border-radius:12px;cursor:pointer;font:inherit;font-size:12px;font-weight:700;color:var(--muted);text-align:center;transition:border-color .15s,background .15s,color .15s}
+.chip:hover{background:#f8fafc}
+.chip svg{width:20px;height:20px}
+.chip.selected{border-color:var(--nav-active);border-width:2px;background:#f5f6fa;color:var(--text)}
+.custom-type{display:none;margin-top:16px;padding-top:16px;border-top:1px dashed #dfe3ea;gap:12px;grid-template-columns:1fr 1fr 1fr auto;align-items:end}
+.custom-type.open{display:grid}
+.custom-type label{margin-bottom:6px}
+.custom-type .add{height:44px;padding:0 18px;border:none;border-radius:10px;background:var(--nav-active);color:#fff;font:inherit;font-weight:800;font-size:13px;cursor:pointer}
+
+/* ── Orientation ── */
+.orientations{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.orientation{display:flex;flex-direction:column;align-items:center;gap:10px;padding:18px 10px;border:1px solid #dfe3ea;background:#fff;border-radius:12px;cursor:pointer;font:inherit;font-size:13px;font-weight:700;color:var(--muted);transition:border-color .15s,background .15s,color .15s}
+.orientation:hover{background:#f8fafc}
+.orientation.selected{border-color:var(--nav-active);border-width:2px;background:#f5f6fa;color:var(--text)}
+.orientation .glyph{width:34px;height:24px;border:2px solid currentColor;border-radius:4px;display:flex;align-items:center;justify-content:center}
+.orientation .glyph i{display:block;background:currentColor}
+.orientation.h .glyph i{width:22px;height:2px}
+.orientation.v .glyph{width:20px;height:26px}
+.orientation.v .glyph i{width:2px;height:14px}
+
+/* ── Caption editor ── */
+.editor-toolbar{display:flex;gap:4px;align-items:center;border:1px solid #dfe3ea;border-bottom:none;background:#f2f4f8;border-radius:12px 12px 0 0;padding:6px 8px;position:relative}
+.editor-toolbar button{width:30px;height:30px;border:none;background:transparent;border-radius:7px;cursor:pointer;color:#475467;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.editor-toolbar button:hover{background:#e3e7ee}
+.editor-toolbar svg{width:15px;height:15px}
+.editor-toolbar .sep{width:1px;height:18px;background:#dfe3ea;margin:0 4px}
+.editor{border:1px solid #dfe3ea;background:#f8fafc;border-radius:0 0 12px 12px;padding:14px;min-height:160px;font-size:14px;line-height:1.6;outline:none;overflow-y:auto}
+.editor:focus{border-color:var(--nav-active);box-shadow:0 0 0 3px rgba(27,30,58,.10)}
+.editor:empty:before{content:attr(data-placeholder);color:#98a2b3}
+.editor ul,.editor ol{padding-left:22px;margin:6px 0}
+.counter{text-align:right;font-size:12px;color:#98a2b3;margin-top:8px}
+.counter.over{color:var(--brand);font-weight:800}
+.emoji-pop{position:absolute;top:calc(100% + 6px);left:8px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 16px 40px rgba(16,24,40,.14);padding:8px;display:none;grid-template-columns:repeat(8,1fr);gap:2px;z-index:50}
+.emoji-pop.open{display:grid}
+.emoji-pop button{font-size:17px;width:30px;height:30px}
+
+/* ── Media dropzone ── */
+.dropzone{border:2px dashed #d5dbe6;border-radius:14px;background:#fbfcfe;padding:26px 16px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
+.dropzone:hover,.dropzone.dragging{border-color:var(--nav-active);background:#f5f6fa}
+.dropzone svg{width:24px;height:24px;color:var(--muted);margin-bottom:10px}
+.dropzone strong{display:block;font-size:13px;margin-bottom:4px}
+.dropzone span{font-size:11px;color:#98a2b3}
+.media-preview{display:none;position:relative}
+.media-preview.show{display:block}
+.media-preview .thumb{background:#f1f3f7 center/cover no-repeat;border-radius:12px}
+.media-preview.is-horizontal .thumb{aspect-ratio:16/9}
+.media-preview.is-vertical .thumb{aspect-ratio:9/16}
+.media-preview .remove{position:absolute;top:8px;right:8px;width:28px;height:28px;border:none;border-radius:50%;background:rgba(16,24,40,.75);color:#fff;font-size:16px;line-height:1;cursor:pointer}
+.media-error{display:none;font-size:12px;color:var(--brand);font-weight:700;margin-top:10px}
+.media-error.show{display:block}
+
+/* ── Publish switch (no switch component exists in this app) ── */
+.switch-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:4px}
+.switch-row .label{font-size:13px;font-weight:700;color:var(--text)}
+.switch{position:relative;display:inline-block;width:44px;height:24px;flex:none}
+.switch input{position:absolute;opacity:0;width:0;height:0}
+.switch .track{position:absolute;inset:0;background:#dfe3ea;border-radius:20px;cursor:pointer;transition:background .15s}
+.switch .track:before{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .15s;box-shadow:0 1px 3px rgba(16,24,40,.2)}
+.switch input:checked + .track{background:var(--nav-active)}
+.switch input:checked + .track:before{transform:translateX(20px)}
+.switch input:focus-visible + .track{box-shadow:0 0 0 3px rgba(27,30,58,.15)}
+.note{margin-top:14px;background:#f4f6fa;border-radius:10px;padding:12px 14px;font-size:12px;line-height:1.5;color:var(--muted)}
+
+/* ── Actions ── */
+.actions{display:grid;gap:10px}
+.primary-btn{height:48px;border:none;border-radius:12px;background:var(--nav-active);color:#fff;font:inherit;font-size:14px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.primary-btn:hover{background:#282c52}
+.primary-btn:disabled{opacity:.6;cursor:not-allowed}
+.primary-btn svg{width:15px;height:15px}
+.secondary-btn{height:48px;border:1px solid #dfe3ea;border-radius:12px;background:#fff;color:var(--text);font:inherit;font-size:14px;font-weight:800;cursor:pointer}
+.secondary-btn:hover{background:#f6f7f9}
+.discard-btn{border:none;background:transparent;color:var(--brand);font:inherit;font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;padding:6px}
+.discard-btn:hover{text-decoration:underline}
+.status-text{margin-top:12px;font-size:13px;font-weight:700;text-align:center;min-height:18px}
+.status-text.error{color:var(--brand)}
+.status-text.ok{color:#067647}
+
+@media(max-width:1100px){.form-wrap{grid-template-columns:1fr}}
+@media(max-width:950px){
+  /* Force-collapsed below this width, so the head has nothing left to show. */
+  .side-head{display:none}
+  .admin-topbar{padding:0 18px}
+  .admin-content{padding:10px 18px 40px}
+  .page-head{flex-direction:column}
+  .chips{grid-template-columns:repeat(2,1fr)}
+  .custom-type.open{grid-template-columns:1fr}
+}
+</style>
+
+<script>
+// Runs before paint so the collapsed state never flashes open on load.
+(function () {
+  var root = document.documentElement;
+  var KEY = "wz_sidebar_collapsed";
+  var MOBILE = 950;
+  function prefersCollapsed(){ return localStorage.getItem(KEY) === "1"; }
+  function apply(){ root.classList.toggle("sidebar-collapsed", window.innerWidth <= MOBILE || prefersCollapsed()); }
+  window.toggleSidebar = function(){
+    if (window.innerWidth <= MOBILE) return; // forced collapsed, nothing to toggle
+    localStorage.setItem(KEY, prefersCollapsed() ? "0" : "1");
+    apply();
+  };
+  apply();
+  window.addEventListener("resize", apply);
+})();
+
+function openAccount(){ document.getElementById("acctModal").classList.add("show"); }
+function closeAccount(){ document.getElementById("acctModal").classList.remove("show"); }
+</script>
+</head>
+
+<body>
+
+<aside class="admin-sidebar">
+  <div>
+    <div class="side-head">
+      <div class="side-logo">
+        <img src="logo.png" alt="W|ZONE London" onerror="this.onerror=null;this.src='assets/WZONE%20source.png'">
+      </div>
+      <button class="side-toggle" type="button" onclick="toggleSidebar()" title="Toggle sidebar" aria-label="Toggle sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9.5 4v16"/></svg>
+      </button>
+    </div>
+    <nav class="side-nav">
+      <a href="admin.html" title="Surveys">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <span>Surveys</span>
+      </a>
+      <a href="responses.html" title="Responses">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span>Responses</span>
+      </a>
+      <a href="articles-assignment.html" id="articlesAssignmentLink" title="Articles Assignment">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <span>Articles Assignment</span>
+      </a>
+      <a href="admin-content.html" class="active" title="Content">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+        <span>Content</span>
+      </a>
+      <a href="users-management.html" id="usersManagementLink" title="Users Management">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Users Management</span>
+      </a>
+      <a href="sources-files.html" title="Sources &amp; Files">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        <span>Sources &amp; Files</span>
+      </a>
+      <a href="admin-calendar.html" title="Calendar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span>Calendar</span>
+      </a>
+      <a href="settings.html" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span>Settings</span>
+      </a>
+    </nav>
+  </div>
+
+  <button class="side-user" type="button" onclick="openAccount()" title="Account">
+    <div class="side-avatar" id="adminAvatar">A</div>
+    <div class="side-meta">
+      <strong id="adminName">Admin</strong>
+      <span id="adminRole">Administrator</span>
+    </div>
+    <svg class="side-dots" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
+  </button>
+</aside>
+
+<div class="admin-main">
+  <header class="admin-topbar">
+    <button class="admin-bell" type="button" title="Notifications">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 6-3 7-3 7h18s-3-1-3-7"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+      <span class="dot"></span>
+    </button>
+  </header>
+
+  <div class="admin-content">
+
+    <div class="page-head">
+      <div class="page-title">
+        <h1 id="pageHeading">Content</h1>
+        <p>Everything ready to publish — social posts, newsletters, infographics and more.</p>
+      </div>
+      <a class="back-link" href="admin-content.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        Back to Content
+      </a>
+    </div>
+
+    <div class="form-wrap">
+
+      <!-- ── Left column ── -->
+      <div class="col">
+
+        <section class="panel">
+          <div class="panel-head">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/></svg>
+            <h2>Content Type &amp; Platform</h2>
+          </div>
+          <div class="panel-body">
+            <div class="chips" id="typeChips"></div>
+
+            <div class="custom-type" id="customType">
+              <div>
+                <label for="customLabel">Type name</label>
+                <input type="text" id="customLabel" placeholder="e.g. TikTok Clip">
+              </div>
+              <div>
+                <label for="customPlatform">Platform</label>
+                <input type="text" id="customPlatform" placeholder="e.g. TikTok">
+              </div>
+              <div>
+                <label for="customCategory">Category</label>
+                <input type="text" id="customCategory" list="categoryList" placeholder="e.g. Social posts">
+                <datalist id="categoryList"></datalist>
+              </div>
+              <button class="add" type="button" onclick="addCustomType()">Add</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><line x1="3" y1="12" x2="21" y2="12"/></svg>
+            <h2>Form Orientation</h2>
+          </div>
+          <div class="panel-body">
+            <div class="orientations">
+              <button class="orientation h selected" type="button" data-orientation="horizontal" onclick="selectOrientation('horizontal')">
+                <span class="glyph"><i></i></span>
+                Horizontal
+              </button>
+              <button class="orientation v" type="button" data-orientation="vertical" onclick="selectOrientation('vertical')">
+                <span class="glyph"><i></i></span>
+                Vertical
+              </button>
+            </div>
+            <p class="hint">This decides how the post is laid out on the Content page.</p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="16" y2="12"/><line x1="4" y1="17" x2="12" y2="17"/></svg>
+            <h2>Content Details</h2>
+          </div>
+          <div class="panel-body">
+            <div class="field-row">
+              <label for="title">Campaign title</label>
+              <input type="text" id="title" placeholder="e.g. Summer Product Launch 2024">
+            </div>
+
+            <div class="field-row">
+              <label for="client">Client</label>
+              <input type="text" id="client" placeholder="e.g. Acme Corp">
+            </div>
+
+            <div class="field-row">
+              <label>Caption / body text</label>
+
+              <div class="editor-toolbar" id="editorToolbar">
+                <button type="button" title="Bold" onmousedown="event.preventDefault()" onclick="runCommand('bold')"><strong>B</strong></button>
+                <button type="button" title="Italic" onmousedown="event.preventDefault()" onclick="runCommand('italic')"><em>I</em></button>
+                <span class="sep"></span>
+                <button type="button" title="Bulleted list" onmousedown="event.preventDefault()" onclick="runCommand('insertUnorderedList')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4.5" cy="6" r="1.4" fill="currentColor" stroke="none"/><circle cx="4.5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="4.5" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg>
+                </button>
+                <button type="button" title="Link" onmousedown="event.preventDefault()" onclick="insertLink()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>
+                </button>
+                <span class="sep"></span>
+                <button type="button" title="Emoji" onmousedown="event.preventDefault()" onclick="toggleEmoji()">☺</button>
+
+                <div class="emoji-pop" id="emojiPop"></div>
+              </div>
+
+              <div class="editor" id="caption" contenteditable="true" data-max="2200"
+                   data-placeholder="Write your content here..."></div>
+
+              <div class="counter" id="captionCounter">0 / 2200 characters</div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ── Right rail ── -->
+      <div class="col">
+
+        <section class="panel">
+          <div class="panel-head"><h2>Media Assets</h2></div>
+          <div class="panel-body">
+            <div class="dropzone" id="dropzone" onclick="document.getElementById('mediaInput').click()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <strong>Drop image</strong>
+              <span>Max size 1 MB</span>
+            </div>
+
+            <div class="media-preview is-horizontal" id="mediaPreview">
+              <div class="thumb" id="mediaThumb"></div>
+              <button class="remove" type="button" onclick="clearMedia()" title="Remove image">&times;</button>
+            </div>
+
+            <input type="file" id="mediaInput" accept="image/*" hidden>
+            <div class="media-error" id="mediaError"></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head"><h2>Scheduling</h2></div>
+          <div class="panel-body">
+            <div class="field-row">
+              <label for="postDate">Post date</label>
+              <input type="date" id="postDate">
+            </div>
+            <div class="field-row">
+              <label for="postTime">Post time</label>
+              <input type="time" id="postTime">
+            </div>
+
+            <div class="switch-row">
+              <span class="label">Publish immediately</span>
+              <label class="switch">
+                <input type="checkbox" id="publishNow" onchange="syncPublishNow()">
+                <span class="track"></span>
+              </label>
+            </div>
+
+            <p class="note">Scheduled posts will be reviewed by the chief editor before going live.</p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-body">
+            <div class="actions">
+              <button class="primary-btn" type="button" id="submitBtn" onclick="save('scheduled')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="4 3 21 12 4 21 6 12 4 3"/></svg>
+                <span id="submitLabel">Schedule Content</span>
+              </button>
+              <button class="secondary-btn" type="button" onclick="save('draft')">Save as Draft</button>
+              <button class="discard-btn" type="button" onclick="discard()">Discard post</button>
+            </div>
+            <div class="status-text" id="formStatus"></div>
+          </div>
+        </section>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="acct-modal" id="acctModal">
+  <div class="acct-box">
+    <div class="acct-head">
+      <h2>Account</h2>
+      <button type="button" onclick="closeAccount()">&times;</button>
+    </div>
+    <div class="acct-body">
+      <div class="acct-avatar" id="acctAvatar">A</div>
+      <strong id="acctName">Admin</strong>
+      <span class="acct-role" id="acctRole">Administrator</span>
+      <button class="acct-logout" type="button" onclick="logout()">Logout</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const adminToken = localStorage.getItem("admin_token");
+const adminUser = JSON.parse(localStorage.getItem("admin_user") || "{}");
+
+if(!adminToken || !adminUser.role){
+  window.location.href = "admin-login.html";
+}
+
+// Content is open to both `admin` and `super_admin`; only these two links narrow.
+if(adminUser.role !== "super_admin"){
+  ["usersManagementLink","articlesAssignmentLink"].forEach(id => {
+    const link = document.getElementById(id);
+    if(link) link.style.display = "none";
+  });
+}
+
+(function(){
+  const name = adminUser.name || "Admin";
+  const label = adminUser.role === "super_admin" ? "Super Admin" : "Administrator";
+  const initial = name.charAt(0).toUpperCase();
+  const set = (id,value) => { const el = document.getElementById(id); if(el) el.textContent = value; };
+  set("adminName",name);  set("adminRole",label);  set("adminAvatar",initial);
+  set("acctName",name);   set("acctRole",label);   set("acctAvatar",initial);
+})();
+
+const editId = new URLSearchParams(location.search).get("id");
+
+/* ── Content types ──────────────────────────────────────────────────────────
+   One array drives the chips, the stored platform/category, and therefore the
+   filter tabs on the Content pages. Custom types are appended at runtime.      */
+
+const ICONS = {
+  camera:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
+  reel:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 6.5 8.5 3"/><rect x="2" y="3" width="20" height="18" rx="3"/><path d="M2 9h20"/><path d="m10 14 5 2.5-5 2.5z"/></svg>',
+  mail:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="2,7 12,13 22,7"/></svg>',
+  case:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+  ad:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M17 8a5 5 0 0 1 0 8"/></svg>',
+  chart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="15"/></svg>',
+  plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8.5" x2="12" y2="15.5"/><line x1="8.5" y1="12" x2="15.5" y2="12"/></svg>'
+};
+
+const types = [
+  {id:"instagram_post", label:"Instagram Post", platform:"Instagram", category:"Social posts", icon:"camera"},
+  {id:"reel",           label:"Reel",           platform:"Instagram", category:"Social posts", icon:"reel"},
+  {id:"newsletter",     label:"Newsletter",     platform:"Email",     category:"Newsletters",  icon:"mail"},
+  {id:"linkedin_case",  label:"LinkedIn Case",  platform:"LinkedIn",  category:"Social posts", icon:"case"},
+  {id:"fb_ad",          label:"FB Ad",          platform:"Facebook",  category:"Social posts", icon:"ad"},
+  {id:"infographic",    label:"Infographic",    platform:"Design",    category:"Infographics", icon:"chart"}
+];
+
+let selectedType = null;
+let orientation = "horizontal";
+let mediaFile = null;
+let removeMedia = false;
+
+function esc(value){
+  return String(value == null ? "" : value)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+
+function renderTypes(){
+  const wrap = document.getElementById("typeChips");
+
+  wrap.innerHTML = types.map(type => `
+    <button class="chip ${type.id === selectedType ? "selected" : ""}" type="button"
+            data-id="${esc(type.id)}" onclick="selectType('${esc(type.id)}')" title="${esc(type.platform)}">
+      ${ICONS[type.icon] || ICONS.plus}
+      ${esc(type.label)}
+    </button>
+  `).join("") + `
+    <button class="chip" type="button" onclick="toggleCustomType()" title="Add a custom type">
+      ${ICONS.plus}
+    </button>`;
+
+  const list = document.getElementById("categoryList");
+  list.innerHTML = [...new Set(types.map(type => type.category))]
+    .map(category => `<option value="${esc(category)}">`).join("");
+}
+
+function selectType(id){
+  selectedType = id;
+  renderTypes();
+}
+
+function toggleCustomType(){
+  document.getElementById("customType").classList.toggle("open");
+}
+
+function addCustomType(){
+  const label = document.getElementById("customLabel").value.trim();
+  const platform = document.getElementById("customPlatform").value.trim();
+  const category = document.getElementById("customCategory").value.trim();
+
+  if(!label || !platform || !category){
+    setStatus("Custom types need a name, platform and category.", "error");
+    return;
+  }
+
+  const id = "custom_" + label.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"");
+
+  if(types.some(type => type.id === id)){
+    setStatus("That type already exists.", "error");
+    return;
+  }
+
+  types.push({id, label, platform, category, icon:"plus"});
+  selectedType = id;
+
+  document.getElementById("customLabel").value = "";
+  document.getElementById("customPlatform").value = "";
+  document.getElementById("customCategory").value = "";
+  document.getElementById("customType").classList.remove("open");
+
+  setStatus("", "");
+  renderTypes();
+}
+
+/* ── Orientation ── */
+
+function selectOrientation(value){
+  orientation = value;
+
+  document.querySelectorAll(".orientation").forEach(btn => {
+    btn.classList.toggle("selected", btn.dataset.orientation === value);
+  });
+
+  // The media thumbnail follows the same aspect ratio the post will use.
+  const preview = document.getElementById("mediaPreview");
+  const shown = preview.classList.contains("show");
+  preview.className = "media-preview is-" + value + (shown ? " show" : "");
+}
+
+/* ── Caption editor ── */
+
+const caption = document.getElementById("caption");
+const MAX_CAPTION = Number(caption.dataset.max);
+
+function runCommand(command){
+  caption.focus();
+  document.execCommand(command, false, null);
+  updateCounter();
+}
+
+function insertLink(){
+  const url = prompt("Link URL");
+  if(!url) return;
+
+  if(/^\s*(javascript|data|vbscript):/i.test(url)){
+    setStatus("That link type is not allowed.", "error");
+    return;
+  }
+
+  caption.focus();
+  document.execCommand("createLink", false, url);
+  updateCounter();
+}
+
+const EMOJI = ["😀","😍","🎉","🔥","✨","👏","💡","📈","🚀","✅","❤️","👀","💬","📣","🙌","⭐"];
+
+document.getElementById("emojiPop").innerHTML =
+  EMOJI.map(char => `<button type="button" onmousedown="event.preventDefault()" onclick="insertEmoji('${char}')">${char}</button>`).join("");
+
+function toggleEmoji(){
+  document.getElementById("emojiPop").classList.toggle("open");
+}
+
+function insertEmoji(char){
+  caption.focus();
+  document.execCommand("insertText", false, char);
+  document.getElementById("emojiPop").classList.remove("open");
+  updateCounter();
+}
+
+document.addEventListener("click", event => {
+  if(!document.getElementById("editorToolbar").contains(event.target)){
+    document.getElementById("emojiPop").classList.remove("open");
+  }
+});
+
+// Stop typing at the cap rather than letting the counter run red forever.
+caption.addEventListener("beforeinput", event => {
+  const inserting = !event.inputType.startsWith("delete") && event.inputType !== "historyUndo";
+  if(inserting && caption.innerText.length >= MAX_CAPTION){
+    event.preventDefault();
+  }
+});
+
+caption.addEventListener("input", updateCounter);
+
+function updateCounter(){
+  const used = caption.innerText.replace(/\n$/,"").length;
+  const counter = document.getElementById("captionCounter");
+  counter.innerText = `${used} / ${MAX_CAPTION} characters`;
+  counter.classList.toggle("over", used >= MAX_CAPTION);
+}
+
+/* ── Media ── */
+
+const MAX_MEDIA = 1024 * 1024;
+
+const dropzone = document.getElementById("dropzone");
+
+document.getElementById("mediaInput").addEventListener("change", event => {
+  if(event.target.files[0]) handleMedia(event.target.files[0]);
+});
+
+["dragenter","dragover"].forEach(type => {
+  dropzone.addEventListener(type, event => {
+    event.preventDefault();
+    dropzone.classList.add("dragging");
+  });
+});
+
+["dragleave","drop"].forEach(type => {
+  dropzone.addEventListener(type, event => {
+    event.preventDefault();
+    dropzone.classList.remove("dragging");
+  });
+});
+
+dropzone.addEventListener("drop", event => {
+  const file = event.dataTransfer.files[0];
+  if(file) handleMedia(file);
+});
+
+function handleMedia(file){
+  const error = document.getElementById("mediaError");
+
+  if(!file.type.startsWith("image/")){
+    error.innerText = "Only image files are allowed.";
+    error.classList.add("show");
+    return;
+  }
+
+  if(file.size > MAX_MEDIA){
+    error.innerText = "That image is over 1 MB. Pick a smaller one.";
+    error.classList.add("show");
+    return;
+  }
+
+  error.classList.remove("show");
+  mediaFile = file;
+  removeMedia = false;
+
+  const reader = new FileReader();
+  reader.onload = () => showMedia(reader.result);
+  reader.readAsDataURL(file);
+}
+
+function showMedia(url){
+  document.getElementById("mediaThumb").style.backgroundImage = `url('${url}')`;
+  document.getElementById("mediaPreview").classList.add("show");
+  dropzone.style.display = "none";
+}
+
+function clearMedia(){
+  mediaFile = null;
+  removeMedia = true;
+
+  document.getElementById("mediaInput").value = "";
+  document.getElementById("mediaThumb").style.backgroundImage = "";
+  document.getElementById("mediaPreview").classList.remove("show");
+  document.getElementById("mediaError").classList.remove("show");
+  dropzone.style.display = "";
+}
+
+/* ── Scheduling ── */
+
+function syncPublishNow(){
+  const on = document.getElementById("publishNow").checked;
+  const date = document.getElementById("postDate");
+  const time = document.getElementById("postTime");
+
+  date.disabled = on;
+  time.disabled = on;
+
+  if(on){ date.value = ""; time.value = ""; }
+
+  document.getElementById("submitLabel").innerText =
+    editId ? "Update Content" : (on ? "Publish Content" : "Schedule Content");
+}
+
+/* ── Save ── */
+
+function setStatus(message, kind){
+  const status = document.getElementById("formStatus");
+  status.innerText = message;
+  status.className = "status-text " + (kind || "");
+}
+
+function save(intent){
+  const title = document.getElementById("title").value.trim();
+  const publishNow = document.getElementById("publishNow").checked;
+  const postDate = document.getElementById("postDate").value;
+  const postTime = document.getElementById("postTime").value;
+  const captionHtml = caption.innerHTML.trim();
+  const captionText = caption.innerText.trim();
+
+  if(!title){
+    setStatus("Add a campaign title.", "error");
+    return;
+  }
+
+  if(!selectedType){
+    setStatus("Pick a content type.", "error");
+    return;
+  }
+
+  if(intent !== "draft"){
+    if(!captionText){
+      setStatus("Write a caption before publishing.", "error");
+      return;
+    }
+    if(!publishNow && (!postDate || !postTime)){
+      setStatus("Set a post date and time, or turn on Publish immediately.", "error");
+      return;
+    }
+  }
+
+  const type = types.find(entry => entry.id === selectedType);
+  const status = intent === "draft" ? "draft" : (publishNow ? "published" : "scheduled");
+
+  const form = new FormData();
+  if(editId) form.append("id", editId);
+
+  form.append("title", title);
+  form.append("client", document.getElementById("client").value.trim());
+  form.append("caption", captionHtml);
+  form.append("content_type", type.id);
+  form.append("type_label", type.label);
+  form.append("platform", type.platform);
+  form.append("category", type.category);
+  form.append("orientation", orientation);
+  form.append("post_date", postDate);
+  form.append("post_time", postTime);
+  form.append("publish_now", publishNow ? "1" : "0");
+  form.append("status", status);
+
+  if(mediaFile) form.append("media", mediaFile);
+  if(removeMedia && !mediaFile) form.append("remove_media", "1");
+
+  // Front end only. Everything above is the real, validated payload - POST
+  // `form` to an endpoint here and redirect to admin-content.html on success.
+  console.log("Content payload:", Object.fromEntries(form));
+  setStatus("Validated — connect a backend to save.", "ok");
+}
+
+function discard(){
+  if(confirm("Discard this post? Nothing will be saved.")){
+    window.location.href = "admin-content.html";
+  }
+}
+
+/* ── Edit mode ──────────────────────────────────────────────────────────────
+   `?id=` puts the form in edit mode. There is nothing to prefill from until a
+   backend exists; fetch the record here and set each control, remembering to
+   push a saved custom type back into `types` before calling renderTypes().    */
+
+function prepareEditMode(){
+  document.getElementById("pageHeading").innerText = "Edit Content";
+  document.getElementById("submitLabel").innerText = "Update Content";
+  setStatus("No backend connected — fields cannot be prefilled.", "");
+}
+
+function logout(){
+  localStorage.clear();
+  window.location.href = "admin-login.html";
+}
+
+renderTypes();
+updateCounter();
+
+if(editId){
+  prepareEditMode();
+}
+</script>
+
+</body>
+</html>
