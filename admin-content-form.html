@@ -578,9 +578,13 @@ function addCustomType(){
 function selectOrientation(value){
   orientation = value;
 
-  document.querySelectorAll(".orientation").forEach(btn => {
-    btn.classList.toggle("selected", btn.dataset.orientation === value);
-  });
+  
+document.querySelectorAll("[data-orientation]").forEach(btn => {
+  btn.classList.toggle(
+    "selected",
+    btn.dataset.orientation === orientation
+  );
+});
 
   // The media thumbnail follows the same aspect ratio the post will use.
   const preview = document.getElementById("mediaPreview");
