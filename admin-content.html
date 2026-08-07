@@ -374,17 +374,58 @@ function formatTiming(item){
   return date.toLocaleDateString(undefined,{day:"numeric",month:"short",year:"numeric"}) + " · " + time;
 }
 
-// Front end only for now. Fill `allContent` from an API here and everything
-// below - tabs, search, cards, the orientation-aware detail panel - renders as is.
-function loadContent(){
-  if(!allContent.length){
-    document.getElementById("contentGrid").innerHTML =
-      `<div class="empty">No content yet. Use “Create Content” to add the first post.</div>`;
-    return;
-  }
+async function loadContent(){
 
-  renderFilters();
-  applyFilters();
+  const grid = document.getElementById("contentGrid");
+
+  grid.innerHTML =
+    `<div class="empty">Loading content...</div>`;
+
+  try {
+
+    const response = await fetch(
+      "api/admin-content.php",
+      {
+        headers: {
+          Authorization: "Bearer " + adminToken
+        }
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+
+      if (response.status === 401) {
+
+        localStorage.removeItem("admin_token");
+        localStorage.removeItem("admin_user");
+
+        window.location.href =
+          "admin-login.html";
+
+        return;
+      }
+
+      grid.innerHTML =
+        `<div class="empty">${
+          data.message || "Failed to load content."
+        }</div>`;
+
+      return;
+    }
+
+    allContent = data.content || [];
+
+    applyFilters();
+
+  } catch (error) {
+
+    console.error(error);
+
+    grid.innerHTML =
+      `<div class="empty">Connection error.</div>`;
+  }
 }
 
 function renderFilters(){
@@ -492,14 +533,54 @@ function selectContent(id){
   document.getElementById("detailTiming").innerText = formatTiming(item);
 }
 
-function deleteContent(id, title){
-  if(!confirm(`Delete “${title}”? This also removes its image.`)) return;
+async function deleteContent(id, title){
 
-  // Send the delete request here once a backend exists.
-  allContent = allContent.filter(item => String(item.id) !== String(id));
+  if (
+    !confirm(
+      `Delete “${title}”? This also removes its image.`
+    )
+  ) {
+    return;
+  }
 
-  if(String(selectedId) === String(id)) selectedId = null;
-  loadContent();
+  try {
+
+    const response = await fetch(
+      `api/admin-content.php?id=${encodeURIComponent(id)}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: "Bearer " + adminToken
+        }
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+
+      alert(
+        data.message || "Could not delete content."
+      );
+
+      return;
+    }
+
+    if (String(selectedId) === String(id)) {
+      selectedId = null;
+    }
+
+    await loadContent();
+
+    document.getElementById("detailWrap").style.display =
+      "none";
+
+  } catch (error) {
+
+    console.error(error);
+
+    alert("Connection error.");
+  }
 }
 
 function logout(){

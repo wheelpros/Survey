@@ -746,7 +746,7 @@ function setStatus(message, kind){
   status.className = "status-text " + (kind || "");
 }
 
-function save(intent){
+async function save(intent){
   const title = document.getElementById("title").value.trim();
   const publishNow = document.getElementById("publishNow").checked;
   const postDate = document.getElementById("postDate").value;
@@ -797,10 +797,49 @@ function save(intent){
   if(mediaFile) form.append("media", mediaFile);
   if(removeMedia && !mediaFile) form.append("remove_media", "1");
 
-  // Front end only. Everything above is the real, validated payload - POST
-  // `form` to an endpoint here and redirect to admin-content.html on success.
-  console.log("Content payload:", Object.fromEntries(form));
-  setStatus("Validated — connect a backend to save.", "ok");
+  try {
+
+  setStatus(
+    editId ? "Updating content..." : "Saving content...",
+    ""
+  );
+
+  const response = await fetch("api/admin-content.php", {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer " + adminToken
+    },
+    body: form
+  });
+
+  const data = await response.json();
+
+  if (!response.ok || !data.success) {
+    setStatus(
+      data.message || "Something went wrong.",
+      "error"
+    );
+    return;
+  }
+
+  setStatus(
+    data.message || "Saved successfully.",
+    "ok"
+  );
+
+  setTimeout(() => {
+    window.location.href = "admin-content.html";
+  }, 700);
+
+} catch (error) {
+
+  console.error(error);
+
+  setStatus(
+    "Connection error.",
+    "error"
+  );
+}
 }
 
 function discard(){
@@ -814,10 +853,157 @@ function discard(){
    backend exists; fetch the record here and set each control, remembering to
    push a saved custom type back into `types` before calling renderTypes().    */
 
-function prepareEditMode(){
-  document.getElementById("pageHeading").innerText = "Edit Content";
-  document.getElementById("submitLabel").innerText = "Update Content";
-  setStatus("No backend connected — fields cannot be prefilled.", "");
+async function prepareEditMode(){
+
+  document.getElementById("pageHeading").innerText =
+    "Edit Content";
+
+  document.getElementById("submitLabel").innerText =
+    "Update Content";
+
+  try {
+
+    setStatus("Loading content...", "");
+
+    const response = await fetch(
+      `api/admin-content.php?id=${encodeURIComponent(editId)}`,
+      {
+        headers: {
+          Authorization: "Bearer " + adminToken
+        }
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      setStatus(
+        data.message || "Could not load content.",
+        "error"
+      );
+      return;
+    }
+
+    const item = data.content;
+
+    /*
+    |--------------------------------------------------------------------------
+    | Basic fields
+    |--------------------------------------------------------------------------
+    */
+
+    document.getElementById("title").value =
+      item.title || "";
+
+    document.getElementById("client").value =
+      item.client || "";
+
+    /*
+    |--------------------------------------------------------------------------
+    | Caption
+    |--------------------------------------------------------------------------
+    */
+
+    document.getElementById("caption").innerHTML =
+      item.caption || "";
+
+    updateCounter();
+
+    /*
+    |--------------------------------------------------------------------------
+    | Orientation
+    |--------------------------------------------------------------------------
+    */
+
+    orientation =
+      item.orientation === "vertical"
+        ? "vertical"
+        : "horizontal";
+
+    document
+      .querySelectorAll("[data-orientation]")
+      .forEach(btn => {
+
+        btn.classList.toggle(
+          "active",
+          btn.dataset.orientation === orientation
+        );
+
+      });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Content Type
+    |--------------------------------------------------------------------------
+    */
+
+    if (item.content_type) {
+
+      const exists = types.some(
+        type => type.id === item.content_type
+      );
+
+      if (!exists) {
+
+        types.push({
+          id: item.content_type,
+          label: item.type_label || item.content_type,
+          platform: item.platform || "",
+          category: item.category || ""
+        });
+
+      }
+
+      selectedType = item.content_type;
+
+      renderTypes();
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Publish / Schedule
+    |--------------------------------------------------------------------------
+    */
+
+    const publishNow =
+      Number(item.publish_now) === 1;
+
+    document.getElementById("publishNow").checked =
+      publishNow;
+
+    document.getElementById("postDate").value =
+      item.post_date || "";
+
+    document.getElementById("postTime").value =
+      item.post_time || "";
+
+    syncPublishNow();
+
+    /*
+    |--------------------------------------------------------------------------
+    | Existing image
+    |--------------------------------------------------------------------------
+    */
+
+    if (item.media_path) {
+
+      showMedia(item.media_path);
+
+      removeMedia = false;
+
+    }
+
+    setStatus("", "");
+
+  } catch (error) {
+
+    console.error(error);
+
+    setStatus(
+      "Connection error.",
+      "error"
+    );
+  }
 }
 
 function logout(){
