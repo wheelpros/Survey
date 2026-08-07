@@ -1027,19 +1027,32 @@ updateCounter();
 if(editId){
   prepareEditMode();
 }
+// استدعاء نفس API المستخدمين الجاهز عندك بدون إنشاء ملفات جديدة
 async function loadUsersOptions() {
-  const res = await fetch("api/admin-users.php", {
-    headers: { "Authorization": "Bearer " + token }
-  });
-  const data = await res.json();
-  if(data.success && data.users) {
-    const select = document.getElementById("userIdSelect");
-    data.users.forEach(u => {
-      select.innerHTML += `<option value="${u.id}">${u.name} (${u.email})</option>`;
+  const select = document.getElementById("userIdSelect");
+  if (!select) return;
+
+  try {
+    const res = await fetch("api/admin-users.php", {
+      headers: { "Authorization": "Bearer " + token }
     });
+    const data = await res.json();
+
+    if (data.success && data.users) {
+      // تنظيف القائمة أولاً لتفادي التكرار
+      select.innerHTML = '<option value="">Select User...</option>';
+      
+      data.users.forEach(u => {
+        select.innerHTML += `<option value="${u.id}">${u.name} (${u.email})</option>`;
+      });
+    }
+  } catch (err) {
+    console.error("Error loading users:", err);
   }
 }
-loadUsersOptions();
+
+// تشغيل الدالة فور تحميل الصفحة
+document.addEventListener("DOMContentLoaded", loadUsersOptions);
 </script>
 
 </body>
