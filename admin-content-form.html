@@ -763,6 +763,18 @@ async function save(intent){
   const postTime = document.getElementById("postTime").value;
   const captionHtml = caption.innerHTML.trim();
   const captionText = caption.innerText.trim();
+  const form = new FormData();
+  if(editId) form.append("id", editId);
+
+  form.append("title", title);
+  form.append("client", document.getElementById("client").value.trim());
+  
+  // ─── ضيف السطر ده هنا ──────────────────────────────
+  form.append("user_id", document.getElementById("userIdSelect").value || "");
+  // ──────────────────────────────────────────────────
+
+  form.append("caption", captionHtml);
+  form.append("content_type", type.id);
 
   if(!title){
     setStatus("Add a campaign title.", "error");
@@ -940,7 +952,9 @@ async function prepareEditMode(){
         );
 
       });
-
+if (item.user_id) {
+    document.getElementById("userIdSelect").value = item.user_id;
+  }
     /*
     |--------------------------------------------------------------------------
     | Content Type
@@ -1027,31 +1041,36 @@ updateCounter();
 if(editId){
   prepareEditMode();
 }
-// استدعاء نفس API المستخدمين الجاهز عندك بدون إنشاء ملفات جديدة
+// 1. دالة جلب المستخدمين وملء القائمة
 async function loadUsersOptions() {
   const select = document.getElementById("userIdSelect");
   if (!select) return;
 
+  const token = localStorage.getItem("token") || localStorage.getItem("admin_token");
+
   try {
     const res = await fetch("api/admin-users.php", {
-      headers: { "Authorization": "Bearer " + token }
+      headers: { 
+        "Authorization": "Bearer " + token 
+      }
     });
     const data = await res.json();
 
     if (data.success && data.users) {
-      // تنظيف القائمة أولاً لتفادي التكرار
-      select.innerHTML = '<option value="">Select User...</option>';
-      
+      // تفريغ القائمة والإبقاء على خيار "الكل" كافتراضي
+      select.innerHTML = `<option value="">All Users (Public)</option>`;
+
+      // إضافة اليوزرز من الـ API
       data.users.forEach(u => {
         select.innerHTML += `<option value="${u.id}">${u.name} (${u.email})</option>`;
       });
     }
   } catch (err) {
-    console.error("Error loading users:", err);
+    console.error("Error loading users options:", err);
   }
 }
 
-// تشغيل الدالة فور تحميل الصفحة
+// 2. تشغيل الدالة فور تحميل الصفحة
 document.addEventListener("DOMContentLoaded", loadUsersOptions);
 </script>
 
