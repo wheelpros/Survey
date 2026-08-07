@@ -344,15 +344,30 @@ function formatTiming(item){
 
 // Front end only for now. Fill `allContent` from an API here and everything
 // below - tabs, search, cards, the orientation-aware detail panel - renders as is.
-function loadContent(){
-  if(!allContent.length){
-    document.getElementById("contentGrid").innerHTML =
-      `<div class="empty">No content published yet.</div>`;
-    return;
-  }
+async function loadContent(){
+  const grid = document.getElementById("contentGrid");
+  grid.innerHTML = `<div class="empty">Loading content...</div>`;
 
-  renderFilters();
-  applyFilters();
+  try {
+    const res = await fetch("api/user-content.php", {
+      headers: {
+        "Authorization": "Bearer " + token
+      }
+    });
+
+    const data = await res.json();
+
+    if(data.success && data.content && data.content.length > 0){
+      allContent = data.content;
+      renderFilters();
+      applyFilters();
+    } else {
+      grid.innerHTML = `<div class="empty">No content available for you yet.</div>`;
+    }
+  } catch (err) {
+    console.error(err);
+    grid.innerHTML = `<div class="empty">Failed to load content.</div>`;
+  }
 }
 
 function renderFilters(){

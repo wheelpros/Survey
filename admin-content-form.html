@@ -420,7 +420,13 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
             <p class="note">Scheduled posts will be reviewed by the chief editor before going live.</p>
           </div>
         </section>
-
+        <div class="field">
+  <label>Target User (Visibility)</label>
+  <select id="userIdSelect" name="user_id">
+    <option value="">All Users (Public)</option>
+   
+  </select>
+</div>
         <section class="panel">
           <div class="panel-body">
             <div class="actions">
@@ -1021,6 +1027,19 @@ updateCounter();
 if(editId){
   prepareEditMode();
 }
+async function loadUsersOptions() {
+  const res = await fetch("api/admin-users.php", {
+    headers: { "Authorization": "Bearer " + token }
+  });
+  const data = await res.json();
+  if(data.success && data.users) {
+    const select = document.getElementById("userIdSelect");
+    data.users.forEach(u => {
+      select.innerHTML += `<option value="${u.id}">${u.name} (${u.email})</option>`;
+    });
+  }
+}
+loadUsersOptions();
 </script>
 
 </body>
