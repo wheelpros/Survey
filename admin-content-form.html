@@ -763,18 +763,6 @@ async function save(intent){
   const postTime = document.getElementById("postTime").value;
   const captionHtml = caption.innerHTML.trim();
   const captionText = caption.innerText.trim();
-  const form = new FormData();
-  if(editId) form.append("id", editId);
-
-  form.append("title", title);
-  form.append("client", document.getElementById("client").value.trim());
-  
-  // ─── ضيف السطر ده هنا ──────────────────────────────
-  form.append("user_id", document.getElementById("userIdSelect").value || "");
-  // ──────────────────────────────────────────────────
-
-  form.append("caption", captionHtml);
-  form.append("content_type", type.id);
 
   if(!title){
     setStatus("Add a campaign title.", "error");
@@ -805,6 +793,7 @@ async function save(intent){
 
   form.append("title", title);
   form.append("client", document.getElementById("client").value.trim());
+  form.append("user_id", document.getElementById("userIdSelect").value || ""); // إرسال اليوزر المحدد
   form.append("caption", captionHtml);
   form.append("content_type", type.id);
   form.append("type_label", type.label);
@@ -820,48 +809,33 @@ async function save(intent){
   if(removeMedia && !mediaFile) form.append("remove_media", "1");
 
   try {
+    setStatus(editId ? "Updating content..." : "Saving content...", "");
 
-  setStatus(
-    editId ? "Updating content..." : "Saving content...",
-    ""
-  );
+    const response = await fetch("api/admin-content.php", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + adminToken
+      },
+      body: form
+    });
 
-  const response = await fetch("api/admin-content.php", {
-    method: "POST",
-    headers: {
-      Authorization: "Bearer " + adminToken
-    },
-    body: form
-  });
+    const data = await response.json();
 
-  const data = await response.json();
+    if (!response.ok || !data.success) {
+      setStatus(data.message || "Something went wrong.", "error");
+      return;
+    }
 
-  if (!response.ok || !data.success) {
-    setStatus(
-      data.message || "Something went wrong.",
-      "error"
-    );
-    return;
+    setStatus(data.message || "Saved successfully.", "ok");
+
+    setTimeout(() => {
+      window.location.href = "admin-content.html";
+    }, 700);
+
+  } catch (error) {
+    console.error(error);
+    setStatus("Connection error.", "error");
   }
-
-  setStatus(
-    data.message || "Saved successfully.",
-    "ok"
-  );
-
-  setTimeout(() => {
-    window.location.href = "admin-content.html";
-  }, 700);
-
-} catch (error) {
-
-  console.error(error);
-
-  setStatus(
-    "Connection error.",
-    "error"
-  );
-}
 }
 
 function discard(){
