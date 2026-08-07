@@ -13,12 +13,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-// 1. بيانات الاتصال بالداتابيز
-$db_host = "localhost";
-$db_user = "YOUR_DB_USER";
-$db_pass = "YOUR_DB_PASSWORD";
-$db_name = "YOUR_DB_NAME";
 
+$DB_HOST = "fsook8og8oscgccgcgs88w4o";
+$DB_PORT = "3306";
+$DB_NAME = "default";
+$DB_USER = "mysql";
+$DB_PASS = "rCHm3LJRaAa04UAnRtNFPwEk8fSoif40uvP8WAPGgJ18qFzh11vMCeoii9iuX9u1";
 try {
     // الاتصال باستخدام PDO بدلاً من mysqli
     $pdo = new PDO("mysql:host=$db_host;dbname=$db_name;charset=utf8mb4", $db_user, $db_pass, [
