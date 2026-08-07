@@ -1,6 +1,7 @@
 <?php
-// إظهار الأخطاء أثناء التطوير لتحديد السبب لو حدث خطأ داخلي
-ini_set('display_errors', 0);
+// إظهار الأخطاء لمعرفة السبب الحقيقي لو استمرت المشكلة
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 header("Content-Type: application/json; charset=UTF-8");
@@ -13,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-// 1. الاتصال بقاعدة البيانات (غير البيانات حسب سيرفرك)
+// 1. بيانات الاتصال بالداتابيز (تأكد من صحتها)
 $db_host = "localhost";
 $db_user = "YOUR_DB_USER";
 $db_pass = "YOUR_DB_PASSWORD";
@@ -26,17 +27,9 @@ if ($conn->connect_error) {
     exit();
 }
 
-// 2. قراءة الـ Authorization Header
+// 2. قراءة الـ Header
 $headers = function_exists('getallheaders') ? getallheaders() : [];
-$authHeader = '';
-
-if (isset($headers['Authorization'])) {
-    $authHeader = $headers['Authorization'];
-} elseif (isset($headers['authorization'])) {
-    $authHeader = $headers['authorization'];
-} elseif (isset($_SERVER['HTTP_AUTHORIZATION'])) {
-    $authHeader = $_SERVER['HTTP_AUTHORIZATION'];
-}
+$authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? $_SERVER['HTTP_AUTHORIZATION'] ?? '';
 
 if (!$authHeader || !preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
     http_response_code(401);
@@ -46,10 +39,10 @@ if (!$authHeader || !preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
 
 $token = $matches[1];
 
-// 3. التحقق من المستخدم بواسطة الـ Token
+// 3. التحقق من التوكن
 $stmt = $conn->prepare("SELECT id FROM users WHERE token = ? LIMIT 1");
 if (!$stmt) {
-    echo json_encode(["success" => false, "message" => "Query preparation failed", "content" => []]);
+    echo json_encode(["success" => false, "message" => "Users table query failed: " . $conn->error]);
     exit();
 }
 
@@ -59,40 +52,34 @@ $result = $stmt->get_result();
 
 if ($result->num_rows === 0) {
     http_response_code(401);
-    echo json_encode(["success" => false, "message" => "Invalid session token.", "content" => []]);
+    echo json_encode(["success" => false, "message" => "Invalid token.", "content" => []]);
     exit();
 }
 
 $user = $result->fetch_assoc();
 $userId = $user['id'];
 
-// 4. جلب الكونتنت المربوط بالـ user_id
-$query = "SELECT id, title, client, caption, content_type, type_label, platform, category, orientation, post_date, post_time, publish_now, status, media_path, created_at 
-          FROM content 
-          WHERE user_id = ? 
-          ORDER BY id DESC";
+// 4. استعلام الكونتنت (استعلام آمن يختار كل الأعمدة الموجودة)
+$query = "SELECT * FROM content WHERE user_id = ? ORDER BY id DESC";
 
 $stmtContent = $conn->prepare($query);
-if ($stmtContent) {
-    $stmtContent->bind_param("i", $userId);
-    $stmtContent->execute();
-    $contentResult = $stmtContent->get_result();
-
-    $contents = [];
-    while ($row = $contentResult->fetch_assoc()) {
-        $contents[] = $row;
-    }
-
-    echo json_encode([
-        "success" => true,
-        "content" => $contents
-    ]);
-} else {
-    echo json_encode([
-        "success" => false,
-        "message" => "Failed to fetch content",
-        "content" => []
-    ]);
+if (!$stmtContent) {
+    echo json_encode(["success" => false, "message" => "Content table query failed: " . $conn->error]);
+    exit();
 }
+
+$stmtContent->bind_param("i", $userId);
+$stmtContent->execute();
+$contentResult = $stmtContent->get_result();
+
+$contents = [];
+while ($row = $contentResult->fetch_assoc()) {
+    $contents[] = $row;
+}
+
+echo json_encode([
+    "success" => true,
+    "content" => $contents
+]);
 
 $conn->close();
