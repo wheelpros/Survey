@@ -21,10 +21,15 @@ $DB_USER = "mysql";
 $DB_PASS = "rCHm3LJRaAa04UAnRtNFPwEk8fSoif40uvP8WAPGgJ18qFzh11vMCeoii9iuX9u1";
 try {
     // الاتصال باستخدام PDO بدلاً من mysqli
-    $pdo = new PDO("mysql:host=$db_host;dbname=$db_name;charset=utf8mb4", $db_user, $db_pass, [
+    $pdo = new PDO(
+    "mysql:host=$DB_HOST;dbname=$DB_NAME;charset=utf8mb4",
+    $DB_USER,
+    $DB_PASS,
+    [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
-    ]);
+    ]
+);
 } catch (PDOException $e) {
     echo json_encode(["success" => false, "message" => "Database connection failed"]);
     exit();
