@@ -349,11 +349,13 @@ async function loadContent(){
   grid.innerHTML = `<div class="empty">Loading content...</div>`;
 
   try {
-    const res = await fetch("https://survey.websitezone.co.uk/api/user-content.php", {
+    const res = await fetch("https://survey.websitezone.co.uk/api/admin-content.php", {
   headers: {
-    "Authorization": "Bearer " + token
+    "Authorization": "Bearer YOUR_ADMIN_TOKEN"
   }
-});
+})
+.then(res => res.json())
+.then(console.log);
 
     const data = await res.json();
 
