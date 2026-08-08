@@ -61,7 +61,11 @@ try {
     $userId = $user['id'];
 
     // 4. جلب الكونتنت المربوط بـ user_id
-    $stmtContent = $pdo->prepare("SELECT * FROM content WHERE user_id = :user_id ORDER BY id DESC");
+    $stmtContent = $pdo->prepare("
+  SELECT * FROM content 
+  WHERE created_by = :user_id 
+  ORDER BY id DESC
+");
     $stmtContent->execute(['user_id' => $userId]);
     $contents = $stmtContent->fetchAll();
 
