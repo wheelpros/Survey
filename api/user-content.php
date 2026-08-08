@@ -48,8 +48,7 @@ if (!$authHeader || !preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
 $token = $matches[1];
 
 try {
-    // 3. التحقق من التوكن وجلب id اليوزر
-    $stmt = $pdo->prepare("SELECT id FROM users WHERE token = :token LIMIT 1");
+    $stmt = $pdo->prepare("SELECT id FROM users WHERE session_token = :token LIMIT 1");
     $stmt->execute(['token' => $token]);
     $user = $stmt->fetch();
 
