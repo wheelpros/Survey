@@ -375,7 +375,7 @@ document.addEventListener("DOMContentLoaded", function () {
 <script>
 let adminToken = localStorage.getItem("admin_token");
 let adminUser = JSON.parse(localStorage.getItem("admin_user") || "{}");
-
+const adminUser = JSON.parse(localStorage.getItem("admin_user") || "{}");
 if(!adminToken || !adminUser.role){
   window.location.href = "admin-login.html";
 }
@@ -473,7 +473,7 @@ async function uploadLogo() {
     status.innerText = "An error occurred while uploading.";
   }
 }
-const adminToken = localStorage.getItem("adminToken");
+const adminToken = localStorage.getItem("admin_token");
 async function addUser(){
 
     const res = await fetch("api/add-user.php", {
