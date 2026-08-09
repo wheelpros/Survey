@@ -405,14 +405,22 @@ if (!adminToken || !adminUser.role) {
   window.location.href = "admin-login.html";
 }
 
-// ✅ إخفاء صلاحيات عن غير السوبر أدمن
 if (adminUser.role !== "owner") {
-  const a = document.getElementById("articlesAssignmentLink");
-  const u = document.getElementById("usersManagementLink");
-  if (a) a.style.display = "none";
-  if (u) u.style.display = "none";
-}
 
+    const a = document.getElementById("articlesAssignmentLink");
+    const u = document.getElementById("usersManagementLink");
+    const addAdmin = document.getElementById("addAdminSection");
+
+    if (a) a.style.display = "none";
+    if (u) u.style.display = "none";
+    if (addAdmin) addAdmin.style.display = "none";
+
+} else {
+
+    const addAdmin = document.getElementById("addAdminSection");
+
+    if (addAdmin) addAdmin.style.display = "block";
+}
 // ✅ تحديث اللوجو (كاش)
 document.getElementById("currentLogo").src = "logo.png?" + Date.now();
 
