@@ -342,48 +342,36 @@ function formatTiming(item){
   return date.toLocaleDateString(undefined,{day:"numeric",month:"short",year:"numeric"}) + " · " + time;
 }
 
-// Front end only for now. Fill `allContent` from an API here and everything
-// below - tabs, search, cards, the orientation-aware detail panel - renders as is.
+// The user endpoint returns published content only, with `created_by` already
+// resolved to the admin's name.
 async function loadContent(){
   const grid = document.getElementById("contentGrid");
   grid.innerHTML = `<div class="empty">Loading content...</div>`;
 
   try {
-    const token = localStorage.getItem("admin_token");
-
-    const res = await fetch("https://survey.websitezone.co.uk/api/admin-content.php", {
-      headers: {
-        "Authorization": "Bearer " + token
-      }
+    const res = await fetch("api/user-content.php", {
+      headers: { Authorization: "Bearer " + token }
     });
 
-    if (!res.ok) {
-      console.error("HTTP error:", res.status);
-      grid.innerHTML = `<div class="empty">Unauthorized or error loading.</div>`;
+    // A stale session should send the user back to login, not show an error.
+    if (res.status === 401) {
+      localStorage.removeItem("portal_token");
+      localStorage.removeItem("portal_user");
+      window.location.href = "login.html";
       return;
     }
 
-    const res = await fetch("https://survey.websitezone.co.uk/api/admin-content.php", {
-  headers: {
-    "Authorization": "Bearer " + localStorage.getItem("admin_token")
-  }
-});
+    const data = await res.json();
 
-if (!res.ok) {
-  console.log("error", res.status);
-  return;
-}
+    allContent = (data.success && data.content) || [];
 
-const data = await res.json();
-    console.log(data);
-
-    if(data.success && data.content && data.content.length > 0){
-      allContent = data.content;
-      renderFilters();
-      applyFilters();
-    } else {
-      grid.innerHTML = `<div class="empty">No content available for you yet.</div>`;
+    if (!allContent.length) {
+      grid.innerHTML = `<div class="empty">No content published yet.</div>`;
+      return;
     }
+
+    renderFilters();
+    applyFilters();
 
   } catch (err) {
     console.error(err);

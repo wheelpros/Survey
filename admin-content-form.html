@@ -420,13 +420,7 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
             <p class="note">Scheduled posts will be reviewed by the chief editor before going live.</p>
           </div>
         </section>
-        <div class="field">
-  <label>Target User (Visibility)</label>
-  <select id="userIdSelect" name="user_id">
-    <option value="">All Users (Public)</option>
-   
-  </select>
-</div>
+
         <section class="panel">
           <div class="panel-body">
             <div class="actions">
@@ -793,7 +787,6 @@ async function save(intent){
 
   form.append("title", title);
   form.append("client", document.getElementById("client").value.trim());
-  form.append("user_id", document.getElementById("userIdSelect").value || ""); // إرسال اليوزر المحدد
   form.append("caption", captionHtml);
   form.append("content_type", type.id);
   form.append("type_label", type.label);
@@ -926,9 +919,7 @@ async function prepareEditMode(){
         );
 
       });
-if (item.user_id) {
-    document.getElementById("userIdSelect").value = item.user_id;
-  }
+
     /*
     |--------------------------------------------------------------------------
     | Content Type
@@ -1015,37 +1006,6 @@ updateCounter();
 if(editId){
   prepareEditMode();
 }
-// 1. دالة جلب المستخدمين وملء القائمة
-async function loadUsersOptions() {
-  const select = document.getElementById("userIdSelect");
-  if (!select) return;
-
-  const token = localStorage.getItem("token") || localStorage.getItem("admin_token");
-
-  try {
-    const res = await fetch("api/admin-users.php", {
-      headers: { 
-        "Authorization": "Bearer " + token 
-      }
-    });
-    const data = await res.json();
-
-    if (data.success && data.users) {
-      // تفريغ القائمة والإبقاء على خيار "الكل" كافتراضي
-      select.innerHTML = `<option value="">All Users (Public)</option>`;
-
-      // إضافة اليوزرز من الـ API
-      data.users.forEach(u => {
-        select.innerHTML += `<option value="${u.id}">${u.name} (${u.email})</option>`;
-      });
-    }
-  } catch (err) {
-    console.error("Error loading users options:", err);
-  }
-}
-
-// 2. تشغيل الدالة فور تحميل الصفحة
-document.addEventListener("DOMContentLoaded", loadUsersOptions);
 </script>
 
 </body>
