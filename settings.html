@@ -397,6 +397,15 @@ document.addEventListener("DOMContentLoaded", function () {
   </div>
 </div>
 </div>
+<div id="adminsListSection">
+
+    <h3>Admins</h3>
+
+    <div id="adminsList">
+        Loading...
+    </div>
+
+</div>
 <script>
 // ✅ تعريفات مرة واحدة بس
 let adminToken = localStorage.getItem("admin_token");
@@ -473,7 +482,52 @@ async function savePassword() {
     status.innerText = "An error occurred while saving.";
   }
 }
+async function loadAdminsList() {
 
+    const section = document.getElementById("adminsListSection");
+    const list = document.getElementById("adminsList");
+
+    // Only owner can see this section
+    if (adminUser.role !== "owner") {
+        if (section) section.style.display = "none";
+        return;
+    }
+
+    try {
+
+        const res = await fetch("api/get-admins.php", {
+            headers: {
+                "Authorization": "Bearer " + adminToken
+            }
+        });
+
+        const data = await res.json();
+
+        if (!data.success) {
+            list.innerHTML = "Failed to load admins.";
+            return;
+        }
+
+        if (!data.admins.length) {
+            list.innerHTML = "No admins found.";
+            return;
+        }
+
+        list.innerHTML = data.admins.map(admin => `
+            <div class="admin-item">
+                <strong>${admin.name}</strong><br>
+                <span>${admin.email}</span><br>
+                <span>${admin.role}</span>
+            </div>
+        `).join("");
+
+    } catch (err) {
+
+        console.error(err);
+        list.innerHTML = "Error loading admins.";
+
+    }
+}
 // ✅ رفع اللوجو
 async function uploadLogo() {
   const status = document.getElementById("logoStatus");
@@ -569,7 +623,10 @@ async function loadSettings() {
   }
 }
 
-window.onload = loadSettings;
+window.onload = function () {
+    loadSettings();
+    loadAdminsList();
+};
 </script>
 
   </div>
