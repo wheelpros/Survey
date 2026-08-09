@@ -375,24 +375,27 @@ document.addEventListener("DOMContentLoaded", function () {
 
   <div class="panel-body">
     
-    <label>Name</label>
-    <input type="text" id="name" placeholder="Enter name">
+    <div id="addAdminSection">
 
-    <label>Email</label>
-    <input type="email" id="email" placeholder="Enter email">
+<label>Name</label>
+<input type="text" id="name" placeholder="Enter name">
 
-    <label>Password</label>
-    <input type="password" id="password" placeholder="Enter password">
+<label>Email</label>
+<input type="email" id="email" placeholder="Enter email">
 
-    <label>Role</label>
-    <select id="role">
-      <option value="user">User</option>
-      <option value="seo_admin">SEO Admin</option>
-      <option value="super_admin">Super Admin</option>
-    </select>
+<label>Password</label>
+<input type="password" id="password" placeholder="Enter password">
 
-    <button class="primary" onclick="addUser()">Add</button>
+<label>Role</label>
+<select id="role">
+  <option value="user">User</option>
+  <option value="seo_admin">SEO Admin</option>
+  <option value="super_admin">Super Admin</option>
+</select>
 
+<button class="primary" onclick="addUser()">Add</button>
+
+</div>
   </div>
 </div>
 <script>
