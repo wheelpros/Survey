@@ -38,6 +38,30 @@
         margin-top: 20px;
       }
 
+      /* Same logo treatment as the sidebar: logo.png when the admin has
+         uploaded one, the bundled wordmark otherwise. */
+      .brand {
+        text-align: center;
+        margin-bottom: 26px;
+      }
+
+      .brand img {
+        width: 132px;
+        max-width: 100%;
+        height: auto;
+        display: inline-block;
+      }
+
+      .auth-foot {
+        margin: 26px 0 0;
+        text-align: center;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        color: #98a1ad;
+      }
+
       .tabs {
         display: flex;
         background: #eef0f3;
@@ -277,6 +301,11 @@
     <div class="auth-wrapper">
       <!-- Login Card -->
       <div class="card login-card">
+        <div class="brand">
+          <img src="logo.png" alt="W|ZONE London"
+               onerror="this.onerror=null;this.src='assets/WZONE%20source.png'" />
+        </div>
+
         <div class="tabs">
           <button class="active" onclick="showLogin()">Log In</button>
           <button onclick="showRegister()">Register</button>
@@ -325,10 +354,19 @@
         </div>
 
         <div class="status" id="loginStatus"></div>
+
+        <p class="auth-foot">
+          &copy; <span class="yr"></span> WZONE London. All rights reserved.
+        </p>
       </div>
 
       <!-- Register Card -->
       <div class="card register-card">
+        <div class="brand">
+          <img src="logo.png" alt="W|ZONE London"
+               onerror="this.onerror=null;this.src='assets/WZONE%20source.png'" />
+        </div>
+
         <div class="tabs">
           <button onclick="showLogin()">Log In</button>
           <button class="active" onclick="showRegister()">Register</button>
@@ -402,18 +440,26 @@
           <button
             type="button"
             onclick="showLogin()"
-            style="text-decoration: underline; color: #000000""
+            style="text-decoration: underline; color: #000000"
           >
             Log In
           </button>
         </div>
 
         <div class="status" id="registerStatus"></div>
+
+        <p class="auth-foot">
+          &copy; <span class="yr"></span> WZONE London. All rights reserved.
+        </p>
       </div>
     </div>
 
     <script>
       const API_BASE = "api";
+
+      document.querySelectorAll(".yr").forEach(
+        (el) => (el.textContent = new Date().getFullYear())
+      );
 
       function showLogin() {
         document.querySelector(".login-card").style.display = "block";

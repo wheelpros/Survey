@@ -27,11 +27,28 @@ body{
   box-shadow:0 14px 35px rgba(0,0,0,.08);
 }
 
-.logo{
-  color:#c9000b;
-  font-weight:800;
-  font-size:24px;
-  margin-bottom:10px;
+/* Same logo treatment as the sidebar: logo.png when the admin has
+   uploaded one, the bundled wordmark otherwise. */
+.brand{
+  text-align:center;
+  margin-bottom:26px;
+}
+
+.brand img{
+  width:132px;
+  max-width:100%;
+  height:auto;
+  display:inline-block;
+}
+
+.auth-foot{
+  margin:26px 0 0;
+  text-align:center;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.4px;
+  text-transform:uppercase;
+  color:#98a1ad;
 }
 
 h1{
@@ -129,7 +146,11 @@ button{
 <body>
 
 <div class="card">
-  <div class="logo">W zone</div>
+  <div class="brand">
+    <img src="logo.png" alt="W|ZONE London"
+         onerror="this.onerror=null;this.src='assets/WZONE%20source.png'">
+  </div>
+
   <h1>Admin Login</h1>
 
   <label for="email">Email</label>
@@ -155,9 +176,13 @@ button{
   <button onclick="loginAdmin()">Login</button>
 
   <div class="status" id="status"></div>
+
+  <p class="auth-foot">&copy; <span class="yr"></span> WZONE London. All rights reserved.</p>
 </div>
 
 <script>
+document.querySelectorAll(".yr").forEach(el => el.textContent = new Date().getFullYear());
+
 async function loginAdmin(){
   const email = document.getElementById("email").value.trim();
   const password = document.getElementById("password").value.trim();
