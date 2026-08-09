@@ -481,7 +481,6 @@ async function uploadLogo() {
   }
 }
 
-// ✅ إضافة يوزر
 async function addUser() {
   try {
     const res = await fetch("api/add-user.php", {
@@ -498,15 +497,26 @@ async function addUser() {
       })
     });
 
-    const data = await res.json();
+    // 👇 مهم جدا
+    const text = await res.text();
+    console.log("RAW RESPONSE:", text);
+
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      alert("Server returned invalid JSON ❌");
+      return;
+    }
+
     alert(data.message || "Done");
 
   } catch (err) {
-    alert("Error adding user");
+    console.error(err);
+    alert("Network or server error ❌");
   }
 }
 
-// ✅ تحميل الإعدادات
 async function loadSettings() {
   try {
     const res = await fetch("api/settings.php", {
