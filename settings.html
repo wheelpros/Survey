@@ -225,6 +225,75 @@ body{padding:0}
   box-sizing: border-box;
   margin-bottom: 15px;
 }
+/* Available Admins */
+.admin-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.admin-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 16px;
+    border: 1px solid #eaecf0;
+    border-radius: 12px;
+    background: #fff;
+}
+
+.admin-info {
+    min-width: 0;
+}
+
+.admin-info strong {
+    display: block;
+    font-size: 15px;
+    margin-bottom: 5px;
+    color: #101828;
+}
+
+.admin-info span {
+    display: block;
+    font-size: 13px;
+    color: #667085;
+    margin-bottom: 5px;
+}
+
+.admin-role {
+    display: inline-block !important;
+    width: fit-content;
+    padding: 4px 9px;
+    border-radius: 20px;
+    background: #eef0f6;
+    color: #1b1e3a !important;
+    font-size: 11px !important;
+    font-weight: 700;
+}
+
+.remove-admin-btn {
+    flex: none;
+    border: 1px solid #f0d2d4;
+    background: #fff;
+    color: #c9000b;
+    padding: 9px 14px;
+    border-radius: 9px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.remove-admin-btn:hover {
+    background: #fff5f5;
+}
+
+.no-admins {
+    padding: 20px;
+    text-align: center;
+    color: #667085;
+    border: 1px dashed #d0d5dd;
+    border-radius: 12px;
+}
 </style>
 
 <script>
@@ -397,6 +466,22 @@ document.addEventListener("DOMContentLoaded", function () {
   </div>
 </div>
 </div>
+<div id="availableAdminsSection" style="display:none;">
+    <div class="panel">
+        <div class="panel-head">
+            <h1>Available Admins</h1>
+            <p>Manage SEO Admins and Super Admins.</p>
+        </div>
+
+        <div class="panel-body">
+            <div id="adminsList" class="admin-list">
+                <div class="no-admins">
+                    Loading admins...
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 <script>
 // ✅ تعريفات مرة واحدة بس
 let adminToken = localStorage.getItem("admin_token");
@@ -412,16 +497,22 @@ if (adminUser.role !== "owner") {
     const a = document.getElementById("articlesAssignmentLink");
     const u = document.getElementById("usersManagementLink");
     const addAdmin = document.getElementById("addAdminSection");
+    const availableAdmins = document.getElementById("availableAdminsSection");
 
     if (a) a.style.display = "none";
     if (u) u.style.display = "none";
     if (addAdmin) addAdmin.style.display = "none";
+    if (availableAdmins) availableAdmins.style.display = "none";
 
 } else {
 
     const addAdmin = document.getElementById("addAdminSection");
+    const availableAdmins = document.getElementById("availableAdminsSection");
 
     if (addAdmin) addAdmin.style.display = "block";
+    if (availableAdmins) availableAdmins.style.display = "block";
+
+    loadAdmins();
 }
 // ✅ تحديث اللوجو (كاش)
 document.getElementById("currentLogo").src = "logo.png?" + Date.now();
@@ -549,7 +640,128 @@ async function addUser() {
     alert("Network or server error ❌");
   }
 }
+async function loadAdmins() {
+    const list = document.getElementById("adminsList");
 
+    if (!list) return;
+
+    list.innerHTML = `
+        <div class="no-admins">
+            Loading admins...
+        </div>
+    `;
+
+    try {
+        const res = await fetch("api/get-admins.php", {
+            method: "GET",
+            headers: {
+                "Authorization": "Bearer " + adminToken
+            }
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+            list.innerHTML = `
+                <div class="no-admins">
+                    ${data.message || "Failed to load admins."}
+                </div>
+            `;
+            return;
+        }
+
+        if (!data.admins || data.admins.length === 0) {
+            list.innerHTML = `
+                <div class="no-admins">
+                    No admins available.
+                </div>
+            `;
+            return;
+        }
+
+        list.innerHTML = data.admins.map(admin => `
+            <div class="admin-row" id="admin-row-${admin.id}">
+                
+                <div class="admin-info">
+                    <strong>${escapeHtml(admin.name)}</strong>
+                    <span>${escapeHtml(admin.email)}</span>
+                    <span class="admin-role">
+                        ${admin.role === "super_admin" ? "Super Admin" : "SEO Admin"}
+                    </span>
+                </div>
+
+                <button
+                    type="button"
+                    class="remove-admin-btn"
+                    onclick="removeAdmin(${admin.id}, '${escapeHtml(admin.name)}')"
+                >
+                    Remove
+                </button>
+
+            </div>
+        `).join("");
+
+    } catch (err) {
+
+        console.error("Load admins error:", err);
+
+        list.innerHTML = `
+            <div class="no-admins">
+                Network or server error.
+            </div>
+        `;
+    }
+}
+async function removeAdmin(id, name) {
+
+    const confirmed = confirm(
+        `Are you sure you want to remove "${name}"?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+
+        const res = await fetch("api/remove-admin.php", {
+            method: "POST",
+
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + adminToken
+            },
+
+            body: JSON.stringify({
+                id: id
+            })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+            alert(data.message || "Failed to remove admin.");
+            return;
+        }
+
+        alert(data.message || "Admin removed successfully.");
+
+        // Reload list
+        loadAdmins();
+
+    } catch (err) {
+
+        console.error("Remove admin error:", err);
+
+        alert("Network or server error ❌");
+    }
+}
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
 async function loadSettings() {
   try {
     const res = await fetch("api/settings.php", {
