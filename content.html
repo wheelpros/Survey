@@ -349,15 +349,33 @@ async function loadContent(){
   grid.innerHTML = `<div class="empty">Loading content...</div>`;
 
   try {
+    const token = localStorage.getItem("admin_token");
+
+    const res = await fetch("https://survey.websitezone.co.uk/api/admin-content.php", {
+      headers: {
+        "Authorization": "Bearer " + token
+      }
+    });
+
+    if (!res.ok) {
+      console.error("HTTP error:", res.status);
+      grid.innerHTML = `<div class="empty">Unauthorized or error loading.</div>`;
+      return;
+    }
+
     const res = await fetch("https://survey.websitezone.co.uk/api/admin-content.php", {
   headers: {
-    "Authorization": "Bearer YOUR_ADMIN_TOKEN"
+    "Authorization": "Bearer " + localStorage.getItem("admin_token")
   }
-})
-.then(res => res.json())
-.then(console.log);
+});
 
-    const data = await res.json();
+if (!res.ok) {
+  console.log("error", res.status);
+  return;
+}
+
+const data = await res.json();
+    console.log(data);
 
     if(data.success && data.content && data.content.length > 0){
       allContent = data.content;
@@ -366,6 +384,7 @@ async function loadContent(){
     } else {
       grid.innerHTML = `<div class="empty">No content available for you yet.</div>`;
     }
+
   } catch (err) {
     console.error(err);
     grid.innerHTML = `<div class="empty">Failed to load content.</div>`;
