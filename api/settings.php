@@ -9,14 +9,14 @@ $stmt = $pdo->prepare("SELECT id, role FROM admins WHERE session_token=? LIMIT 1
 $stmt->execute([$token]);
 $admin = $stmt->fetch();
 
-if ($_SESSION['role'] !== 'owner') {
+if (!$admin || $admin['role'] !== 'owner') {
     echo json_encode([
         "status" => "error",
         "message" => "Unauthorized"
     ]);
     exit;
 }
-
+    
 if($_SERVER["REQUEST_METHOD"]=="GET"){
 
     $stmt=$pdo->prepare("
