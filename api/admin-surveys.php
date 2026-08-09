@@ -155,6 +155,121 @@ if ($method === "GET") {
 if ($method === "POST" || $method === "PUT") {
 
     $input = json_decode(file_get_contents("php://input"), true);
+    if ($method === "PUT" && ($input["action"] ?? "") === "approve") {
+
+    if ($currentAdmin["role"] !== "super_admin") {
+        echo json_encode([
+            "success" => false,
+            "message" => "Only Super Admin can approve surveys"
+        ]);
+        exit;
+    }
+
+    $surveyId = (int)($input["surveyId"] ?? 0);
+
+    $stmt = $pdo->prepare("
+        UPDATE surveys
+        SET status = 'pending'
+        WHERE id = ?
+        AND status = 'pending_approval'
+    ");
+
+    $stmt->execute([$surveyId]);
+
+    echo json_encode([
+        "success" => true,
+        "message" => "Survey approved and sent to the user"
+    ]);
+
+    exit;
+}
+    if ($method === "PUT" && ($input["action"] ?? "") === "approve") {
+
+    if ($currentAdmin["role"] !== "super_admin") {
+        echo json_encode([
+            "success" => false,
+            "message" => "Only Super Admin can approve surveys"
+        ]);
+        exit;
+    }
+    if ($method === "PUT" && ($input["action"] ?? "") === "deny") {
+
+    if ($currentAdmin["role"] !== "super_admin") {
+        echo json_encode([
+            "success" => false,
+            "message" => "Only Super Admin can deny surveys"
+        ]);
+        exit;
+    }
+
+    $surveyId = (int)($input["surveyId"] ?? 0);
+
+    if (!$surveyId) {
+        echo json_encode([
+            "success" => false,
+            "message" => "Survey ID is required"
+        ]);
+        exit;
+    }
+
+    $stmt = $pdo->prepare("
+        UPDATE surveys
+        SET status = 'denied'
+        WHERE id = ?
+        AND status = 'pending_approval'
+    ");
+
+    $stmt->execute([$surveyId]);
+
+    if ($stmt->rowCount() === 0) {
+        echo json_encode([
+            "success" => false,
+            "message" => "Survey not found or already processed"
+        ]);
+        exit;
+    }
+
+    echo json_encode([
+        "success" => true,
+        "message" => "Survey denied"
+    ]);
+
+    exit;
+}
+    $surveyId = (int)($input["surveyId"] ?? 0);
+
+    if (!$surveyId) {
+        echo json_encode([
+            "success" => false,
+            "message" => "Survey ID is required"
+        ]);
+        exit;
+    }
+
+    $stmt = $pdo->prepare("
+        UPDATE surveys
+        SET status = 'pending'
+        WHERE id = ?
+        AND status = 'pending_approval'
+    ");
+
+    $stmt->execute([$surveyId]);
+
+    if ($stmt->rowCount() === 0) {
+        echo json_encode([
+            "success" => false,
+            "message" => "Survey not found or already approved"
+        ]);
+        exit;
+    }
+
+    echo json_encode([
+        "success" => true,
+        "message" => "Survey approved and sent to the user"
+    ]);
+
+    exit;
+}
 
     $surveyId = (int)($input["surveyId"] ?? 0);
     $title = trim($input["title"] ?? "");
@@ -175,18 +290,37 @@ if ($method === "POST" || $method === "PUT") {
 
         if ($method === "POST") {
 
-            $stmt = $pdo->prepare("
-                INSERT INTO surveys (title, assigned_user_id, status)
-                VALUES (?, ?, 'pending')
-            ");
+    // SEO Admin needs Super Admin approval
+    $surveyStatus = ($currentAdmin["role"] === "super_admin")
+        ? "pending"
+        : "pending_approval";
 
-            $stmt->execute([
-                $title,
-                $assignedUserId
-            ]);
+    $stmt = $pdo->prepare("
+        $surveyStatus = ($currentAdmin["role"] === "super_admin")
+    ? "pending"
+    : "pending_approval";
 
-            $surveyId = $pdo->lastInsertId();
+$stmt = $pdo->prepare("
+    INSERT INTO surveys (title, assigned_user_id, status)
+    VALUES (?, ?, ?)
+");
 
+$stmt->execute([
+    $title,
+    $assignedUserId,
+    $surveyStatus
+]);
+
+$surveyId = $pdo->lastInsertId();
+    ");
+
+    $stmt->execute([
+        $title,
+        $assignedUserId,
+        $surveyStatus
+    ]);
+
+    $surveyId = $pdo->lastInsertId();
         } else {
 
             if (!$surveyId) {
@@ -267,11 +401,15 @@ if ($method === "POST" || $method === "PUT") {
         $pdo->commit();
 
         echo json_encode([
-            "success" => true,
-            "message" => $method === "POST"
+    "success" => true,
+    "message" => $method === "POST"
+        ? (
+            $currentAdmin["role"] === "super_admin"
                 ? "Survey created successfully"
-                : "Survey updated successfully"
-        ]);
+                : "Survey sent to Super Admin for approval"
+          )
+        : "Survey updated successfully"
+]);
         exit;
 
     } catch (Exception $e) {
