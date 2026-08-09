@@ -437,7 +437,7 @@ document.addEventListener("DOMContentLoaded", function () {
     <div id="logoStatus" class="status"></div>
   </div>
 </div>
-<div id="addAdminSection">
+
 <div class="panel">
   <div class="panel-head">
     <h1>Add Admin</h1>
@@ -445,7 +445,8 @@ document.addEventListener("DOMContentLoaded", function () {
   </div>
 
   <div class="panel-body">
-    
+    <div id="addAdminSection">
+
     <label>Name</label>
     <input type="text" id="name" placeholder="Enter name">
 
@@ -457,13 +458,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
     <label>Role</label>
     <select id="role">
-      <option value="user">User</option>
-      <option value="seo_admin">SEO Admin</option>
-      <option value="super_admin">Super Admin</option>
+        <option value="user">User</option>
+        <option value="seo_admin">SEO Admin</option>
+        <option value="super_admin">Super Admin</option>
     </select>
 
     <button class="primary" onclick="addUser()">Add</button>
 
+</div>
   </div>
 </div>
 </div>
@@ -497,8 +499,10 @@ if (adminUser.role !== "owner") {
 } else {
 
     const addAdmin = document.getElementById("addAdminSection");
+    const adminsList = document.getElementById("adminsListSection");
 
     if (addAdmin) addAdmin.style.display = "block";
+    if (adminsList) adminsList.style.display = "block";
 }
 // ✅ تحديث اللوجو (كاش)
 document.getElementById("currentLogo").src = "logo.png?" + Date.now();
