@@ -438,14 +438,10 @@ document.addEventListener("DOMContentLoaded", function () {
   </div>
 </div>
 
-<div class="panel">
-  <div class="panel-head">
-    <h1>Add Admin</h1>
-    <p>Create a new admin account with specific role.</p>
-  </div>
-
-  <div class="panel-body">
-    <div id="addAdminSection">
+<!-- =========================
+     ADD ADMIN SECTION
+========================= -->
+<div id="addAdminSection" style="display: none;">
 
     <label>Name</label>
     <input type="text" id="name" placeholder="Enter name">
@@ -466,10 +462,12 @@ document.addEventListener("DOMContentLoaded", function () {
     <button class="primary" onclick="addUser()">Add</button>
 
 </div>
-  </div>
-</div>
-</div>
-<div id="adminsListSection">
+
+
+<!-- =========================
+     ADMINS LIST SECTION
+========================= -->
+<div id="adminsListSection" style="display: none;">
 
     <h3>Admins</h3>
 
@@ -556,86 +554,151 @@ async function savePassword() {
 }
 async function loadAdminsList() {
 
-    const section = document.getElementById("adminsListSection");
-    const list = document.getElementById("adminsList");
+    const section =
+        document.getElementById("adminsListSection");
 
-    if (adminUser.role !== "owner") {
-        if (section) section.style.display = "none";
+    const list =
+        document.getElementById("adminsList");
+
+
+    // NEVER load for non-owner
+    if (!adminUser || adminUser.role !== "owner") {
+
+        if (section) {
+            section.style.display = "none";
+        }
+
         return;
     }
+
+
+    // Make sure owner can see it
+    if (section) {
+        section.style.display = "block";
+    }
+
 
     try {
 
         const res = await fetch("api/get-admins.php", {
+
             headers: {
                 "Authorization": "Bearer " + adminToken
             }
+
         });
+
 
         const data = await res.json();
 
+
         if (!data.success) {
-            list.innerHTML = "<p>Failed to load admins.</p>";
+
+            list.innerHTML =
+                "<p>Failed to load admins.</p>";
+
             return;
         }
+
 
         if (!data.admins.length) {
-            list.innerHTML = "<p>No admins found.</p>";
+
+            list.innerHTML =
+                "<p>No admins found.</p>";
+
             return;
         }
 
+
         list.innerHTML = data.admins.map(admin => `
+
             <div class="admin-row">
 
                 <div class="admin-info">
-                    <div class="admin-name">${admin.name}</div>
-                    <div class="admin-email">${admin.email}</div>
+
+                    <div class="admin-name">
+                        ${admin.name}
+                    </div>
+
+                    <div class="admin-email">
+                        ${admin.email}
+                    </div>
+
                 </div>
 
+
                 <div class="admin-role ${admin.role}">
-                    ${admin.role === "super_admin" ? "Super Admin" : "SEO Admin"}
+
+                    ${
+                        admin.role === "super_admin"
+                            ? "Super Admin"
+                            : "SEO Admin"
+                    }
+
                 </div>
+
 
                 <button
                     class="remove-admin-btn"
-                    onclick="removeAdmin(${admin.id}, '${admin.name.replace(/'/g, "\\'")}')">
+                    onclick="removeAdmin(
+                        ${admin.id},
+                        '${admin.name.replace(/'/g, "\\'")}'
+                    )">
+
                     Remove
+
                 </button>
 
             </div>
+
         `).join("");
+
 
     } catch (err) {
 
         console.error(err);
-        list.innerHTML = "<p>Error loading admins.</p>";
+
+        list.innerHTML =
+            "<p>Error loading admins.</p>";
 
     }
 }
+
 async function removeAdmin(id, name) {
 
     const confirmed = confirm(
         `Are you sure you want to remove "${name}"?`
     );
 
+
     if (!confirmed) {
         return;
     }
 
+
     try {
 
-        const res = await fetch("api/remove-admin.php", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": "Bearer " + adminToken
-            },
-            body: JSON.stringify({
-                id: id
-            })
-        });
+        const res = await fetch(
+            "api/remove-admin.php",
+            {
+
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + adminToken
+                },
+
+                body: JSON.stringify({
+                    id: id
+                })
+
+            }
+        );
+
 
         const data = await res.json();
+
 
         if (data.success) {
 
@@ -645,17 +708,23 @@ async function removeAdmin(id, name) {
 
         } else {
 
-            alert(data.message || "Failed to remove admin.");
+            alert(
+                data.message ||
+                "Failed to remove admin."
+            );
 
         }
+
 
     } catch (err) {
 
         console.error(err);
+
         alert("Network or server error.");
 
     }
 }
+
 // ✅ رفع اللوجو
 async function uploadLogo() {
   const status = document.getElementById("logoStatus");
