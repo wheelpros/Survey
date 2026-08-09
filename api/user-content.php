@@ -1,83 +1,136 @@
 <?php
-// إظهار الأخطاء أثناء التطوير
-ini_set('display_errors', 0);
-error_reporting(E_ALL);
+
+require_once "db.php";
 
 header("Content-Type: application/json; charset=UTF-8");
-header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Headers: Content-Type, Authorization");
-header("Access-Control-Allow-Methods: GET");
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit();
+if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") {
+    http_response_code(204);
+    exit;
 }
 
+/*
+|--------------------------------------------------------------------------
+| Authenticate the portal user
+|--------------------------------------------------------------------------
+|
+| Same guard as api/articles.php: the token must match a users row and the
+| account must be approved.
+|
+*/
 
-$DB_HOST = "fsook8og8oscgccgcgs88w4o";
-$DB_PORT = "3306";
-$DB_NAME = "default";
-$DB_USER = "mysql";
-$DB_PASS = "rCHm3LJRaAa04UAnRtNFPwEk8fSoif40uvP8WAPGgJ18qFzh11vMCeoii9iuX9u1";
-try {
-    // الاتصال باستخدام PDO بدلاً من mysqli
-    $pdo = new PDO(
-    "mysql:host=$DB_HOST;dbname=$DB_NAME;charset=utf8mb4",
-    $DB_USER,
-    $DB_PASS,
-    [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
-    ]
-);
-} catch (PDOException $e) {
-    echo json_encode(["success" => false, "message" => "Database connection failed"]);
-    exit();
-}
+$headers = function_exists("getallheaders") ? getallheaders() : [];
 
-// 2. قراءة الـ Authorization Header
-$headers = function_exists('getallheaders') ? getallheaders() : [];
-$authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+$authorization =
+    $headers["Authorization"]
+    ?? $headers["authorization"]
+    ?? $_SERVER["HTTP_AUTHORIZATION"]
+    ?? "";
 
-if (!$authHeader || !preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
+if (!preg_match('/Bearer\s+(.+)/i', $authorization, $matches)) {
     http_response_code(401);
-    echo json_encode(["success" => false, "message" => "Unauthorized access.", "content" => []]);
-    exit();
+    echo json_encode([
+        "success" => false,
+        "message" => "Unauthorized access.",
+        "content" => []
+    ]);
+    exit;
 }
 
-$token = $matches[1];
+$token = trim($matches[1]);
 
 try {
-    $stmt = $pdo->prepare("SELECT id FROM users WHERE session_token = :token LIMIT 1");
-    $stmt->execute(['token' => $token]);
-    $user = $stmt->fetch();
 
-    if (!$user) {
+    $stmt = $pdo->prepare("
+        SELECT id, approved
+        FROM users
+        WHERE session_token = ?
+        LIMIT 1
+    ");
+
+    $stmt->execute([$token]);
+
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$user || (int) $user["approved"] !== 1) {
         http_response_code(401);
-        echo json_encode(["success" => false, "message" => "Invalid session token.", "content" => []]);
-        exit();
+        echo json_encode([
+            "success" => false,
+            "message" => "Invalid session token.",
+            "content" => []
+        ]);
+        exit;
     }
 
-    $userId = $user['id'];
+} catch (Throwable $e) {
 
-    // 4. جلب الكونتنت المربوط بـ user_id
-    $stmtContent = $pdo->prepare("
-  SELECT * FROM content 
-  WHERE created_by = :user_id 
-  ORDER BY id DESC
-");
-    $stmtContent->execute(['user_id' => $userId]);
-    $contents = $stmtContent->fetchAll();
+    http_response_code(500);
+    echo json_encode([
+        "success" => false,
+        "message" => "Authentication database error.",
+        "content" => []
+    ]);
+    exit;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Published content
+|--------------------------------------------------------------------------
+|
+| Every approved user sees the same list. Drafts and scheduled posts stay
+| out of it entirely.
+|
+| `created_by` holds an admins.id, but content.html prints the value straight
+| into the "Created by" field - so resolve it to a name here, exactly as
+| api/admin-content.php does.
+|
+*/
+
+try {
+
+    $stmt = $pdo->query("
+        SELECT
+            c.id,
+            c.title,
+            c.client,
+            c.caption,
+            c.content_type,
+            c.type_label,
+            c.platform,
+            c.category,
+            c.orientation,
+            c.media_path,
+            c.post_date,
+            c.post_time,
+            c.publish_now,
+            c.status,
+            c.created_at,
+            c.updated_at,
+
+            COALESCE(a.name, 'Unknown') AS created_by
+
+        FROM content c
+
+        LEFT JOIN admins a
+            ON a.id = c.created_by
+
+        WHERE c.status = 'published'
+
+        ORDER BY c.created_at DESC
+    ");
 
     echo json_encode([
         "success" => true,
-        "content" => $contents
-    ]);
+        "content" => $stmt->fetchAll(PDO::FETCH_ASSOC)
+    ], JSON_UNESCAPED_UNICODE);
 
-} catch (Exception $e) {
+} catch (Throwable $e) {
+
+    http_response_code(500);
     echo json_encode([
         "success" => false,
-        "message" => "Query error: " . $e->getMessage(),
+        "message" => "Failed to load content.",
         "content" => []
     ]);
 }
