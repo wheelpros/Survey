@@ -1,3 +1,4 @@
+```php
 <?php
 
 require_once "db.php";
@@ -15,12 +16,14 @@ if (!$token) {
     ]);
     exit;
 }
+
 $adminStmt = $pdo->prepare("
     SELECT id, role
     FROM admins
     WHERE session_token = ?
     LIMIT 1
 ");
+
 $adminStmt->execute([$token]);
 $currentAdmin = $adminStmt->fetch();
 
@@ -31,11 +34,21 @@ if (!$currentAdmin) {
     ]);
     exit;
 }
+
 $method = $_SERVER["REQUEST_METHOD"];
 
-function prepareChips($chips) {
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+function prepareChips($chips)
+{
     $chips = trim($chips ?? "");
-    if (!$chips) return json_encode([]);
+
+    if (!$chips) {
+        return json_encode([]);
+    }
 
     $chipsArray = array_filter(
         array_map("trim", explode(",", $chips))
@@ -44,17 +57,37 @@ function prepareChips($chips) {
     return json_encode(array_values($chipsArray));
 }
 
+
+/* =========================================================
+   GET
+========================================================= */
+
 if ($method === "GET") {
 
     $singleSurveyId = (int)($_GET["survey_id"] ?? 0);
 
+    /* -----------------------------------------------------
+       GET SINGLE SURVEY
+    ----------------------------------------------------- */
+
     if ($singleSurveyId) {
+
         $stmt = $pdo->prepare("
-            SELECT id, assigned_user_id, title, status, created_at
+            SELECT
+                surveys.id,
+                surveys.assigned_user_id,
+                surveys.title,
+                surveys.status,
+                surveys.created_at,
+                users.name AS user_name,
+                users.email AS user_email
             FROM surveys
-            WHERE id = ?
+            JOIN users
+                ON users.id = surveys.assigned_user_id
+            WHERE surveys.id = ?
             LIMIT 1
         ");
+
         $stmt->execute([$singleSurveyId]);
         $survey = $stmt->fetch();
 
@@ -67,11 +100,19 @@ if ($method === "GET") {
         }
 
         $qStmt = $pdo->prepare("
-            SELECT id, question_text, question_type, required, sort_order, chips, max_file_size_mb
+            SELECT
+                id,
+                question_text,
+                question_type,
+                required,
+                sort_order,
+                chips,
+                max_file_size_mb
             FROM survey_questions
             WHERE survey_id = ?
             ORDER BY sort_order ASC, id ASC
         ");
+
         $qStmt->execute([$singleSurveyId]);
 
         echo json_encode([
@@ -79,248 +120,321 @@ if ($method === "GET") {
             "survey" => $survey,
             "questions" => $qStmt->fetchAll()
         ]);
+
         exit;
     }
 
-    if ($currentAdmin["role"] === "super_admin") {
 
-    $usersStmt = $pdo->query("
-        SELECT id, name, email
-        FROM users
-        WHERE approved = 1
-        ORDER BY name ASC
-    ");
-
-} else {
-
-    $usersStmt = $pdo->prepare("
-        SELECT users.id, users.name, users.email
-        FROM users
-        INNER JOIN admin_user_assignments aua
-            ON aua.user_id = users.id
-        WHERE users.approved = 1
-        AND aua.admin_id = ?
-        ORDER BY users.name ASC
-    ");
-
-    $usersStmt->execute([$currentAdmin["id"]]);
-}
+    /* -----------------------------------------------------
+       GET USERS
+    ----------------------------------------------------- */
 
     if ($currentAdmin["role"] === "super_admin") {
 
-    $surveysStmt = $pdo->query("
-        SELECT 
-            surveys.id,
-            surveys.assigned_user_id,
-            surveys.title,
-            surveys.status,
-            surveys.created_at,
-            users.name AS user_name,
-            users.email AS user_email
-        FROM surveys
-        JOIN users ON users.id = surveys.assigned_user_id
-        ORDER BY surveys.created_at DESC
-    ");
+        $usersStmt = $pdo->query("
+            SELECT id, name, email
+            FROM users
+            WHERE approved = 1
+            ORDER BY name ASC
+        ");
 
-} else {
+    } else {
 
-    $surveysStmt = $pdo->prepare("
-        SELECT 
-            surveys.id,
-            surveys.assigned_user_id,
-            surveys.title,
-            surveys.status,
-            surveys.created_at,
-            users.name AS user_name,
-            users.email AS user_email
-        FROM surveys
-        JOIN users ON users.id = surveys.assigned_user_id
-        INNER JOIN admin_user_assignments aua
-            ON aua.user_id = users.id
-        WHERE aua.admin_id = ?
-        ORDER BY surveys.created_at DESC
-    ");
+        $usersStmt = $pdo->prepare("
+            SELECT
+                users.id,
+                users.name,
+                users.email
+            FROM users
+            INNER JOIN admin_user_assignments aua
+                ON aua.user_id = users.id
+            WHERE users.approved = 1
+            AND aua.admin_id = ?
+            ORDER BY users.name ASC
+        ");
 
-    $surveysStmt->execute([$currentAdmin["id"]]);
-}
+        $usersStmt->execute([$currentAdmin["id"]]);
+    }
+
+
+    /* -----------------------------------------------------
+       GET SURVEYS
+    ----------------------------------------------------- */
+
+    if ($currentAdmin["role"] === "super_admin") {
+
+        $surveysStmt = $pdo->query("
+            SELECT
+                surveys.id,
+                surveys.assigned_user_id,
+                surveys.title,
+                surveys.status,
+                surveys.created_at,
+                users.name AS user_name,
+                users.email AS user_email
+            FROM surveys
+            JOIN users
+                ON users.id = surveys.assigned_user_id
+            ORDER BY surveys.created_at DESC
+        ");
+
+    } else {
+
+        /*
+         * SEO/Admin users should only see:
+         * - Their assigned users
+         * - Surveys they are allowed to manage
+         *
+         * pending_approval is visible here but cannot be
+         * approved by normal admins.
+         */
+
+        $surveysStmt = $pdo->prepare("
+            SELECT
+                surveys.id,
+                surveys.assigned_user_id,
+                surveys.title,
+                surveys.status,
+                surveys.created_at,
+                users.name AS user_name,
+                users.email AS user_email
+            FROM surveys
+            JOIN users
+                ON users.id = surveys.assigned_user_id
+            INNER JOIN admin_user_assignments aua
+                ON aua.user_id = users.id
+            WHERE aua.admin_id = ?
+            ORDER BY surveys.created_at DESC
+        ");
+
+        $surveysStmt->execute([$currentAdmin["id"]]);
+    }
+
 
     echo json_encode([
         "success" => true,
         "users" => $usersStmt->fetchAll(),
         "surveys" => $surveysStmt->fetchAll()
     ]);
+
     exit;
 }
+
+
+/* =========================================================
+   POST / PUT
+========================================================= */
 
 if ($method === "POST" || $method === "PUT") {
 
-    $input = json_decode(file_get_contents("php://input"), true);
-    if ($method === "PUT" && ($input["action"] ?? "") === "approve") {
+    $input = json_decode(
+        file_get_contents("php://input"),
+        true
+    );
 
-    if ($currentAdmin["role"] !== "super_admin") {
+    if (!is_array($input)) {
+        $input = [];
+    }
+
+
+    /* =====================================================
+       SUPER ADMIN APPROVE
+    ===================================================== */
+
+    if (
+        $method === "PUT" &&
+        ($input["action"] ?? "") === "approve"
+    ) {
+
+        if ($currentAdmin["role"] !== "super_admin") {
+
+            echo json_encode([
+                "success" => false,
+                "message" => "Only Super Admin can approve surveys"
+            ]);
+
+            exit;
+        }
+
+        $surveyId = (int)($input["surveyId"] ?? 0);
+
+        if (!$surveyId) {
+
+            echo json_encode([
+                "success" => false,
+                "message" => "Survey ID is required"
+            ]);
+
+            exit;
+        }
+
+        $stmt = $pdo->prepare("
+            UPDATE surveys
+            SET status = 'pending'
+            WHERE id = ?
+            AND status = 'pending_approval'
+        ");
+
+        $stmt->execute([$surveyId]);
+
+        if ($stmt->rowCount() === 0) {
+
+            echo json_encode([
+                "success" => false,
+                "message" => "Survey not found or already processed"
+            ]);
+
+            exit;
+        }
+
         echo json_encode([
-            "success" => false,
-            "message" => "Only Super Admin can approve surveys"
+            "success" => true,
+            "message" => "Survey approved and sent to the user"
         ]);
+
         exit;
     }
 
-    $surveyId = (int)($input["surveyId"] ?? 0);
 
-    $stmt = $pdo->prepare("
-        UPDATE surveys
-        SET status = 'pending'
-        WHERE id = ?
-        AND status = 'pending_approval'
-    ");
+    /* =====================================================
+       SUPER ADMIN DENY
+    ===================================================== */
 
-    $stmt->execute([$surveyId]);
+    if (
+        $method === "PUT" &&
+        ($input["action"] ?? "") === "deny"
+    ) {
 
-    echo json_encode([
-        "success" => true,
-        "message" => "Survey approved and sent to the user"
-    ]);
+        if ($currentAdmin["role"] !== "super_admin") {
 
-    exit;
-}
-    if ($method === "PUT" && ($input["action"] ?? "") === "approve") {
+            echo json_encode([
+                "success" => false,
+                "message" => "Only Super Admin can deny surveys"
+            ]);
 
-    if ($currentAdmin["role"] !== "super_admin") {
+            exit;
+        }
+
+        $surveyId = (int)($input["surveyId"] ?? 0);
+
+        if (!$surveyId) {
+
+            echo json_encode([
+                "success" => false,
+                "message" => "Survey ID is required"
+            ]);
+
+            exit;
+        }
+
+        $stmt = $pdo->prepare("
+            UPDATE surveys
+            SET status = 'denied'
+            WHERE id = ?
+            AND status = 'pending_approval'
+        ");
+
+        $stmt->execute([$surveyId]);
+
+        if ($stmt->rowCount() === 0) {
+
+            echo json_encode([
+                "success" => false,
+                "message" => "Survey not found or already processed"
+            ]);
+
+            exit;
+        }
+
         echo json_encode([
-            "success" => false,
-            "message" => "Only Super Admin can approve surveys"
+            "success" => true,
+            "message" => "Survey denied"
         ]);
-        exit;
-    }
-    if ($method === "PUT" && ($input["action"] ?? "") === "deny") {
 
-    if ($currentAdmin["role"] !== "super_admin") {
-        echo json_encode([
-            "success" => false,
-            "message" => "Only Super Admin can deny surveys"
-        ]);
-        exit;
-    }
-
-    $surveyId = (int)($input["surveyId"] ?? 0);
-
-    if (!$surveyId) {
-        echo json_encode([
-            "success" => false,
-            "message" => "Survey ID is required"
-        ]);
-        exit;
-    }
-
-    $stmt = $pdo->prepare("
-        UPDATE surveys
-        SET status = 'denied'
-        WHERE id = ?
-        AND status = 'pending_approval'
-    ");
-
-    $stmt->execute([$surveyId]);
-
-    if ($stmt->rowCount() === 0) {
-        echo json_encode([
-            "success" => false,
-            "message" => "Survey not found or already processed"
-        ]);
         exit;
     }
 
-    echo json_encode([
-        "success" => true,
-        "message" => "Survey denied"
-    ]);
 
-    exit;
-}
-    $surveyId = (int)($input["surveyId"] ?? 0);
-
-    if (!$surveyId) {
-        echo json_encode([
-            "success" => false,
-            "message" => "Survey ID is required"
-        ]);
-        exit;
-    }
-
-    $stmt = $pdo->prepare("
-        UPDATE surveys
-        SET status = 'pending'
-        WHERE id = ?
-        AND status = 'pending_approval'
-    ");
-
-    $stmt->execute([$surveyId]);
-
-    if ($stmt->rowCount() === 0) {
-        echo json_encode([
-            "success" => false,
-            "message" => "Survey not found or already approved"
-        ]);
-        exit;
-    }
-
-    echo json_encode([
-        "success" => true,
-        "message" => "Survey approved and sent to the user"
-    ]);
-
-    exit;
-}
+    /* =====================================================
+       CREATE / UPDATE SURVEY
+    ===================================================== */
 
     $surveyId = (int)($input["surveyId"] ?? 0);
     $title = trim($input["title"] ?? "");
     $assignedUserId = (int)($input["assignedUserId"] ?? 0);
     $questions = $input["questions"] ?? [];
 
-    if (!$title || !$assignedUserId || !count($questions)) {
+
+    if (
+        !$title ||
+        !$assignedUserId ||
+        !is_array($questions) ||
+        !count($questions)
+    ) {
+
         echo json_encode([
             "success" => false,
             "message" => "Survey title, user and questions are required"
         ]);
+
         exit;
     }
+
 
     $pdo->beginTransaction();
 
     try {
 
+        /* -------------------------------------------------
+           CREATE
+        ------------------------------------------------- */
+
         if ($method === "POST") {
 
-    // SEO Admin needs Super Admin approval
-$surveyStatus = ($currentAdmin["role"] === "super_admin")
-    ? "pending"
-    : "pending_approval";
+            /*
+             * Super Admin creates directly as pending.
+             *
+             * Normal Admin / SEO Admin creates as
+             * pending_approval.
+             */
 
-$stmt = $pdo->prepare("
-    INSERT INTO surveys (title, assigned_user_id, status)
-    VALUES (?, ?, ?)
-");
+            $surveyStatus =
+                ($currentAdmin["role"] === "super_admin")
+                    ? "pending"
+                    : "pending_approval";
 
-$stmt->execute([
-    $title,
-    $assignedUserId,
-    $surveyStatus
-]);
 
-$surveyId = $pdo->lastInsertId();
-    ");
+            $stmt = $pdo->prepare("
+                INSERT INTO surveys
+                (
+                    title,
+                    assigned_user_id,
+                    status
+                )
+                VALUES (?, ?, ?)
+            ");
 
-    $stmt->execute([
-        $title,
-        $assignedUserId,
-        $surveyStatus
-    ]);
+            $stmt->execute([
+                $title,
+                $assignedUserId,
+                $surveyStatus
+            ]);
 
-    $surveyId = $pdo->lastInsertId();
-        } else {
+            $surveyId = $pdo->lastInsertId();
+
+        }
+
+
+        /* -------------------------------------------------
+           UPDATE
+        ------------------------------------------------- */
+
+        else {
 
             if (!$surveyId) {
                 throw new Exception("Survey ID is required");
             }
+
 
             $checkStmt = $pdo->prepare("
                 SELECT id, status
@@ -328,64 +442,124 @@ $surveyId = $pdo->lastInsertId();
                 WHERE id = ?
                 LIMIT 1
             ");
+
             $checkStmt->execute([$surveyId]);
+
             $survey = $checkStmt->fetch();
+
 
             if (!$survey) {
                 throw new Exception("Survey not found");
             }
 
+
+            /*
+             * Only pending surveys can be edited.
+             */
+
             if ($survey["status"] !== "pending") {
-                throw new Exception("Only pending surveys can be edited");
+                throw new Exception(
+                    "Only pending surveys can be edited"
+                );
             }
+
 
             $updateStmt = $pdo->prepare("
                 UPDATE surveys
-                SET title = ?, assigned_user_id = ?
+                SET
+                    title = ?,
+                    assigned_user_id = ?
                 WHERE id = ?
             ");
+
             $updateStmt->execute([
                 $title,
                 $assignedUserId,
                 $surveyId
             ]);
 
+
+            /*
+             * Remove old questions.
+             */
+
             $deleteStmt = $pdo->prepare("
                 DELETE FROM survey_questions
                 WHERE survey_id = ?
             ");
+
             $deleteStmt->execute([$surveyId]);
         }
 
+
+        /* =================================================
+           INSERT QUESTIONS
+        ================================================= */
+
         $qStmt = $pdo->prepare("
             INSERT INTO survey_questions
-            (survey_id, question_text, question_type, required, sort_order, chips, max_file_size_mb)
+            (
+                survey_id,
+                question_text,
+                question_type,
+                required,
+                sort_order,
+                chips,
+                max_file_size_mb
+            )
             VALUES (?, ?, ?, ?, ?, ?, ?)
         ");
 
+
         foreach ($questions as $index => $question) {
 
-            $questionText = trim($question["text"] ?? "");
-            $questionType = $question["type"] ?? "input";
-            $chips = $question["chips"] ?? "";
+            $questionText =
+                trim($question["text"] ?? "");
+
+            $questionType =
+                $question["type"] ?? "input";
+
+            $chips =
+                $question["chips"] ?? "";
+
 
             if (!$questionText) {
                 continue;
             }
 
-            // 🔽 قمنا بإضافة "checkbox" هنا لكي يسمح الـ PHP بحفظه في قاعدة البيانات 🔽
-            if (!in_array($questionType, ["input", "textarea", "file", "checkbox"])) {
+
+            /*
+             * Allowed question types.
+             */
+
+            if (
+                !in_array(
+                    $questionType,
+                    [
+                        "input",
+                        "textarea",
+                        "file",
+                        "checkbox"
+                    ],
+                    true
+                )
+            ) {
+
                 $questionType = "input";
             }
-            
-            $maxFileSizeMb = isset($question["maxFileSizeMb"]) && $question["maxFileSizeMb"] !== ""
-            ? (int)$question["maxFileSizeMb"]
-            : null;
+
+
+            $maxFileSizeMb =
+                isset($question["maxFileSizeMb"]) &&
+                $question["maxFileSizeMb"] !== ""
+                    ? (int)$question["maxFileSizeMb"]
+                    : null;
+
 
             $qStmt->execute([
                 $surveyId,
                 $questionText,
-                $questionType, // هنا سيتم حفظ كلمة checkbox بنجاح في الداتابيز
+                $questionType,
                 1,
                 $index + 1,
                 prepareChips($chips),
@@ -393,33 +567,71 @@ $surveyId = $pdo->lastInsertId();
             ]);
         }
 
+
+        /* =================================================
+           COMMIT
+        ================================================= */
+
         $pdo->commit();
 
+
+        /* =================================================
+           RESPONSE
+        ================================================= */
+
+        if ($method === "POST") {
+
+            if ($currentAdmin["role"] === "super_admin") {
+
+                $message =
+                    "Survey created successfully";
+
+            } else {
+
+                $message =
+                    "Survey sent to Super Admin for approval";
+            }
+
+        } else {
+
+            $message =
+                "Survey updated successfully";
+        }
+
+
         echo json_encode([
-    "success" => true,
-    "message" => $method === "POST"
-        ? (
-            $currentAdmin["role"] === "super_admin"
-                ? "Survey created successfully"
-                : "Survey sent to Super Admin for approval"
-          )
-        : "Survey updated successfully"
-]);
+            "success" => true,
+            "message" => $message
+        ]);
+
         exit;
+
 
     } catch (Exception $e) {
 
-        $pdo->rollBack();
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
 
         echo json_encode([
             "success" => false,
-            "message" => $e->getMessage() ?: "Failed to save survey"
+            "message" =>
+                $e->getMessage()
+                ?: "Failed to save survey"
         ]);
+
         exit;
     }
 }
+
+
+/* =========================================================
+   INVALID REQUEST
+========================================================= */
 
 echo json_encode([
     "success" => false,
     "message" => "Invalid request"
 ]);
+```
