@@ -225,76 +225,6 @@ body{padding:0}
   box-sizing: border-box;
   margin-bottom: 15px;
 }
-#adminsListSection {
-    margin-top: 30px;
-}
-
-#adminsListSection h3 {
-    margin-bottom: 15px;
-}
-
-.admin-row {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    padding: 16px 18px;
-    margin-bottom: 10px;
-    background: #fff;
-    border: 1px solid #e5e7eb;
-    border-radius: 10px;
-}
-
-.admin-info {
-    flex: 1;
-    min-width: 0;
-}
-
-.admin-name {
-    font-weight: 600;
-    font-size: 15px;
-    color: #111827;
-    margin-bottom: 4px;
-}
-
-.admin-email {
-    font-size: 13px;
-    color: #6b7280;
-    word-break: break-word;
-}
-
-.admin-role {
-    min-width: 110px;
-    text-align: center;
-    font-size: 12px;
-    font-weight: 600;
-    padding: 6px 10px;
-    border-radius: 6px;
-}
-
-.admin-role.super_admin {
-    background: #ede9fe;
-    color: #6d28d9;
-}
-
-.admin-role.seo_admin {
-    background: #e0f2fe;
-    color: #0369a1;
-}
-
-.remove-admin-btn {
-    border: none;
-    background: #fee2e2;
-    color: #dc2626;
-    padding: 8px 14px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: 600;
-}
-
-.remove-admin-btn:hover {
-    background: #fecaca;
-}
 </style>
 
 <script>
@@ -437,12 +367,15 @@ document.addEventListener("DOMContentLoaded", function () {
     <div id="logoStatus" class="status"></div>
   </div>
 </div>
+<div id="addAdminSection">
+<div class="panel">
+  <div class="panel-head">
+    <h1>Add Admin</h1>
+    <p>Create a new admin account with specific role.</p>
+  </div>
 
-<!-- =========================
-     ADD ADMIN SECTION
-========================= -->
-<div id="addAdminSection" style="display: none;">
-
+  <div class="panel-body">
+    
     <label>Name</label>
     <input type="text" id="name" placeholder="Enter name">
 
@@ -454,25 +387,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
     <label>Role</label>
     <select id="role">
-        <option value="user">User</option>
-        <option value="seo_admin">SEO Admin</option>
-        <option value="super_admin">Super Admin</option>
+      <option value="user">User</option>
+      <option value="seo_admin">SEO Admin</option>
+      <option value="super_admin">Super Admin</option>
     </select>
 
     <button class="primary" onclick="addUser()">Add</button>
 
+  </div>
 </div>
-
-
-<!-- =========================
-     ADMINS LIST SECTION
-========================= -->
-<div id="adminsListSection" style="display: none;">
-
-    <h3>Admins</h3>
-
-    <div id="adminsList"></div>
-
 </div>
 <script>
 // ✅ تعريفات مرة واحدة بس
@@ -497,10 +420,8 @@ if (adminUser.role !== "owner") {
 } else {
 
     const addAdmin = document.getElementById("addAdminSection");
-    const adminsList = document.getElementById("adminsListSection");
 
     if (addAdmin) addAdmin.style.display = "block";
-    if (adminsList) adminsList.style.display = "block";
 }
 // ✅ تحديث اللوجو (كاش)
 document.getElementById("currentLogo").src = "logo.png?" + Date.now();
@@ -551,178 +472,6 @@ async function savePassword() {
   } catch (err) {
     status.innerText = "An error occurred while saving.";
   }
-}
-async function loadAdminsList() {
-
-    const section =
-        document.getElementById("adminsListSection");
-
-    const list =
-        document.getElementById("adminsList");
-
-
-    // NEVER load for non-owner
-    if (!adminUser || adminUser.role !== "owner") {
-
-        if (section) {
-            section.style.display = "none";
-        }
-
-        return;
-    }
-
-
-    // Make sure owner can see it
-    if (section) {
-        section.style.display = "block";
-    }
-
-
-    try {
-
-        const res = await fetch("api/get-admins.php", {
-
-            headers: {
-                "Authorization": "Bearer " + adminToken
-            }
-
-        });
-
-
-        const data = await res.json();
-
-
-        if (!data.success) {
-
-            list.innerHTML =
-                "<p>Failed to load admins.</p>";
-
-            return;
-        }
-
-
-        if (!data.admins.length) {
-
-            list.innerHTML =
-                "<p>No admins found.</p>";
-
-            return;
-        }
-
-
-        list.innerHTML = data.admins.map(admin => `
-
-            <div class="admin-row">
-
-                <div class="admin-info">
-
-                    <div class="admin-name">
-                        ${admin.name}
-                    </div>
-
-                    <div class="admin-email">
-                        ${admin.email}
-                    </div>
-
-                </div>
-
-
-                <div class="admin-role ${admin.role}">
-
-                    ${
-                        admin.role === "super_admin"
-                            ? "Super Admin"
-                            : "SEO Admin"
-                    }
-
-                </div>
-
-
-                <button
-                    class="remove-admin-btn"
-                    onclick="removeAdmin(
-                        ${admin.id},
-                        '${admin.name.replace(/'/g, "\\'")}'
-                    )">
-
-                    Remove
-
-                </button>
-
-            </div>
-
-        `).join("");
-
-
-    } catch (err) {
-
-        console.error(err);
-
-        list.innerHTML =
-            "<p>Error loading admins.</p>";
-
-    }
-}
-
-async function removeAdmin(id, name) {
-
-    const confirmed = confirm(
-        `Are you sure you want to remove "${name}"?`
-    );
-
-
-    if (!confirmed) {
-        return;
-    }
-
-
-    try {
-
-        const res = await fetch(
-            "api/remove-admin.php",
-            {
-
-                method: "POST",
-
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": "Bearer " + adminToken
-                },
-
-                body: JSON.stringify({
-                    id: id
-                })
-
-            }
-        );
-
-
-        const data = await res.json();
-
-
-        if (data.success) {
-
-            alert("Admin removed successfully.");
-
-            loadAdminsList();
-
-        } else {
-
-            alert(
-                data.message ||
-                "Failed to remove admin."
-            );
-
-        }
-
-
-    } catch (err) {
-
-        console.error(err);
-
-        alert("Network or server error.");
-
-    }
 }
 
 // ✅ رفع اللوجو
@@ -820,10 +569,7 @@ async function loadSettings() {
   }
 }
 
-window.onload = function () {
-    loadSettings();
-    loadAdminsList();
-};
+window.onload = loadSettings;
 </script>
 
   </div>
