@@ -291,12 +291,7 @@ if ($method === "POST" || $method === "PUT") {
         if ($method === "POST") {
 
     // SEO Admin needs Super Admin approval
-    $surveyStatus = ($currentAdmin["role"] === "super_admin")
-        ? "pending"
-        : "pending_approval";
-
-    $stmt = $pdo->prepare("
-        $surveyStatus = ($currentAdmin["role"] === "super_admin")
+$surveyStatus = ($currentAdmin["role"] === "super_admin")
     ? "pending"
     : "pending_approval";
 
