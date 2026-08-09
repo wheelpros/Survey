@@ -18,7 +18,7 @@ $input = json_decode(file_get_contents("php://input"), true);
 $name = $input["name"];
 $email = $input["email"];
 $password = password_hash($input["password"], PASSWORD_DEFAULT);
-$role = $input["role"];
+$role = $input["role"] === "super_admin" ? "super_admin" : "seo_admin";
 
 $stmt = $pdo->prepare("
     INSERT INTO admins (name,email,password,role,active)
