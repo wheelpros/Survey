@@ -214,48 +214,14 @@ body{padding:0}
   .side-head{display:none}
   .admin-topbar{padding:0 18px}
 }
-.card {
-  max-width: 500px;
-  margin: 40px auto;
+/* خلي الـ select شبه الـ input */
+select {
+  width: 100%;
+  padding: 14px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  font-size: 15px;
   background: #fff;
-  padding: 25px;
-  border-radius: 14px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.05);
-}
-
-.card h3 {
-  margin-bottom: 20px;
-}
-
-.card input,
-.card select {
-  width: 100%;
-  padding: 12px;
-  margin-bottom: 12px;
-  border-radius: 10px;
-  border: 1px solid #e5e7eb;
-  font-size: 14px;
-}
-
-.card input:focus,
-.card select:focus {
-  border-color: #c9000b;
-  outline: none;
-}
-
-.card button {
-  width: 100%;
-  padding: 12px;
-  background: #0f172a;
-  color: #fff;
-  border: none;
-  border-radius: 10px;
-  font-weight: bold;
-  cursor: pointer;
-}
-
-.card button:hover {
-  opacity: 0.9;
 }
 </style>
 
@@ -399,20 +365,33 @@ document.addEventListener("DOMContentLoaded", function () {
     <div id="logoStatus" class="status"></div>
   </div>
 </div>
-<div class="card">
-  <h3>Add Admin</h3>
+<div class="panel">
+  <div class="panel-head">
+    <h1>Add Admin</h1>
+    <p>Create a new admin account with specific role.</p>
+  </div>
 
-  <input type="text" id="name" placeholder="Name">
-  <input type="email" id="email" placeholder="Email">
-  <input type="password" id="password" placeholder="Password">
+  <div class="panel-body">
+    
+    <label>Name</label>
+    <input type="text" id="name" placeholder="Enter name">
 
-  <select id="role">
-    <option value="user">User</option>
-    <option value="seo_admin">SEO Admin</option>
-    <option value="super_admin">Super Admin</option>
-  </select>
+    <label>Email</label>
+    <input type="email" id="email" placeholder="Enter email">
 
-  <button onclick="addUser()">Add</button>
+    <label>Password</label>
+    <input type="password" id="password" placeholder="Enter password">
+
+    <label>Role</label>
+    <select id="role">
+      <option value="user">User</option>
+      <option value="seo_admin">SEO Admin</option>
+      <option value="super_admin">Super Admin</option>
+    </select>
+
+    <button class="primary" onclick="addUser()">Add</button>
+
+  </div>
 </div>
 <script>
 // ✅ تعريفات مرة واحدة بس
