@@ -373,13 +373,16 @@ document.addEventListener("DOMContentLoaded", function () {
 
 </div>
 <script>
+// ✅ تعريفات مرة واحدة بس
 let adminToken = localStorage.getItem("admin_token");
 let adminUser = JSON.parse(localStorage.getItem("admin_user") || "{}");
-const adminUser = JSON.parse(localStorage.getItem("admin_user") || "{}");
-if(!adminToken || !adminUser.role){
+
+// ✅ حماية الصفحة
+if (!adminToken || !adminUser.role) {
   window.location.href = "admin-login.html";
 }
 
+// ✅ إخفاء صلاحيات عن غير السوبر أدمن
 if (adminUser.role !== "super_admin") {
   const a = document.getElementById("articlesAssignmentLink");
   const u = document.getElementById("usersManagementLink");
@@ -387,15 +390,17 @@ if (adminUser.role !== "super_admin") {
   if (u) u.style.display = "none";
 }
 
-// تحديث اللوجو عند تحميل الصفحة لمنع الـ Caching
+// ✅ تحديث اللوجو (كاش)
 document.getElementById("currentLogo").src = "logo.png?" + Date.now();
 
+// ✅ تسجيل الخروج
 function logoutAdmin() {
   localStorage.removeItem("admin_token");
   localStorage.removeItem("admin_user");
   location.href = "admin-login.html";
 }
 
+// ✅ تغيير الباسورد
 async function savePassword() {
   const status = document.getElementById("status");
   const current = document.getElementById("currentPassword").value.trim();
@@ -414,7 +419,7 @@ async function savePassword() {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: "Bearer " + adminToken
+        "Authorization": "Bearer " + adminToken
       },
       body: JSON.stringify({
         current_password: current,
@@ -436,6 +441,7 @@ async function savePassword() {
   }
 }
 
+// ✅ رفع اللوجو
 async function uploadLogo() {
   const status = document.getElementById("logoStatus");
   const file = document.getElementById("logoFile").files[0];
@@ -454,7 +460,7 @@ async function uploadLogo() {
     const res = await fetch("api/upload-logo.php", {
       method: "POST",
       headers: {
-        Authorization: "Bearer " + adminToken
+        "Authorization": "Bearer " + adminToken
       },
       body: form
     });
@@ -465,47 +471,59 @@ async function uploadLogo() {
     if (data.success) {
       const bust = "logo.png?" + new Date().getTime();
       document.getElementById("currentLogo").src = bust;
-      // the sidebar on this page renders the same file — refresh it too
-      document.querySelectorAll(".side-logo img").forEach(img => { img.src = bust; });
+      document.querySelectorAll(".side-logo img").forEach(img => {
+        img.src = bust;
+      });
       document.getElementById("logoFile").value = "";
     }
   } catch (err) {
     status.innerText = "An error occurred while uploading.";
   }
 }
-const adminToken = localStorage.getItem("admin_token");
-async function addUser(){
 
+// ✅ إضافة يوزر
+async function addUser() {
+  try {
     const res = await fetch("api/add-user.php", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + adminToken
-        },
-        body: JSON.stringify({
-            name: document.getElementById("name").value,
-            email: document.getElementById("email").value,
-            password: document.getElementById("password").value,
-            role: document.getElementById("role").value
-        })
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + adminToken
+      },
+      body: JSON.stringify({
+        name: document.getElementById("name").value,
+        email: document.getElementById("email").value,
+        password: document.getElementById("password").value,
+        role: document.getElementById("role").value
+      })
     });
 
     const data = await res.json();
     alert(data.message || "Done");
-}
-async function loadSettings(){
 
+  } catch (err) {
+    alert("Error adding user");
+  }
+}
+
+// ✅ تحميل الإعدادات
+async function loadSettings() {
+  try {
     const res = await fetch("api/settings.php", {
-        headers: {
-            "Authorization": "Bearer " + adminToken
-        }
+      headers: {
+        "Authorization": "Bearer " + adminToken
+      }
     });
 
     const response = await res.json();
 
-    if(response.role === "super_admin"){
-        document.getElementById("superAdminSection").style.display = "block";
+    if (response.role === "super_admin") {
+      document.getElementById("superAdminSection").style.display = "block";
     }
+
+  } catch (err) {
+    console.log("Error loading settings");
+  }
 }
 
 window.onload = loadSettings;
