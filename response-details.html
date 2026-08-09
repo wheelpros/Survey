@@ -257,6 +257,10 @@ document.addEventListener("DOMContentLoaded", function () {
   Download Excel
 </button>
 
+<button onclick="downloadMarkdown()" class="btn" style="background:#475467;margin-left:10px;">
+  Download File.md
+</button>
+
 <div id="answers"></div>
 
 <script>
@@ -442,6 +446,39 @@ function downloadExcel(){
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
   link.download = "survey-answers.csv";
+  link.click();
+
+  URL.revokeObjectURL(link.href);
+}
+function downloadMarkdown(){
+
+  if(!responseAnswers.length){
+    alert("No answers to download");
+    return;
+  }
+
+  let markdown = "# Survey Answers\n\n";
+
+  responseAnswers.forEach((item, index) => {
+
+    markdown += `## ${index + 1}. ${item.question_text || ""}\n\n`;
+
+    markdown += `${item.answer || ""}\n\n`;
+
+    if(item.file_name){
+      markdown += `**Attached File:** ${item.file_name}\n\n`;
+    }
+
+    markdown += "---\n\n";
+  });
+
+  const blob = new Blob([markdown], {
+    type: "text/markdown;charset=utf-8;"
+  });
+
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "survey-answers.md";
   link.click();
 
   URL.revokeObjectURL(link.href);
