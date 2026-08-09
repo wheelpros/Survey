@@ -9,10 +9,10 @@ $stmt = $pdo->prepare("SELECT id, role FROM admins WHERE session_token=? LIMIT 1
 $stmt->execute([$token]);
 $admin = $stmt->fetch();
 
-if(!$admin){
+if ($_SESSION['role'] !== 'owner') {
     echo json_encode([
-        "success"=>false,
-        "message"=>"Unauthorized"
+        "status" => "error",
+        "message" => "Unauthorized"
     ]);
     exit;
 }

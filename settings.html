@@ -406,7 +406,7 @@ if (!adminToken || !adminUser.role) {
 }
 
 // ✅ إخفاء صلاحيات عن غير السوبر أدمن
-if (adminUser.role !== "super_admin") {
+if (adminUser.role !== "owner") {
   const a = document.getElementById("articlesAssignmentLink");
   const u = document.getElementById("usersManagementLink");
   if (a) a.style.display = "none";
@@ -528,7 +528,7 @@ async function addUser() {
     try {
       data = JSON.parse(text);
     } catch (e) {
-      alert("Server returned invalid JSON ❌");
+      alert("Email already exists, try another one ❌");
       return;
     }
 
