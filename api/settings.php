@@ -5,18 +5,18 @@ header("Content-Type: application/json");
 $headers = getallheaders();
 $token = str_replace("Bearer ","",$headers["Authorization"] ?? "");
 
-$stmt = $pdo->prepare("SELECT id FROM admins WHERE session_token=? LIMIT 1");
+$stmt = $pdo->prepare("SELECT id, role FROM admins WHERE session_token=? LIMIT 1");
 $stmt->execute([$token]);
-$admin=$stmt->fetch();
+$admin = $stmt->fetch();
 
-if(!$admin){
+if (!$admin || $admin['role'] !== 'owner') {
     echo json_encode([
-        "success"=>false,
-        "message"=>"Unauthorized"
+        "status" => "error",
+        "message" => "Unauthorized"
     ]);
     exit;
 }
-
+    
 if($_SERVER["REQUEST_METHOD"]=="GET"){
 
     $stmt=$pdo->prepare("
@@ -26,11 +26,11 @@ if($_SERVER["REQUEST_METHOD"]=="GET"){
     ");
 
     $stmt->execute([$admin["id"]]);
-
     $row=$stmt->fetch();
 
     echo json_encode([
         "success"=>true,
+        "role"=>$admin["role"], // مهم
         "hasPassword"=>!empty($row["sources_password"])
     ]);
 
