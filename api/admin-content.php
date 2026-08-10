@@ -106,19 +106,20 @@ try {
 
 /*
 |--------------------------------------------------------------------------
-| Allow Admin / Super Admin
+| Any admin may manage content
 |--------------------------------------------------------------------------
+|
+| No role check here on purpose. This used to allow ["admin","super_admin"],
+| but no account has the literal role "admin" - the roles in this system are
+| `super_admin` and `seo_admin` (see api/admin-user-assignments.php), so every
+| non-super admin was rejected with "You do not have permission."
+|
+| Resolving the token against the admins table above is the authorisation:
+| the same thing source-files.php, settings.php and upload-logo.php rely on.
+| Only genuinely super-admin-only features narrow further, the way
+| admin-user-assignments.php does.
+|
 */
-
-if (
-    !in_array(
-        strtolower($admin["role"] ?? ""),
-        ["admin", "super_admin"],
-        true
-    )
-) {
-    response(false, "You do not have permission.", [], 403);
-}
 
 /*
 |--------------------------------------------------------------------------
