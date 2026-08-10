@@ -274,13 +274,8 @@ function logoutAdmin(){
   window.location.href = "admin-login.html";
 }
 
-if(adminUser.role !== "super_admin"){
-  const usersLink = document.getElementById("usersManagementLink");
-  const articlesLink = document.getElementById("articlesAssignmentLink");
-
-  if(usersLink) usersLink.style.display = "none";
-  if(articlesLink) articlesLink.style.display = "none";
-}
+// Users Management and Articles Assignment are open to every admin, so the
+// sidebar no longer hides them for non-super-admins.
 
 let responseAnswers = [];
 

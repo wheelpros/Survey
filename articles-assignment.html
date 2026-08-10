@@ -253,13 +253,9 @@ function logoutAdmin(){
   window.location.href="admin-login.html";
 }
 
-if(adminUser.role !== "super_admin"){
-  const usersLink = document.getElementById("usersManagementLink");
-  const articlesLink = document.getElementById("articlesAssignmentLink");
+// Users Management and Articles Assignment are open to every admin, so the
+// sidebar no longer hides them for non-super-admins.
 
-  if(usersLink) usersLink.style.display = "none";
-  if(articlesLink) articlesLink.style.display = "none";
-}
 let adminArticles=[], adminUsers=[], adminAssignments={}, currentArticleId=null;
 async function loadAdminArticles(){const box=document.getElementById("articlesAssignment");try{const res=await fetch("api/admin-articles.php");const data=await res.json();if(!data.success){box.innerHTML="Failed to load articles.";return;}adminArticles=data.articles||[];adminUsers=data.users||[];adminAssignments=data.assignments||{};if(!adminArticles.length){box.innerHTML="No articles found in Sanity.";return;}box.innerHTML=adminArticles.map(article=>{const assigned=adminAssignments[article._id]||[];return `<div class="article-admin-card"><div><h3>${article.title}</h3><p>${article.category||"Article"} · ${article.publishedDate||""}</p></div><div><span class="article-count">${assigned.length} Users</span><button class="manage-btn" onclick="openAssignModal('${article._id}')">Manage Users</button></div></div>`}).join("");}catch(e){box.innerHTML="Connection error.";}}
 function openAssignModal(articleId){currentArticleId=articleId;const article=adminArticles.find(a=>a._id===articleId);const assigned=adminAssignments[articleId]||[];document.getElementById("assignTitle").innerText=article.title;document.getElementById("assignMeta").innerText=`${article.category||"Article"} · ${article.publishedDate||""}`;document.getElementById("assignSearch").value="";document.getElementById("assignStatus").innerText="";renderAssignUsers(adminUsers,assigned);document.getElementById("assignModal").classList.add("show");}

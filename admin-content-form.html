@@ -344,7 +344,10 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
 
             <div class="field-row">
               <label for="client">Client</label>
-              <input type="text" id="client" placeholder="e.g. Acme Corp">
+              <select id="client">
+                <option value="">All clients</option>
+              </select>
+              <p class="hint">Pick a client and only that client's users see this post. Leave it on “All clients” to publish to everyone.</p>
             </div>
 
             <div class="field-row">
@@ -464,12 +467,8 @@ if(!adminToken || !adminUser.role){
 }
 
 // Content is open to both `admin` and `super_admin`; only these two links narrow.
-if(adminUser.role !== "super_admin"){
-  ["usersManagementLink","articlesAssignmentLink"].forEach(id => {
-    const link = document.getElementById(id);
-    if(link) link.style.display = "none";
-  });
-}
+// Users Management and Articles Assignment are open to every admin, so the
+// sidebar no longer hides them for non-super-admins.
 
 (function(){
   const name = adminUser.name || "Admin";
@@ -884,8 +883,10 @@ async function prepareEditMode(){
     document.getElementById("title").value =
       item.title || "";
 
-    document.getElementById("client").value =
-      item.client || "";
+    // The options may still be in flight, and a post saved before this was a
+    // dropdown can name a client no user carries any more - selectClient()
+    // waits and re-adds the value rather than silently dropping it.
+    await selectClient(item.client || "");
 
     /*
     |--------------------------------------------------------------------------
@@ -998,6 +999,49 @@ async function prepareEditMode(){
 function logout(){
   localStorage.clear();
   window.location.href = "admin-login.html";
+}
+
+/* ── Clients ────────────────────────────────────────────────────────────────
+   The client list is the distinct set of company names on user accounts, so
+   picking one targets that company's whole team. Empty means every user.     */
+
+const clientsReady = loadClients();
+
+async function loadClients(){
+  const select = document.getElementById("client");
+
+  try {
+    const res = await fetch("api/admin-users.php", {
+      headers: { Authorization: "Bearer " + adminToken }
+    });
+
+    const data = await res.json();
+    if (!data.success || !data.users) return;
+
+    const clients = [...new Set(
+      data.users.map(u => (u.company_name || "").trim()).filter(Boolean)
+    )].sort((a, b) => a.localeCompare(b));
+
+    select.innerHTML =
+      `<option value="">All clients</option>` +
+      clients.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
+
+  } catch (err) {
+    console.error("Could not load clients:", err);
+  }
+}
+
+/** Selects a client, adding the option first if the list does not carry it. */
+async function selectClient(value){
+  await clientsReady;
+
+  const select = document.getElementById("client");
+
+  if (value && !Array.from(select.options).some(o => o.value === value)) {
+    select.insertAdjacentHTML("beforeend", `<option value="${esc(value)}">${esc(value)}</option>`);
+  }
+
+  select.value = value;
 }
 
 renderTypes();

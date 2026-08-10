@@ -310,12 +310,8 @@ if(!adminToken || !adminUser.role){
 }
 
 // Content is open to both `admin` and `super_admin`; only these two links narrow.
-if(adminUser.role !== "super_admin"){
-  ["usersManagementLink","articlesAssignmentLink"].forEach(id => {
-    const link = document.getElementById(id);
-    if(link) link.style.display = "none";
-  });
-}
+// Users Management and Articles Assignment are open to every admin, so the
+// sidebar no longer hides them for non-super-admins.
 
 (function(){
   const name = adminUser.name || "Admin";
