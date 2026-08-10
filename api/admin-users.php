@@ -14,6 +14,19 @@ if (!$token) {
     exit;
 }
 
+// The token has to resolve to a real admin. This endpoint approves and deletes
+// users, and it used to accept any non-empty string as authorisation.
+$adminStmt = $pdo->prepare("SELECT id FROM admins WHERE session_token = ? LIMIT 1");
+$adminStmt->execute([$token]);
+
+if (!$adminStmt->fetch()) {
+    echo json_encode([
+        "success" => false,
+        "message" => "Unauthorized"
+    ]);
+    exit;
+}
+
 $input = json_decode(file_get_contents("php://input"), true);
 $action = $input["action"] ?? "";
 $userId = (int)($input["userId"] ?? 0);
@@ -57,8 +70,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     exit;
 }
 
+// company_name backs the Client dropdown on admin-content-form.html.
+ensureUserProfileColumns($pdo);
+
 $stmt = $pdo->query("
-    SELECT id, name, email, approved, created_at
+    SELECT id, name, email, company_name, approved, created_at
     FROM users
     ORDER BY created_at DESC
 ");

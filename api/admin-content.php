@@ -106,19 +106,20 @@ try {
 
 /*
 |--------------------------------------------------------------------------
-| Allow Admin / Super Admin
+| Any admin may manage content
 |--------------------------------------------------------------------------
+|
+| No role check here on purpose. This used to allow ["admin","super_admin"],
+| but no account has the literal role "admin" - the roles in this system are
+| `super_admin` and `seo_admin` (see api/admin-user-assignments.php), so every
+| non-super admin was rejected with "You do not have permission."
+|
+| Resolving the token against the admins table above is the authorisation:
+| the same thing source-files.php, settings.php and upload-logo.php rely on.
+| Only genuinely super-admin-only features narrow further, the way
+| admin-user-assignments.php does.
+|
 */
-
-if (
-    !in_array(
-        strtolower($admin["role"] ?? ""),
-        ["admin", "super_admin"],
-        true
-    )
-) {
-    response(false, "You do not have permission.", [], 403);
-}
 
 /*
 |--------------------------------------------------------------------------
@@ -165,15 +166,30 @@ function uploadContentImage($file, $uploadDir)
         return null;
     }
 
-    if (($file["error"] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+    $error = $file["error"] ?? UPLOAD_ERR_NO_FILE;
+
+    if ($error !== UPLOAD_ERR_OK) {
+
+        // PHP rejected it before we ever saw it. Say so plainly rather than
+        // "upload failed", which sends people hunting for the wrong problem.
+        if ($error === UPLOAD_ERR_INI_SIZE || $error === UPLOAD_ERR_FORM_SIZE) {
+            response(
+                false,
+                "Image is too large for the server (upload_max_filesize is "
+                    . ini_get("upload_max_filesize") . ").",
+                [],
+                400
+            );
+        }
+
         response(false, "Image upload failed.", [], 400);
     }
 
     /*
-    | Max 1 MB
+    | Max 3 MB
     */
-    if (($file["size"] ?? 0) > 1024 * 1024) {
-        response(false, "Image must be 1 MB or smaller.", [], 400);
+    if (($file["size"] ?? 0) > 3 * 1024 * 1024) {
+        response(false, "Image must be 3 MB or smaller.", [], 400);
     }
 
     /*
@@ -339,6 +355,21 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
 */
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
+
+    /*
+    | When the request body exceeds post_max_size, PHP throws away $_POST and
+    | $_FILES entirely. Without this, every field reads as empty and the caller
+    | is told "Campaign title is required", which is the wrong thing to chase.
+    */
+    if (empty($_POST) && (int) ($_SERVER["CONTENT_LENGTH"] ?? 0) > 0) {
+        response(
+            false,
+            "Upload is too large for the server (post_max_size is "
+                . ini_get("post_max_size") . "). Use a smaller image.",
+            [],
+            413
+        );
+    }
 
     $id = isset($_POST["id"])
         ? (int) $_POST["id"]

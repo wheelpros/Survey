@@ -672,12 +672,8 @@ if(!adminToken || !adminUser.role){
   window.location.href = "admin-login.html";
 }
 
-if (adminUser.role !== "super_admin") {
-  const a = document.getElementById("articlesAssignmentLink");
-  const u = document.getElementById("usersManagementLink");
-  if (a) a.style.display = "none";
-  if (u) u.style.display = "none";
-}
+// Users Management and Articles Assignment are open to every admin, so the
+// sidebar no longer hides them for non-super-admins.
 
 function logoutAdmin() {
   localStorage.removeItem("admin_token");

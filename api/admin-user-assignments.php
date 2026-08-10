@@ -25,10 +25,13 @@ $adminStmt = $pdo->prepare("
 $adminStmt->execute([$token]);
 $currentAdmin = $adminStmt->fetch();
 
-if (!$currentAdmin || $currentAdmin["role"] !== "super_admin") {
+// Articles Assignment is now in the sidebar for every admin, so this can no
+// longer be super-admin only - the page would load and every save would fail.
+// Resolving the token against the admins table is the authorisation.
+if (!$currentAdmin) {
     echo json_encode([
         "success" => false,
-        "message" => "Only super admin allowed"
+        "message" => "Unauthorized"
     ]);
     exit;
 }

@@ -353,13 +353,8 @@ if(!adminToken || !adminUser.role){
 document.body.style.display="none";
 checkPassword();
 
-if(adminUser.role !== "super_admin"){
-  const articlesLink = document.getElementById("articlesAssignmentLink");
-  const usersLink = document.getElementById("usersManagementLink");
-
-  if(articlesLink) articlesLink.style.display = "none";
-  if(usersLink) usersLink.style.display = "none";
-}
+// Users Management and Articles Assignment are open to every admin, so the
+// sidebar no longer hides them for non-super-admins.
 
 let folders = [];
 let currentFolderId = null;

@@ -41,8 +41,10 @@ $token = trim($matches[1]);
 
 try {
 
+    ensureUserProfileColumns($pdo);
+
     $stmt = $pdo->prepare("
-        SELECT id, approved
+        SELECT id, approved, company_name
         FROM users
         WHERE session_token = ?
         LIMIT 1
@@ -75,11 +77,14 @@ try {
 
 /*
 |--------------------------------------------------------------------------
-| Published content
+| Published content for this user's client
 |--------------------------------------------------------------------------
 |
-| Every approved user sees the same list. Drafts and scheduled posts stay
-| out of it entirely.
+| A post with no client is public - every approved user sees it. A post with
+| a client only reaches users whose company_name matches, which is what the
+| Client dropdown on admin-content-form.html selects from.
+|
+| Drafts and scheduled posts stay out of it entirely.
 |
 | `created_by` holds an admins.id, but content.html prints the value straight
 | into the "Created by" field - so resolve it to a name here, exactly as
@@ -87,9 +92,11 @@ try {
 |
 */
 
+$company = trim($user["company_name"] ?? "");
+
 try {
 
-    $stmt = $pdo->query("
+    $stmt = $pdo->prepare("
         SELECT
             c.id,
             c.title,
@@ -116,9 +123,16 @@ try {
             ON a.id = c.created_by
 
         WHERE c.status = 'published'
+          AND (
+                c.client IS NULL
+             OR c.client = ''
+             OR (? <> '' AND c.client = ?)
+          )
 
         ORDER BY c.created_at DESC
     ");
+
+    $stmt->execute([$company, $company]);
 
     echo json_encode([
         "success" => true,

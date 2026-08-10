@@ -71,6 +71,22 @@ body{background:#f6f7fb;color:var(--text);padding:0}
 .back-link:hover{background:#f6f7f9}
 .back-link svg{width:15px;height:15px}
 
+/* ── Restored-draft notice ── */
+.restore-bar{
+  display:flex;align-items:center;gap:12px;
+  background:#fff8e6;border:1px solid #f5d98a;border-radius:12px;
+  padding:12px 16px;margin-bottom:22px;
+  font-size:13px;font-weight:700;color:#7a5a00;
+}
+.restore-bar svg{width:17px;height:17px;flex:none}
+.restore-bar span{flex:1}
+.restore-bar button{
+  flex:none;border:1px solid #e0c471;background:#fff;color:#7a5a00;
+  font:inherit;font-size:12px;font-weight:800;
+  padding:7px 14px;border-radius:8px;cursor:pointer;
+}
+.restore-bar button:hover{background:#fffdf6}
+
 /* ── Panels & fields (same vocabulary as the other admin pages) ── */
 .form-wrap{display:grid;grid-template-columns:1fr 340px;gap:24px;align-items:start}
 .col{display:grid;gap:24px}
@@ -279,6 +295,12 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
       </a>
     </div>
 
+    <div class="restore-bar" id="restoreBar" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 9 8 9"/></svg>
+      <span id="restoreText">Restored unsaved changes.</span>
+      <button type="button" onclick="startFresh()">Start fresh</button>
+    </div>
+
     <div class="form-wrap">
 
       <!-- ── Left column ── -->
@@ -344,7 +366,10 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
 
             <div class="field-row">
               <label for="client">Client</label>
-              <input type="text" id="client" placeholder="e.g. Acme Corp">
+              <select id="client">
+                <option value="">All clients</option>
+              </select>
+              <p class="hint">Pick a client and only that client's users see this post. Leave it on “All clients” to publish to everyone.</p>
             </div>
 
             <div class="field-row">
@@ -384,7 +409,7 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
             <div class="dropzone" id="dropzone" onclick="document.getElementById('mediaInput').click()">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
               <strong>Drop image</strong>
-              <span>Max size 1 MB</span>
+              <span>Max size 3 MB</span>
             </div>
 
             <div class="media-preview is-horizontal" id="mediaPreview">
@@ -464,12 +489,8 @@ if(!adminToken || !adminUser.role){
 }
 
 // Content is open to both `admin` and `super_admin`; only these two links narrow.
-if(adminUser.role !== "super_admin"){
-  ["usersManagementLink","articlesAssignmentLink"].forEach(id => {
-    const link = document.getElementById(id);
-    if(link) link.style.display = "none";
-  });
-}
+// Users Management and Articles Assignment are open to every admin, so the
+// sidebar no longer hides them for non-super-admins.
 
 (function(){
   const name = adminUser.name || "Admin";
@@ -658,7 +679,7 @@ function updateCounter(){
 
 /* ── Media ── */
 
-const MAX_MEDIA = 1024 * 1024;
+const MAX_MEDIA = 3 * 1024 * 1024;
 
 const dropzone = document.getElementById("dropzone");
 
@@ -695,7 +716,7 @@ function handleMedia(file){
   }
 
   if(file.size > MAX_MEDIA){
-    error.innerText = "That image is over 1 MB. Pick a smaller one.";
+    error.innerText = "That image is over 3 MB. Pick a smaller one.";
     error.classList.add("show");
     return;
   }
@@ -821,6 +842,10 @@ async function save(intent){
 
     setStatus(data.message || "Saved successfully.", "ok");
 
+    // The work is on the server now, so the recovery copy must not come back.
+    clearDraft();
+    leavingIntentionally = true;
+
     setTimeout(() => {
       window.location.href = "admin-content.html";
     }, 700);
@@ -833,6 +858,10 @@ async function save(intent){
 
 function discard(){
   if(confirm("Discard this post? Nothing will be saved.")){
+    // Discard means gone - do not let the autosaved copy restore it later,
+    // and do not ask again on the way out.
+    clearDraft();
+    leavingIntentionally = true;
     window.location.href = "admin-content.html";
   }
 }
@@ -884,8 +913,10 @@ async function prepareEditMode(){
     document.getElementById("title").value =
       item.title || "";
 
-    document.getElementById("client").value =
-      item.client || "";
+    // The options may still be in flight, and a post saved before this was a
+    // dropdown can name a client no user carries any more - selectClient()
+    // waits and re-adds the value rather than silently dropping it.
+    await selectClient(item.client || "");
 
     /*
     |--------------------------------------------------------------------------
@@ -963,8 +994,11 @@ async function prepareEditMode(){
     document.getElementById("postDate").value =
       item.post_date || "";
 
+    // MySQL returns TIME as HH:MM:SS; input[type=time] wants HH:MM with the
+    // default step, and browsers disagree on whether they normalise or reject
+    // the seconds - a rejected value would blank a scheduled post's time.
     document.getElementById("postTime").value =
-      item.post_time || "";
+      (item.post_time || "").slice(0, 5);
 
     syncPublishNow();
 
@@ -1000,11 +1034,203 @@ function logout(){
   window.location.href = "admin-login.html";
 }
 
+/* ── Clients ────────────────────────────────────────────────────────────────
+   The client list is the distinct set of company names on user accounts, so
+   picking one targets that company's whole team. Empty means every user.     */
+
+const clientsReady = loadClients();
+
+async function loadClients(){
+  const select = document.getElementById("client");
+
+  try {
+    const res = await fetch("api/admin-users.php", {
+      headers: { Authorization: "Bearer " + adminToken }
+    });
+
+    const data = await res.json();
+    if (!data.success || !data.users) return;
+
+    const clients = [...new Set(
+      data.users.map(u => (u.company_name || "").trim()).filter(Boolean)
+    )].sort((a, b) => a.localeCompare(b));
+
+    select.innerHTML =
+      `<option value="">All clients</option>` +
+      clients.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
+
+  } catch (err) {
+    console.error("Could not load clients:", err);
+  }
+}
+
+/** Selects a client, adding the option first if the list does not carry it. */
+async function selectClient(value){
+  await clientsReady;
+
+  const select = document.getElementById("client");
+
+  if (value && !Array.from(select.options).some(o => o.value === value)) {
+    select.insertAdjacentHTML("beforeend", `<option value="${esc(value)}">${esc(value)}</option>`);
+  }
+
+  select.value = value;
+}
+
+/* ── Unsaved-work recovery ──────────────────────────────────────────────────
+   Same shape as the survey draft in admin.html: a per-admin localStorage key,
+   written on every input, restored on load, cleared once the post is saved.
+   Only in create mode - editing an existing post never touches the draft.
+
+   The chosen image is deliberately not stored. A File cannot be serialised,
+   and stashing megabytes as base64 risks the storage quota, so the notice says to
+   re-attach it.                                                              */
+
+const DRAFT_KEY = `content_draft_${adminUser.id || "admin"}`;
+const draftingEnabled = !editId;
+
+let restoredDraft = false;
+
+// Set before any navigation we trigger ourselves (save, discard, start fresh)
+// so the leave guard does not fire on an intentional exit. The beforeunload
+// handler is registered with addEventListener, so it cannot be unset by
+// assigning to window.onbeforeunload.
+let leavingIntentionally = false;
+
+function currentDraft(){
+  return {
+    savedAt: Date.now(),
+    title: document.getElementById("title").value,
+    client: document.getElementById("client").value,
+    caption: caption.innerHTML,
+    contentType: selectedType,
+    orientation,
+    postDate: document.getElementById("postDate").value,
+    postTime: document.getElementById("postTime").value,
+    publishNow: document.getElementById("publishNow").checked,
+    // Custom types live only in memory, so a restored selection would point at
+    // a chip that no longer exists without this.
+    customTypes: types.filter(t => t.id.startsWith("custom_"))
+  };
+}
+
+function isDirty(){
+  const d = currentDraft();
+  return Boolean(
+    d.title.trim() || d.client || caption.innerText.trim() ||
+    d.contentType || d.postDate || d.postTime || d.publishNow || mediaFile
+  );
+}
+
+function saveDraft(){
+  if(!draftingEnabled) return;
+
+  try{
+    if(isDirty()){
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(currentDraft()));
+    }else{
+      localStorage.removeItem(DRAFT_KEY);
+    }
+  }catch(e){
+    // Quota or private mode - autosave is a convenience, never block the form.
+  }
+}
+
+function clearDraft(){
+  try{ localStorage.removeItem(DRAFT_KEY); }catch(e){}
+}
+
+function describeAge(savedAt){
+  const mins = Math.round((Date.now() - savedAt) / 60000);
+  if(!savedAt || mins < 1) return "a moment ago";
+  if(mins < 60) return `${mins} minute${mins === 1 ? "" : "s"} ago`;
+  const hours = Math.round(mins / 60);
+  if(hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  return "earlier";
+}
+
+async function loadDraft(){
+  if(!draftingEnabled) return;
+
+  let draft;
+  try{
+    const saved = localStorage.getItem(DRAFT_KEY);
+    if(!saved) return;
+    draft = JSON.parse(saved);
+  }catch(e){
+    return;
+  }
+
+  document.getElementById("title").value = draft.title || "";
+  caption.innerHTML = draft.caption || "";
+  updateCounter();
+
+  (draft.customTypes || []).forEach(t => {
+    if(!types.some(existing => existing.id === t.id)) types.push(t);
+  });
+
+  selectedType = draft.contentType || null;
+  renderTypes();
+
+  selectOrientation(draft.orientation === "vertical" ? "vertical" : "horizontal");
+
+  document.getElementById("postDate").value = draft.postDate || "";
+  document.getElementById("postTime").value = draft.postTime || "";
+  document.getElementById("publishNow").checked = Boolean(draft.publishNow);
+  syncPublishNow();
+
+  await selectClient(draft.client || "");
+
+  restoredDraft = true;
+
+  document.getElementById("restoreText").innerText =
+    `Restored unsaved changes from ${describeAge(draft.savedAt)}. Re-attach the image if you had one.`;
+  document.getElementById("restoreBar").hidden = false;
+}
+
+function startFresh(){
+  if(!confirm("Discard the restored changes and start a blank post?")) return;
+
+  clearDraft();
+  restoredDraft = false;
+  leavingIntentionally = true;
+  location.href = location.pathname;
+}
+
+// Autosave on any edit, including the contenteditable caption.
+document.addEventListener("input", saveDraft);
+document.addEventListener("change", saveDraft);
+
+// Catch the mistake before it happens; the draft is the safety net behind it.
+window.addEventListener("beforeunload", event => {
+  if(leavingIntentionally || !draftingEnabled || !isDirty()) return;
+  event.preventDefault();
+  event.returnValue = "";
+});
+
+// A link click would otherwise fire the browser's own vague dialog; asking
+// here lets us say what actually happens to the work.
+document.addEventListener("click", event => {
+  const link = event.target.closest("a[href]");
+  if(!link || leavingIntentionally || !draftingEnabled || !isDirty()) return;
+
+  const href = link.getAttribute("href");
+  if(!href || href.startsWith("#") || link.target === "_blank") return;
+
+  if(confirm("Leave this page? Your changes are saved as a draft and will be restored when you come back.")){
+    leavingIntentionally = true;   // already confirmed; don't ask again on unload
+  }else{
+    event.preventDefault();
+  }
+});
+
 renderTypes();
 updateCounter();
 
 if(editId){
   prepareEditMode();
+}else{
+  loadDraft();
 }
 </script>
 

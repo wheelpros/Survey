@@ -492,15 +492,13 @@ if (!adminToken || !adminUser.role) {
   window.location.href = "admin-login.html";
 }
 
+// Users Management and Articles Assignment are open to every admin, so the
+// sidebar no longer hides them. Adding and removing admins stays owner-only.
 if (adminUser.role !== "owner") {
 
-    const a = document.getElementById("articlesAssignmentLink");
-    const u = document.getElementById("usersManagementLink");
     const addAdmin = document.getElementById("addAdminSection");
     const availableAdmins = document.getElementById("availableAdminsSection");
 
-    if (a) a.style.display = "none";
-    if (u) u.style.display = "none";
     if (addAdmin) addAdmin.style.display = "none";
     if (availableAdmins) availableAdmins.style.display = "none";
 
