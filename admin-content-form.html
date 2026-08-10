@@ -71,6 +71,22 @@ body{background:#f6f7fb;color:var(--text);padding:0}
 .back-link:hover{background:#f6f7f9}
 .back-link svg{width:15px;height:15px}
 
+/* ── Restored-draft notice ── */
+.restore-bar{
+  display:flex;align-items:center;gap:12px;
+  background:#fff8e6;border:1px solid #f5d98a;border-radius:12px;
+  padding:12px 16px;margin-bottom:22px;
+  font-size:13px;font-weight:700;color:#7a5a00;
+}
+.restore-bar svg{width:17px;height:17px;flex:none}
+.restore-bar span{flex:1}
+.restore-bar button{
+  flex:none;border:1px solid #e0c471;background:#fff;color:#7a5a00;
+  font:inherit;font-size:12px;font-weight:800;
+  padding:7px 14px;border-radius:8px;cursor:pointer;
+}
+.restore-bar button:hover{background:#fffdf6}
+
 /* ── Panels & fields (same vocabulary as the other admin pages) ── */
 .form-wrap{display:grid;grid-template-columns:1fr 340px;gap:24px;align-items:start}
 .col{display:grid;gap:24px}
@@ -277,6 +293,12 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
         Back to Content
       </a>
+    </div>
+
+    <div class="restore-bar" id="restoreBar" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 9 8 9"/></svg>
+      <span id="restoreText">Restored unsaved changes.</span>
+      <button type="button" onclick="startFresh()">Start fresh</button>
     </div>
 
     <div class="form-wrap">
@@ -820,6 +842,10 @@ async function save(intent){
 
     setStatus(data.message || "Saved successfully.", "ok");
 
+    // The work is on the server now, so the recovery copy must not come back.
+    clearDraft();
+    leavingIntentionally = true;
+
     setTimeout(() => {
       window.location.href = "admin-content.html";
     }, 700);
@@ -832,6 +858,10 @@ async function save(intent){
 
 function discard(){
   if(confirm("Discard this post? Nothing will be saved.")){
+    // Discard means gone - do not let the autosaved copy restore it later,
+    // and do not ask again on the way out.
+    clearDraft();
+    leavingIntentionally = true;
     window.location.href = "admin-content.html";
   }
 }
@@ -964,8 +994,11 @@ async function prepareEditMode(){
     document.getElementById("postDate").value =
       item.post_date || "";
 
+    // MySQL returns TIME as HH:MM:SS; input[type=time] wants HH:MM with the
+    // default step, and browsers disagree on whether they normalise or reject
+    // the seconds - a rejected value would blank a scheduled post's time.
     document.getElementById("postTime").value =
-      item.post_time || "";
+      (item.post_time || "").slice(0, 5);
 
     syncPublishNow();
 
@@ -1044,11 +1077,160 @@ async function selectClient(value){
   select.value = value;
 }
 
+/* ── Unsaved-work recovery ──────────────────────────────────────────────────
+   Same shape as the survey draft in admin.html: a per-admin localStorage key,
+   written on every input, restored on load, cleared once the post is saved.
+   Only in create mode - editing an existing post never touches the draft.
+
+   The chosen image is deliberately not stored. A File cannot be serialised,
+   and stashing 1 MB as base64 risks the storage quota, so the notice says to
+   re-attach it.                                                              */
+
+const DRAFT_KEY = `content_draft_${adminUser.id || "admin"}`;
+const draftingEnabled = !editId;
+
+let restoredDraft = false;
+
+// Set before any navigation we trigger ourselves (save, discard, start fresh)
+// so the leave guard does not fire on an intentional exit. The beforeunload
+// handler is registered with addEventListener, so it cannot be unset by
+// assigning to window.onbeforeunload.
+let leavingIntentionally = false;
+
+function currentDraft(){
+  return {
+    savedAt: Date.now(),
+    title: document.getElementById("title").value,
+    client: document.getElementById("client").value,
+    caption: caption.innerHTML,
+    contentType: selectedType,
+    orientation,
+    postDate: document.getElementById("postDate").value,
+    postTime: document.getElementById("postTime").value,
+    publishNow: document.getElementById("publishNow").checked,
+    // Custom types live only in memory, so a restored selection would point at
+    // a chip that no longer exists without this.
+    customTypes: types.filter(t => t.id.startsWith("custom_"))
+  };
+}
+
+function isDirty(){
+  const d = currentDraft();
+  return Boolean(
+    d.title.trim() || d.client || caption.innerText.trim() ||
+    d.contentType || d.postDate || d.postTime || d.publishNow || mediaFile
+  );
+}
+
+function saveDraft(){
+  if(!draftingEnabled) return;
+
+  try{
+    if(isDirty()){
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(currentDraft()));
+    }else{
+      localStorage.removeItem(DRAFT_KEY);
+    }
+  }catch(e){
+    // Quota or private mode - autosave is a convenience, never block the form.
+  }
+}
+
+function clearDraft(){
+  try{ localStorage.removeItem(DRAFT_KEY); }catch(e){}
+}
+
+function describeAge(savedAt){
+  const mins = Math.round((Date.now() - savedAt) / 60000);
+  if(!savedAt || mins < 1) return "a moment ago";
+  if(mins < 60) return `${mins} minute${mins === 1 ? "" : "s"} ago`;
+  const hours = Math.round(mins / 60);
+  if(hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  return "earlier";
+}
+
+async function loadDraft(){
+  if(!draftingEnabled) return;
+
+  let draft;
+  try{
+    const saved = localStorage.getItem(DRAFT_KEY);
+    if(!saved) return;
+    draft = JSON.parse(saved);
+  }catch(e){
+    return;
+  }
+
+  document.getElementById("title").value = draft.title || "";
+  caption.innerHTML = draft.caption || "";
+  updateCounter();
+
+  (draft.customTypes || []).forEach(t => {
+    if(!types.some(existing => existing.id === t.id)) types.push(t);
+  });
+
+  selectedType = draft.contentType || null;
+  renderTypes();
+
+  selectOrientation(draft.orientation === "vertical" ? "vertical" : "horizontal");
+
+  document.getElementById("postDate").value = draft.postDate || "";
+  document.getElementById("postTime").value = draft.postTime || "";
+  document.getElementById("publishNow").checked = Boolean(draft.publishNow);
+  syncPublishNow();
+
+  await selectClient(draft.client || "");
+
+  restoredDraft = true;
+
+  document.getElementById("restoreText").innerText =
+    `Restored unsaved changes from ${describeAge(draft.savedAt)}. Re-attach the image if you had one.`;
+  document.getElementById("restoreBar").hidden = false;
+}
+
+function startFresh(){
+  if(!confirm("Discard the restored changes and start a blank post?")) return;
+
+  clearDraft();
+  restoredDraft = false;
+  leavingIntentionally = true;
+  location.href = location.pathname;
+}
+
+// Autosave on any edit, including the contenteditable caption.
+document.addEventListener("input", saveDraft);
+document.addEventListener("change", saveDraft);
+
+// Catch the mistake before it happens; the draft is the safety net behind it.
+window.addEventListener("beforeunload", event => {
+  if(leavingIntentionally || !draftingEnabled || !isDirty()) return;
+  event.preventDefault();
+  event.returnValue = "";
+});
+
+// A link click would otherwise fire the browser's own vague dialog; asking
+// here lets us say what actually happens to the work.
+document.addEventListener("click", event => {
+  const link = event.target.closest("a[href]");
+  if(!link || leavingIntentionally || !draftingEnabled || !isDirty()) return;
+
+  const href = link.getAttribute("href");
+  if(!href || href.startsWith("#") || link.target === "_blank") return;
+
+  if(confirm("Leave this page? Your changes are saved as a draft and will be restored when you come back.")){
+    leavingIntentionally = true;   // already confirmed; don't ask again on unload
+  }else{
+    event.preventDefault();
+  }
+});
+
 renderTypes();
 updateCounter();
 
 if(editId){
   prepareEditMode();
+}else{
+  loadDraft();
 }
 </script>
 
