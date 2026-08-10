@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>User Profile — Admin</title>
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+:root{--brand:#c9000b;--nav-active:#1b1e3a;--text:#101828;--muted:#667085;--line:#eaecf0;--sidebar-w:260px}
+body{background:#f6f7fb;color:var(--text);padding:0}
+
+/* ── Admin shell: sidebar + header (shared across admin pages) ── */
+.admin-sidebar{width:var(--sidebar-w);background:#fff;border-right:1px solid var(--line);position:fixed;top:0;left:0;bottom:0;padding:26px 12px 18px;display:flex;flex-direction:column;justify-content:space-between;z-index:100}
+.side-nav a{display:flex;gap:10px;align-items:center;text-decoration:none;color:var(--muted);padding:8px 10px;border-radius:9px;margin-bottom:2px;font-size:14px;font-weight:600;transition:background .15s,color .15s}
+.side-nav a svg{width:17px;height:17px;flex:none}
+.side-nav a:hover{background:#f6f7f9;color:var(--text)}
+.side-nav a.active{background:var(--nav-active);color:#fff}
+.side-user{width:100%;font:inherit;text-align:left;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;gap:10px;align-items:center;cursor:pointer;transition:background .15s,border-color .15s}
+.side-user:hover{background:#fafbfc;border-color:#d7dae0}
+.side-avatar{width:36px;height:36px;border-radius:50%;background:#dce3ff;color:#3745a4;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex:none}
+.side-meta{flex:1;min-width:0}
+.side-meta strong{display:block;font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.side-meta span{font-size:11px;color:#98a2b3}
+.side-dots{color:#98a2b3;flex:none}
+
+.admin-main{margin-left:var(--sidebar-w);width:calc(100% - var(--sidebar-w))}
+.admin-topbar{height:64px;background:transparent;display:flex;align-items:center;justify-content:flex-end;padding:0 35px}
+.admin-bell{position:relative;width:40px;height:40px;border-radius:50%;border:none;background:transparent;color:#344054;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.admin-bell:hover{background:#f6f7f9}
+.admin-bell .dot{position:absolute;top:9px;right:10px;width:8px;height:8px;border-radius:50%;background:var(--brand);border:2px solid #fff}
+.admin-content{padding:10px 35px 45px}
+
+.side-head{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:36px;margin-bottom:26px;padding:0 2px}
+.side-logo{padding:0;margin:0;flex:1;min-width:0}
+.side-logo img{width:132px;max-width:100%;height:auto;display:block}
+.side-toggle{width:34px;height:34px;flex:none;border-radius:9px;border:none;background:transparent;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s}
+.side-toggle:hover{background:#f2f4f8;color:var(--text)}
+.side-toggle svg{width:18px;height:18px}
+
+:root.sidebar-collapsed{--sidebar-w:78px}
+.admin-sidebar,.admin-main{transition:width .18s ease,margin-left .18s ease}
+:root.sidebar-collapsed .admin-sidebar{padding:26px 4px 18px}
+:root.sidebar-collapsed .side-head{justify-content:center;margin-bottom:22px}
+:root.sidebar-collapsed .side-logo{display:none}
+:root.sidebar-collapsed .side-nav a{width:38px;height:38px;padding:0;margin:0 auto 4px;border-radius:10px;justify-content:center}
+:root.sidebar-collapsed .side-nav a span{display:none}
+/* The account card is the only entry point to logout — collapse it, never hide it. */
+:root.sidebar-collapsed .side-user{justify-content:center;padding:8px}
+:root.sidebar-collapsed .side-meta,:root.sidebar-collapsed .side-dots{display:none}
+
+/* ── Account popup (sidebar card) ── */
+.acct-modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:99999;padding:20px}
+.acct-modal.show{display:flex}
+.acct-box{width:100%;max-width:380px;background:#fff;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.18);overflow:hidden}
+.acct-head{display:flex;justify-content:space-between;align-items:center;padding:20px 24px;border-bottom:1px solid #eef1f5}
+.acct-head h2{font-size:17px}
+.acct-head button{border:none;background:var(--nav-active);color:#fff;width:34px;height:34px;border-radius:50%;font-size:22px;line-height:1;cursor:pointer}
+.acct-body{padding:24px;text-align:center}
+.acct-avatar{width:72px;height:72px;border-radius:50%;background:#dce3ff;color:#3745a4;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:26px;margin:0 auto 16px}
+.acct-body strong{display:block;font-size:16px;margin-bottom:8px}
+.acct-role{display:inline-block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--nav-active);background:#eef0f6;border-radius:20px;padding:5px 12px;margin-bottom:22px}
+.acct-logout{width:100%;height:46px;border:1px solid #f0d2d4;background:#fff;color:var(--brand);border-radius:12px;font-weight:800;font-size:14px;cursor:pointer}
+.acct-logout:hover{background:#fff5f5}
+
+/* ── Page header ── */
+.page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:26px}
+.page-title h1{font-size:30px;margin-bottom:8px}
+.page-title p{font-size:14px;color:var(--muted);max-width:520px}
+.back-link{flex:none;display:inline-flex;align-items:center;gap:8px;border:1px solid #dfe3ea;background:#fff;color:var(--text);text-decoration:none;padding:11px 18px;border-radius:10px;font-size:13px;font-weight:800}
+.back-link:hover{background:#f6f7f9}
+.back-link svg{width:15px;height:15px}
+
+/* ── Panels & tables (same vocabulary as users-management.html) ── */
+.panel{background:#fff;border-radius:20px;box-shadow:0 14px 35px rgba(0,0,0,.06);overflow:hidden;margin-bottom:24px}
+.panel-head{padding:22px 28px;border-bottom:1px solid #eef1f5}
+.panel-head h2{font-size:18px;margin-bottom:4px}
+.panel-head p{color:var(--muted);font-size:13px}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;background:#f8fafc;padding:14px 24px;color:var(--muted);font-size:12px;font-weight:700}
+td{padding:15px 24px;border-top:1px solid #eef1f5;font-size:13px;vertical-align:top}
+td a{color:var(--nav-active);font-weight:700}
+.empty{padding:26px;text-align:center;color:var(--muted);font-size:13px}
+
+.badge{display:inline-block;padding:6px 12px;border-radius:20px;font-size:11px;font-weight:800}
+.approved{background:#e8faef;color:#20a95a}
+.pending{background:#fff3e5;color:#d97706}
+.neutral{background:#f2f4f7;color:#475467}
+.published{background:#e7f6ec;color:#067647}
+.draft{background:#f2f4f7;color:#475467}
+.scheduled{background:#fff4e5;color:#b54708}
+
+/* ── Profile header ── */
+.profile-head{display:flex;align-items:center;gap:20px;padding:26px 28px}
+.profile-photo{
+  width:76px;height:76px;border-radius:50%;flex:none;
+  background:#dce3ff center/cover no-repeat;color:#3745a4;
+  display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:28px;
+}
+.profile-id{flex:1;min-width:0}
+.profile-id h2{font-size:22px;margin-bottom:4px}
+.profile-id p{color:var(--muted);font-size:14px;word-break:break-all}
+
+/* ── Detail grid ── */
+.fields{display:grid;grid-template-columns:repeat(3,1fr);gap:24px 32px;padding:26px 28px}
+.field h5{font-size:10px;font-weight:800;letter-spacing:.7px;color:#98a2b3;text-transform:uppercase;margin-bottom:8px}
+.field p{font-size:14px;line-height:1.55;word-break:break-word}
+.field a{color:var(--nav-active);font-weight:700}
+.field.wide{grid-column:1/-1}
+.field .muted{color:#98a2b3}
+
+@media(max-width:1100px){.fields{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:950px){
+  /* Force-collapsed below this width, so the head has nothing left to show. */
+  .side-head{display:none}
+  .admin-topbar{padding:0 18px}
+  .admin-content{padding:10px 18px 40px}
+  .page-head{flex-direction:column}
+  .fields{grid-template-columns:1fr}
+  .panel{overflow-x:auto}
+  table{min-width:640px}
+}
+</style>
+
+<script>
+// Runs before paint so the collapsed state never flashes open on load.
+(function () {
+  var root = document.documentElement;
+  var KEY = "wz_sidebar_collapsed";
+  var MOBILE = 950;
+  function prefersCollapsed(){ return localStorage.getItem(KEY) === "1"; }
+  function apply(){ root.classList.toggle("sidebar-collapsed", window.innerWidth <= MOBILE || prefersCollapsed()); }
+  window.toggleSidebar = function(){
+    if (window.innerWidth <= MOBILE) return; // forced collapsed, nothing to toggle
+    localStorage.setItem(KEY, prefersCollapsed() ? "0" : "1");
+    apply();
+  };
+  apply();
+  window.addEventListener("resize", apply);
+})();
+
+function openAccount(){ document.getElementById("acctModal").classList.add("show"); }
+function closeAccount(){ document.getElementById("acctModal").classList.remove("show"); }
+</script>
+</head>
+
+<body>
+
+<aside class="admin-sidebar">
+  <div>
+    <div class="side-head">
+      <div class="side-logo">
+        <img src="logo.png" alt="W|ZONE London" onerror="this.onerror=null;this.src='assets/WZONE%20source.png'">
+      </div>
+      <button class="side-toggle" type="button" onclick="toggleSidebar()" title="Toggle sidebar" aria-label="Toggle sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9.5 4v16"/></svg>
+      </button>
+    </div>
+    <nav class="side-nav">
+      <a href="admin.html" title="Surveys">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <span>Surveys</span>
+      </a>
+      <a href="responses.html" title="Responses">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span>Responses</span>
+      </a>
+      <a href="articles-assignment.html" id="articlesAssignmentLink" title="Articles Assignment">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <span>Articles Assignment</span>
+      </a>
+      <a href="admin-content.html" title="Content">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+        <span>Content</span>
+      </a>
+      <a href="users-management.html" class="active" id="usersManagementLink" title="Users Management">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Users Management</span>
+      </a>
+      <a href="sources-files.html" title="Sources &amp; Files">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        <span>Sources &amp; Files</span>
+      </a>
+      <a href="admin-calendar.html" title="Calendar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span>Calendar</span>
+      </a>
+      <a href="settings.html" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span>Settings</span>
+      </a>
+    </nav>
+  </div>
+
+  <button class="side-user" type="button" onclick="openAccount()" title="Account">
+    <div class="side-avatar" id="adminAvatar">A</div>
+    <div class="side-meta">
+      <strong id="adminName">Admin</strong>
+      <span id="adminRole">Administrator</span>
+    </div>
+    <svg class="side-dots" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
+  </button>
+</aside>
+
+<div class="admin-main">
+  <header class="admin-topbar">
+    <button class="admin-bell" type="button" title="Notifications">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 6-3 7-3 7h18s-3-1-3-7"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+      <span class="dot"></span>
+    </button>
+  </header>
+
+  <div class="admin-content">
+
+    <div class="page-head">
+      <div class="page-title">
+        <h1>User Profile</h1>
+        <p>Everything this user has filled in, and what they are connected to.</p>
+      </div>
+      <a class="back-link" href="users-management.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        Back to Users Management
+      </a>
+    </div>
+
+    <div id="pageBody">
+      <div class="panel"><div class="empty">Loading user...</div></div>
+    </div>
+
+  </div>
+</div>
+
+<div class="acct-modal" id="acctModal">
+  <div class="acct-box">
+    <div class="acct-head">
+      <h2>Account</h2>
+      <button type="button" onclick="closeAccount()" aria-label="Close">&times;</button>
+    </div>
+    <div class="acct-body">
+      <div class="acct-avatar" id="acctAvatar">A</div>
+      <strong id="acctName">Admin</strong>
+      <div class="acct-role" id="acctRole">Administrator</div>
+      <button class="acct-logout" onclick="logoutAdmin()">&#8617; Logout</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const adminToken = localStorage.getItem("admin_token");
+const adminUser = JSON.parse(localStorage.getItem("admin_user") || "{}");
+
+if(!adminToken || !adminUser.role){
+  window.location.href = "admin-login.html";
+}
+
+// Users Management is open to every admin, so this page does not narrow on role.
+(function(){
+  const name = adminUser.name || "Admin";
+  const label = adminUser.role === "super_admin" ? "Super Admin" : "Administrator";
+  const initial = name.charAt(0).toUpperCase();
+  const set = (id,value) => { const el = document.getElementById(id); if(el) el.textContent = value; };
+  set("adminName",name);  set("adminRole",label);  set("adminAvatar",initial);
+  set("acctName",name);   set("acctRole",label);   set("acctAvatar",initial);
+})();
+
+const userId = new URLSearchParams(location.search).get("id");
+
+// Every value below is user-authored and goes through innerHTML.
+function esc(value){
+  return String(value == null ? "" : value)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+
+function orDash(value){
+  const text = String(value == null ? "" : value).trim();
+  return text ? esc(text) : `<span class="muted">—</span>`;
+}
+
+function formatDate(value){
+  if(!value) return "—";
+  const date = new Date(String(value).replace(" ", "T"));
+  if(isNaN(date)) return esc(value);
+  return date.toLocaleDateString(undefined,{day:"numeric",month:"short",year:"numeric"});
+}
+
+function formatSize(bytes){
+  const size = Number(bytes);
+  if(!size) return "—";
+  if(size < 1024) return size + " B";
+  if(size < 1024 * 1024) return (size / 1024).toFixed(1) + " KB";
+  return (size / 1024 / 1024).toFixed(1) + " MB";
+}
+
+/** A panel wrapping a table, or its empty state when there are no rows. */
+function tablePanel(title, description, headers, rows, emptyText){
+  const body = rows.length
+    ? `<table>
+         <thead><tr>${headers.map(h => `<th>${esc(h)}</th>`).join("")}</tr></thead>
+         <tbody>${rows.join("")}</tbody>
+       </table>`
+    : `<div class="empty">${esc(emptyText)}</div>`;
+
+  return `
+    <div class="panel">
+      <div class="panel-head">
+        <h2>${esc(title)} ${rows.length ? `<span class="badge neutral">${rows.length}</span>` : ""}</h2>
+        <p>${esc(description)}</p>
+      </div>
+      ${body}
+    </div>`;
+}
+
+function render(data){
+  const u = data.user;
+  const approved = Number(u.approved) === 1;
+
+  const photo = u.profile_image
+    ? `<div class="profile-photo" style="background-image:url('${esc(u.profile_image)}')"></div>`
+    : `<div class="profile-photo">${esc((u.name || "U").charAt(0).toUpperCase())}</div>`;
+
+  const website = String(u.website || "").trim();
+
+  const header = `
+    <div class="panel">
+      <div class="profile-head">
+        ${photo}
+        <div class="profile-id">
+          <h2>${esc(u.name || "Unnamed user")}</h2>
+          <p>${esc(u.email || "")}</p>
+        </div>
+        <span class="badge ${approved ? "approved" : "pending"}">${approved ? "Approved" : "Pending"}</span>
+      </div>
+    </div>`;
+
+  const details = `
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Details</h2>
+        <p>Filled in by the user on their profile page.</p>
+      </div>
+      <div class="fields">
+        <div class="field"><h5>Phone</h5><p>${orDash(u.phone)}</p></div>
+        <div class="field"><h5>Company</h5><p>${orDash(u.company_name)}</p></div>
+        <div class="field">
+          <h5>Website</h5>
+          <p>${website
+                ? `<a href="${esc(website)}" target="_blank" rel="noopener noreferrer">${esc(website)}</a>`
+                : `<span class="muted">—</span>`}</p>
+        </div>
+        <div class="field"><h5>Joined</h5><p>${formatDate(u.created_at)}</p></div>
+        <div class="field">
+          <h5>Managed by</h5>
+          <p>${data.seoAdmin ? esc(data.seoAdmin.name) : `<span class="muted">Unassigned</span>`}</p>
+        </div>
+        <div class="field"><h5>User ID</h5><p>${esc(u.id)}</p></div>
+        <div class="field wide"><h5>About</h5><p>${orDash(u.description)}</p></div>
+      </div>
+    </div>`;
+
+  const surveys = tablePanel(
+    "Surveys assigned", "Surveys and checklists allocated to this user.",
+    ["Title", "Status", "Created"],
+    (data.surveys || []).map(s => `
+      <tr>
+        <td>${esc(s.title || "Untitled")}</td>
+        <td>${orDash(s.status)}</td>
+        <td>${formatDate(s.created_at)}</td>
+      </tr>`),
+    "No surveys assigned to this user."
+  );
+
+  const responses = tablePanel(
+    "Responses", "Surveys this user has submitted.",
+    ["Survey", "Submitted", ""],
+    (data.responses || []).map(r => `
+      <tr>
+        <td>${esc(r.survey_title || "Untitled")}</td>
+        <td>${formatDate(r.submitted_at)}</td>
+        <td><a href="response-details.html?id=${encodeURIComponent(r.id)}">View answers</a></td>
+      </tr>`),
+    "This user has not submitted any responses."
+  );
+
+  const appointments = tablePanel(
+    "Appointments", "Bookings on the content calendar.",
+    ["Title", "Date", "Time", "Status"],
+    (data.appointments || []).map(a => `
+      <tr>
+        <td>${esc(a.title || "Untitled")}</td>
+        <td>${formatDate(a.date)}</td>
+        <td>${esc(String(a.time || "").slice(0,5) || "—")}</td>
+        <td><span class="badge neutral">${orDash(a.status)}</span></td>
+      </tr>`),
+    "No appointments for this user."
+  );
+
+  const files = tablePanel(
+    "Files shared", "Source files this user can download.",
+    ["File", "Size", "Uploaded"],
+    (data.files || []).map(f => `
+      <tr>
+        <td>${esc(f.original_name || "Untitled")}</td>
+        <td>${formatSize(f.file_size)}</td>
+        <td>${formatDate(f.uploaded_at)}</td>
+      </tr>`),
+    "No files shared with this user."
+  );
+
+  const content = tablePanel(
+    "Content visible", "Published posts this user can see — public ones plus anything targeted at their client.",
+    ["Title", "Type", "Client"],
+    (data.content || []).map(c => `
+      <tr>
+        <td>${esc(c.title || "Untitled")}</td>
+        <td>${esc(c.platform || "")}${c.type_label ? " · " + esc(c.type_label) : ""}</td>
+        <td>${c.client ? esc(c.client) : `<span class="muted">All clients</span>`}</td>
+      </tr>`),
+    "No published content reaches this user yet."
+  );
+
+  document.getElementById("pageBody").innerHTML =
+    header + details + surveys + responses + appointments + files +
+    `<div id="articlesPanel">${tablePanel(
+      "Articles assigned", "Articles allocated to this user.", ["Title"], [], "Loading articles..."
+    )}</div>` +
+    content;
+
+  loadArticles();
+}
+
+/*
+  Articles live in Sanity, so their titles are not in the user endpoint.
+  admin-articles.php already returns articles plus the assignment map, so
+  filter it here rather than adding a second Sanity call server-side.
+*/
+async function loadArticles(){
+  const panel = document.getElementById("articlesPanel");
+
+  const show = (rows, emptyText) => {
+    panel.innerHTML = tablePanel(
+      "Articles assigned", "Articles allocated to this user.", ["Title", "Category"], rows, emptyText
+    );
+  };
+
+  try{
+    const res = await fetch("api/admin-articles.php");
+    const data = await res.json();
+
+    if(!data.success){
+      show([], "Could not load articles.");
+      return;
+    }
+
+    const assignments = data.assignments || {};
+    const mine = (data.articles || []).filter(article =>
+      (assignments[article._id] || []).some(id => String(id) === String(userId))
+    );
+
+    show(
+      mine.map(a => `
+        <tr>
+          <td>${esc(a.title || "Untitled")}</td>
+          <td>${orDash(a.category)}</td>
+        </tr>`),
+      "No articles assigned to this user."
+    );
+
+  }catch(error){
+    console.error(error);
+    show([], "Could not load articles.");
+  }
+}
+
+function fail(message){
+  document.getElementById("pageBody").innerHTML =
+    `<div class="panel"><div class="empty">${esc(message)}</div></div>`;
+}
+
+async function loadUser(){
+  if(!userId){
+    fail("No user selected. Go back and pick a user from the list.");
+    return;
+  }
+
+  try{
+    const res = await fetch("api/admin-user-details.php?id=" + encodeURIComponent(userId),{
+      headers:{ Authorization: "Bearer " + adminToken }
+    });
+
+    if(res.status === 401){
+      localStorage.removeItem("admin_token");
+      localStorage.removeItem("admin_user");
+      window.location.href = "admin-login.html";
+      return;
+    }
+
+    const data = await res.json();
+
+    if(!res.ok || !data.success){
+      fail(data.message || "Could not load this user.");
+      return;
+    }
+
+    document.title = (data.user.name || "User") + " — Admin";
+    render(data);
+
+  }catch(error){
+    console.error(error);
+    fail("Connection error.");
+  }
+}
+
+function logoutAdmin(){
+  localStorage.removeItem("admin_token");
+  localStorage.removeItem("admin_user");
+  window.location.href = "admin-login.html";
+}
+
+loadUser();
+</script>
+
+</body>
+</html>
