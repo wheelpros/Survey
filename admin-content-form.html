@@ -409,7 +409,7 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
             <div class="dropzone" id="dropzone" onclick="document.getElementById('mediaInput').click()">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
               <strong>Drop image</strong>
-              <span>Max size 1 MB</span>
+              <span>Max size 3 MB</span>
             </div>
 
             <div class="media-preview is-horizontal" id="mediaPreview">
@@ -679,7 +679,7 @@ function updateCounter(){
 
 /* ── Media ── */
 
-const MAX_MEDIA = 1024 * 1024;
+const MAX_MEDIA = 3 * 1024 * 1024;
 
 const dropzone = document.getElementById("dropzone");
 
@@ -716,7 +716,7 @@ function handleMedia(file){
   }
 
   if(file.size > MAX_MEDIA){
-    error.innerText = "That image is over 1 MB. Pick a smaller one.";
+    error.innerText = "That image is over 3 MB. Pick a smaller one.";
     error.classList.add("show");
     return;
   }
@@ -1083,7 +1083,7 @@ async function selectClient(value){
    Only in create mode - editing an existing post never touches the draft.
 
    The chosen image is deliberately not stored. A File cannot be serialised,
-   and stashing 1 MB as base64 risks the storage quota, so the notice says to
+   and stashing megabytes as base64 risks the storage quota, so the notice says to
    re-attach it.                                                              */
 
 const DRAFT_KEY = `content_draft_${adminUser.id || "admin"}`;
