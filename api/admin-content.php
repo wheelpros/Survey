@@ -123,6 +123,18 @@ try {
 
 /*
 |--------------------------------------------------------------------------
+| Late-added columns
+|--------------------------------------------------------------------------
+|
+| `link` and `language` arrived after the table shipped, so add them lazily
+| the way the profile columns are handled - see api/db.php.
+|
+*/
+
+ensureContentColumns($pdo);
+
+/*
+|--------------------------------------------------------------------------
 | Upload Directory
 |--------------------------------------------------------------------------
 */
@@ -296,6 +308,8 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
                 c.id,
                 c.title,
                 c.client,
+                c.link,
+                c.language,
                 c.caption,
                 c.content_type,
                 c.type_label,
@@ -377,6 +391,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     $title = trim($_POST["title"] ?? "");
     $client = trim($_POST["client"] ?? "");
+    $link = trim($_POST["link"] ?? "");
+
+    $language = strtolower(trim($_POST["language"] ?? "english"));
 
     $caption = $_POST["caption"] ?? "";
 
@@ -430,6 +447,29 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         true
     )) {
         response(false, "Invalid status.", [], 400);
+    }
+
+    if (!in_array($language, ["english", "arabic"], true)) {
+        response(false, "Invalid language.", [], 400);
+    }
+
+    /*
+    | The link is printed as an href on the content pages, so only http(s) is
+    | accepted - javascript: and data: URLs never reach the browser.
+    */
+    if ($link !== "") {
+
+        if (mb_strlen($link) > 500) {
+            response(false, "Link is too long.", [], 400);
+        }
+
+        if (!preg_match('#^https?://#i', $link)) {
+            $link = "https://" . ltrim($link, "/");
+        }
+
+        if (!filter_var($link, FILTER_VALIDATE_URL)) {
+            response(false, "Enter a valid link, e.g. https://example.com", [], 400);
+        }
     }
 
     /*
@@ -510,6 +550,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 INSERT INTO content (
                     title,
                     client,
+                    link,
+                    `language`,
                     caption,
                     content_type,
                     type_label,
@@ -524,13 +566,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     created_by
                 )
                 VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                 )
             ");
 
             $stmt->execute([
                 $title,
                 $client ?: null,
+                $link ?: null,
+                $language,
                 $caption ?: null,
                 $contentType,
                 $typeLabel ?: null,
@@ -653,6 +697,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             SET
                 title = ?,
                 client = ?,
+                link = ?,
+                `language` = ?,
                 caption = ?,
                 content_type = ?,
                 type_label = ?,
@@ -672,6 +718,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $stmt->execute([
             $title,
             $client ?: null,
+            $link ?: null,
+            $language,
             $caption ?: null,
             $contentType,
             $typeLabel ?: null,

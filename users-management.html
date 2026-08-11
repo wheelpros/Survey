@@ -4,6 +4,16 @@
 /* View is an anchor, so it needs what the button styling assumes. */
 a.btn{display:inline-flex;align-items:center;text-decoration:none}
 a.action-btn:hover{background:#282c52}.empty{padding:30px;text-align:center;color:#667085}@media(max-width:800px){body{padding:18px}table{min-width:760px}.panel{overflow-x:auto}}
+/* ── Pagination: the table never shows more than PAGE_SIZE rows ── */
+.pager{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:16px 24px;border-top:1px solid #eef1f5}
+.pager[hidden]{display:none}
+.pager-info{font-size:13px;font-weight:600;color:#667085}
+.pager-pages{display:flex;gap:6px;flex-wrap:wrap}
+.pager button{min-width:36px;height:36px;padding:0 12px;border:1px solid #dfe3ea;background:#fff;border-radius:9px;font:inherit;font-size:13px;font-weight:700;color:#101828;cursor:pointer}
+.pager button:hover:not(:disabled){background:#f6f7f9}
+.pager button.current{background:var(--nav-active);border-color:var(--nav-active);color:#fff}
+.pager button:disabled{opacity:.45;cursor:not-allowed}
+
 .assignment-box{
   padding:24px;
 }
@@ -223,9 +233,9 @@ document.addEventListener("DOMContentLoaded", function () {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
         <span>Articles Assignment</span>
       </a>
-      <a href="admin-content.html" title="Content">
+      <a href="admin-content.html" title="Visual">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
-        <span>Content</span>
+        <span>Visual</span>
       </a>
       <a href="users-management.html" class="active" id="usersManagementLink" title="Users Management">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -264,7 +274,11 @@ document.addEventListener("DOMContentLoaded", function () {
     </button>
   </header>
   <div class="admin-content">
-<div class="panel"><div class="panel-head"><h1>Users Management</h1><p>Approve or reject new registered users.</p></div><table><thead><tr><th>ID</th><th>User</th><th>Email</th><th>Status</th><th>Created At</th><th>Actions</th></tr></thead><tbody id="usersTable"><tr><td colspan="6" class="empty">Loading users...</td></tr></tbody></table></div>
+<div class="panel"><div class="panel-head"><h1>Users Management</h1><p>Approve or reject new registered users.</p></div><table><thead><tr><th>ID</th><th>User</th><th>Email</th><th>Status</th><th>Created At</th><th>Actions</th></tr></thead><tbody id="usersTable"><tr><td colspan="6" class="empty">Loading users...</td></tr></tbody></table>
+<div class="pager" id="usersPager" hidden>
+  <span class="pager-info" id="usersPagerInfo"></span>
+  <div class="pager-pages" id="usersPagerPages"></div>
+</div></div>
 <div class="panel" style="margin-top:28px;">
   <div class="panel-head">
     <h1>SEO Admin Assignments</h1>
@@ -303,6 +317,18 @@ function logoutAdmin(){
 // Users Management and Articles Assignment are open to every admin, so the
 // sidebar no longer hides them for non-super-admins.
 
+let allUsers = [];
+
+// Ten rows to a page; the rest live behind the pager under the table.
+const USERS_PAGE_SIZE = 10;
+let usersPage = 1;
+
+function esc(value){
+  return String(value == null ? "" : value)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+
 async function loadUsers(){
   const table = document.getElementById("usersTable");
 
@@ -316,59 +342,122 @@ async function loadUsers(){
     const data = await res.json();
 
     if(!data.success){
+      allUsers = [];
+      document.getElementById("usersPager").hidden = true;
+
       table.innerHTML = `
         <tr>
-          <td colspan="6" class="empty">${data.message || "Unable to load users."}</td>
+          <td colspan="6" class="empty">${esc(data.message || "Unable to load users.")}</td>
         </tr>
       `;
       return;
     }
 
-    if(!data.users.length){
-      table.innerHTML = `
-        <tr>
-          <td colspan="6" class="empty">No users found.</td>
-        </tr>
-      `;
-      return;
-    }
+    allUsers = data.users || [];
 
-    table.innerHTML = data.users.map(user => {
-      const approved = Number(user.approved) === 1;
-
-      return `
-        <tr>
-          <td>#${user.id}</td>
-          <td>${user.name}</td>
-          <td>${user.email}</td>
-          <td>
-            <span class="badge ${approved ? "approved" : "pending"}">
-              ${approved ? "Approved" : "Pending"}
-            </span>
-          </td>
-          <td>${user.created_at}</td>
-          <td>
-            <div class="actions">
-              <a class="btn action-btn" href="user-details.html?id=${user.id}">View</a>
-              ${
-                approved
-                ? `<button class="btn approve-btn" disabled>Approved</button>`
-                : `<button class="btn approve-btn" onclick="updateUser(${user.id}, 'approve')">Approve</button>`
-              }
-              <button class="btn reject-btn" onclick="updateUser(${user.id}, 'reject')">Reject</button>
-            </div>
-          </td>
-        </tr>
-      `;
-    }).join("");
+    // Keep the page the admin was on - approving someone should not send them
+    // back to page 1. renderUsers() clamps it if the page no longer exists.
+    renderUsers();
 
   }catch(error){
+    allUsers = [];
+    document.getElementById("usersPager").hidden = true;
+
     table.innerHTML = `
       <tr>
         <td colspan="6" class="empty">Connection error.</td>
       </tr>
     `;
   }
+}
+
+function renderUsers(){
+  const table = document.getElementById("usersTable");
+
+  if(!allUsers.length){
+    document.getElementById("usersPager").hidden = true;
+
+    table.innerHTML = `
+      <tr>
+        <td colspan="6" class="empty">No users found.</td>
+      </tr>
+    `;
+    return;
+  }
+
+  const totalPages = Math.max(1, Math.ceil(allUsers.length / USERS_PAGE_SIZE));
+
+  // Rejecting the last user on the last page would otherwise leave it blank.
+  if(usersPage > totalPages) usersPage = totalPages;
+
+  const start = (usersPage - 1) * USERS_PAGE_SIZE;
+  const pageUsers = allUsers.slice(start, start + USERS_PAGE_SIZE);
+
+  table.innerHTML = pageUsers.map(user => {
+    const approved = Number(user.approved) === 1;
+
+    return `
+      <tr>
+        <td>#${esc(user.id)}</td>
+        <td>${esc(user.name)}</td>
+        <td>${esc(user.email)}</td>
+        <td>
+          <span class="badge ${approved ? "approved" : "pending"}">
+            ${approved ? "Approved" : "Pending"}
+          </span>
+        </td>
+        <td>${esc(user.created_at)}</td>
+        <td>
+          <div class="actions">
+            <a class="btn action-btn" href="user-details.html?id=${esc(user.id)}">View</a>
+            ${
+              // Approve and Reject are the decision on a pending account, so
+              // they go away once it has been made. Rejecting deletes the
+              // account outright, which is why a rejected user has no row left.
+              approved
+              ? ""
+              : `<button class="btn approve-btn" onclick="updateUser(${esc(user.id)}, 'approve')">Approve</button>
+                 <button class="btn reject-btn" onclick="updateUser(${esc(user.id)}, 'reject')">Reject</button>`
+            }
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join("");
+
+  renderUsersPager(allUsers.length, totalPages, start, pageUsers.length);
+}
+
+function renderUsersPager(total, totalPages, start, shown){
+  const pager = document.getElementById("usersPager");
+
+  if(total <= USERS_PAGE_SIZE){
+    pager.hidden = true;
+    return;
+  }
+
+  pager.hidden = false;
+
+  document.getElementById("usersPagerInfo").innerText =
+    `Showing ${start + 1}–${start + shown} of ${total}`;
+
+  const pages = Array.from({length: totalPages}, (unused, index) => index + 1);
+
+  document.getElementById("usersPagerPages").innerHTML = `
+    <button type="button" onclick="goToUsersPage(${usersPage - 1})" ${usersPage === 1 ? "disabled" : ""}>Prev</button>
+    ${pages.map(page => `
+      <button type="button" class="${page === usersPage ? "current" : ""}"
+              onclick="goToUsersPage(${page})">${page}</button>
+    `).join("")}
+    <button type="button" onclick="goToUsersPage(${usersPage + 1})" ${usersPage === totalPages ? "disabled" : ""}>Next</button>
+  `;
+}
+
+function goToUsersPage(page){
+  usersPage = page;
+  renderUsers();
+
+  document.getElementById("usersTable").scrollIntoView({behavior:"smooth", block:"center"});
 }
 
 async function updateUser(userId, action){

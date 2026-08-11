@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Create Content — Admin</title>
+<title>Create Visual — Admin</title>
 
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
@@ -95,6 +95,17 @@ body{background:#f6f7fb;color:var(--text);padding:0}
 .panel-head svg{width:17px;height:17px;color:var(--muted);flex:none}
 .panel-head h2{font-size:15px}
 .panel-body{padding:22px}
+
+/* ── Collapsible panels ──────────────────────────────────────────────────────
+   The three panels on the left fold away independently, so a long form can be
+   narrowed down to the section being worked on. Everything starts open.       */
+button.panel-head{width:100%;font:inherit;text-align:left;background:transparent;border:none;border-bottom:1px solid #eef1f5;cursor:pointer;transition:background .15s}
+button.panel-head:hover{background:#fafbfc}
+button.panel-head h2{flex:1;min-width:0}
+.panel-head .chev{margin-left:auto;transition:transform .18s ease}
+.panel.collapsed .panel-head{border-bottom:none}
+.panel.collapsed .panel-head .chev{transform:rotate(-90deg)}
+.panel.collapsed .panel-body{display:none}
 label{display:block;font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#667085;margin-bottom:8px}
 input[type=text],input[type=date],input[type=time],select,textarea{width:100%;border:1px solid #dfe3ea;background:#f8fafc;border-radius:12px;padding:12px 14px;outline:none;font-size:14px;color:var(--text)}
 input:focus,select:focus,textarea:focus{border-color:var(--nav-active);box-shadow:0 0 0 3px rgba(27,30,58,.10)}
@@ -103,7 +114,7 @@ input:disabled{opacity:.5;cursor:not-allowed}
 .field-row:last-child{margin-bottom:0}
 .hint{font-size:12px;color:#98a2b3;margin-top:7px}
 
-/* ── Content type chips ── */
+/* ── Visual type chips ── */
 .chips{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 .chip{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:78px;padding:12px 8px;border:1px solid #dfe3ea;background:#fff;border-radius:12px;cursor:pointer;font:inherit;font-size:12px;font-weight:700;color:var(--muted);text-align:center;transition:border-color .15s,background .15s,color .15s}
 .chip:hover{background:#f8fafc}
@@ -135,6 +146,9 @@ input:disabled{opacity:.5;cursor:not-allowed}
 .editor:focus{border-color:var(--nav-active);box-shadow:0 0 0 3px rgba(27,30,58,.10)}
 .editor:empty:before{content:attr(data-placeholder);color:#98a2b3}
 .editor ul,.editor ol{padding-left:22px;margin:6px 0}
+/* Arabic is written right to left, so the editor matches how the post will read. */
+.editor[dir="rtl"]{text-align:right}
+.editor[dir="rtl"] ul,.editor[dir="rtl"] ol{padding-left:0;padding-right:22px}
 .counter{text-align:right;font-size:12px;color:#98a2b3;margin-top:8px}
 .counter.over{color:var(--brand);font-weight:800}
 .emoji-pop{position:absolute;top:calc(100% + 6px);left:8px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 16px 40px rgba(16,24,40,.14);padding:8px;display:none;grid-template-columns:repeat(8,1fr);gap:2px;z-index:50}
@@ -241,9 +255,9 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
         <span>Articles Assignment</span>
       </a>
-      <a href="admin-content.html" class="active" title="Content">
+      <a href="admin-content.html" class="active" title="Visual">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
-        <span>Content</span>
+        <span>Visual</span>
       </a>
       <a href="users-management.html" id="usersManagementLink" title="Users Management">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -286,12 +300,12 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
 
     <div class="page-head">
       <div class="page-title">
-        <h1 id="pageHeading">Content</h1>
+        <h1 id="pageHeading">Visual</h1>
         <p>Everything ready to publish — social posts, newsletters, infographics and more.</p>
       </div>
       <a class="back-link" href="admin-content.html">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-        Back to Content
+        Back to Visual
       </a>
     </div>
 
@@ -306,12 +320,13 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
       <!-- ── Left column ── -->
       <div class="col">
 
-        <section class="panel">
-          <div class="panel-head">
+        <section class="panel" id="panelType">
+          <button class="panel-head" type="button" aria-expanded="true" aria-controls="panelTypeBody" onclick="togglePanel(this)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/></svg>
-            <h2>Content Type &amp; Platform</h2>
-          </div>
-          <div class="panel-body">
+            <h2>Visual Type &amp; Platform</h2>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="panel-body" id="panelTypeBody">
             <div class="chips" id="typeChips"></div>
 
             <div class="custom-type" id="customType">
@@ -333,12 +348,13 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
           </div>
         </section>
 
-        <section class="panel">
-          <div class="panel-head">
+        <section class="panel" id="panelOrientation">
+          <button class="panel-head" type="button" aria-expanded="true" aria-controls="panelOrientationBody" onclick="togglePanel(this)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><line x1="3" y1="12" x2="21" y2="12"/></svg>
             <h2>Form Orientation</h2>
-          </div>
-          <div class="panel-body">
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="panel-body" id="panelOrientationBody">
             <div class="orientations">
               <button class="orientation h selected" type="button" data-orientation="horizontal" onclick="selectOrientation('horizontal')">
                 <span class="glyph"><i></i></span>
@@ -349,16 +365,17 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
                 Vertical
               </button>
             </div>
-            <p class="hint">This decides how the post is laid out on the Content page.</p>
+            <p class="hint">This decides how the post is laid out on the Visual page.</p>
           </div>
         </section>
 
-        <section class="panel">
-          <div class="panel-head">
+        <section class="panel" id="panelDetails">
+          <button class="panel-head" type="button" aria-expanded="true" aria-controls="panelDetailsBody" onclick="togglePanel(this)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="16" y2="12"/><line x1="4" y1="17" x2="12" y2="17"/></svg>
-            <h2>Content Details</h2>
-          </div>
-          <div class="panel-body">
+            <h2>Visual Details</h2>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="panel-body" id="panelDetailsBody">
             <div class="field-row">
               <label for="title">Campaign title</label>
               <input type="text" id="title" placeholder="e.g. Summer Product Launch 2024">
@@ -370,6 +387,21 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
                 <option value="">All clients</option>
               </select>
               <p class="hint">Pick a client and only that client's users see this post. Leave it on “All clients” to publish to everyone.</p>
+            </div>
+
+            <div class="field-row">
+              <label for="language">Language</label>
+              <select id="language" onchange="syncLanguage()">
+                <option value="english">English</option>
+                <option value="arabic">Arabic</option>
+              </select>
+              <p class="hint">Arabic posts are written and shown right to left; English posts left to right.</p>
+            </div>
+
+            <div class="field-row">
+              <label for="link">Link</label>
+              <input type="text" id="link" placeholder="e.g. https://example.com/campaign">
+              <p class="hint">Optional. Shown with the post so readers can open the original.</p>
             </div>
 
             <div class="field-row">
@@ -451,7 +483,7 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
             <div class="actions">
               <button class="primary-btn" type="button" id="submitBtn" onclick="save('scheduled')">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="4 3 21 12 4 21 6 12 4 3"/></svg>
-                <span id="submitLabel">Schedule Content</span>
+                <span id="submitLabel">Schedule Visual</span>
               </button>
               <button class="secondary-btn" type="button" onclick="save('draft')">Save as Draft</button>
               <button class="discard-btn" type="button" onclick="discard()">Discard post</button>
@@ -503,9 +535,11 @@ if(!adminToken || !adminUser.role){
 
 const editId = new URLSearchParams(location.search).get("id");
 
-/* ── Content types ──────────────────────────────────────────────────────────
+/* ── Visual types ───────────────────────────────────────────────────────────
    One array drives the chips, the stored platform/category, and therefore the
-   filter tabs on the Content pages. Custom types are appended at runtime.      */
+   filter tabs on the Visual pages. The six below are built in; anything an
+   admin adds with the "+" chip is saved through api/content-types.php and
+   loaded back here on every visit, so a type is only ever created once.       */
 
 const ICONS = {
   camera:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
@@ -565,33 +599,141 @@ function toggleCustomType(){
   document.getElementById("customType").classList.toggle("open");
 }
 
-function addCustomType(){
-  const label = document.getElementById("customLabel").value.trim();
-  const platform = document.getElementById("customPlatform").value.trim();
-  const category = document.getElementById("customCategory").value.trim();
+/** Adds a type to the in-memory list if it is not there already. */
+function mergeType(type){
+  if(!type || !type.id) return false;
+  if(types.some(existing => existing.id === type.id)) return false;
+
+  types.push({
+    id: type.id,
+    label: type.label || type.id,
+    platform: type.platform || "",
+    category: type.category || "",
+    icon: type.icon || "plus"
+  });
+
+  return true;
+}
+
+/** Saved custom types, so a type added on an earlier post is offered again. */
+const savedTypesReady = loadSavedTypes();
+
+async function loadSavedTypes(){
+  try {
+    const res = await fetch("api/content-types.php", {
+      headers: { Authorization: "Bearer " + adminToken }
+    });
+
+    const data = await res.json();
+    if(!data.success || !data.types) return;
+
+    data.types.forEach(type => mergeType({
+      id: type.type_id,
+      label: type.label,
+      platform: type.platform,
+      category: type.category
+    }));
+
+    renderTypes();
+
+  } catch (err) {
+    // The built-in types still work; a new custom type just has to be re-added.
+    console.error("Could not load saved types:", err);
+  }
+}
+
+async function addCustomType(){
+  const labelInput = document.getElementById("customLabel");
+  const platformInput = document.getElementById("customPlatform");
+  const categoryInput = document.getElementById("customCategory");
+
+  const label = labelInput.value.trim();
+  const platform = platformInput.value.trim();
+  const category = categoryInput.value.trim();
 
   if(!label || !platform || !category){
     setStatus("Custom types need a name, platform and category.", "error");
     return;
   }
 
-  const id = "custom_" + label.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"");
+  const slug = label.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"");
+  const id = "custom_" + slug;
 
-  if(types.some(type => type.id === id)){
+  // A label with no a-z0-9 in it (an Arabic name, say) has no slug to compare;
+  // the server hashes those, so let it be the one to spot the duplicate.
+  if(slug && types.some(type => type.id === id)){
     setStatus("That type already exists.", "error");
     return;
   }
 
-  types.push({id, label, platform, category, icon:"plus"});
-  selectedType = id;
+  const addButton = document.querySelector("#customType .add");
+  addButton.disabled = true;
 
-  document.getElementById("customLabel").value = "";
-  document.getElementById("customPlatform").value = "";
-  document.getElementById("customCategory").value = "";
-  document.getElementById("customType").classList.remove("open");
+  try {
+    const res = await fetch("api/content-types.php", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + adminToken,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({label, platform, category})
+    });
 
-  setStatus("", "");
-  renderTypes();
+    const data = await res.json();
+
+    // A type the server already knows is still usable here - merge it and move
+    // on rather than making the admin rename a type that exists.
+    const saved = data.type
+      ? {id: data.type.type_id, label: data.type.label,
+         platform: data.type.platform, category: data.type.category}
+      : {id, label, platform, category};
+
+    if(!data.success && !data.type){
+      setStatus(data.message || "Could not save the type.", "error");
+      return;
+    }
+
+    mergeType(saved);
+    selectedType = saved.id;
+
+    labelInput.value = "";
+    platformInput.value = "";
+    categoryInput.value = "";
+    document.getElementById("customType").classList.remove("open");
+
+    setStatus(
+      data.success
+        ? `“${saved.label}” saved — it will be here next time too.`
+        : "That type already existed, so it is selected for you.",
+      data.success ? "ok" : ""
+    );
+
+    renderTypes();
+    saveDraft();
+
+  } catch (err) {
+    console.error(err);
+    setStatus("Connection error while saving the type.", "error");
+  } finally {
+    addButton.disabled = false;
+  }
+}
+
+/* ── Collapsible panels ── */
+
+function togglePanel(head){
+  const panel = head.closest(".panel");
+  const collapsed = panel.classList.toggle("collapsed");
+  head.setAttribute("aria-expanded", collapsed ? "false" : "true");
+}
+
+/** Opens a panel so a validation message never points at hidden fields. */
+function openPanel(id){
+  const panel = document.getElementById(id);
+  if(!panel || !panel.classList.contains("collapsed")) return;
+
+  panel.classList.remove("collapsed");
+  panel.querySelector(".panel-head").setAttribute("aria-expanded", "true");
 }
 
 /* ── Orientation ── */
@@ -611,6 +753,19 @@ document.querySelectorAll("[data-orientation]").forEach(btn => {
   const preview = document.getElementById("mediaPreview");
   const shown = preview.classList.contains("show");
   preview.className = "media-preview is-" + value + (shown ? " show" : "");
+}
+
+/* ── Language ───────────────────────────────────────────────────────────────
+   Arabic is written right to left, so the title box and the caption editor
+   flip with the choice - what the admin types is what the post will look like
+   on admin-content.html and content.html.                                    */
+
+function syncLanguage(){
+  const rtl = document.getElementById("language").value === "arabic";
+  const direction = rtl ? "rtl" : "ltr";
+
+  document.getElementById("caption").dir = direction;
+  document.getElementById("title").dir = direction;
 }
 
 /* ── Caption editor ── */
@@ -760,7 +915,7 @@ function syncPublishNow(){
   if(on){ date.value = ""; time.value = ""; }
 
   document.getElementById("submitLabel").innerText =
-    editId ? "Update Content" : (on ? "Publish Content" : "Schedule Content");
+    editId ? "Update Visual" : (on ? "Publish Visual" : "Schedule Visual");
 }
 
 /* ── Save ── */
@@ -773,6 +928,8 @@ function setStatus(message, kind){
 
 async function save(intent){
   const title = document.getElementById("title").value.trim();
+  const link = document.getElementById("link").value.trim();
+  const language = document.getElementById("language").value;
   const publishNow = document.getElementById("publishNow").checked;
   const postDate = document.getElementById("postDate").value;
   const postTime = document.getElementById("postTime").value;
@@ -780,17 +937,20 @@ async function save(intent){
   const captionText = caption.innerText.trim();
 
   if(!title){
+    openPanel("panelDetails");
     setStatus("Add a campaign title.", "error");
     return;
   }
 
   if(!selectedType){
-    setStatus("Pick a content type.", "error");
+    openPanel("panelType");
+    setStatus("Pick a visual type.", "error");
     return;
   }
 
   if(intent !== "draft"){
     if(!captionText){
+      openPanel("panelDetails");
       setStatus("Write a caption before publishing.", "error");
       return;
     }
@@ -808,6 +968,8 @@ async function save(intent){
 
   form.append("title", title);
   form.append("client", document.getElementById("client").value.trim());
+  form.append("link", link);
+  form.append("language", language);
   form.append("caption", captionHtml);
   form.append("content_type", type.id);
   form.append("type_label", type.label);
@@ -823,7 +985,7 @@ async function save(intent){
   if(removeMedia && !mediaFile) form.append("remove_media", "1");
 
   try {
-    setStatus(editId ? "Updating content..." : "Saving content...", "");
+    setStatus(editId ? "Updating visual..." : "Saving visual...", "");
 
     const response = await fetch("api/admin-content.php", {
       method: "POST",
@@ -874,14 +1036,14 @@ function discard(){
 async function prepareEditMode(){
 
   document.getElementById("pageHeading").innerText =
-    "Edit Content";
+    "Edit Visual";
 
   document.getElementById("submitLabel").innerText =
-    "Update Content";
+    "Update Visual";
 
   try {
 
-    setStatus("Loading content...", "");
+    setStatus("Loading visual...", "");
 
     const response = await fetch(
       `api/admin-content.php?id=${encodeURIComponent(editId)}`,
@@ -896,7 +1058,7 @@ async function prepareEditMode(){
 
     if (!response.ok || !data.success) {
       setStatus(
-        data.message || "Could not load content.",
+        data.message || "Could not load the visual.",
         "error"
       );
       return;
@@ -912,6 +1074,18 @@ async function prepareEditMode(){
 
     document.getElementById("title").value =
       item.title || "";
+
+    document.getElementById("link").value =
+      item.link || "";
+
+    // Posts saved before the language field existed have no value; they were
+    // written left to right, so English is the right fallback.
+    document.getElementById("language").value =
+      String(item.language || "").toLowerCase() === "arabic"
+        ? "arabic"
+        : "english";
+
+    syncLanguage();
 
     // The options may still be in flight, and a post saved before this was a
     // dropdown can name a client no user carries any more - selectClient()
@@ -959,20 +1133,16 @@ async function prepareEditMode(){
 
     if (item.content_type) {
 
-      const exists = types.some(
-        type => type.id === item.content_type
-      );
+      // Wait for the saved custom types, otherwise this post's own snapshot of
+      // the type would be added a second time under the same id.
+      await savedTypesReady;
 
-      if (!exists) {
-
-        types.push({
-          id: item.content_type,
-          label: item.type_label || item.content_type,
-          platform: item.platform || "",
-          category: item.category || ""
-        });
-
-      }
+      mergeType({
+        id: item.content_type,
+        label: item.type_label || item.content_type,
+        platform: item.platform || "",
+        category: item.category || ""
+      });
 
       selectedType = item.content_type;
 
@@ -1102,6 +1272,8 @@ function currentDraft(){
     savedAt: Date.now(),
     title: document.getElementById("title").value,
     client: document.getElementById("client").value,
+    link: document.getElementById("link").value,
+    language: document.getElementById("language").value,
     caption: caption.innerHTML,
     contentType: selectedType,
     orientation,
@@ -1117,7 +1289,7 @@ function currentDraft(){
 function isDirty(){
   const d = currentDraft();
   return Boolean(
-    d.title.trim() || d.client || caption.innerText.trim() ||
+    d.title.trim() || d.client || d.link.trim() || caption.innerText.trim() ||
     d.contentType || d.postDate || d.postTime || d.publishNow || mediaFile
   );
 }
@@ -1162,12 +1334,16 @@ async function loadDraft(){
   }
 
   document.getElementById("title").value = draft.title || "";
+  document.getElementById("link").value = draft.link || "";
+  document.getElementById("language").value = draft.language === "arabic" ? "arabic" : "english";
+  syncLanguage();
+
   caption.innerHTML = draft.caption || "";
   updateCounter();
 
-  (draft.customTypes || []).forEach(t => {
-    if(!types.some(existing => existing.id === t.id)) types.push(t);
-  });
+  // Custom types are saved server-side now; this only covers drafts written
+  // before that, whose types were never stored anywhere else.
+  (draft.customTypes || []).forEach(mergeType);
 
   selectedType = draft.contentType || null;
   renderTypes();
@@ -1226,6 +1402,7 @@ document.addEventListener("click", event => {
 
 renderTypes();
 updateCounter();
+syncLanguage();
 
 if(editId){
   prepareEditMode();

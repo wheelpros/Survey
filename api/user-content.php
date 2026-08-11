@@ -42,6 +42,7 @@ $token = trim($matches[1]);
 try {
 
     ensureUserProfileColumns($pdo);
+    ensureContentColumns($pdo);
 
     $stmt = $pdo->prepare("
         SELECT id, approved, company_name
@@ -101,6 +102,8 @@ try {
             c.id,
             c.title,
             c.client,
+            c.link,
+            c.language,
             c.caption,
             c.content_type,
             c.type_label,

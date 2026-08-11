@@ -70,3 +70,73 @@ function ensureUserProfileColumns(PDO $pdo)
         // Read-only DB user: the callers below fall back to empty values.
     }
 }
+
+/**
+ * Columns added to `content` after the table first shipped. Same lazy approach
+ * as the profile columns above; sql/content_link_language.sql is the manual
+ * version for a DB user without ALTER rights.
+ *
+ * `language` decides the reading direction of the post body on the content
+ * pages, so it always carries a value - 'english' is the default.
+ */
+const CONTENT_EXTRA_COLUMNS = [
+    "link"     => "VARCHAR(500) NULL",
+    "language" => "VARCHAR(10) NOT NULL DEFAULT 'english'",
+];
+
+function ensureContentColumns(PDO $pdo)
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    try {
+        $stmt = $pdo->query("
+            SELECT COLUMN_NAME
+            FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'content'
+        ");
+        $existing = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+        foreach (CONTENT_EXTRA_COLUMNS as $column => $type) {
+            if (!in_array($column, $existing, true)) {
+                $pdo->exec("ALTER TABLE content ADD COLUMN `$column` $type");
+            }
+        }
+    } catch (PDOException $e) {
+        // Read-only DB user: the callers fall back to the defaults.
+    }
+}
+
+/**
+ * Custom visual types the admins add on the creation form. Kept in their own
+ * table so a type added once is offered again on every later post, for every
+ * admin - the built-in types stay hard-coded in the form.
+ */
+function ensureContentTypesTable(PDO $pdo)
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    try {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS content_types (
+              id          INT AUTO_INCREMENT PRIMARY KEY,
+              type_id     VARCHAR(60)  NOT NULL,
+              label       VARCHAR(80)  NOT NULL,
+              platform    VARCHAR(60)  NOT NULL,
+              category    VARCHAR(60)  NOT NULL,
+              created_by  INT              NULL,
+              created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              UNIQUE KEY uniq_type_id (type_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+    } catch (PDOException $e) {
+        // Read-only DB user: custom types simply will not persist.
+    }
+}
