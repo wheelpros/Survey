@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS content (
 
   title         VARCHAR(255) NOT NULL,
   client        VARCHAR(120)     NULL,
+  link          VARCHAR(500)     NULL,        -- optional external link shown with the post
+  `language`    VARCHAR(10)  NOT NULL DEFAULT 'english',  -- english | arabic (arabic renders RTL)
   caption       TEXT             NULL,        -- HTML from the caption editor
 
   content_type  VARCHAR(60)  NOT NULL,        -- instagram_post | reel | newsletter | ...

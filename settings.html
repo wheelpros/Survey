@@ -294,6 +294,59 @@ body{padding:0}
     border: 1px dashed #d0d5dd;
     border-radius: 12px;
 }
+
+/* ── Pagination: the list never shows more than ADMINS_PAGE_SIZE rows ── */
+.pager {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #eef1f5;
+}
+
+.pager[hidden] { display: none; }
+
+.pager-info {
+    font-size: 13px;
+    font-weight: 600;
+    color: #667085;
+}
+
+.pager-pages {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.pager button {
+    min-width: 36px;
+    height: 36px;
+    padding: 0 12px;
+    border: 1px solid #dfe3ea;
+    background: #fff;
+    border-radius: 9px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    color: #101828;
+    cursor: pointer;
+}
+
+.pager button:hover:not(:disabled) { background: #f6f7f9; }
+
+.pager button.current {
+    background: #1b1e3a;
+    border-color: #1b1e3a;
+    color: #fff;
+}
+
+.pager button:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+}
 </style>
 
 <script>
@@ -356,9 +409,9 @@ document.addEventListener("DOMContentLoaded", function () {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
         <span>Articles Assignment</span>
       </a>
-      <a href="admin-content.html" title="Content">
+      <a href="admin-content.html" title="Visual">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
-        <span>Content</span>
+        <span>Visual</span>
       </a>
       <a href="users-management.html" id="usersManagementLink" title="Users Management">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -478,6 +531,11 @@ document.addEventListener("DOMContentLoaded", function () {
                 <div class="no-admins">
                     Loading admins...
                 </div>
+            </div>
+
+            <div class="pager" id="adminsPager" hidden>
+                <span class="pager-info" id="adminsPagerInfo"></span>
+                <div class="pager-pages" id="adminsPagerPages"></div>
             </div>
         </div>
     </div>
@@ -638,6 +696,17 @@ async function addUser() {
     alert("Network or server error ❌");
   }
 }
+let allAdmins = [];
+
+// Eight rows to a page; the rest live behind the pager under the list.
+const ADMINS_PAGE_SIZE = 8;
+let adminsPage = 1;
+
+function hideAdminsPager() {
+    const pager = document.getElementById("adminsPager");
+    if (pager) pager.hidden = true;
+}
+
 async function loadAdmins() {
     const list = document.getElementById("adminsList");
 
@@ -660,48 +729,29 @@ async function loadAdmins() {
         const data = await res.json();
 
         if (!res.ok || !data.success) {
+            allAdmins = [];
+            hideAdminsPager();
+
             list.innerHTML = `
                 <div class="no-admins">
-                    ${data.message || "Failed to load admins."}
+                    ${escapeHtml(data.message || "Failed to load admins.")}
                 </div>
             `;
             return;
         }
 
-        if (!data.admins || data.admins.length === 0) {
-            list.innerHTML = `
-                <div class="no-admins">
-                    No admins available.
-                </div>
-            `;
-            return;
-        }
+        allAdmins = data.admins || [];
 
-        list.innerHTML = data.admins.map(admin => `
-            <div class="admin-row" id="admin-row-${admin.id}">
-                
-                <div class="admin-info">
-                    <strong>${escapeHtml(admin.name)}</strong>
-                    <span>${escapeHtml(admin.email)}</span>
-                    <span class="admin-role">
-                        ${admin.role === "super_admin" ? "Super Admin" : "SEO Admin"}
-                    </span>
-                </div>
-
-                <button
-                    type="button"
-                    class="remove-admin-btn"
-                    onclick="removeAdmin(${admin.id}, '${escapeHtml(admin.name)}')"
-                >
-                    Remove
-                </button>
-
-            </div>
-        `).join("");
+        // Keep the page we were on - removing an admin should not send us back
+        // to page 1. renderAdmins() clamps it if the page no longer exists.
+        renderAdmins();
 
     } catch (err) {
 
         console.error("Load admins error:", err);
+
+        allAdmins = [];
+        hideAdminsPager();
 
         list.innerHTML = `
             <div class="no-admins">
@@ -709,6 +759,88 @@ async function loadAdmins() {
             </div>
         `;
     }
+}
+
+function renderAdmins() {
+    const list = document.getElementById("adminsList");
+
+    if (!list) return;
+
+    if (!allAdmins.length) {
+        hideAdminsPager();
+
+        list.innerHTML = `
+            <div class="no-admins">
+                No admins available.
+            </div>
+        `;
+        return;
+    }
+
+    const totalPages = Math.max(1, Math.ceil(allAdmins.length / ADMINS_PAGE_SIZE));
+
+    if (adminsPage > totalPages) adminsPage = totalPages;
+
+    const start = (adminsPage - 1) * ADMINS_PAGE_SIZE;
+    const pageAdmins = allAdmins.slice(start, start + ADMINS_PAGE_SIZE);
+
+    list.innerHTML = pageAdmins.map(admin => `
+        <div class="admin-row" id="admin-row-${admin.id}">
+
+            <div class="admin-info">
+                <strong>${escapeHtml(admin.name)}</strong>
+                <span>${escapeHtml(admin.email)}</span>
+                <span class="admin-role">
+                    ${admin.role === "super_admin" ? "Super Admin" : "SEO Admin"}
+                </span>
+            </div>
+
+            <button
+                type="button"
+                class="remove-admin-btn"
+                onclick="removeAdmin(${admin.id}, '${escapeHtml(admin.name)}')"
+            >
+                Remove
+            </button>
+
+        </div>
+    `).join("");
+
+    renderAdminsPager(allAdmins.length, totalPages, start, pageAdmins.length);
+}
+
+function renderAdminsPager(total, totalPages, start, shown) {
+    const pager = document.getElementById("adminsPager");
+
+    if (!pager) return;
+
+    if (total <= ADMINS_PAGE_SIZE) {
+        pager.hidden = true;
+        return;
+    }
+
+    pager.hidden = false;
+
+    document.getElementById("adminsPagerInfo").innerText =
+        `Showing ${start + 1}–${start + shown} of ${total}`;
+
+    const pages = Array.from({length: totalPages}, (unused, index) => index + 1);
+
+    document.getElementById("adminsPagerPages").innerHTML = `
+        <button type="button" onclick="goToAdminsPage(${adminsPage - 1})" ${adminsPage === 1 ? "disabled" : ""}>Prev</button>
+        ${pages.map(page => `
+            <button type="button" class="${page === adminsPage ? "current" : ""}"
+                    onclick="goToAdminsPage(${page})">${page}</button>
+        `).join("")}
+        <button type="button" onclick="goToAdminsPage(${adminsPage + 1})" ${adminsPage === totalPages ? "disabled" : ""}>Next</button>
+    `;
+}
+
+function goToAdminsPage(page) {
+    adminsPage = page;
+    renderAdmins();
+
+    document.getElementById("adminsList").scrollIntoView({behavior:"smooth", block:"center"});
 }
 async function removeAdmin(id, name) {
 
