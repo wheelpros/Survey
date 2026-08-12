@@ -125,6 +125,13 @@ input:disabled{opacity:.5;cursor:not-allowed}
 .custom-type label{margin-bottom:6px}
 .custom-type .add{height:44px;padding:0 18px;border:none;border-radius:10px;background:var(--nav-active);color:#fff;font:inherit;font-weight:800;font-size:13px;cursor:pointer}
 
+/* The new type reuses one of the six icons the built-in chips already carry. */
+.icon-picker{display:flex;flex-wrap:wrap;gap:6px;min-height:44px;align-items:center}
+.icon-picker button{width:40px;height:40px;flex:none;display:flex;align-items:center;justify-content:center;border:1px solid #dfe3ea;background:#fff;border-radius:10px;color:var(--muted);cursor:pointer;transition:border-color .15s,background .15s,color .15s}
+.icon-picker button:hover{background:#f8fafc;color:var(--text)}
+.icon-picker button svg{width:19px;height:19px}
+.icon-picker button.selected{border-color:var(--nav-active);border-width:2px;background:#f5f6fa;color:var(--text)}
+
 /* ── Orientation ── */
 .orientations{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .orientation{display:flex;flex-direction:column;align-items:center;gap:10px;padding:18px 10px;border:1px solid #dfe3ea;background:#fff;border-radius:12px;cursor:pointer;font:inherit;font-size:13px;font-weight:700;color:var(--muted);transition:border-color .15s,background .15s,color .15s}
@@ -146,9 +153,6 @@ input:disabled{opacity:.5;cursor:not-allowed}
 .editor:focus{border-color:var(--nav-active);box-shadow:0 0 0 3px rgba(27,30,58,.10)}
 .editor:empty:before{content:attr(data-placeholder);color:#98a2b3}
 .editor ul,.editor ol{padding-left:22px;margin:6px 0}
-/* Arabic is written right to left, so the editor matches how the post will read. */
-.editor[dir="rtl"]{text-align:right}
-.editor[dir="rtl"] ul,.editor[dir="rtl"] ol{padding-left:0;padding-right:22px}
 .counter{text-align:right;font-size:12px;color:#98a2b3;margin-top:8px}
 .counter.over{color:var(--brand);font-weight:800}
 .emoji-pop{position:absolute;top:calc(100% + 6px);left:8px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 16px 40px rgba(16,24,40,.14);padding:8px;display:none;grid-template-columns:repeat(8,1fr);gap:2px;z-index:50}
@@ -251,10 +255,6 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         <span>Responses</span>
       </a>
-      <a href="articles-assignment.html" id="articlesAssignmentLink" title="Articles Assignment">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-        <span>Articles Assignment</span>
-      </a>
       <a href="admin-content.html" class="active" title="Visual">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
         <span>Visual</span>
@@ -339,9 +339,8 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
                 <input type="text" id="customPlatform" placeholder="e.g. TikTok">
               </div>
               <div>
-                <label for="customCategory">Category</label>
-                <input type="text" id="customCategory" list="categoryList" placeholder="e.g. Social posts">
-                <datalist id="categoryList"></datalist>
+                <label>Icon</label>
+                <div class="icon-picker" id="iconPicker" role="radiogroup" aria-label="Icon"></div>
               </div>
               <button class="add" type="button" onclick="addCustomType()">Add</button>
             </div>
@@ -390,15 +389,6 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
             </div>
 
             <div class="field-row">
-              <label for="language">Language</label>
-              <select id="language" onchange="syncLanguage()">
-                <option value="english">English</option>
-                <option value="arabic">Arabic</option>
-              </select>
-              <p class="hint">Arabic posts are written and shown right to left; English posts left to right.</p>
-            </div>
-
-            <div class="field-row">
               <label for="link">Link</label>
               <input type="text" id="link" placeholder="e.g. https://example.com/campaign">
               <p class="hint">Optional. Shown with the post so readers can open the original.</p>
@@ -418,15 +408,25 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>
                 </button>
                 <span class="sep"></span>
+                <button type="button" title="Align left" onmousedown="event.preventDefault()" onclick="runCommand('justifyLeft')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="18" y2="18"/></svg>
+                </button>
+                <button type="button" title="Align centre" onmousedown="event.preventDefault()" onclick="runCommand('justifyCenter')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="5" y1="18" x2="19" y2="18"/></svg>
+                </button>
+                <button type="button" title="Align right" onmousedown="event.preventDefault()" onclick="runCommand('justifyRight')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="10" y1="12" x2="20" y2="12"/><line x1="6" y1="18" x2="20" y2="18"/></svg>
+                </button>
+                <span class="sep"></span>
                 <button type="button" title="Emoji" onmousedown="event.preventDefault()" onclick="toggleEmoji()">☺</button>
 
                 <div class="emoji-pop" id="emojiPop"></div>
               </div>
 
-              <div class="editor" id="caption" contenteditable="true" data-max="2200"
+              <div class="editor" id="caption" contenteditable="true" data-max="10000"
                    data-placeholder="Write your content here..."></div>
 
-              <div class="counter" id="captionCounter">0 / 2200 characters</div>
+              <div class="counter" id="captionCounter">0 / 10000 characters</div>
             </div>
           </div>
         </section>
@@ -521,8 +521,7 @@ if(!adminToken || !adminUser.role){
 }
 
 // Content is open to both `admin` and `super_admin`; only these two links narrow.
-// Users Management and Articles Assignment are open to every admin, so the
-// sidebar no longer hides them for non-super-admins.
+// Users Management is open to every admin, so the sidebar no longer hides it.
 
 (function(){
   const name = adminUser.name || "Admin";
@@ -584,10 +583,29 @@ function renderTypes(){
     <button class="chip" type="button" onclick="toggleCustomType()" title="Add a custom type">
       ${ICONS.plus}
     </button>`;
+}
 
-  const list = document.getElementById("categoryList");
-  list.innerHTML = [...new Set(types.map(type => type.category))]
-    .map(category => `<option value="${esc(category)}">`).join("");
+/* ── Icon picker (custom types) ──────────────────────────────────────────────
+   A new type reuses one of the six icons the built-in chips carry, so the grid
+   stays visually consistent instead of filling up with generic plus circles.  */
+
+const PICKABLE_ICONS = ["camera", "reel", "mail", "case", "ad", "chart"];
+
+let customIcon = PICKABLE_ICONS[0];
+
+function renderIconPicker(){
+  document.getElementById("iconPicker").innerHTML = PICKABLE_ICONS.map(icon => `
+    <button type="button" role="radio" aria-checked="${icon === customIcon}"
+            class="${icon === customIcon ? "selected" : ""}"
+            title="${esc(icon)}" onclick="selectCustomIcon('${esc(icon)}')">
+      ${ICONS[icon]}
+    </button>
+  `).join("");
+}
+
+function selectCustomIcon(icon){
+  customIcon = icon;
+  renderIconPicker();
 }
 
 function selectType(id){
@@ -631,7 +649,8 @@ async function loadSavedTypes(){
       id: type.type_id,
       label: type.label,
       platform: type.platform,
-      category: type.category
+      category: type.category,
+      icon: type.icon
     }));
 
     renderTypes();
@@ -645,16 +664,19 @@ async function loadSavedTypes(){
 async function addCustomType(){
   const labelInput = document.getElementById("customLabel");
   const platformInput = document.getElementById("customPlatform");
-  const categoryInput = document.getElementById("customCategory");
 
   const label = labelInput.value.trim();
   const platform = platformInput.value.trim();
-  const category = categoryInput.value.trim();
+  const icon = customIcon;
 
-  if(!label || !platform || !category){
-    setStatus("Custom types need a name, platform and category.", "error");
+  if(!label || !platform){
+    setStatus("Custom types need a name and a platform.", "error");
     return;
   }
+
+  // The filter tabs on the Visual pages group by category; with no category
+  // field on the form the platform is the grouping, so it doubles as one.
+  const category = platform;
 
   const slug = label.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"");
   const id = "custom_" + slug;
@@ -676,7 +698,7 @@ async function addCustomType(){
         Authorization: "Bearer " + adminToken,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({label, platform, category})
+      body: JSON.stringify({label, platform, icon})
     });
 
     const data = await res.json();
@@ -685,8 +707,9 @@ async function addCustomType(){
     // on rather than making the admin rename a type that exists.
     const saved = data.type
       ? {id: data.type.type_id, label: data.type.label,
-         platform: data.type.platform, category: data.type.category}
-      : {id, label, platform, category};
+         platform: data.type.platform, category: data.type.category,
+         icon: data.type.icon}
+      : {id, label, platform, category, icon};
 
     if(!data.success && !data.type){
       setStatus(data.message || "Could not save the type.", "error");
@@ -698,7 +721,7 @@ async function addCustomType(){
 
     labelInput.value = "";
     platformInput.value = "";
-    categoryInput.value = "";
+    selectCustomIcon(PICKABLE_ICONS[0]);
     document.getElementById("customType").classList.remove("open");
 
     setStatus(
@@ -755,27 +778,28 @@ document.querySelectorAll("[data-orientation]").forEach(btn => {
   preview.className = "media-preview is-" + value + (shown ? " show" : "");
 }
 
-/* ── Language ───────────────────────────────────────────────────────────────
-   Arabic is written right to left, so the title box and the caption editor
-   flip with the choice - what the admin types is what the post will look like
-   on admin-content.html and content.html.                                    */
-
-function syncLanguage(){
-  const rtl = document.getElementById("language").value === "arabic";
-  const direction = rtl ? "rtl" : "ltr";
-
-  document.getElementById("caption").dir = direction;
-  document.getElementById("title").dir = direction;
-}
-
-/* ── Caption editor ── */
+/* ── Caption editor ─────────────────────────────────────────────────────────
+   Alignment lives here rather than in a language field: an Arabic post is
+   right-aligned with the toolbar, the same way any other paragraph is.       */
 
 const caption = document.getElementById("caption");
 const MAX_CAPTION = Number(caption.dataset.max);
 
 function runCommand(command){
   caption.focus();
+
+  // Alignment has to come out as inline text-align, since that is the one bit
+  // of styling the sanitiser on the reading pages keeps. It is turned on only
+  // for the align commands: left on, bold and italic would produce styled
+  // spans instead of <b> and <i>, which the sanitiser strips.
+  const aligning = command.indexOf("justify") === 0;
+
+  if(aligning) try { document.execCommand("styleWithCSS", false, true); } catch (e) {}
+
   document.execCommand(command, false, null);
+
+  if(aligning) try { document.execCommand("styleWithCSS", false, false); } catch (e) {}
+
   updateCounter();
 }
 
@@ -929,7 +953,6 @@ function setStatus(message, kind){
 async function save(intent){
   const title = document.getElementById("title").value.trim();
   const link = document.getElementById("link").value.trim();
-  const language = document.getElementById("language").value;
   const publishNow = document.getElementById("publishNow").checked;
   const postDate = document.getElementById("postDate").value;
   const postTime = document.getElementById("postTime").value;
@@ -969,7 +992,6 @@ async function save(intent){
   form.append("title", title);
   form.append("client", document.getElementById("client").value.trim());
   form.append("link", link);
-  form.append("language", language);
   form.append("caption", captionHtml);
   form.append("content_type", type.id);
   form.append("type_label", type.label);
@@ -1077,15 +1099,6 @@ async function prepareEditMode(){
 
     document.getElementById("link").value =
       item.link || "";
-
-    // Posts saved before the language field existed have no value; they were
-    // written left to right, so English is the right fallback.
-    document.getElementById("language").value =
-      String(item.language || "").toLowerCase() === "arabic"
-        ? "arabic"
-        : "english";
-
-    syncLanguage();
 
     // The options may still be in flight, and a post saved before this was a
     // dropdown can name a client no user carries any more - selectClient()
@@ -1273,7 +1286,6 @@ function currentDraft(){
     title: document.getElementById("title").value,
     client: document.getElementById("client").value,
     link: document.getElementById("link").value,
-    language: document.getElementById("language").value,
     caption: caption.innerHTML,
     contentType: selectedType,
     orientation,
@@ -1335,8 +1347,6 @@ async function loadDraft(){
 
   document.getElementById("title").value = draft.title || "";
   document.getElementById("link").value = draft.link || "";
-  document.getElementById("language").value = draft.language === "arabic" ? "arabic" : "english";
-  syncLanguage();
 
   caption.innerHTML = draft.caption || "";
   updateCounter();
@@ -1402,7 +1412,7 @@ document.addEventListener("click", event => {
 
 renderTypes();
 updateCounter();
-syncLanguage();
+renderIconPicker();
 
 if(editId){
   prepareEditMode();

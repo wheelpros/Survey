@@ -14,8 +14,8 @@ if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") {
 | Authenticate the portal user
 |--------------------------------------------------------------------------
 |
-| Same guard as api/articles.php: the token must match a users row and the
-| account must be approved.
+| Same guard as the other portal endpoints: the token must match a users row
+| and the account must be approved.
 |
 */
 
@@ -103,7 +103,6 @@ try {
             c.title,
             c.client,
             c.link,
-            c.language,
             c.caption,
             c.content_type,
             c.type_label,

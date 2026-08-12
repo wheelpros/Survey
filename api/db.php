@@ -73,15 +73,14 @@ function ensureUserProfileColumns(PDO $pdo)
 
 /**
  * Columns added to `content` after the table first shipped. Same lazy approach
- * as the profile columns above; sql/content_link_language.sql is the manual
+ * as the profile columns above; sql/content_link.sql is the manual
  * version for a DB user without ALTER rights.
  *
- * `language` decides the reading direction of the post body on the content
- * pages, so it always carries a value - 'english' is the default.
+ * The post body carries its own alignment in the caption HTML, so there is
+ * no language column - the toolbar on admin-content-form.html sets it.
  */
 const CONTENT_EXTRA_COLUMNS = [
     "link"     => "VARCHAR(500) NULL",
-    "language" => "VARCHAR(10) NOT NULL DEFAULT 'english'",
 ];
 
 function ensureContentColumns(PDO $pdo)
@@ -131,11 +130,25 @@ function ensureContentTypesTable(PDO $pdo)
               label       VARCHAR(80)  NOT NULL,
               platform    VARCHAR(60)  NOT NULL,
               category    VARCHAR(60)  NOT NULL,
+              icon        VARCHAR(20)  NOT NULL DEFAULT 'plus',
               created_by  INT              NULL,
               created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
               UNIQUE KEY uniq_type_id (type_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
+
+        // `icon` arrived after the table did; types saved before it keep the
+        // generic chip until they are re-created.
+        $stmt = $pdo->query("
+            SELECT COLUMN_NAME
+            FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'content_types'
+        ");
+
+        if (!in_array("icon", $stmt->fetchAll(PDO::FETCH_COLUMN), true)) {
+            $pdo->exec("ALTER TABLE content_types ADD COLUMN icon VARCHAR(20) NOT NULL DEFAULT 'plus'");
+        }
+
     } catch (PDOException $e) {
         // Read-only DB user: custom types simply will not persist.
     }

@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS content_types (
   type_id     VARCHAR(60)  NOT NULL,        -- custom_tiktok_clip - matches content.content_type
   label       VARCHAR(80)  NOT NULL,        -- "TikTok Clip"
   platform    VARCHAR(60)  NOT NULL,        -- "TikTok"
-  category    VARCHAR(60)  NOT NULL,        -- "Social posts" - drives the filter tabs
+  category    VARCHAR(60)  NOT NULL,        -- drives the filter tabs; defaults to the platform
+  icon        VARCHAR(20)  NOT NULL DEFAULT 'plus',  -- camera | reel | mail | case | ad | chart
 
   created_by  INT              NULL,        -- admins.id
 
