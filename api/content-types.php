@@ -99,7 +99,7 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
     try {
 
         $stmt = $pdo->query("
-            SELECT type_id, label, platform, category
+            SELECT type_id, label, platform, category, icon
             FROM content_types
             ORDER BY label ASC
         ");
@@ -137,10 +137,31 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     $label = trim($input["label"] ?? "");
     $platform = trim($input["platform"] ?? "");
+    $icon = trim($input["icon"] ?? "");
+
+    /*
+    | The form offers the six icons the built-in types use; anything else is a
+    | request that did not come from it.
+    */
+    $icons = ["camera", "reel", "mail", "case", "ad", "chart"];
+
+    if (!in_array($icon, $icons, true)) {
+        response(false, "Pick one of the available icons.", [], 400);
+    }
+
+    /*
+    | The category drives the filter tabs on the Visual pages. The form no
+    | longer asks for one - the platform is the useful grouping, so it doubles
+    | as the category unless a caller sends its own.
+    */
     $category = trim($input["category"] ?? "");
 
-    if (!$label || !$platform || !$category) {
-        response(false, "A type needs a name, platform and category.", [], 400);
+    if (!$label || !$platform) {
+        response(false, "A type needs a name and a platform.", [], 400);
+    }
+
+    if ($category === "") {
+        $category = $platform;
     }
 
     if (
@@ -173,7 +194,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     try {
 
         $stmt = $pdo->prepare("
-            SELECT type_id, label, platform, category
+            SELECT type_id, label, platform, category, icon
             FROM content_types
             WHERE type_id = ?
             LIMIT 1
@@ -188,11 +209,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         }
 
         $stmt = $pdo->prepare("
-            INSERT INTO content_types (type_id, label, platform, category, created_by)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO content_types (type_id, label, platform, category, icon, created_by)
+            VALUES (?, ?, ?, ?, ?, ?)
         ");
 
-        $stmt->execute([$typeId, $label, $platform, $category, $admin["id"]]);
+        $stmt->execute([$typeId, $label, $platform, $category, $icon, $admin["id"]]);
 
         response(
             true,
@@ -202,7 +223,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     "type_id"  => $typeId,
                     "label"    => $label,
                     "platform" => $platform,
-                    "category" => $category
+                    "category" => $category,
+                    "icon"     => $icon
                 ]
             ]
         );

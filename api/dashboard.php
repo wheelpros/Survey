@@ -99,10 +99,8 @@ echo json_encode([
     "stats" => [
         "submittedSurveys" => $completedSurveys,
         "pendingResponses" => $pendingSurveys,
-        "responsesReceived" => $totalSurveys,
-        "articles" => 0
+        "responsesReceived" => $totalSurveys
     ],
     "surveys" => $surveys,
-    "files" => $assignedFiles, // تم إضافتها هنا لتصل للفرونت إند
-    "articles" => []
+    "files" => $assignedFiles // تم إضافتها هنا لتصل للفرونت إند
 ]);

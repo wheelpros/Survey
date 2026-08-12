@@ -25,9 +25,10 @@ $adminStmt = $pdo->prepare("
 $adminStmt->execute([$token]);
 $currentAdmin = $adminStmt->fetch();
 
-// Articles Assignment is now in the sidebar for every admin, so this can no
-// longer be super-admin only - the page would load and every save would fail.
-// Resolving the token against the admins table is the authorisation.
+// The SEO Admin Assignments box on users-management.html is in the sidebar for
+// every admin, so this can no longer be super-admin only - the page would load
+// and every save would fail. Resolving the token against the admins table is
+// the authorisation.
 if (!$currentAdmin) {
     echo json_encode([
         "success" => false,
