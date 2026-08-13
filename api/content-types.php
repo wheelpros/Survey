@@ -2,7 +2,7 @@
 
 /*
 |--------------------------------------------------------------------------
-| Custom visual types
+| Custom content types
 |--------------------------------------------------------------------------
 |
 | GET  api/content-types.php          -> every saved custom type
@@ -10,7 +10,7 @@
 |
 | The six built-in types live in admin-content-form.html. Anything an admin
 | adds with the "+" chip is stored here so it is offered again the next time
-| someone creates a visual, instead of having to be re-typed.
+| someone creates content, instead of having to be re-typed.
 |
 */
 
@@ -137,22 +137,24 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     $label = trim($input["label"] ?? "");
     $platform = trim($input["platform"] ?? "");
-    $icon = trim($input["icon"] ?? "");
 
     /*
-    | The form offers the six icons the built-in types use; anything else is a
-    | request that did not come from it.
+    | The form does not ask for an icon; a custom type gets the generic chip.
+    | The column stays because types saved when the picker existed still carry
+    | one, and a caller may still send a valid value.
     */
     $icons = ["camera", "reel", "mail", "case", "ad", "chart"];
 
+    $icon = trim($input["icon"] ?? "");
+
     if (!in_array($icon, $icons, true)) {
-        response(false, "Pick one of the available icons.", [], 400);
+        $icon = "plus";
     }
 
     /*
-    | The category drives the filter tabs on the Visual pages. The form no
-    | longer asks for one - the platform is the useful grouping, so it doubles
-    | as the category unless a caller sends its own.
+    | The category groups types. The form no longer asks for one - the platform
+    | is the useful grouping, so it doubles as the category unless a caller
+    | sends its own.
     */
     $category = trim($input["category"] ?? "");
 

@@ -110,7 +110,7 @@ function ensureContentColumns(PDO $pdo)
 }
 
 /**
- * Custom visual types the admins add on the creation form. Kept in their own
+ * Custom content types the admins add on the creation form. Kept in their own
  * table so a type added once is offered again on every later post, for every
  * admin - the built-in types stay hard-coded in the form.
  */
