@@ -426,6 +426,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         response(false, "Campaign title is required.", [], 400);
     }
 
+    /*
+    | Every post belongs to one client. There used to be an "All clients"
+    | option, which is why older rows can still have an empty client - they
+    | keep working, but nothing new is saved that way.
+    */
+    if (!$client) {
+        response(false, "A client is required.", [], 400);
+    }
+
     if (!$contentType) {
         response(false, "Content type is required.", [], 400);
     }

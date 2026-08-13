@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Create Visual — Admin</title>
+<title>Create Content — Admin</title>
 
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
@@ -114,7 +114,7 @@ input:disabled{opacity:.5;cursor:not-allowed}
 .field-row:last-child{margin-bottom:0}
 .hint{font-size:12px;color:#98a2b3;margin-top:7px}
 
-/* ── Visual type chips ── */
+/* ── Content type chips ── */
 .chips{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 .chip{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:78px;padding:12px 8px;border:1px solid #dfe3ea;background:#fff;border-radius:12px;cursor:pointer;font:inherit;font-size:12px;font-weight:700;color:var(--muted);text-align:center;transition:border-color .15s,background .15s,color .15s}
 .chip:hover{background:#f8fafc}
@@ -125,12 +125,6 @@ input:disabled{opacity:.5;cursor:not-allowed}
 .custom-type label{margin-bottom:6px}
 .custom-type .add{height:44px;padding:0 18px;border:none;border-radius:10px;background:var(--nav-active);color:#fff;font:inherit;font-weight:800;font-size:13px;cursor:pointer}
 
-/* The new type reuses one of the six icons the built-in chips already carry. */
-.icon-picker{display:flex;flex-wrap:wrap;gap:6px;min-height:44px;align-items:center}
-.icon-picker button{width:40px;height:40px;flex:none;display:flex;align-items:center;justify-content:center;border:1px solid #dfe3ea;background:#fff;border-radius:10px;color:var(--muted);cursor:pointer;transition:border-color .15s,background .15s,color .15s}
-.icon-picker button:hover{background:#f8fafc;color:var(--text)}
-.icon-picker button svg{width:19px;height:19px}
-.icon-picker button.selected{border-color:var(--nav-active);border-width:2px;background:#f5f6fa;color:var(--text)}
 
 /* ── Orientation ── */
 .orientations{display:grid;grid-template-columns:1fr 1fr;gap:14px}
@@ -247,17 +241,17 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
       </button>
     </div>
     <nav class="side-nav">
-      <a href="admin.html" title="Surveys">
+      <a href="admin.html" title="Forms">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-        <span>Surveys</span>
+        <span>Forms</span>
       </a>
       <a href="responses.html" title="Responses">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         <span>Responses</span>
       </a>
-      <a href="admin-content.html" class="active" title="Visual">
+      <a href="admin-content.html" class="active" title="Content">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
-        <span>Visual</span>
+        <span>Content</span>
       </a>
       <a href="users-management.html" id="usersManagementLink" title="Users Management">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -300,12 +294,12 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
 
     <div class="page-head">
       <div class="page-title">
-        <h1 id="pageHeading">Visual</h1>
+        <h1 id="pageHeading">Content</h1>
         <p>Everything ready to publish — social posts, newsletters, infographics and more.</p>
       </div>
       <a class="back-link" href="admin-content.html">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-        Back to Visual
+        Back to Content
       </a>
     </div>
 
@@ -323,7 +317,7 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
         <section class="panel" id="panelType">
           <button class="panel-head" type="button" aria-expanded="true" aria-controls="panelTypeBody" onclick="togglePanel(this)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/></svg>
-            <h2>Visual Type &amp; Platform</h2>
+            <h2>Content Type &amp; Platform</h2>
             <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <div class="panel-body" id="panelTypeBody">
@@ -337,10 +331,6 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
               <div>
                 <label for="customPlatform">Platform</label>
                 <input type="text" id="customPlatform" placeholder="e.g. TikTok">
-              </div>
-              <div>
-                <label>Icon</label>
-                <div class="icon-picker" id="iconPicker" role="radiogroup" aria-label="Icon"></div>
               </div>
               <button class="add" type="button" onclick="addCustomType()">Add</button>
             </div>
@@ -364,14 +354,14 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
                 Vertical
               </button>
             </div>
-            <p class="hint">This decides how the post is laid out on the Visual page.</p>
+            <p class="hint">This decides how the post is laid out on the Content page.</p>
           </div>
         </section>
 
         <section class="panel" id="panelDetails">
           <button class="panel-head" type="button" aria-expanded="true" aria-controls="panelDetailsBody" onclick="togglePanel(this)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="16" y2="12"/><line x1="4" y1="17" x2="12" y2="17"/></svg>
-            <h2>Visual Details</h2>
+            <h2>Content Details</h2>
             <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <div class="panel-body" id="panelDetailsBody">
@@ -383,9 +373,9 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
             <div class="field-row">
               <label for="client">Client</label>
               <select id="client">
-                <option value="">All clients</option>
+                <option value="">Select a client</option>
               </select>
-              <p class="hint">Pick a client and only that client's users see this post. Leave it on “All clients” to publish to everyone.</p>
+              <p class="hint">Only this client's users see the post. Every post belongs to one client.</p>
             </div>
 
             <div class="field-row">
@@ -481,11 +471,10 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
         <section class="panel">
           <div class="panel-body">
             <div class="actions">
-              <button class="primary-btn" type="button" id="submitBtn" onclick="save('scheduled')">
+              <button class="primary-btn" type="button" id="submitBtn" onclick="save()">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="4 3 21 12 4 21 6 12 4 3"/></svg>
-                <span id="submitLabel">Schedule Visual</span>
+                <span id="submitLabel">Schedule Content</span>
               </button>
-              <button class="secondary-btn" type="button" onclick="save('draft')">Save as Draft</button>
               <button class="discard-btn" type="button" onclick="discard()">Discard post</button>
             </div>
             <div class="status-text" id="formStatus"></div>
@@ -534,9 +523,9 @@ if(!adminToken || !adminUser.role){
 
 const editId = new URLSearchParams(location.search).get("id");
 
-/* ── Visual types ───────────────────────────────────────────────────────────
+/* ── Content types ───────────────────────────────────────────────────────────
    One array drives the chips, the stored platform/category, and therefore the
-   filter tabs on the Visual pages. The six below are built in; anything an
+   filter tabs on the Content pages. The six below are built in; anything an
    admin adds with the "+" chip is saved through api/content-types.php and
    loaded back here on every visit, so a type is only ever created once.       */
 
@@ -583,29 +572,6 @@ function renderTypes(){
     <button class="chip" type="button" onclick="toggleCustomType()" title="Add a custom type">
       ${ICONS.plus}
     </button>`;
-}
-
-/* ── Icon picker (custom types) ──────────────────────────────────────────────
-   A new type reuses one of the six icons the built-in chips carry, so the grid
-   stays visually consistent instead of filling up with generic plus circles.  */
-
-const PICKABLE_ICONS = ["camera", "reel", "mail", "case", "ad", "chart"];
-
-let customIcon = PICKABLE_ICONS[0];
-
-function renderIconPicker(){
-  document.getElementById("iconPicker").innerHTML = PICKABLE_ICONS.map(icon => `
-    <button type="button" role="radio" aria-checked="${icon === customIcon}"
-            class="${icon === customIcon ? "selected" : ""}"
-            title="${esc(icon)}" onclick="selectCustomIcon('${esc(icon)}')">
-      ${ICONS[icon]}
-    </button>
-  `).join("");
-}
-
-function selectCustomIcon(icon){
-  customIcon = icon;
-  renderIconPicker();
 }
 
 function selectType(id){
@@ -667,14 +633,13 @@ async function addCustomType(){
 
   const label = labelInput.value.trim();
   const platform = platformInput.value.trim();
-  const icon = customIcon;
 
   if(!label || !platform){
     setStatus("Custom types need a name and a platform.", "error");
     return;
   }
 
-  // The filter tabs on the Visual pages group by category; with no category
+  // The filter tabs on the Content pages group by client; with no category
   // field on the form the platform is the grouping, so it doubles as one.
   const category = platform;
 
@@ -698,7 +663,7 @@ async function addCustomType(){
         Authorization: "Bearer " + adminToken,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({label, platform, icon})
+      body: JSON.stringify({label, platform})
     });
 
     const data = await res.json();
@@ -709,7 +674,7 @@ async function addCustomType(){
       ? {id: data.type.type_id, label: data.type.label,
          platform: data.type.platform, category: data.type.category,
          icon: data.type.icon}
-      : {id, label, platform, category, icon};
+      : {id, label, platform, category};
 
     if(!data.success && !data.type){
       setStatus(data.message || "Could not save the type.", "error");
@@ -721,7 +686,6 @@ async function addCustomType(){
 
     labelInput.value = "";
     platformInput.value = "";
-    selectCustomIcon(PICKABLE_ICONS[0]);
     document.getElementById("customType").classList.remove("open");
 
     setStatus(
@@ -939,7 +903,7 @@ function syncPublishNow(){
   if(on){ date.value = ""; time.value = ""; }
 
   document.getElementById("submitLabel").innerText =
-    editId ? "Update Visual" : (on ? "Publish Visual" : "Schedule Visual");
+    editId ? "Update Content" : (on ? "Publish Content" : "Schedule Content");
 }
 
 /* ── Save ── */
@@ -950,8 +914,9 @@ function setStatus(message, kind){
   status.className = "status-text " + (kind || "");
 }
 
-async function save(intent){
+async function save(){
   const title = document.getElementById("title").value.trim();
+  const client = document.getElementById("client").value.trim();
   const link = document.getElementById("link").value.trim();
   const publishNow = document.getElementById("publishNow").checked;
   const postDate = document.getElementById("postDate").value;
@@ -965,32 +930,38 @@ async function save(intent){
     return;
   }
 
-  if(!selectedType){
-    openPanel("panelType");
-    setStatus("Pick a visual type.", "error");
+  // Every post belongs to one client - there is no publish-to-everyone option.
+  if(!client){
+    openPanel("panelDetails");
+    setStatus("Pick the client this post is for.", "error");
     return;
   }
 
-  if(intent !== "draft"){
-    if(!captionText){
-      openPanel("panelDetails");
-      setStatus("Write a caption before publishing.", "error");
-      return;
-    }
-    if(!publishNow && (!postDate || !postTime)){
-      setStatus("Set a post date and time, or turn on Publish immediately.", "error");
-      return;
-    }
+  if(!selectedType){
+    openPanel("panelType");
+    setStatus("Pick a content type.", "error");
+    return;
+  }
+
+  if(!captionText){
+    openPanel("panelDetails");
+    setStatus("Write a caption before publishing.", "error");
+    return;
+  }
+
+  if(!publishNow && (!postDate || !postTime)){
+    setStatus("Set a post date and time, or turn on Publish immediately.", "error");
+    return;
   }
 
   const type = types.find(entry => entry.id === selectedType);
-  const status = intent === "draft" ? "draft" : (publishNow ? "published" : "scheduled");
+  const status = publishNow ? "published" : "scheduled";
 
   const form = new FormData();
   if(editId) form.append("id", editId);
 
   form.append("title", title);
-  form.append("client", document.getElementById("client").value.trim());
+  form.append("client", client);
   form.append("link", link);
   form.append("caption", captionHtml);
   form.append("content_type", type.id);
@@ -1007,7 +978,7 @@ async function save(intent){
   if(removeMedia && !mediaFile) form.append("remove_media", "1");
 
   try {
-    setStatus(editId ? "Updating visual..." : "Saving visual...", "");
+    setStatus(editId ? "Updating content..." : "Saving content...", "");
 
     const response = await fetch("api/admin-content.php", {
       method: "POST",
@@ -1058,14 +1029,14 @@ function discard(){
 async function prepareEditMode(){
 
   document.getElementById("pageHeading").innerText =
-    "Edit Visual";
+    "Edit Content";
 
   document.getElementById("submitLabel").innerText =
-    "Update Visual";
+    "Update Content";
 
   try {
 
-    setStatus("Loading visual...", "");
+    setStatus("Loading content...", "");
 
     const response = await fetch(
       `api/admin-content.php?id=${encodeURIComponent(editId)}`,
@@ -1080,7 +1051,7 @@ async function prepareEditMode(){
 
     if (!response.ok || !data.success) {
       setStatus(
-        data.message || "Could not load the visual.",
+        data.message || "Could not load content.",
         "error"
       );
       return;
@@ -1219,7 +1190,8 @@ function logout(){
 
 /* ── Clients ────────────────────────────────────────────────────────────────
    The client list is the distinct set of company names on user accounts, so
-   picking one targets that company's whole team. Empty means every user.     */
+   picking one targets that company's whole team. One has to be picked - a post
+   with no client reaches nobody in particular, which is never what was meant. */
 
 const clientsReady = loadClients();
 
@@ -1239,7 +1211,7 @@ async function loadClients(){
     )].sort((a, b) => a.localeCompare(b));
 
     select.innerHTML =
-      `<option value="">All clients</option>` +
+      `<option value="">Select a client</option>` +
       clients.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
 
   } catch (err) {
@@ -1412,7 +1384,6 @@ document.addEventListener("click", event => {
 
 renderTypes();
 updateCounter();
-renderIconPicker();
 
 if(editId){
   prepareEditMode();

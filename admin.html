@@ -588,17 +588,17 @@ document.addEventListener("DOMContentLoaded", function () {
       </button>
     </div>
     <nav class="side-nav">
-      <a href="admin.html" class="active" title="Surveys">
+      <a href="admin.html" class="active" title="Forms">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-        <span>Surveys</span>
+        <span>Forms</span>
       </a>
       <a href="responses.html" title="Responses">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         <span>Responses</span>
       </a>
-      <a href="admin-content.html" title="Visual">
+      <a href="admin-content.html" title="Content">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
-        <span>Visual</span>
+        <span>Content</span>
       </a>
       <a href="users-management.html" id="usersManagementLink" title="Users Management">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -640,15 +640,15 @@ document.addEventListener("DOMContentLoaded", function () {
 <div class="grid">
   <div class="panel">
     <div class="panel-head">
-      <h1>Create Survey & Checklist</h1>
-      <p>Assign a survey or checklist with custom questions/items to a specific approved user.</p>
+      <h1>Create Form & Checklist</h1>
+      <p>Assign a form or checklist with custom questions/items to a specific approved user.</p>
     </div>
 
     <div class="form">
       <div class="form-row">
         <div>
           <label>Title</label>
-          <input type="text" id="surveyTitle" placeholder="Survey or Checklist Title">
+          <input type="text" id="surveyTitle" placeholder="Form or Checklist Title">
         </div>
 
         <div>
@@ -669,7 +669,7 @@ document.addEventListener("DOMContentLoaded", function () {
         </button>
 
         <button class="primary-btn" id="surveySubmitBtn" onclick="saveSurvey()" type="button">
-          Create Survey & Checklist
+          Create Form & Checklist
         </button>
 
         <button class="secondary-btn" id="cancelEditBtn" onclick="cancelEditSurvey()" type="button" style="display:none;">
@@ -683,8 +683,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
   <div class="panel">
     <div class="panel-head">
-      <h1>Surveys List</h1>
-      <p>All surveys assigned to approved users.</p>
+      <h1>Forms List</h1>
+      <p>All forms assigned to approved users.</p>
       
       <div class="survey-filters">
 
@@ -711,7 +711,7 @@ document.addEventListener("DOMContentLoaded", function () {
       <thead>
         <tr>
           <th>ID</th>
-          <th>Survey</th>
+          <th>Form</th>
           <th>User</th>
           <th>Email</th>
           <th>Status</th>
@@ -942,7 +942,7 @@ function renderSurveysTable(){
   if(!surveys.length){
     surveysTable.innerHTML = `
       <tr>
-        <td colspan="7" class="empty">No surveys found.</td>
+        <td colspan="7" class="empty">No forms found.</td>
       </tr>
     `;
     return;
@@ -999,7 +999,7 @@ async function editSurvey(surveyId){
     }
 
     if(data.survey.status !== "pending"){
-      alert("Only pending surveys can be edited.");
+      alert("Only pending forms can be edited.");
       return;
     }
 
@@ -1525,7 +1525,7 @@ async function viewSurveyResponses(surveyId){
 <div class="edit-modal" id="editSurveyModal">
   <div class="edit-box">
     <div class="edit-head">
-      <h2>Edit Survey</h2>
+      <h2>Edit Form</h2>
       <button onclick="closeEditSurvey()">×</button>
     </div>
 
@@ -1552,7 +1552,7 @@ async function viewSurveyResponses(surveyId){
 
     <div class="edit-footer">
       <button class="secondary-btn" type="button" onclick="closeEditSurvey()">Cancel</button>
-      <button class="primary-btn" type="button" onclick="updateSurvey()">Update Survey</button>
+      <button class="primary-btn" type="button" onclick="updateSurvey()">Update Form</button>
     </div>
   </div>
 </div>
