@@ -347,6 +347,43 @@ body{padding:0}
     opacity: .45;
     cursor: not-allowed;
 }
+
+/* ── Login Page Slideshow ── */
+.slide-thumb {
+    flex: none;
+    width: 110px;
+    height: 66px;
+    object-fit: cover;
+    border-radius: 9px;
+    background: #eef1f5;
+    display: block;
+}
+
+.slide-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: none;
+}
+
+.slide-move {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 1px solid #dfe3ea;
+    background: #fff;
+    border-radius: 9px;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    color: #101828;
+    cursor: pointer;
+}
+
+.slide-move:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+}
 </style>
 
 <script>
@@ -485,6 +522,35 @@ document.addEventListener("DOMContentLoaded", function () {
     <div id="logoStatus" class="status"></div>
   </div>
 </div>
+
+<!-- Login Page Slideshow -->
+<div class="panel">
+  <div class="panel-head">
+    <h1>Login Page Slideshow</h1>
+    <p>Up to 5 images shown beside the sign-in form. Top of the list shows first.</p>
+  </div>
+  <div class="panel-body">
+    <div id="slidesList" class="admin-list">
+      <div class="no-admins">Loading slides...</div>
+    </div>
+
+    <label for="slideFile">Image</label>
+    <input type="file" id="slideFile" accept="image/jpeg,image/png,image/webp,image/gif">
+
+    <label for="slideTitle">Title</label>
+    <input type="text" id="slideTitle" placeholder="Headline shown over the image" maxlength="120">
+
+    <label for="slideSubtitle">Subtitle</label>
+    <input type="text" id="slideSubtitle" placeholder="One supporting line" maxlength="255">
+
+    <div class="small" id="slideHint">JPG, PNG, WEBP or GIF. Max 3 MB. Landscape works best.</div>
+
+    <button class="primary" id="addSlideBtn" onclick="uploadSlide()" style="margin-top:0;">Add Slide</button>
+
+    <div id="slideStatus" class="status"></div>
+  </div>
+</div>
+
 <div id="addAdminSection">
 <div class="panel">
   <div class="panel-head">
@@ -568,6 +634,9 @@ if (adminUser.role !== "owner") {
 }
 // ✅ تحديث اللوجو (كاش)
 document.getElementById("currentLogo").src = "logo.png?" + Date.now();
+
+// The slideshow panel is open to every admin, same as the logo above it.
+loadSlides();
 
 // ✅ تسجيل الخروج
 function logoutAdmin() {
@@ -655,6 +724,283 @@ async function uploadLogo() {
   } catch (err) {
     status.innerText = "An error occurred while uploading.";
   }
+}
+
+/* ── Login Page Slideshow ─────────────────────────────────────────────────
+   Rows are the slides in display order. The five-slide cap is enforced by
+   the server; disabling the button here is only so nobody uploads a file
+   that is going to be refused. */
+
+let allSlides = [];
+const MAX_SLIDES = 5;
+
+async function loadSlides() {
+    const list = document.getElementById("slidesList");
+
+    if (!list) return;
+
+    try {
+        const res = await fetch("api/admin-login-slides.php", {
+            headers: {
+                "Authorization": "Bearer " + adminToken
+            }
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+            allSlides = [];
+            list.innerHTML = `
+                <div class="no-admins">
+                    ${escapeHtml(data.message || "Failed to load slides.")}
+                </div>
+            `;
+            updateSlideControls();
+            return;
+        }
+
+        allSlides = data.slides || [];
+        renderSlidesList();
+
+    } catch (err) {
+        console.error("Load slides error:", err);
+
+        allSlides = [];
+        list.innerHTML = `
+            <div class="no-admins">
+                Network or server error.
+            </div>
+        `;
+        updateSlideControls();
+    }
+}
+
+function renderSlidesList() {
+    const list = document.getElementById("slidesList");
+
+    if (!list) return;
+
+    if (!allSlides.length) {
+        list.innerHTML = `
+            <div class="no-admins">
+                No slides yet. The login page shows the centred sign-in form.
+            </div>
+        `;
+    } else {
+        list.innerHTML = allSlides.map((slide, index) => `
+            <div class="admin-row" id="slide-row-${slide.id}">
+
+                <img class="slide-thumb" src="${escapeHtml(slide.image_path)}" alt="">
+
+                <div class="admin-info" style="flex:1;">
+                    <input type="text" id="slide-title-${slide.id}" maxlength="120"
+                           placeholder="Title"
+                           value="${escapeHtml(slide.title || "")}"
+                           style="margin-bottom:8px;">
+                    <input type="text" id="slide-subtitle-${slide.id}" maxlength="255"
+                           placeholder="Subtitle"
+                           value="${escapeHtml(slide.subtitle || "")}"
+                           style="margin-bottom:0;">
+                </div>
+
+                <div class="slide-actions">
+                    <button type="button" class="slide-move" title="Move up" aria-label="Move up"
+                            onclick="moveSlide(${index}, -1)" ${index === 0 ? "disabled" : ""}>↑</button>
+
+                    <button type="button" class="slide-move" title="Move down" aria-label="Move down"
+                            onclick="moveSlide(${index}, 1)" ${index === allSlides.length - 1 ? "disabled" : ""}>↓</button>
+
+                    <button type="button" class="slide-move" style="width:auto;padding:0 12px;"
+                            onclick="saveSlideText(${slide.id})">Save text</button>
+
+                    <button type="button" class="remove-admin-btn"
+                            onclick="deleteSlide(${slide.id})">Remove</button>
+                </div>
+
+            </div>
+        `).join("");
+    }
+
+    updateSlideControls();
+}
+
+function updateSlideControls() {
+    const hint = document.getElementById("slideHint");
+    const file = document.getElementById("slideFile");
+    const addBtn = document.getElementById("addSlideBtn");
+
+    const full = allSlides.length >= MAX_SLIDES;
+
+    if (file) file.disabled = full;
+    if (addBtn) addBtn.disabled = full;
+
+    if (hint) {
+        hint.innerText = full
+            ? `Maximum of ${MAX_SLIDES} slides reached. Remove one to add another.`
+            : "JPG, PNG, WEBP or GIF. Max 3 MB. Landscape works best.";
+    }
+}
+
+async function uploadSlide() {
+    const status = document.getElementById("slideStatus");
+    const fileInput = document.getElementById("slideFile");
+    const addBtn = document.getElementById("addSlideBtn");
+    const file = fileInput.files[0];
+
+    if (!file) {
+        alert("Please select an image first.");
+        return;
+    }
+
+    status.innerText = "Uploading...";
+    if (addBtn) addBtn.disabled = true;
+
+    const form = new FormData();
+    form.append("slide", file);
+    form.append("title", document.getElementById("slideTitle").value);
+    form.append("subtitle", document.getElementById("slideSubtitle").value);
+
+    try {
+        const res = await fetch("api/admin-login-slides.php", {
+            method: "POST",
+            headers: {
+                "Authorization": "Bearer " + adminToken
+            },
+            body: form
+        });
+
+        const data = await res.json();
+        status.innerText = data.message;
+
+        if (data.success) {
+            fileInput.value = "";
+            document.getElementById("slideTitle").value = "";
+            document.getElementById("slideSubtitle").value = "";
+        }
+
+        await loadSlides();
+
+    } catch (err) {
+        status.innerText = "An error occurred while uploading.";
+        if (addBtn) addBtn.disabled = false;
+    }
+}
+
+async function saveSlideText(id) {
+    const status = document.getElementById("slideStatus");
+
+    status.innerText = "Saving...";
+
+    try {
+        const res = await fetch("api/admin-login-slides.php", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + adminToken
+            },
+            body: JSON.stringify({
+                action: "update",
+                id: id,
+                title: document.getElementById("slide-title-" + id).value,
+                subtitle: document.getElementById("slide-subtitle-" + id).value
+            })
+        });
+
+        const data = await res.json();
+        status.innerText = data.message;
+
+        if (data.success) {
+            const slide = allSlides.find(item => item.id === id);
+
+            if (slide) {
+                slide.title = document.getElementById("slide-title-" + id).value.trim();
+                slide.subtitle = document.getElementById("slide-subtitle-" + id).value.trim();
+            }
+        } else {
+            loadSlides();
+        }
+
+    } catch (err) {
+        status.innerText = "Network or server error.";
+    }
+}
+
+async function deleteSlide(id) {
+    if (!confirm("Remove this slide from the login page?")) return;
+
+    const status = document.getElementById("slideStatus");
+
+    status.innerText = "Removing...";
+
+    try {
+        const res = await fetch("api/admin-login-slides.php?id=" + id, {
+            method: "DELETE",
+            headers: {
+                "Authorization": "Bearer " + adminToken
+            }
+        });
+
+        const data = await res.json();
+        status.innerText = data.message;
+
+        await loadSlides();
+
+    } catch (err) {
+        status.innerText = "Network or server error.";
+    }
+}
+
+function moveSlide(index, delta) {
+    const target = index + delta;
+
+    if (target < 0 || target >= allSlides.length) return;
+
+    // Swap and repaint first - the arrows should feel instant - then persist.
+    const moved = allSlides[index];
+    allSlides[index] = allSlides[target];
+    allSlides[target] = moved;
+
+    renderSlidesList();
+    saveSlideOrder();
+}
+
+async function saveSlideOrder() {
+    const status = document.getElementById("slideStatus");
+    const buttons = document.querySelectorAll("#slidesList .slide-move");
+
+    buttons.forEach(button => button.disabled = true);
+    status.innerText = "Saving order...";
+
+    try {
+        const res = await fetch("api/admin-login-slides.php", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + adminToken
+            },
+            body: JSON.stringify({
+                action: "reorder",
+                order: allSlides.map(slide => slide.id)
+            })
+        });
+
+        const data = await res.json();
+        status.innerText = data.message;
+
+        if (!data.success) {
+            // Another tab changed the list. Take the server's version.
+            alert(data.message || "Could not save the slide order.");
+            await loadSlides();
+            return;
+        }
+
+        renderSlidesList();
+
+    } catch (err) {
+        status.innerText = "Network or server error.";
+        alert("Could not save the slide order.");
+        await loadSlides();
+    }
 }
 
 async function addUser() {

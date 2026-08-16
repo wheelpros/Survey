@@ -153,3 +153,36 @@ function ensureContentTypesTable(PDO $pdo)
         // Read-only DB user: custom types simply will not persist.
     }
 }
+
+/**
+ * Slides shown beside the sign-in form on login.html. Capped at five: the
+ * panel is decoration, and a longer rotation just means visitors never see
+ * the later ones. sql/login_slides.sql is the same table to run by hand.
+ */
+const LOGIN_SLIDES_MAX = 5;
+
+function ensureLoginSlidesTable(PDO $pdo)
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    try {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS login_slides (
+              id          INT AUTO_INCREMENT PRIMARY KEY,
+              image_path  VARCHAR(255) NOT NULL,
+              title       VARCHAR(120)     NULL,
+              subtitle    VARCHAR(255)     NULL,
+              position    INT          NOT NULL DEFAULT 0,
+              created_by  INT              NULL,
+              created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              KEY idx_position (position, id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+    } catch (PDOException $e) {
+        // Read-only DB user: login.html keeps the centred form.
+    }
+}

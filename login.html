@@ -253,17 +253,6 @@
         font-weight: 700;
       }
 
-      @media (max-width: 900px) {
-        .auth-wrapper {
-          grid-template-columns: 1fr;
-          gap: 24px;
-          max-width: 520px;
-        }
-
-        .login-card {
-          margin-top: 0;
-        }
-      }
       .login-card {
         display: none;
       }
@@ -294,10 +283,205 @@
         padding: 0;
         cursor: pointer;
       }
+
+      /* ── Slideshow beside the form ──────────────────────────────────────
+         Everything here is inert until JS adds body.has-slides, which it
+         only does once a real slide image has decoded. With no slides - no
+         rows, a failed fetch, a dead DB - the page above is untouched. */
+
+      .auth-layout {
+        width: 100%;
+      }
+
+      body.has-slides {
+        padding: 0;
+        align-items: stretch;
+      }
+
+      body.has-slides .auth-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        min-height: 100vh;
+      }
+
+      /* Centres .auth-wrapper in both layouts. Without slides the wrapper is
+         no longer body's own flex child, so it cannot inherit body's
+         justify-content the way it did before the column was added - without
+         this it sits against the left edge at its 560px max-width. */
+      .auth-pane {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 0;
+      }
+
+      body.has-slides .auth-pane {
+        padding: 40px 20px;
+      }
+
+      .auth-slideshow {
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        overflow: hidden;
+        background: #1b1e3a;
+      }
+
+      .auth-slideshow[hidden] {
+        display: none;
+      }
+
+      /* Keeps captions and dots readable over a pale photo. */
+      .auth-slideshow::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: linear-gradient(
+          to top,
+          rgba(12, 14, 30, 0.78) 0%,
+          rgba(12, 14, 30, 0.35) 32%,
+          rgba(12, 14, 30, 0) 62%
+        );
+      }
+
+      .slide-stack {
+        position: absolute;
+        inset: 0;
+      }
+
+      .slide {
+        position: absolute;
+        inset: 0;
+        margin: 0;
+        opacity: 0;
+        transition: opacity 0.9s ease;
+      }
+
+      .slide.active {
+        opacity: 1;
+      }
+
+      .slide img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+
+      .slide figcaption {
+        position: absolute;
+        left: 48px;
+        right: 48px;
+        bottom: 92px;
+        z-index: 2;
+        color: #fff;
+      }
+
+      .slide figcaption h2 {
+        margin: 0;
+        font-size: 28px;
+        line-height: 1.25;
+        font-weight: 800;
+        max-width: 32ch;
+      }
+
+      .slide figcaption p {
+        margin: 12px 0 0;
+        font-size: 15px;
+        line-height: 1.55;
+        opacity: 0.85;
+        max-width: 32ch;
+      }
+
+      .slide-dots {
+        position: absolute;
+        left: 48px;
+        bottom: 46px;
+        z-index: 3;
+        display: flex;
+        gap: 8px;
+      }
+
+      /* A single slide needs no rail. */
+      .slide-dots:empty {
+        display: none;
+      }
+
+      .slide-dots button {
+        width: 9px;
+        height: 9px;
+        padding: 0;
+        border: none;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.45);
+        cursor: pointer;
+        transition: width 0.3s ease, background 0.3s ease;
+      }
+
+      .slide-dots button.active {
+        width: 26px;
+        background: #fff;
+      }
+
+      .slide-dots button:focus-visible {
+        outline: 2px solid #fff;
+        outline-offset: 3px;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .slide {
+          transition: none;
+        }
+
+        .slide-dots button {
+          transition: none;
+        }
+      }
+
+      /* Kept last on purpose: the rules it overrides are all above it. */
+      @media (max-width: 900px) {
+        .auth-wrapper {
+          grid-template-columns: 1fr;
+          gap: 24px;
+          max-width: 520px;
+        }
+
+        .login-card {
+          margin-top: 0;
+        }
+
+        .auth-slideshow {
+          display: none;
+        }
+
+        body.has-slides {
+          padding: 40px 20px;
+          align-items: center;
+        }
+
+        body.has-slides .auth-layout {
+          display: block;
+          min-height: 0;
+        }
+
+        body.has-slides .auth-pane {
+          padding: 0;
+        }
+      }
     </style>
   </head>
 
   <body>
+    <div class="auth-layout">
+      <!-- Stays hidden unless an admin has uploaded slides in Settings and
+           the first image actually decodes - see loadLoginSlides(). -->
+      <aside class="auth-slideshow" id="authSlideshow" hidden aria-hidden="true">
+        <div class="slide-stack" id="slideStack"></div>
+        <div class="slide-dots" id="slideDots"></div>
+      </aside>
+
+      <div class="auth-pane">
     <div class="auth-wrapper">
       <!-- Login Card -->
       <div class="card login-card">
@@ -453,6 +637,8 @@
         </p>
       </div>
     </div>
+      </div>
+    </div>
 
     <script>
       const API_BASE = "api";
@@ -481,6 +667,199 @@
         const input = document.getElementById(id);
         input.type = input.type === "password" ? "text" : "password";
       }
+
+      /* ── Slideshow ────────────────────────────────────────────────────────
+         Admins upload these in Settings. Nothing here ever blocks the form:
+         no slides, a failed fetch or a dead DB all leave the page exactly as
+         it is served, and the two-column layout only appears once a real
+         image has decoded. */
+
+      const SLIDE_INTERVAL_MS = 6000;
+
+      let slideIndex = 0;
+      let slideTimer = null;
+
+      const reducedMotion =
+        window.matchMedia &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      async function loadLoginSlides() {
+        // Below 900px the column is hidden by CSS anyway, so a phone should
+        // not spend a single byte downloading the images.
+        if (window.matchMedia && !window.matchMedia("(min-width: 901px)").matches) {
+          return;
+        }
+
+        try {
+          const res = await fetch(`${API_BASE}/login-slides.php`, {
+            cache: "no-store",
+          });
+
+          const data = await res.json();
+          const slides = (data && data.slides) || [];
+
+          if (!slides.length) return;
+
+          await renderLoginSlides(slides);
+        } catch (error) {
+          // Decoration. Never worth a console error on a sign-in page.
+          return;
+        }
+      }
+
+      async function renderLoginSlides(slides) {
+        const panel = document.getElementById("authSlideshow");
+        const stack = document.getElementById("slideStack");
+        const dots = document.getElementById("slideDots");
+
+        if (!panel || !stack || !dots) return;
+
+        stack.innerHTML = "";
+        dots.innerHTML = "";
+        slideIndex = 0;
+
+        slides.forEach((slide, index) => {
+          const figure = document.createElement("figure");
+          figure.className = "slide" + (index === 0 ? " active" : "");
+
+          const img = document.createElement("img");
+          img.alt = "";
+          // Wired before src: a cached 404 can fire before the next line runs.
+          img.onerror = () => dropSlide(figure);
+          img.src = slide.image_path;
+
+          figure.appendChild(img);
+
+          const title = (slide.title || "").trim();
+          const subtitle = (slide.subtitle || "").trim();
+
+          if (title || subtitle) {
+            const caption = document.createElement("figcaption");
+
+            if (title) {
+              const heading = document.createElement("h2");
+              heading.textContent = title;
+              caption.appendChild(heading);
+            }
+
+            if (subtitle) {
+              const line = document.createElement("p");
+              line.textContent = subtitle;
+              caption.appendChild(line);
+            }
+
+            figure.appendChild(caption);
+          }
+
+          stack.appendChild(figure);
+
+          if (slides.length > 1) {
+            const dot = document.createElement("button");
+            dot.type = "button";
+            dot.className = index === 0 ? "active" : "";
+            dot.setAttribute("aria-label", `Show slide ${index + 1}`);
+            dot.onclick = () => {
+              goToSlide(index);
+              // A manual jump earns a full interval before the timer moves on.
+              if (slideTimer) startSlideshow();
+            };
+            dots.appendChild(dot);
+          }
+        });
+
+        const firstImg = stack.querySelector("img");
+
+        if (!firstImg) return;
+
+        // Reveal only once there is something to look at, so the form never
+        // slides sideways over an empty navy rectangle.
+        if (firstImg.decode) {
+          await firstImg.decode().catch(() => {});
+        }
+
+        if (!stack.querySelector(".slide")) return;
+
+        panel.hidden = false;
+        panel.setAttribute("aria-hidden", "true");
+        document.body.classList.add("has-slides");
+
+        startSlideshow();
+      }
+
+      function goToSlide(index) {
+        const figures = document.querySelectorAll("#slideStack .slide");
+        const dots = document.querySelectorAll("#slideDots button");
+
+        if (!figures.length) return;
+
+        slideIndex = (index + figures.length) % figures.length;
+
+        figures.forEach((figure, i) =>
+          figure.classList.toggle("active", i === slideIndex)
+        );
+
+        dots.forEach((dot, i) =>
+          dot.classList.toggle("active", i === slideIndex)
+        );
+      }
+
+      function startSlideshow() {
+        stopSlideshow();
+
+        const count = document.querySelectorAll("#slideStack .slide").length;
+
+        if (reducedMotion || count < 2) return;
+
+        slideTimer = setInterval(() => goToSlide(slideIndex + 1), SLIDE_INTERVAL_MS);
+      }
+
+      function stopSlideshow() {
+        if (slideTimer) {
+          clearInterval(slideTimer);
+          slideTimer = null;
+        }
+      }
+
+      function dropSlide(figure) {
+        const stack = document.getElementById("slideStack");
+        const dots = document.getElementById("slideDots");
+
+        if (!stack || !figure.parentNode) return;
+
+        const index = Array.prototype.indexOf.call(stack.children, figure);
+        const dot = dots ? dots.children[index] : null;
+
+        figure.remove();
+        if (dot) dot.remove();
+
+        const remaining = stack.children.length;
+
+        if (!remaining) {
+          // Every image is gone. Re-centre the form rather than leave a
+          // navy column with nothing in it.
+          stopSlideshow();
+
+          const panel = document.getElementById("authSlideshow");
+          if (panel) panel.hidden = true;
+
+          document.body.classList.remove("has-slides");
+          if (dots) dots.innerHTML = "";
+          return;
+        }
+
+        if (remaining === 1 && dots) dots.innerHTML = "";
+
+        goToSlide(slideIndex >= remaining ? 0 : slideIndex);
+        startSlideshow();
+      }
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) {
+          stopSlideshow();
+        } else if (document.body.classList.contains("has-slides")) {
+          startSlideshow();
+        }
+      });
 
       async function loginUser() {
         const email = document.getElementById("loginEmail").value.trim();
@@ -594,6 +973,9 @@
 
       if (token) {
         window.location.href = "dashboard.html";
+      } else {
+        // No point fetching images for a session that is already leaving.
+        loadLoginSlides();
       }
     </script>
   </body>
