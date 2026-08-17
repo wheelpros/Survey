@@ -44,6 +44,24 @@ function prepareChips($chips) {
     return json_encode(array_values($chipsArray));
 }
 
+// The owner can touch any user; everyone else can only touch a user that's
+// actually assigned to their own admin_id - same boundary as the users list.
+function isUserInScope($pdo, $role, $adminId, $userId) {
+    if ($role === "owner") {
+        return true;
+    }
+
+    $stmt = $pdo->prepare("
+        SELECT 1
+        FROM admin_user_assignments
+        WHERE admin_id = ? AND user_id = ?
+        LIMIT 1
+    ");
+    $stmt->execute([$adminId, $userId]);
+
+    return (bool)$stmt->fetch();
+}
+
 if ($method === "GET") {
 
     $singleSurveyId = (int)($_GET["survey_id"] ?? 0);
@@ -59,6 +77,16 @@ if ($method === "GET") {
         $survey = $stmt->fetch();
 
         if (!$survey) {
+            echo json_encode([
+                "success" => false,
+                "message" => "Survey not found"
+            ]);
+            exit;
+        }
+
+        // Don't let a scoped role open a survey that belongs to a user
+        // outside their own pool just by guessing/typing its ID.
+        if (!isUserInScope($pdo, $currentAdmin["role"], $currentAdmin["id"], (int)$survey["assigned_user_id"])) {
             echo json_encode([
                 "success" => false,
                 "message" => "Survey not found"
@@ -82,31 +110,36 @@ if ($method === "GET") {
         exit;
     }
 
-    if ($currentAdmin["role"] === "super_admin") {
+    // The users dropdown/filter follows the same owner > super_admin > seo_admin
+    // scoping as Users Management: the owner sees everyone, everyone else only
+    // sees the users assigned to their own admin_id.
+    if ($currentAdmin["role"] === "owner") {
 
-    $usersStmt = $pdo->query("
-        SELECT id, name, email
-        FROM users
-        WHERE approved = 1
-        ORDER BY name ASC
-    ");
+        $usersStmt = $pdo->query("
+            SELECT id, name, email
+            FROM users
+            WHERE approved = 1
+            ORDER BY name ASC
+        ");
 
-} else {
+    } else {
 
-    $usersStmt = $pdo->prepare("
-        SELECT users.id, users.name, users.email
-        FROM users
-        INNER JOIN admin_user_assignments aua
-            ON aua.user_id = users.id
-        WHERE users.approved = 1
-        AND aua.admin_id = ?
-        ORDER BY users.name ASC
-    ");
+        $usersStmt = $pdo->prepare("
+            SELECT users.id, users.name, users.email
+            FROM users
+            INNER JOIN admin_user_assignments aua
+                ON aua.user_id = users.id
+            WHERE users.approved = 1
+            AND aua.admin_id = ?
+            ORDER BY users.name ASC
+        ");
 
-    $usersStmt->execute([$currentAdmin["id"]]);
-}
+        $usersStmt->execute([$currentAdmin["id"]]);
+    }
 
-    if ($currentAdmin["role"] === "super_admin") {
+    // Same scoping for the surveys list itself: a survey is visible if its
+    // assigned user is visible.
+    if ($currentAdmin["role"] === "owner") {
 
     $surveysStmt = $pdo->query("
         SELECT 
@@ -165,6 +198,16 @@ if ($method === "POST" || $method === "PUT") {
         echo json_encode([
             "success" => false,
             "message" => "Survey title, user and questions are required"
+        ]);
+        exit;
+    }
+
+    // A scoped role can only create/edit surveys for a user actually in
+    // their own pool - never one they can't otherwise see or manage.
+    if (!isUserInScope($pdo, $currentAdmin["role"], $currentAdmin["id"], $assignedUserId)) {
+        echo json_encode([
+            "success" => false,
+            "message" => "That user is not in your assigned list"
         ]);
         exit;
     }
