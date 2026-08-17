@@ -270,26 +270,26 @@ document.addEventListener("DOMContentLoaded", function () {
     </button>
   </header>
   <div class="admin-content">
-<div class="panel"><div class="panel-head"><h1>Users Management</h1><p>Approve or reject new registered users.</p></div><table><thead><tr><th>ID</th><th>User</th><th>Email</th><th>Status</th><th>Created At</th><th>Actions</th></tr></thead><tbody id="usersTable"><tr><td colspan="6" class="empty">Loading users...</td></tr></tbody></table>
+<div class="panel"><div class="panel-head"><h1 id="usersPanelTitle">Users Management</h1><p id="usersPanelSub">Approve or reject new registered users.</p></div><table><thead><tr><th>ID</th><th>User</th><th>Email</th><th>Status</th><th>Created At</th><th>Actions</th></tr></thead><tbody id="usersTable"><tr><td colspan="6" class="empty">Loading users...</td></tr></tbody></table>
 <div class="pager" id="usersPager" hidden>
   <span class="pager-info" id="usersPagerInfo"></span>
   <div class="pager-pages" id="usersPagerPages"></div>
 </div></div>
-<div class="panel" style="margin-top:28px;">
+<div class="panel" id="assignPanel" style="margin-top:28px;">
   <div class="panel-head">
-    <h1>SEO Admin Assignments</h1>
-    <p>Choose which users each SEO admin can manage.</p>
+    <h1 id="assignPanelTitle">Assignments</h1>
+    <p id="assignPanelSub"></p>
   </div>
 
   <div class="assignment-box">
-    <label>Select SEO Admin</label>
-    <select id="seoAdminSelect" onchange="renderSeoUserAssignments()">
-      <option value="">Loading SEO admins...</option>
+    <label id="assignSelectLabel">Select Admin</label>
+    <select id="assignSelect" onchange="renderAssignmentUsers()">
+      <option value="">Loading...</option>
     </select>
 
-    <div id="seoUsersList" style="margin-top:20px;"></div>
+    <div id="assignUsersList" style="margin-top:20px;"></div>
 
-    <button class="action-btn btn" onclick="saveSeoAssignments()" style="margin-top:20px;padding:12px 18px;">
+    <button class="action-btn btn" onclick="saveAssignments()" style="margin-top:20px;padding:12px 18px;">
       Save Assignments
     </button>
 
@@ -310,7 +310,54 @@ function logoutAdmin(){
   window.location.href = "admin-login.html";
 }
 
-// Users Management is open to every admin, so the sidebar no longer hides it.
+// Users Management is open to every admin - what changes per role is the data
+// scope and which actions render, not whether the page loads at all.
+const myRole = adminUser.role;
+const isOwner = myRole === "owner";
+
+// Wording for the users table changes with role: the owner is approving new
+// signups, everyone below is just looking at the slice handed down to them.
+const USERS_COPY = {
+  owner:       { title: "Users Management", sub: "Approve or reject new registered users." },
+  super_admin: { title: "Users Management", sub: "Users the owner assigned to you." },
+  seo_admin:   { title: "Users Management", sub: "Users your super admin assigned to you." }
+};
+
+// The assignment panel is the same UI for two different handoffs:
+// owner -> super_admin, and super_admin -> seo_admin. seo_admin gets no
+// assignment panel at all - there's nobody below them to distribute to.
+const ASSIGN_COPY = {
+  owner: {
+    title: "Super Admin Assignments",
+    sub: "Choose which users each super admin can manage.",
+    label: "Select Super Admin",
+    empty: "No super admins found."
+  },
+  super_admin: {
+    title: "SEO Admin Assignments",
+    sub: "Choose which users each SEO admin can manage.",
+    label: "Select SEO Admin",
+    empty: "No SEO admins found."
+  }
+};
+
+document.addEventListener("DOMContentLoaded", function(){
+  const copy = USERS_COPY[myRole] || USERS_COPY.seo_admin;
+  document.getElementById("usersPanelTitle").textContent = copy.title;
+  document.getElementById("usersPanelSub").textContent = copy.sub;
+
+  const assignPanel = document.getElementById("assignPanel");
+
+  if(myRole === "seo_admin"){
+    assignPanel.remove();
+  } else {
+    const aCopy = ASSIGN_COPY[myRole];
+    document.getElementById("assignPanelTitle").textContent = aCopy.title;
+    document.getElementById("assignPanelSub").textContent = aCopy.sub;
+    document.getElementById("assignSelectLabel").textContent = aCopy.label;
+    loadAssignments();
+  }
+});
 
 let allUsers = [];
 
@@ -406,13 +453,13 @@ function renderUsers(){
           <div class="actions">
             <a class="btn action-btn" href="user-details.html?id=${esc(user.id)}">View</a>
             ${
-              // Approve and Reject are the decision on a pending account, so
-              // they go away once it has been made. Rejecting deletes the
-              // account outright, which is why a rejected user has no row left.
-              approved
-              ? ""
-              : `<button class="btn approve-btn" onclick="updateUser(${esc(user.id)}, 'approve')">Approve</button>
+              // Approve/Reject is the owner's decision on a pending account -
+              // nobody else on this page ever gets those buttons, and once a
+              // user is approved the buttons go away for the owner too.
+              (isOwner && !approved)
+              ? `<button class="btn approve-btn" onclick="updateUser(${esc(user.id)}, 'approve')">Approve</button>
                  <button class="btn reject-btn" onclick="updateUser(${esc(user.id)}, 'reject')">Reject</button>`
+              : ""
             }
           </div>
         </td>
@@ -456,6 +503,10 @@ function goToUsersPage(page){
 }
 
 async function updateUser(userId, action){
+  // Belt and braces - the server is the real gate, this just avoids a wasted
+  // round trip if a non-owner somehow calls this.
+  if(!isOwner) return;
+
   if(action === "reject"){
     const ok = confirm("Are you sure you want to reject and delete this user?");
     if(!ok) return;
@@ -483,12 +534,14 @@ async function updateUser(userId, action){
     alert("Connection error");
   }
 }
-let seoAdmins = [];
-let approvedUsers = [];
-let seoAssignments = {};
 
-async function loadSeoAssignments(){
-  const select = document.getElementById("seoAdminSelect");
+// ---- Assignment panel: owner -> super_admin, or super_admin -> seo_admin ----
+let targetAdmins = [];
+let poolUsers = [];
+let assignments = {};
+
+async function loadAssignments(){
+  const select = document.getElementById("assignSelect");
 
   try{
     const res = await fetch("api/admin-user-assignments.php",{
@@ -500,23 +553,23 @@ async function loadSeoAssignments(){
     const data = await res.json();
 
     if(!data.success){
-      select.innerHTML = `<option value="">Unable to load SEO admins</option>`;
+      select.innerHTML = `<option value="">${esc(data.message || "Unable to load")}</option>`;
       return;
     }
 
-    seoAdmins = data.seoAdmins || [];
-    approvedUsers = data.users || [];
-    seoAssignments = data.assignments || {};
+    targetAdmins = data.targetAdmins || [];
+    poolUsers = data.users || [];
+    assignments = data.assignments || {};
 
-    if(!seoAdmins.length){
-      select.innerHTML = `<option value="">No SEO admins found</option>`;
+    if(!targetAdmins.length){
+      select.innerHTML = `<option value="">${esc(ASSIGN_COPY[myRole].empty)}</option>`;
       return;
     }
 
     select.innerHTML = `
-      <option value="">Select SEO Admin</option>
-      ${seoAdmins.map(admin => `
-        <option value="${admin.id}">${admin.name} - ${admin.email}</option>
+      <option value="">${esc(ASSIGN_COPY[myRole].label)}</option>
+      ${targetAdmins.map(admin => `
+        <option value="${admin.id}">${esc(admin.name)} - ${esc(admin.email)}</option>
       `).join("")}
     `;
 
@@ -525,18 +578,23 @@ async function loadSeoAssignments(){
   }
 }
 
-function renderSeoUserAssignments(){
-  const adminId = document.getElementById("seoAdminSelect").value;
-  const box = document.getElementById("seoUsersList");
+function renderAssignmentUsers(){
+  const adminId = document.getElementById("assignSelect").value;
+  const box = document.getElementById("assignUsersList");
 
   if(!adminId){
     box.innerHTML = "";
     return;
   }
 
-  const assigned = seoAssignments[adminId] || [];
+  if(!poolUsers.length){
+    box.innerHTML = `<div class="empty">No users available to assign yet.</div>`;
+    return;
+  }
 
-  box.innerHTML = approvedUsers.map(user => `
+  const assigned = assignments[adminId] || [];
+
+  box.innerHTML = poolUsers.map(user => `
     <label style="
       display:flex;
       justify-content:space-between;
@@ -548,13 +606,13 @@ function renderSeoUserAssignments(){
       background:#fff;
     ">
       <div>
-        <strong>${user.name}</strong><br>
-        <span style="color:#667085;font-size:12px;">${user.email}</span>
+        <strong>${esc(user.name)}</strong><br>
+        <span style="color:#667085;font-size:12px;">${esc(user.email)}</span>
       </div>
 
-      <input 
-        type="checkbox" 
-        value="${user.id}"
+      <input
+        type="checkbox"
+        value="${esc(user.id)}"
         ${assigned.includes(Number(user.id)) ? "checked" : ""}
         style="width:18px;height:18px;"
       >
@@ -562,17 +620,17 @@ function renderSeoUserAssignments(){
   `).join("");
 }
 
-async function saveSeoAssignments(){
-  const adminId = document.getElementById("seoAdminSelect").value;
+async function saveAssignments(){
+  const adminId = document.getElementById("assignSelect").value;
   const status = document.getElementById("assignmentStatus");
 
   if(!adminId){
-    status.innerText = "Please select SEO admin.";
+    status.innerText = "Please make a selection.";
     return;
   }
 
   const userIds = Array.from(
-    document.querySelectorAll("#seoUsersList input[type='checkbox']:checked")
+    document.querySelectorAll("#assignUsersList input[type='checkbox']:checked")
   ).map(input => input.value);
 
   status.innerText = "Saving...";
@@ -594,15 +652,15 @@ async function saveSeoAssignments(){
     status.innerText = data.message;
 
     if(data.success){
-      seoAssignments[adminId] = userIds.map(id => Number(id));
+      assignments[adminId] = userIds.map(id => Number(id));
     }
 
   }catch(error){
     status.innerText = "Connection error.";
   }
 }
+
 loadUsers();
-loadSeoAssignments();
 </script>
   </div>
 </div>
