@@ -72,9 +72,8 @@ body{background:#f6f7fb;color:var(--text);padding:0}
 .create-btn svg{width:16px;height:16px}
 
 .filters{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:24px}
-.tabs{display:flex;background:#fff;border-radius:22px;padding:5px;gap:6px;flex-wrap:wrap}
-.tabs button{border:none;background:transparent;padding:9px 18px;border-radius:20px;cursor:pointer;color:var(--muted);font-weight:700;font-size:13px}
-.tabs button.active{background:var(--nav-active);color:#fff}
+.client-filter{min-width:240px;height:36px;border:1px solid #e1e5ed;border-radius:22px;background:#fff;padding:0 14px;outline:none;font:inherit;font-size:13px;font-weight:700;color:var(--text);cursor:pointer}
+.client-filter:focus{border-color:var(--nav-active)}
 .content-search{width:260px;height:36px;border:1px solid #e1e5ed;border-radius:22px;background:#fff;padding:0 16px;outline:none;font-size:13px}
 
 /* ── Card grid ── */
@@ -125,11 +124,10 @@ body{background:#f6f7fb;color:var(--text);padding:0}
 .detail.is-horizontal .detail-media{aspect-ratio:2.4/1;width:100%;max-width:672px;max-height:280px;margin:0 auto}
 .detail.is-horizontal .detail-meta{grid-template-columns:repeat(3,1fr)}
 
-/* ── The link rides on the caption's line, whatever the orientation ── */
+/* ── Client, Created by, Timing and the link share one line under the copy ── */
+.detail-footer{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:flex-start;gap:22px 40px}
+.detail-footer .field{min-width:0}
 .link-slot:empty{display:none}
-.caption-row{display:flex;gap:20px;align-items:baseline;flex-wrap:wrap}
-.caption-row .caption{flex:1;min-width:200px}
-.caption-row .link-slot{flex:none}
 .view-link{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:800;color:var(--nav-active);text-decoration:none;border:1px solid #dfe3ea;border-radius:9px;padding:8px 14px;white-space:nowrap}
 .view-link:hover{background:#f6f7f9}
 .view-link svg{width:14px;height:14px}
@@ -148,8 +146,6 @@ body{background:#f6f7fb;color:var(--text);padding:0}
 
 /* The title reads left-aligned whatever the body does. */
 .detail-head h2{text-align:left}
-.link-value{word-break:break-all;font-size:14px}
-.link-value a{color:var(--nav-active)}
 
 @media(max-width:1100px){.grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:950px){
@@ -264,9 +260,10 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
     </div>
 
     <div class="filters">
-      <div class="tabs" id="contentTabs">
-        <button class="active">All</button>
-      </div>
+      <select class="client-filter" id="clientFilter" aria-label="Filter by client"
+              onchange="filterByClient(this.value)">
+        <option value="All">All clients</option>
+      </select>
       <input class="content-search" id="contentSearch" placeholder="Search content...">
     </div>
 
@@ -290,22 +287,24 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
         <div class="detail-meta">
           <div class="field wide">
             <h5>Caption</h5>
-            <div class="caption-row">
-              <div class="caption" id="detailCaption"></div>
-              <div class="link-slot" id="linkBesideCaption"></div>
+            <div class="caption" id="detailCaption"></div>
+          </div>
+
+          <!-- Everything but the copy sits on one line under it. -->
+          <div class="detail-footer">
+            <div class="field">
+              <h5>Client</h5>
+              <p id="detailClient">—</p>
             </div>
-          </div>
-          <div class="field">
-            <h5>Client</h5>
-            <p id="detailClient">—</p>
-          </div>
-          <div class="field">
-            <h5>Created by</h5>
-            <p id="detailCreatedBy">—</p>
-          </div>
-          <div class="field">
-            <h5>Timing</h5>
-            <p id="detailTiming">Not scheduled</p>
+            <div class="field">
+              <h5>Created by</h5>
+              <p id="detailCreatedBy">—</p>
+            </div>
+            <div class="field">
+              <h5>Timing</h5>
+              <p id="detailTiming">Not scheduled</p>
+            </div>
+            <div class="field link-slot" id="linkSlot"></div>
           </div>
         </div>
       </article>
@@ -351,10 +350,7 @@ if(!adminToken || !adminUser.role){
 
 let allContent = [];
 
-// The filter tabs are the client list; this is the tab for the legacy posts
-// that were saved before a client became compulsory.
-const NO_CLIENT = "No client";
-
+// The filter dropdown is the client list; "All" is every company.
 let currentClient = "All";
 let selectedId = null;
 
@@ -413,15 +409,21 @@ function sanitizeCaption(html){
   return box.innerHTML;
 }
 
-/** The link shows as a "View link" action beside the caption, never a URL. */
+/** The link shows as a "View link" action on the footer line, never a URL. */
 function renderLink(item){
-  const slot = document.getElementById("linkBesideCaption");
+  const slot = document.getElementById("linkSlot");
 
   slot.textContent = "";
 
   // Only http(s) reaches an href — the API normalises, but this page is the one
   // building the anchor.
   if(!item.link || !/^https?:\/\//i.test(item.link)) return;
+
+  // A heading like the fields beside it, so the button lines up with their
+  // values rather than floating against their labels.
+  const heading = document.createElement("h5");
+  heading.textContent = "Link";
+  slot.appendChild(heading);
 
   const anchor = document.createElement("a");
   anchor.className = "view-link";
@@ -507,33 +509,30 @@ async function loadContent(){
   }
 }
 
-/* Every post belongs to a client, so the tabs are the client list: All plus one
-   tab per company that has content. */
+/* Every post belongs to a client, so the filter is the list of companies that
+   have content. Posts saved before a client was compulsory have none; they show
+   under All rather than getting an entry of their own. */
 function renderFilters(){
-  const tabs = document.getElementById("contentTabs");
+  const select = document.getElementById("clientFilter");
 
-  const named = [...new Set(
+  const clients = [...new Set(
     allContent.map(item => (item.client || "").trim()).filter(Boolean)
   )].sort((a, b) => a.localeCompare(b));
 
-  const clients = ["All", ...named];
-
-  // A post saved before a client was required has none; it needs a tab of its
-  // own or it would only ever be reachable through All.
-  if(allContent.some(item => !(item.client || "").trim())){
-    clients.push(NO_CLIENT);
+  // The chosen company can disappear when its last post is deleted.
+  if(currentClient !== "All" && !clients.includes(currentClient)){
+    currentClient = "All";
   }
 
-  tabs.innerHTML = clients.map(client => `
-    <button class="${client === currentClient ? "active" : ""}"
-            onclick="filterByClient('${esc(client)}', this)">${esc(client)}</button>
-  `).join("");
+  select.innerHTML =
+    `<option value="All">All clients</option>` +
+    clients.map(client => `<option value="${esc(client)}">${esc(client)}</option>`).join("");
+
+  select.value = currentClient;
 }
 
-function filterByClient(client, button){
+function filterByClient(client){
   currentClient = client;
-  document.querySelectorAll("#contentTabs button").forEach(btn => btn.classList.remove("active"));
-  button.classList.add("active");
   applyFilters();
 }
 
@@ -545,9 +544,7 @@ function applyFilters(keepPage){
 
   let filtered = allContent;
 
-  if(currentClient === NO_CLIENT){
-    filtered = filtered.filter(item => !(item.client || "").trim());
-  }else if(currentClient !== "All"){
+  if(currentClient !== "All"){
     filtered = filtered.filter(item => (item.client || "").trim() === currentClient);
   }
 
