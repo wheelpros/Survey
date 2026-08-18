@@ -26,7 +26,7 @@ function respond($success, $message = "", $extra = [], $code = 200)
 | Authenticate the admin
 |--------------------------------------------------------------------------
 |
-| Any admin may view a user. Users Management itself is open to every admin,
+| Any admin may view a user. Clients Management itself is open to every admin,
 | so narrowing here would load the page and then 401 the fetch.
 |
 */

@@ -801,31 +801,6 @@ if (data.files && data.files.length > 0) {
         }
       }
 
-      async function setUnavailability() {
-        const date = document.getElementById("blockDate").value;
-        const startTime = document.getElementById("blockStartTime").value;
-        const endTime = document.getElementById("blockEndTime").value;
-
-        if (!date) {
-          alert("Please select a date to block!");
-          return;
-        }
-
-        const res = await fetch("api/calendar.php?action=set_unavailability", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: "Bearer " + token
-          },
-          body: JSON.stringify({ date, start_time: startTime, end_time: endTime })
-        });
-        const data = await res.json();
-        alert(data.message);
-        if (data.success) {
-          document.getElementById("blockDate").value = "";
-        }
-      }
-
       async function respondAppointment(id, status) {
         const res = await fetch("api/calendar.php?action=respond_appointment", {
           method: "POST",

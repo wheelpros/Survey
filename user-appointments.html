@@ -335,6 +335,9 @@ body {
 }
 .day-cell.other-month { background: #fdfdfd; color: #cbd5e1; }
 .day-cell.today-cell { background: #f0f9ff; }
+
+/* The day the schedule panel below is describing. */
+.day-cell.selected-cell { box-shadow: inset 0 0 0 2px var(--nav-active); }
 .day-cell.today-cell > span {
   background: #0284c7;
   color: #ffffff;
@@ -353,7 +356,6 @@ body {
 .event-card.approved { background: #e8faef; border: 1px solid #b8e7c8; color: #17803d; }
 .event-card.pending { background: #fef3c7; border: 1px solid #fde68a; color: #b45309; }
 .event-card.rejected { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
-.event-card.blocked { background: #ffe8e8; border: 1px solid #fca5a5; color: #c9000b; }
 
 /* Form Styles */
 .form-row {
@@ -409,7 +411,6 @@ th {
 .badge.pending { background: #fef3c7; color: #b45309; }
 .badge.approved { background: #e8faef; color: #17803d; }
 .badge.rejected { background: #ffe8e8; color: #c9000b; }
-.badge.blocked { background: #fff3f3; color: #c9000b; }
 
 .btn-accept { background: #20a95a; color: #ffffff; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-weight: bold; }
 .btn-reject { background: #c9000b; color: #ffffff; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-weight: bold; margin-left: 5px; }
@@ -520,6 +521,298 @@ th {
   /* Force-collapsed below this width, so the head has nothing left to show. */
   .side-head{display:none}
   .top-bar{padding:0 20px}
+}
+
+/* ── Redesigned calendar page ──────────────────────────────────────────────
+   The panels below the grid: daily schedule, approvals hub, request lists
+   and the request form. Everything reuses .card as its shell. */
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.view-toggle {
+  display: flex;
+  background: #f2f4f7;
+  padding: 4px;
+  border-radius: 9px;
+  flex: none;
+}
+
+.view-btn {
+  border: none;
+  background: transparent;
+  padding: 6px 16px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: #667085;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.view-btn.active {
+  background: #ffffff;
+  color: #101828;
+  box-shadow: 0 2px 4px rgba(16, 24, 40, .06);
+}
+
+/* ── Section heads ── */
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.section-head h3 {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.section-sub {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+
+.section-link {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--nav-active);
+  text-decoration: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.section-link:hover { text-decoration: underline; }
+
+/* ── Daily schedule ── */
+.schedule-list { display: flex; flex-direction: column; }
+
+.schedule-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 0;
+  border-top: 1px solid #f1f3f7;
+}
+
+.schedule-row:first-child { border-top: none; }
+
+/* The little month/day block on the left of each row. */
+.schedule-date {
+  flex: none;
+  width: 46px;
+  text-align: center;
+  border-radius: 10px;
+  background: #f6f7fb;
+  padding: 6px 0;
+}
+
+.schedule-date .m {
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .6px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.schedule-date .d {
+  display: block;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.schedule-info { flex: 1; min-width: 0; }
+
+.schedule-info h4 {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 3px;
+}
+
+.schedule-info p {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.schedule-time {
+  flex: none;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+/* ── Tables inside the new panels ── */
+.data-table { width: 100%; border-collapse: collapse; }
+
+.data-table th {
+  text-align: left;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0 12px 10px 0;
+  border-bottom: 1px solid #eef1f5;
+}
+
+.data-table td {
+  padding: 14px 12px 14px 0;
+  border-bottom: 1px solid #f1f3f7;
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.data-table tr:last-child td { border-bottom: none; }
+
+.data-table .primary-cell {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.data-table .sub-cell {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.data-table .empty-cell {
+  text-align: center;
+  color: var(--muted);
+  padding: 22px 0;
+}
+
+/* Requester cell: avatar + name. */
+.who { display: flex; align-items: center; gap: 10px; }
+
+.who-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #dce3ff;
+  color: #3745a4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  flex: none;
+}
+
+.who strong { font-size: 13px; font-weight: 700; color: var(--text); }
+
+/* ── Approve / decline circles ── */
+.row-actions { display: flex; gap: 8px; }
+
+.icon-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #ffffff;
+  color: #475467;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.icon-btn svg { width: 15px; height: 15px; }
+.icon-btn:hover { background: #f6f7f9; }
+
+.icon-btn.confirm {
+  background: var(--nav-active);
+  border-color: var(--nav-active);
+  color: #ffffff;
+}
+
+.icon-btn.confirm:hover { background: #2a2f5c; }
+
+.icon-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ── "Your requests" cards ── */
+.request-list { display: flex; flex-direction: column; gap: 12px; }
+
+.request-item {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.request-item h4 {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 3px;
+}
+
+.request-item p { font-size: 12px; color: var(--muted); }
+
+/* ── Request form ── */
+.request-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.request-form .full { grid-column: 1 / -1; }
+
+.request-form label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 7px;
+}
+
+.request-form input,
+.request-form select,
+.request-form textarea {
+  width: 100%;
+  padding: 11px 13px;
+  border: 1px solid #dfe3ea;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: #ffffff;
+  outline: none;
+}
+
+.request-form input:focus,
+.request-form select:focus,
+.request-form textarea:focus { border-color: var(--nav-active); }
+
+.request-form textarea { min-height: 96px; resize: vertical; }
+
+.form-status { font-size: 13px; font-weight: 700; margin-top: 12px; }
+.form-status.error { color: var(--brand); }
+.form-status.ok { color: #17803d; }
+
+@media (max-width: 760px) {
+  .request-form { grid-template-columns: minmax(0, 1fr); }
 }
 </style>
 
@@ -633,79 +926,119 @@ th {
           <h1>Dynamic Content Calendar</h1>
           <p>Manage and schedule your enterprise content releases and appointments.</p>
         </div>
+
+        <div class="view-toggle" id="viewToggle">
+          <button type="button" class="view-btn" data-view="day">Day</button>
+          <button type="button" class="view-btn" data-view="week">Week</button>
+          <button type="button" class="view-btn active" data-view="month">Month</button>
+        </div>
       </div>
 
-      <!-- Main Dynamic Calendar Grid -->
+      <!-- Calendar grid -->
       <div class="card">
         <div class="card-header">
           <div class="calendar-controls">
-            <button class="nav-arrow" id="prevMonthBtn">&lt;</button>
             <span class="month-title" id="calendarMonthTitle">Loading...</span>
-            <button class="nav-arrow" id="nextMonthBtn">&gt;</button>
-            <button class="btn-today" id="todayBtn">Today</button>
+            <button class="nav-arrow" id="prevMonthBtn" aria-label="Previous">&lt;</button>
+            <button class="nav-arrow" id="nextMonthBtn" aria-label="Next">&gt;</button>
           </div>
+          <button class="btn-today" id="todayBtn">Today</button>
         </div>
 
         <div class="calendar-grid" id="calendarGrid"></div>
       </div>
 
-      <!-- 1. APPOINTMENTS SCHEDULED BY ADMIN -->
+      <!-- What is on for the selected day -->
       <div class="card">
-        <h3>Appointments Scheduled by Admin</h3>
-        <table>
+        <div class="section-head">
+          <h3 id="dailyScheduleTitle">Daily Schedule</h3>
+        </div>
+        <div class="schedule-list" id="dailySchedule"></div>
+      </div>
+
+      <!-- Requests waiting on this client's answer -->
+      <div class="card">
+        <div class="section-head">
+          <h3>Approvals Hub</h3>
+          <button type="button" class="section-link" onclick="toggleApprovals()"
+                  id="approvalsToggle">View All Requests</button>
+        </div>
+
+        <table class="data-table">
           <thead>
             <tr>
-              <th>Title</th>
-              <th>Date</th>
-              <th>Time</th>
-              <th>Status</th>
+              <th>Meeting &amp; Survey Item</th>
+              <th>Requester</th>
+              <th>Date / Time</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="approvalsTable">
+            <tr><td colspan="4" class="empty-cell">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Everything the admin team has put in this client's diary -->
+      <div class="card">
+        <div class="section-head">
+          <h3>Admin meeting requests</h3>
+        </div>
+        <p class="section-sub">Meetings the admin team has scheduled with you.</p>
+
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>With</th>
+              <th>Topic</th>
+              <th>Date / Time</th>
               <th>Action</th>
             </tr>
           </thead>
-          <tbody id="userAppointmentsTable">
-            <tr><td colspan="5">Loading...</td></tr>
+          <tbody id="adminRequestsTable">
+            <tr><td colspan="4" class="empty-cell">Loading...</td></tr>
           </tbody>
         </table>
       </div>
 
-      <!-- 2. MY BLOCKED SLOTS TABLE -->
+      <!-- Requests this client has sent the admin team -->
       <div class="card">
-        <h3>My Blocked Slots</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>From Time</th>
-              <th>To Time</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody id="blockedSlotsTable">
-            <tr><td colspan="4">Loading...</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- 3. SET UNAVAILABILITY PANEL -->
-      <div class="card">
-        <h3>Set Unavailability (Block Dates & Times)</h3>
-        <p style="color:#667085; font-size:13px; margin-top:4px;">Select dates and times you are unavailable for meetings.</p>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label>Date</label>
-            <input type="date" id="blockDate" />
-          </div>
-          <div class="form-group">
-            <label>From Time</label>
-            <input type="time" id="blockStartTime" value="00:00" />
-          </div>
-          <div class="form-group">
-            <label>To Time</label>
-            <input type="time" id="blockEndTime" value="23:59" />
-          </div>
-          <button class="btn-primary" onclick="setUnavailability()">Block Slot</button>
+        <div class="section-head">
+          <h3>Your requests</h3>
         </div>
+        <div class="request-list" id="yourRequests"></div>
+      </div>
+
+      <!-- Ask the admin team for time -->
+      <div class="card">
+        <div class="section-head">
+          <h3>Send a new request</h3>
+        </div>
+        <p class="section-sub">Ask the admin team for a slot. They confirm or decline it.</p>
+
+        <div class="request-form">
+          <div>
+            <label for="reqDate">Preferred date</label>
+            <input type="date" id="reqDate">
+          </div>
+          <div>
+            <label for="reqTime">Preferred time</label>
+            <input type="time" id="reqTime">
+          </div>
+          <div class="full">
+            <label for="reqTopic">Topic</label>
+            <input type="text" id="reqTopic" maxlength="200" placeholder="e.g. Q3 content review">
+          </div>
+          <div class="full">
+            <label for="reqNotes">Notes for the admin</label>
+            <textarea id="reqNotes" placeholder="Anything they should know before the call"></textarea>
+          </div>
+        </div>
+
+        <button class="btn-primary" style="margin-top:16px;" onclick="sendRequest()"
+                id="sendRequestBtn">Send request</button>
+
+        <div class="form-status" id="requestStatus"></div>
       </div>
     </main>
   </div>
@@ -717,225 +1050,476 @@ const token = localStorage.getItem("portal_token");
 if (!token) window.location.href = "login.html";
 
 let currentDate = new Date();
-let calendarEvents = { blocked: [], appointments: [] };
+
+// The day the schedule panel is describing. Clicking a cell moves it; the
+// Day and Week views narrow the grid around it.
+let selectedDate = toDateStr(new Date());
+
+let currentView = "month";
+let showAllApprovals = false;
+
+let calendarEvents = { appointments: [] };
+
+const MONTHS = ["January", "February", "March", "April", "May", "June",
+                "July", "August", "September", "October", "November", "December"];
+
+const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/* ── Small helpers ─────────────────────────────────────────────────────── */
+
+function esc(value) {
+  return String(value == null ? "" : value)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+function toDateStr(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function parseDateStr(value) {
+  const [y, m, d] = String(value || "").split("-").map(Number);
+  return new Date(y || 1970, (m || 1) - 1, d || 1);
+}
+
+/** "3:00 PM" from either "15:00" or "15:00:00". */
+function prettyTime(value) {
+  const [h, m] = String(value || "").split(":").map(Number);
+
+  if (Number.isNaN(h)) return "";
+
+  const suffix = h >= 12 ? "PM" : "AM";
+  const hour = h % 12 === 0 ? 12 : h % 12;
+
+  return `${hour}:${String(m || 0).padStart(2, "0")} ${suffix}`;
+}
+
+/** "Aug 12, 2026". */
+function prettyDate(value) {
+  const date = parseDateStr(value);
+  return `${MONTHS_SHORT[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+}
+
+function initials(name) {
+  return String(name || "?").trim().charAt(0).toUpperCase() || "?";
+}
+
+/** Every status the API can hand back, in the wording these panels use. */
+function statusLabel(status) {
+  if (status === "approved") return "Confirmed";
+  if (status === "rejected") return "Declined";
+  return "Pending";
+}
+
+/* Rows an admin created for this client, and rows this client created. */
+function adminRequests() {
+  return calendarEvents.appointments.filter(a => (a.requested_by || "admin") === "admin");
+}
+
+function ownRequests() {
+  return calendarEvents.appointments.filter(a => a.requested_by === "user");
+}
+
+/* ── Load ──────────────────────────────────────────────────────────────── */
+
+/* ── Local preview data ────────────────────────────────────────────────────
+   The bypass button on login.html writes a token no server will accept, so
+   there is nothing to fetch. Rather than show five empty panels, the page
+   runs on this fixture instead and keeps every action working in memory.
+   Nothing here is reachable with a real session - delete the block and the
+   PREVIEW guards below to drop it. */
+
+const PREVIEW = localStorage.getItem("portal_token") === "preview";
+
+function demoDate(offset) {
+  const date = new Date();
+  date.setDate(date.getDate() + offset);
+  return toDateStr(date);
+}
+
+function demoData() {
+  return {
+    appointments: [
+      { id: 1, title: "AI Research Interview", topic: "AI Research Interview",
+        notes: "Bring the Q3 deck", date: demoDate(0), time: "10:30:00",
+        status: "pending", requested_by: "admin", admin_name: "Sarah Miller" },
+
+      { id: 2, title: "Lead Gen Survey Review", topic: "Lead Gen Survey Review",
+        notes: "", date: demoDate(2), time: "15:00:00",
+        status: "pending", requested_by: "admin", admin_name: "Rob Lee" },
+
+      { id: 3, title: "Modern SaaS Architecture", topic: "Modern SaaS Architecture",
+        notes: "Kick-off for the new build", date: demoDate(0), time: "09:30:00",
+        status: "approved", requested_by: "admin", admin_name: "Sarah Miller" },
+
+      { id: 4, title: "User Experience Trends", topic: "User Experience Trends",
+        notes: "", date: demoDate(1), time: "12:00:00",
+        status: "approved", requested_by: "admin", admin_name: "Rob Lee" },
+
+      { id: 5, title: "Feedback loop review", topic: "Feedback loop review",
+        notes: "Walk through last month's responses", date: demoDate(6),
+        time: "15:00:00", status: "approved", requested_by: "user" },
+
+      { id: 6, title: "Internal Review: Q3 Roadmap", topic: "Internal Review: Q3 Roadmap",
+        notes: "", date: demoDate(3), time: "13:00:00",
+        status: "pending", requested_by: "user" },
+
+      { id: 7, title: "Content strategy", topic: "Content strategy",
+        notes: "", date: demoDate(-3), time: "11:00:00",
+        status: "rejected", requested_by: "user" }
+    ]
+  };
+}
+
+/** Highest id in play, so a request added in preview gets a fresh one. */
+function nextDemoId() {
+  return calendarEvents.appointments.reduce((max, a) => Math.max(max, Number(a.id) || 0), 0) + 1;
+}
 
 async function fetchCalendarData() {
+
+  if (PREVIEW) {
+    calendarEvents = demoData();
+    renderAll();
+    return;
+  }
+
   try {
     const res = await fetch("api/calendar.php?action=get_user_calendar", {
       headers: { Authorization: "Bearer " + token }
     });
 
     if (!res.ok) throw new Error(`HTTP Error! Status: ${res.status}`);
+
     const data = await res.json();
 
-    if (data.success) {
-      calendarEvents.blocked = data.blocked || [];
-      calendarEvents.appointments = data.appointments || [];
-      
-      renderTables();
-      renderCalendar();
-    } else {
+    if (!data.success) {
       console.error(data.message);
+      return;
     }
+
+    calendarEvents.appointments = data.appointments || [];
+
+    renderAll();
+
   } catch (err) {
     console.error("Error fetching data:", err.message);
   }
 }
 
-function renderCalendar() {
-  const grid = document.getElementById("calendarGrid");
-  const monthTitle = document.getElementById("calendarMonthTitle");
-  
-  if (!grid || !monthTitle) return;
+function renderAll() {
+  renderCalendar();
+  renderDailySchedule();
+  renderApprovals();
+  renderAdminRequests();
+  renderYourRequests();
+}
 
+/* ── Calendar grid ─────────────────────────────────────────────────────── */
+
+/** The days the grid covers, which is what Day / Week / Month actually change. */
+function visibleDays() {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
-  const monthNames = ["January", "February", "March", "April", "May", "June", 
-                      "July", "August", "September", "October", "November", "December"];
-  monthTitle.innerText = `${monthNames[month]} ${year}`;
-
-  grid.innerHTML = `
-    <div class="day-header">Mon</div>
-    <div class="day-header">Tue</div>
-    <div class="day-header">Wed</div>
-    <div class="day-header">Thu</div>
-    <div class="day-header">Fri</div>
-    <div class="day-header">Sat</div>
-    <div class="day-header">Sun</div>
-  `;
-
-  const firstDayOfMonth = new Date(year, month, 1);
-  const lastDayOfMonth = new Date(year, month + 1, 0);
-  
-  let startingDay = firstDayOfMonth.getDay() - 1;
-  if (startingDay === -1) startingDay = 6; 
-
-  const totalDays = lastDayOfMonth.getDate();
-  const prevMonthLastDay = new Date(year, month, 0).getDate();
-
-  const today = new Date();
-  const isCurrentMonthReal = today.getFullYear() === year && today.getMonth() === month;
-
-  for (let i = startingDay; i > 0; i--) {
-    const dayDiv = document.createElement("div");
-    dayDiv.className = "day-cell other-month";
-    dayDiv.innerHTML = `<span>${prevMonthLastDay - i + 1}</span>`;
-    grid.appendChild(dayDiv);
+  if (currentView === "day") {
+    return [parseDateStr(selectedDate)];
   }
 
-  for (let day = 1; day <= totalDays; day++) {
-    const dayDiv = document.createElement("div");
-    const isToday = isCurrentMonthReal && day === today.getDate();
-    dayDiv.className = `day-cell ${isToday ? 'today-cell' : ''}`;
-dayDiv.innerHTML = `<span>${day}</span>`;
+  if (currentView === "week") {
+    const anchor = parseDateStr(selectedDate);
 
-dayDiv.onclick = () => {
-  openCalendarDay(dateStr);
-};
-    const formattedMonth = String(month + 1).padStart(2, '0');
-    const formattedDay = String(day).padStart(2, '0');
-    const dateStr = `${year}-${formattedMonth}-${formattedDay}`;
+    // Monday-first, matching the column headers.
+    const offset = (anchor.getDay() + 6) % 7;
+    const monday = new Date(anchor);
+    monday.setDate(anchor.getDate() - offset);
 
-    const dayApps = calendarEvents.appointments.filter(a => a.date === dateStr);
-    dayApps.forEach(app => {
-      const statusClass = app.status || 'pending';
-      dayDiv.innerHTML += `
-        <div class="event-card ${statusClass}">
-          ● <b>${app.title}</b><br><small>${app.time}</small>
-        </div>
-      `;
+    return Array.from({ length: 7 }, (unused, i) => {
+      const day = new Date(monday);
+      day.setDate(monday.getDate() + i);
+      return day;
     });
-
-    const dayBlocked = calendarEvents.blocked.filter(b => b.date === dateStr);
-    dayBlocked.forEach(b => {
-      const startTime = b.start_time ? b.start_time.substring(0,5) : '';
-      const endTime = b.end_time ? b.end_time.substring(0,5) : '';
-      dayDiv.innerHTML += `
-        <div class="event-card blocked">
-          🚫 <b>Blocked</b><br><small>${startTime} - ${endTime}</small>
-        </div>
-      `;
-    });
-
-    grid.appendChild(dayDiv);
   }
 
-  const totalCells = grid.children.length - 7;
-  const remainingCells = (7 - (totalCells % 7)) % 7;
-  for (let i = 1; i <= remainingCells; i++) {
-    const dayDiv = document.createElement("div");
-    dayDiv.className = "day-cell other-month";
-    dayDiv.innerHTML = `<span>${i}</span>`;
-    grid.appendChild(dayDiv);
-  }
+  const total = new Date(year, month + 1, 0).getDate();
+
+  return Array.from({ length: total }, (unused, i) => new Date(year, month, i + 1));
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  document.getElementById("prevMonthBtn").onclick = () => {
-    currentDate.setDate(1);
-    currentDate.setMonth(currentDate.getMonth() - 1);
-    renderCalendar();
-  };
+/** A greyed-out cell from the neighbouring month, used only to pad the weeks. */
+function padCell(dayNumber) {
+  const cell = document.createElement("div");
+  cell.className = "day-cell other-month";
+  cell.innerHTML = `<span>${dayNumber}</span>`;
+  return cell;
+}
 
-  document.getElementById("nextMonthBtn").onclick = () => {
-    currentDate.setDate(1);
-    currentDate.setMonth(currentDate.getMonth() + 1);
-    renderCalendar();
-  };
+function renderCalendar() {
+  const grid = document.getElementById("calendarGrid");
+  const monthTitle = document.getElementById("calendarMonthTitle");
 
-  document.getElementById("todayBtn").onclick = () => {
-    currentDate = new Date();
-    renderCalendar();
-  };
+  if (!grid || !monthTitle) return;
 
-  const storedUser = JSON.parse(localStorage.getItem("portal_user") || "{}");
-  if (storedUser.name) {
-    document.getElementById("sideName").innerText = storedUser.name;
-  }
-  setAvatarImage(storedUser);
+  monthTitle.innerText = `${MONTHS[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
 
-  fetchCalendarData();
-});
+  const headers = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  grid.innerHTML = headers.map(day => `<div class="day-header">${day}</div>`).join("");
 
-function renderTables() {
-  const blockedTbody = document.getElementById("blockedSlotsTable");
-  if (blockedTbody) {
-    if (!calendarEvents.blocked.length) {
-      blockedTbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#888;">No blocked slots added yet.</td></tr>`;
-    } else {
-      blockedTbody.innerHTML = calendarEvents.blocked.map(b => `
-        <tr>
-          <td><b>${b.date}</b></td>
-          <td>${b.start_time}</td>
-          <td>${b.end_time}</td>
-          <td><span class="badge blocked">Blocked</span></td>
-        </tr>
-      `).join("");
+  const days = visibleDays();
+  const todayStr = toDateStr(new Date());
+
+  // Month view pads to whole weeks so the columns line up with the headers.
+  // These go in as nodes, never through innerHTML: assigning innerHTML on the
+  // grid re-parses it and would drop the click handlers set further down.
+  if (currentView === "month") {
+    const lead = (days[0].getDay() + 6) % 7;
+    const prevLast = new Date(days[0].getFullYear(), days[0].getMonth(), 0).getDate();
+
+    for (let i = lead; i > 0; i--) {
+      grid.appendChild(padCell(prevLast - i + 1));
     }
   }
 
-  const appointmentsTbody = document.getElementById("userAppointmentsTable");
-  if (appointmentsTbody) {
-    if (!calendarEvents.appointments.length) {
-      appointmentsTbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#888;">No scheduled appointments yet.</td></tr>`;
-    } else {
-      appointmentsTbody.innerHTML = calendarEvents.appointments.map(a => {
-        let actions = `-`;
-        if (a.status === "pending") {
-          actions = `
-            <button class="btn-accept" onclick="respondAppointment(${a.id}, 'approved')">Accept</button>
-            <button class="btn-reject" onclick="respondAppointment(${a.id}, 'rejected')">Reject</button>
-          `;
-        }
-        return `
-          <tr>
-            <td><b>${a.title}</b></td>
-            <td>${a.date}</td>
-            <td>${a.time}</td>
-            <td><span class="badge ${a.status || 'pending'}">${a.status || 'pending'}</span></td>
-            <td>${actions}</td>
-          </tr>
+  days.forEach(day => {
+    const dateStr = toDateStr(day);
+
+    const cell = document.createElement("div");
+    cell.className = "day-cell"
+      + (dateStr === todayStr ? " today-cell" : "")
+      + (dateStr === selectedDate && currentView !== "day" ? " selected-cell" : "");
+
+    cell.innerHTML = `<span>${day.getDate()}</span>`;
+
+    calendarEvents.appointments
+      .filter(a => a.date === dateStr)
+      .forEach(a => {
+        cell.innerHTML += `
+          <div class="event-card ${esc(a.status || "pending")}">
+            ● <b>${esc(a.topic || a.title || "Meeting")}</b><br>
+            <small>${esc(prettyTime(a.time))}</small>
+          </div>
         `;
-      }).join("");
+      });
+
+    // Picking a day drives the schedule panel, and the Day/Week views.
+    cell.onclick = () => {
+      selectedDate = dateStr;
+      renderCalendar();
+      renderDailySchedule();
+    };
+
+    grid.appendChild(cell);
+  });
+
+  if (currentView === "month") {
+    const cells = grid.children.length - 7;
+    const trail = (7 - (cells % 7)) % 7;
+
+    for (let i = 1; i <= trail; i++) {
+      grid.appendChild(padCell(i));
     }
   }
 }
 
-async function setUnavailability() {
-  const date = document.getElementById("blockDate").value;
-  const startTime = document.getElementById("blockStartTime").value;
-  const endTime = document.getElementById("blockEndTime").value;
+/* ── Daily schedule ────────────────────────────────────────────────────── */
 
-  if (!date) {
-    alert("Please select a date to block!");
+function renderDailySchedule() {
+  const list = document.getElementById("dailySchedule");
+  const title = document.getElementById("dailyScheduleTitle");
+
+  if (!list) return;
+
+  title.innerText = `Daily Schedule – ${prettyDate(selectedDate)}`;
+
+  const rows = calendarEvents.appointments
+    .filter(a => a.date === selectedDate)
+    .sort((a, b) => String(a.time).localeCompare(String(b.time)));
+
+  if (!rows.length) {
+    list.innerHTML = `<div class="empty-cell" style="padding:22px 0;">Nothing scheduled for this day.</div>`;
     return;
   }
 
-  try {
-    const res = await fetch("api/calendar.php?action=set_unavailability", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer " + token
-      },
-      body: JSON.stringify({ date, start_time: startTime, end_time: endTime })
-    });
+  list.innerHTML = rows.map(row => {
+    const date = parseDateStr(row.date);
+    const who = row.requested_by === "user"
+      ? "Your request"
+      : `With ${row.admin_name || "the admin team"}`;
 
-    const data = await res.json();
-    alert(data.message || "Unavailability saved!");
+    return `
+      <div class="schedule-row">
+        <div class="schedule-date">
+          <span class="m">${MONTHS_SHORT[date.getMonth()]}</span>
+          <span class="d">${String(date.getDate()).padStart(2, "0")}</span>
+        </div>
 
-    if (data.success) {
-      document.getElementById("blockDate").value = "";
-      await fetchCalendarData();
-    }
-  } catch (err) {
-    console.error(err);
-    alert("Failed to block time slot");
-  }
+        <div class="schedule-info">
+          <h4>${esc(row.topic || row.title || "Meeting")}</h4>
+          <p>${esc(who)}</p>
+        </div>
+
+        <span class="schedule-time">${esc(prettyTime(row.time))}</span>
+        <span class="badge ${esc(row.status || "pending")}">${statusLabel(row.status)}</span>
+      </div>
+    `;
+  }).join("");
 }
 
+/* ── Approvals Hub ─────────────────────────────────────────────────────── */
+
+function toggleApprovals() {
+  showAllApprovals = !showAllApprovals;
+
+  document.getElementById("approvalsToggle").innerText =
+    showAllApprovals ? "Show pending only" : "View All Requests";
+
+  renderApprovals();
+}
+
+function renderApprovals() {
+  const table = document.getElementById("approvalsTable");
+
+  if (!table) return;
+
+  // Only admin-created rows are the client's to answer; their own requests
+  // wait on the admin team and live in "Your requests" instead.
+  const rows = adminRequests()
+    .filter(a => showAllApprovals || (a.status || "pending") === "pending")
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+
+  if (!rows.length) {
+    table.innerHTML = `
+      <tr><td colspan="4" class="empty-cell">
+        ${showAllApprovals ? "No meeting requests yet." : "Nothing waiting on you."}
+      </td></tr>
+    `;
+    return;
+  }
+
+  table.innerHTML = rows.map(row => {
+    const pending = (row.status || "pending") === "pending";
+    const requester = row.admin_name || "Admin team";
+
+    const actions = pending
+      ? `
+        <div class="row-actions">
+          <button class="icon-btn" title="Decline" aria-label="Decline"
+                  onclick="respondAppointment(${row.id}, 'rejected')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
+          <button class="icon-btn confirm" title="Confirm" aria-label="Confirm"
+                  onclick="respondAppointment(${row.id}, 'approved')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          </button>
+        </div>
+      `
+      : `<span class="badge ${esc(row.status)}">${statusLabel(row.status)}</span>`;
+
+    return `
+      <tr>
+        <td>
+          <div class="primary-cell">${esc(row.topic || row.title || "Meeting")}</div>
+          <div class="sub-cell">${esc(row.notes || "No notes")}</div>
+        </td>
+        <td>
+          <div class="who">
+            <span class="who-avatar">${esc(initials(requester))}</span>
+            <strong>${esc(requester)}</strong>
+          </div>
+        </td>
+        <td>
+          <div class="primary-cell" style="font-size:13px;">${esc(prettyDate(row.date))}</div>
+          <div class="sub-cell">${esc(prettyTime(row.time))}</div>
+        </td>
+        <td>${actions}</td>
+      </tr>
+    `;
+  }).join("");
+}
+
+/* ── Admin meeting requests ────────────────────────────────────────────── */
+
+function renderAdminRequests() {
+  const table = document.getElementById("adminRequestsTable");
+
+  if (!table) return;
+
+  const rows = adminRequests()
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+
+  if (!rows.length) {
+    table.innerHTML = `<tr><td colspan="4" class="empty-cell">The admin team has not scheduled anything with you yet.</td></tr>`;
+    return;
+  }
+
+  table.innerHTML = rows.map(row => {
+    const who = row.admin_name || "Admin team";
+
+    return `
+      <tr>
+        <td>
+          <div class="who">
+            <span class="who-avatar">${esc(initials(who))}</span>
+            <div>
+              <strong>${esc(who)}</strong>
+              <div class="sub-cell">${esc(statusLabel(row.status))}</div>
+            </div>
+          </div>
+        </td>
+        <td>${esc(row.topic || row.title || "Meeting")}</td>
+        <td>
+          <div class="primary-cell" style="font-size:13px;">${esc(prettyDate(row.date))}</div>
+          <div class="sub-cell">${esc(prettyTime(row.time))}</div>
+        </td>
+        <td>
+          <button class="icon-btn" title="Open the day" aria-label="Open the day"
+                  onclick="openCalendarDay('${esc(row.date)}')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join("");
+}
+
+/* ── Your requests ─────────────────────────────────────────────────────── */
+
+function renderYourRequests() {
+  const list = document.getElementById("yourRequests");
+
+  if (!list) return;
+
+  const rows = ownRequests()
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+
+  if (!rows.length) {
+    list.innerHTML = `<div class="empty-cell" style="padding:22px 0;">You have not asked for a meeting yet.</div>`;
+    return;
+  }
+
+  list.innerHTML = rows.map(row => `
+    <div class="request-item">
+      <div>
+        <h4>${esc(row.topic || row.title || "Meeting")}</h4>
+        <p>Requested for ${esc(prettyDate(row.date))} · ${esc(prettyTime(row.time))}</p>
+      </div>
+      <span class="badge ${esc(row.status || "pending")}">${statusLabel(row.status)}</span>
+    </div>
+  `).join("");
+}
+
+/* ── Actions ───────────────────────────────────────────────────────────── */
+
 async function respondAppointment(id, status) {
+
+  if (PREVIEW) {
+    const row = calendarEvents.appointments.find(a => Number(a.id) === Number(id));
+    if (row) row.status = status;
+    renderAll();
+    return;
+  }
+
   try {
     const res = await fetch("api/calendar.php?action=respond_appointment", {
       method: "POST",
@@ -948,20 +1532,137 @@ async function respondAppointment(id, status) {
 
     const data = await res.json();
     alert(data.message || "Status updated!");
+
     await fetchCalendarData();
+
   } catch (err) {
     console.error(err);
     alert("Failed to update status");
   }
 }
 
+async function sendRequest() {
+  const status = document.getElementById("requestStatus");
+  const button = document.getElementById("sendRequestBtn");
+
+  const date = document.getElementById("reqDate").value;
+  const time = document.getElementById("reqTime").value;
+  const topic = document.getElementById("reqTopic").value.trim();
+  const notes = document.getElementById("reqNotes").value.trim();
+
+  const fail = message => {
+    status.innerText = message;
+    status.className = "form-status error";
+  };
+
+  if (!date || !time) {
+    fail("Pick a preferred date and time.");
+    return;
+  }
+
+  if (!topic) {
+    fail("Say what the meeting is about.");
+    return;
+  }
+
+  status.innerText = "Sending...";
+  status.className = "form-status";
+  button.disabled = true;
+
+  if (PREVIEW) {
+    calendarEvents.appointments.push({
+      id: nextDemoId(), title: topic, topic, notes,
+      date, time: time + ":00", status: "pending", requested_by: "user"
+    });
+
+    document.getElementById("reqTopic").value = "";
+    document.getElementById("reqNotes").value = "";
+
+    status.innerText = "Request sent to the admin team.";
+    status.className = "form-status ok";
+    button.disabled = false;
+
+    renderAll();
+    return;
+  }
+
+  try {
+    const res = await fetch("api/calendar.php?action=create_user_request", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + token
+      },
+      body: JSON.stringify({ date, time, topic, notes })
+    });
+
+    const data = await res.json();
+
+    status.innerText = data.message;
+    status.className = "form-status " + (data.success ? "ok" : "error");
+
+    if (data.success) {
+      document.getElementById("reqDate").value = "";
+      document.getElementById("reqTime").value = "";
+      document.getElementById("reqTopic").value = "";
+      document.getElementById("reqNotes").value = "";
+    }
+
+    await fetchCalendarData();
+
+  } catch (err) {
+    console.error(err);
+    fail("Network or server error.");
+  }
+
+  button.disabled = false;
+}
+
+/* ── Day modal ─────────────────────────────────────────────────────────── */
+
+function openCalendarDay(date) {
+  const modal = document.getElementById("calendarModal");
+  const title = document.getElementById("calendarModalTitle");
+  const content = document.getElementById("calendarModalContent");
+
+  title.innerText = prettyDate(date);
+
+  const apps = calendarEvents.appointments.filter(a => a.date === date);
+
+  let html = "";
+
+  if (!apps.length) {
+    html = `<div class="day-details-item">Nothing scheduled for this day.</div>`;
+  }
+
+  apps.forEach(a => {
+    html += `
+      <div class="day-details-item">
+        📅 <b>${esc(a.topic || a.title || "Meeting")}</b><br>
+        Time: ${esc(prettyTime(a.time))}<br>
+        ${a.notes ? `Notes: ${esc(a.notes)}<br>` : ""}
+        Status: <span class="badge ${esc(a.status || "pending")}">${statusLabel(a.status)}</span>
+      </div>
+    `;
+  });
+
+  content.innerHTML = html;
+  modal.classList.add("show");
+}
+
+function closeCalendarModal() {
+  document.getElementById("calendarModal").classList.remove("show");
+}
+
+/* ── Chrome ────────────────────────────────────────────────────────────── */
+
 function setAvatarImage(user) {
   const image = user.profile_image;
-  const name = user.name || "User";
-  const letter = name.charAt(0).toUpperCase();
+  const letter = (user.name || "User").charAt(0).toUpperCase();
 
   [document.getElementById("sideAvatar")].forEach(avatar => {
     if (!avatar) return;
+
     if (image) {
       avatar.innerText = "";
       avatar.style.backgroundImage = `url('${image}')`;
@@ -977,66 +1678,52 @@ function logout() {
   window.location.href = "login.html";
 }
 
-/* ── Account settings popup (opened from the sidebar user card) ── */
+document.addEventListener("DOMContentLoaded", () => {
 
+  document.getElementById("prevMonthBtn").onclick = () => {
+    currentDate.setDate(1);
+    currentDate.setMonth(currentDate.getMonth() - 1);
+    renderCalendar();
+  };
 
+  document.getElementById("nextMonthBtn").onclick = () => {
+    currentDate.setDate(1);
+    currentDate.setMonth(currentDate.getMonth() + 1);
+    renderCalendar();
+  };
 
-function openCalendarDay(date){
+  document.getElementById("todayBtn").onclick = () => {
+    currentDate = new Date();
+    selectedDate = toDateStr(new Date());
+    renderCalendar();
+    renderDailySchedule();
+  };
 
-  const modal = document.getElementById("calendarModal");
-  const title = document.getElementById("calendarModalTitle");
-  const content = document.getElementById("calendarModalContent");
+  document.querySelectorAll("#viewToggle .view-btn").forEach(button => {
+    button.onclick = () => {
+      document.querySelectorAll("#viewToggle .view-btn")
+        .forEach(other => other.classList.toggle("active", other === button));
 
-  title.innerText = date;
+      currentView = button.dataset.view;
 
-  let html = "";
+      // Day and Week read from selectedDate, so keep the month in step with
+      // whatever day is selected before repainting.
+      currentDate = parseDateStr(selectedDate);
 
-  const apps = calendarEvents.appointments.filter(a => a.date === date);
-  const blocked = calendarEvents.blocked.filter(b => b.date === date);
+      renderCalendar();
+    };
+  });
 
+  const storedUser = JSON.parse(localStorage.getItem("portal_user") || "{}");
 
-  if(apps.length === 0 && blocked.length === 0){
-    html = `
-      <div class="day-details-item">
-        No appointments or blocked slots.
-      </div>
-    `;
+  if (storedUser.name) {
+    document.getElementById("sideName").innerText = storedUser.name;
   }
 
+  setAvatarImage(storedUser);
 
-  apps.forEach(a=>{
-    html += `
-      <div class="day-details-item">
-        📅 <b>${a.title}</b><br>
-        Time: ${a.time}<br>
-        Status:
-        <span class="badge ${a.status}">
-          ${a.status}
-        </span>
-      </div>
-    `;
-  });
-
-
-  blocked.forEach(b=>{
-    html += `
-      <div class="day-details-item">
-        🚫 <b>Blocked Time</b><br>
-        ${b.start_time} - ${b.end_time}
-      </div>
-    `;
-  });
-
-
-  content.innerHTML = html;
-  modal.classList.add("show");
-}
-
-
-function closeCalendarModal(){
-  document.getElementById("calendarModal")
-  .classList.remove("show");
-}
+  fetchCalendarData();
+});
 </script>
 <div class="calendar-modal" id="calendarModal">
   <div class="calendar-modal-box">
