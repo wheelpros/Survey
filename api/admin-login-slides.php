@@ -216,6 +216,29 @@ function uploadSlideImage($file, $uploadDir)
     }
 
     /*
+    | Minimum dimensions
+    |
+    | The slideshow fills half a desktop screen, so a small image is only
+    | ever going to be stretched. settings.html checks the same floor before
+    | it uploads; this is the one that actually holds.
+    */
+    $size = getimagesize($file["tmp_name"]);
+
+    if (!$size) {
+        response(false, "That image could not be read.", [], 400);
+    }
+
+    if ($size[0] < LOGIN_SLIDE_MIN_WIDTH || $size[1] < LOGIN_SLIDE_MIN_HEIGHT) {
+        response(
+            false,
+            "Image is " . $size[0] . " × " . $size[1] . " px. The minimum is "
+                . LOGIN_SLIDE_MIN_WIDTH . " × " . LOGIN_SLIDE_MIN_HEIGHT . " px.",
+            [],
+            400
+        );
+    }
+
+    /*
     | Generate safe random filename
     */
     $filename =
@@ -272,9 +295,10 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
 | POST
 |--------------------------------------------------------------------------
 |
-| multipart with a `slide` file -> add
-| JSON {"action":"update"}       -> edit the captions
-| JSON {"action":"reorder"}      -> save a new order
+| multipart with a `slide` file            -> add
+| multipart with `slide` + action=replace  -> swap one slide's image
+| JSON {"action":"update"}                 -> edit the captions
+| JSON {"action":"reorder"}                -> save a new order
 |
 */
 
@@ -434,6 +458,92 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             response(false, "Could not save the slide order.", [], 500);
         }
+    }
+
+    /*
+    |----------------------------------------------------------------------
+    | Replace one slide's image
+    |----------------------------------------------------------------------
+    |
+    | The "change" button over a thumbnail in Settings. Captions, position
+    | and the slide count are all untouched - only the file swaps, so this
+    | never has to reason about the LOGIN_SLIDES_MAX cap.
+    |
+    */
+
+    if ($action === "replace") {
+
+        $id = (int) ($_POST["id"] ?? 0);
+
+        if ($id < 1) {
+            response(false, "Slide not found.", [], 404);
+        }
+
+        if (!isset($_FILES["slide"])) {
+            response(false, "Please choose an image.", [], 400);
+        }
+
+        try {
+
+            $stmt = $pdo->prepare("
+                SELECT id, image_path
+                FROM login_slides
+                WHERE id = ?
+                LIMIT 1
+            ");
+
+            $stmt->execute([$id]);
+
+            $slide = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        } catch (Throwable $e) {
+
+            response(false, "Could not load the slide.", [], 500);
+        }
+
+        if (!$slide) {
+            response(false, "Slide not found.", [], 404);
+        }
+
+        // Only written once the new file is safely on disk, so a rejected
+        // upload leaves the existing image in place.
+        $imagePath = uploadSlideImage($_FILES["slide"], $uploadDir);
+
+        if (!$imagePath) {
+            response(false, "Please choose an image.", [], 400);
+        }
+
+        try {
+
+            $update = $pdo->prepare("
+                UPDATE login_slides
+                SET image_path = ?
+                WHERE id = ?
+            ");
+
+            $update->execute([$imagePath, $id]);
+
+            if ($update->rowCount() === 0) {
+
+                // The row went away between the read above and this write.
+                // Filenames are random, so "no change" is not a possibility.
+                deleteSlideImage($imagePath);
+                response(false, "Slide not found.", [], 404);
+            }
+
+        } catch (Throwable $e) {
+
+            deleteSlideImage($imagePath);
+            response(false, "Could not replace the image.", [], 500);
+        }
+
+        // Last, so a failure above never orphans the row from its image.
+        deleteSlideImage($slide["image_path"]);
+
+        response(true, "Slide image replaced.", [
+            "id"         => $id,
+            "image_path" => $imagePath
+        ]);
     }
 
     /*

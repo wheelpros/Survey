@@ -111,7 +111,7 @@ if ($method === "GET") {
     }
 
     // The users dropdown/filter follows the same owner > super_admin > seo_admin
-    // scoping as Users Management: the owner sees everyone, everyone else only
+    // scoping as Clients Management: the owner sees everyone, everyone else only
     // sees the users assigned to their own admin_id.
     if ($currentAdmin["role"] === "owner") {
 

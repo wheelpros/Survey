@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Admin - Users Management</title><style>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Admin - Clients Management</title><style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}body{background:#f6f7fb;color:#101828;padding:35px}.panel{background:#fff;border-radius:20px;box-shadow:0 14px 35px rgba(0,0,0,.06);overflow:hidden}.panel-head{padding:24px 28px;border-bottom:1px solid #eef1f5}.panel-head h1{font-size:24px;margin-bottom:6px}.panel-head p{color:#667085;font-size:14px}table{width:100%;border-collapse:collapse}th{text-align:left;background:#f8fafc;padding:14px 24px;color:#667085;font-size:12px}td{padding:15px 24px;border-top:1px solid #eef1f5;font-size:13px}.badge{padding:6px 12px;border-radius:20px;font-size:11px;font-weight:800}.approved{background:#e8faef;color:#20a95a}.pending{background:#fff3e5;color:#d97706}.actions{display:flex;gap:8px}.btn{border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:800;font-size:12px}.approve-btn{background:#20a95a;color:#fff}.reject-btn{background:#c9000b;color:#fff}.action-btn{background:var(--nav-active);color:#fff}
 /* View is an anchor, so it needs what the button styling assumes. */
 a.btn{display:inline-flex;align-items:center;text-decoration:none}
@@ -233,9 +233,9 @@ document.addEventListener("DOMContentLoaded", function () {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
         <span>Content</span>
       </a>
-      <a href="users-management.html" class="active" id="usersManagementLink" title="Users Management">
+      <a href="clients-management.html" class="active" id="clientsManagementLink" title="Clients Management">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        <span>Users Management</span>
+        <span>Clients Management</span>
       </a>
       <a href="sources-files.html" title="Sources &amp; Files">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
@@ -270,7 +270,7 @@ document.addEventListener("DOMContentLoaded", function () {
     </button>
   </header>
   <div class="admin-content">
-<div class="panel"><div class="panel-head"><h1 id="usersPanelTitle">Users Management</h1><p id="usersPanelSub">Approve or reject new registered users.</p></div><table><thead><tr><th>ID</th><th>User</th><th>Email</th><th>Status</th><th>Created At</th><th>Actions</th></tr></thead><tbody id="usersTable"><tr><td colspan="6" class="empty">Loading users...</td></tr></tbody></table>
+<div class="panel"><div class="panel-head"><h1 id="usersPanelTitle">Clients Management</h1><p id="usersPanelSub">Approve or reject newly registered clients.</p></div><table><thead><tr><th>ID</th><th>Client</th><th>Email</th><th>Status</th><th>Created At</th><th>Actions</th></tr></thead><tbody id="usersTable"><tr><td colspan="6" class="empty">Loading clients...</td></tr></tbody></table>
 <div class="pager" id="usersPager" hidden>
   <span class="pager-info" id="usersPagerInfo"></span>
   <div class="pager-pages" id="usersPagerPages"></div>
@@ -310,17 +310,17 @@ function logoutAdmin(){
   window.location.href = "admin-login.html";
 }
 
-// Users Management is open to every admin - what changes per role is the data
+// Clients Management is open to every admin - what changes per role is the data
 // scope and which actions render, not whether the page loads at all.
 const myRole = adminUser.role;
 const isOwner = myRole === "owner";
 
-// Wording for the users table changes with role: the owner is approving new
+// Wording for the clients table changes with role: the owner is approving new
 // signups, everyone below is just looking at the slice handed down to them.
 const USERS_COPY = {
-  owner:       { title: "Users Management", sub: "Approve or reject new registered users." },
-  super_admin: { title: "Users Management", sub: "Users the owner assigned to you." },
-  seo_admin:   { title: "Users Management", sub: "Users your super admin assigned to you." }
+  owner:       { title: "Clients Management", sub: "Approve or reject newly registered clients." },
+  super_admin: { title: "Clients Management", sub: "Clients the owner assigned to you." },
+  seo_admin:   { title: "Clients Management", sub: "Clients your super admin assigned to you." }
 };
 
 // The assignment panel is the same UI for two different handoffs:
@@ -329,13 +329,13 @@ const USERS_COPY = {
 const ASSIGN_COPY = {
   owner: {
     title: "Owner Assignments",
-    sub: "Choose which users each super admin can manage.",
+    sub: "Choose which clients each super admin can manage.",
     label: "Select Super Admin",
     empty: "No super admins found."
   },
   super_admin: {
     title: "Super Admin Assignments",
-    sub: "Choose which users each admin can manage.",
+    sub: "Choose which clients each admin can manage.",
     label: "Select Admin",
     empty: "No admins found."
   }
@@ -389,7 +389,7 @@ async function loadUsers(){
 
       table.innerHTML = `
         <tr>
-          <td colspan="6" class="empty">${esc(data.message || "Unable to load users.")}</td>
+          <td colspan="6" class="empty">${esc(data.message || "Unable to load clients.")}</td>
         </tr>
       `;
       return;
@@ -421,7 +421,7 @@ function renderUsers(){
 
     table.innerHTML = `
       <tr>
-        <td colspan="6" class="empty">No users found.</td>
+        <td colspan="6" class="empty">No clients found.</td>
       </tr>
     `;
     return;
@@ -508,7 +508,7 @@ async function updateUser(userId, action){
   if(!isOwner) return;
 
   if(action === "reject"){
-    const ok = confirm("Are you sure you want to reject and delete this user?");
+    const ok = confirm("Are you sure you want to reject and delete this client?");
     if(!ok) return;
   }
 
@@ -588,7 +588,7 @@ function renderAssignmentUsers(){
   }
 
   if(!poolUsers.length){
-    box.innerHTML = `<div class="empty">No users available to assign yet.</div>`;
+    box.innerHTML = `<div class="empty">No clients available to assign yet.</div>`;
     return;
   }
 

@@ -161,6 +161,14 @@ function ensureContentTypesTable(PDO $pdo)
  */
 const LOGIN_SLIDES_MAX = 5;
 
+/**
+ * Floor for a slide image. The panel is half a desktop screen tall, so
+ * anything under this is visibly stretched. settings.html mirrors these two
+ * numbers so the admin hears about it before the upload, not after.
+ */
+const LOGIN_SLIDE_MIN_WIDTH = 800;
+const LOGIN_SLIDE_MIN_HEIGHT = 450;
+
 function ensureLoginSlidesTable(PDO $pdo)
 {
     static $done = false;
@@ -184,5 +192,69 @@ function ensureLoginSlidesTable(PDO $pdo)
         ");
     } catch (PDOException $e) {
         // Read-only DB user: login.html keeps the centred form.
+    }
+}
+
+/**
+ * Columns the calendar pages added to `appointments` after the table first
+ * shipped. Same lazy approach as the profile columns above, so a deploy needs
+ * no manual migration; sql/appointment_requests.sql is the version to run by
+ * hand if the DB user is not allowed to ALTER.
+ *
+ * A row is a meeting request in one of two directions, which is what
+ * `requested_by` records:
+ *
+ *   'admin' - an admin asked a client for time. Waits on the user.
+ *   'user'  - a client asked the admin for time. Waits on an admin.
+ *
+ * `client` is the company_name the admin addressed, kept on the row so the
+ * admin's own list still reads correctly after a user changes companies.
+ */
+const APPOINTMENT_EXTRA_COLUMNS = [
+    "topic"        => "VARCHAR(200) NULL",
+    "notes"        => "TEXT NULL",
+    "requested_by" => "VARCHAR(10) NOT NULL DEFAULT 'admin'",
+    "admin_id"     => "INT NULL",
+    "client"       => "VARCHAR(150) NULL",
+];
+
+function ensureAppointmentTables(PDO $pdo)
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    try {
+        // The table predates this file on the deployed database. Creating it
+        // here only matters for a fresh install.
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS appointments (
+              id         INT AUTO_INCREMENT PRIMARY KEY,
+              user_id    INT          NOT NULL,
+              title      VARCHAR(200)     NULL,
+              date       DATE         NOT NULL,
+              time       TIME         NOT NULL,
+              status     VARCHAR(20)  NOT NULL DEFAULT 'pending',
+              created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              KEY idx_user_date (user_id, date)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+
+        $stmt = $pdo->query("
+            SELECT COLUMN_NAME
+            FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'appointments'
+        ");
+        $existing = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+        foreach (APPOINTMENT_EXTRA_COLUMNS as $column => $type) {
+            if (!in_array($column, $existing, true)) {
+                $pdo->exec("ALTER TABLE appointments ADD COLUMN `$column` $type");
+            }
+        }
+    } catch (PDOException $e) {
+        // Read-only DB user: calendar.php falls back to the base columns.
     }
 }

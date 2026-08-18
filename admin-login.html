@@ -175,6 +175,14 @@ button{
 </div>
   <button onclick="loginAdmin()">Login</button>
 
+  <!-- Local preview only: skips the API so the admin pages can be looked at
+       without a database. Hidden unless served from localhost, so it never
+       renders in production. -->
+  <button type="button" id="devBypass" hidden onclick="devBypass()"
+          style="margin-top:10px;background:#eef0f6;color:#1b1e3a;">
+    Bypass login (local preview)
+  </button>
+
   <div class="status" id="status"></div>
 
   <p class="auth-foot">&copy; <span class="yr"></span> WZONE London. All rights reserved.</p>
@@ -226,6 +234,28 @@ function togglePassword() {
     } else {
         input.type = "password";
     }
+}
+
+/* ── Local preview bypass ──────────────────────────────────────────────────
+   Writes the session the admin pages look for and walks straight in. The
+   button is only revealed on localhost, so a deployed copy never shows it;
+   delete this block and the button above to drop it. */
+
+function onLocalhost() {
+  return ["localhost", "127.0.0.1", "::1", ""].includes(location.hostname);
+}
+
+function devBypass() {
+  localStorage.setItem("admin_token", "preview");
+  localStorage.setItem(
+    "admin_user",
+    JSON.stringify({ name: "Sarah Miller", role: "owner" })
+  );
+  window.location.href = "admin-calendar.html";
+}
+
+if (onLocalhost()) {
+  document.getElementById("devBypass").hidden = false;
 }
 </script>
 
