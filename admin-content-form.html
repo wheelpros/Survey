@@ -696,7 +696,6 @@ async function addCustomType(){
     );
 
     renderTypes();
-    saveDraft();
 
   } catch (err) {
     console.error(err);
@@ -1263,19 +1262,27 @@ function currentDraft(){
     orientation,
     postDate: document.getElementById("postDate").value,
     postTime: document.getElementById("postTime").value,
-    publishNow: document.getElementById("publishNow").checked,
-    // Custom types live only in memory, so a restored selection would point at
-    // a chip that no longer exists without this.
-    customTypes: types.filter(t => t.id.startsWith("custom_"))
+    publishNow: document.getElementById("publishNow").checked
   };
 }
 
-function isDirty(){
-  const d = currentDraft();
+/* What counts as work worth restoring.
+   Deliberately not the content type or the orientation: both are selections
+   with a default, and a type is saved to the server the moment it is added, so
+   on their own they would leave a draft behind that restores nothing visible -
+   the form would just announce "Restored unsaved changes" over a blank page. */
+function hasWork({title, client, link, caption: captionHtml, postDate, postTime, publishNow}){
+  const captionText = new DOMParser()
+    .parseFromString(captionHtml || "", "text/html").body.textContent;
+
   return Boolean(
-    d.title.trim() || d.client || d.link.trim() || caption.innerText.trim() ||
-    d.contentType || d.postDate || d.postTime || d.publishNow || mediaFile
+    (title || "").trim() || client || (link || "").trim() ||
+    (captionText || "").trim() || postDate || postTime || publishNow
   );
+}
+
+function isDirty(){
+  return hasWork(currentDraft()) || Boolean(mediaFile);
 }
 
 function saveDraft(){
@@ -1314,6 +1321,13 @@ async function loadDraft(){
     if(!saved) return;
     draft = JSON.parse(saved);
   }catch(e){
+    return;
+  }
+
+  // Drafts written by the earlier rule can hold nothing but a content type.
+  // Restoring one shows the notice over an empty form, so drop it instead.
+  if(!hasWork(draft)){
+    clearDraft();
     return;
   }
 

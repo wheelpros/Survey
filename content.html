@@ -33,9 +33,6 @@ body{background:#f7f8fc;color:var(--text)}
 .page-title p{font-size:14px;color:#667085;max-width:520px}
 
 .filters{display:flex;justify-content:space-between;align-items:center;gap:20px;margin:28px 0 24px}
-.tabs{display:flex;background:#fff;border-radius:22px;padding:5px;gap:6px;flex-wrap:wrap}
-.tabs button{border:none;background:transparent;padding:9px 18px;border-radius:20px;cursor:pointer;color:#667085;font-weight:700;font-size:13px}
-.tabs button.active{background:var(--nav-active);color:#fff}
 .content-search{width:260px;height:36px;border:1px solid #e1e5ed;border-radius:22px;background:#fff;padding:0 16px;outline:none;font-size:13px}
 
 /* ── Card grid ── */
@@ -77,11 +74,10 @@ body{background:#f7f8fc;color:var(--text)}
 .detail.is-horizontal .detail-media{aspect-ratio:2.4/1;width:100%;max-width:672px;max-height:280px;margin:0 auto}
 .detail.is-horizontal .detail-meta{grid-template-columns:repeat(3,1fr)}
 
-/* ── The link rides on the caption's line, whatever the orientation ── */
+/* ── Timing and the link share one line under the copy ── */
+.detail-footer{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:flex-start;gap:22px 40px}
+.detail-footer .field{min-width:0}
 .link-slot:empty{display:none}
-.caption-row{display:flex;gap:20px;align-items:baseline;flex-wrap:wrap}
-.caption-row .caption{flex:1;min-width:200px}
-.caption-row .link-slot{flex:none}
 .view-link{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:800;color:var(--nav-active);text-decoration:none;border:1px solid #dfe3ea;border-radius:9px;padding:8px 14px;white-space:nowrap}
 .view-link:hover{background:#f6f7f9}
 .view-link svg{width:14px;height:14px}
@@ -100,8 +96,6 @@ body{background:#f7f8fc;color:var(--text)}
 
 /* The title reads left-aligned whatever the body does. */
 .detail-head h2{text-align:left}
-.link-value{word-break:break-all;font-size:14px}
-.link-value a{color:var(--nav-active)}
 
 /* ── Collapsible sidebar ── */
 :root.sidebar-collapsed{--sidebar-w:78px}
@@ -256,12 +250,12 @@ body{background:#f7f8fc;color:var(--text)}
       <p>Everything ready to publish — social posts, newsletters, infographics and more.</p>
     </div>
 
+    <!-- No filter tabs here: a reader only ever sees their own client's posts,
+         so there is nothing to narrow down. The search box stays. -->
     <div class="filters">
-      <div class="tabs" id="contentTabs">
-        <button class="active">All</button>
-      </div>
       <input class="content-search" id="contentSearch" placeholder="Search content...">
     </div>
+
 
     <div class="grid" id="contentGrid">
       <div class="empty">Loading content...</div>
@@ -281,24 +275,19 @@ body{background:#f7f8fc;color:var(--text)}
       <article class="detail is-horizontal" id="detailPanel">
         <div class="detail-media" id="detailMedia"></div>
         <div class="detail-meta">
-          <div class="field">
-            <h5>Client</h5>
-            <p id="detailClient">—</p>
-          </div>
-          <div class="field">
-            <h5>Created by</h5>
-            <p id="detailCreatedBy">—</p>
-          </div>
-          <div class="field">
-            <h5>Timing</h5>
-            <p id="detailTiming">Not scheduled</p>
-          </div>
           <div class="field wide">
             <h5>Caption</h5>
-            <div class="caption-row">
-              <div class="caption" id="detailCaption"></div>
-              <div class="link-slot" id="linkBesideCaption"></div>
+            <div class="caption" id="detailCaption"></div>
+          </div>
+
+          <!-- Who it is for and who wrote it are the studio's business, not the
+               reader's: the footer carries the timing and the link only. -->
+          <div class="detail-footer">
+            <div class="field">
+              <h5>Timing</h5>
+              <p id="detailTiming">Not scheduled</p>
             </div>
+            <div class="field link-slot" id="linkSlot"></div>
           </div>
         </div>
       </article>
@@ -320,7 +309,6 @@ document.getElementById("sideName").innerText = user.name || "User";
 setAvatarImage(user);
 
 let allContent = [];
-let currentCategory = "All";
 let selectedId = null;
 
 // Six cards to a page; the rest live behind the pager under the grid.
@@ -378,15 +366,21 @@ function sanitizeCaption(html){
   return box.innerHTML;
 }
 
-/** The link shows as a "View link" action beside the caption, never a URL. */
+/** The link shows as a "View link" action on the footer line, never a URL. */
 function renderLink(item){
-  const slot = document.getElementById("linkBesideCaption");
+  const slot = document.getElementById("linkSlot");
 
   slot.textContent = "";
 
   // Only http(s) reaches an href — the API normalises, but this page is the one
   // building the anchor.
   if(!item.link || !/^https?:\/\//i.test(item.link)) return;
+
+  // A heading like the field beside it, so the button lines up with its value
+  // rather than floating against its label.
+  const heading = document.createElement("h5");
+  heading.textContent = "Link";
+  slot.appendChild(heading);
 
   const anchor = document.createElement("a");
   anchor.className = "view-link";
@@ -443,33 +437,12 @@ async function loadContent(){
       return;
     }
 
-    renderFilters();
     applyFilters();
 
   } catch (err) {
     console.error(err);
     grid.innerHTML = `<div class="empty">Failed to load content.</div>`;
   }
-}
-
-function renderFilters(){
-  const tabs = document.getElementById("contentTabs");
-
-  const categories = ["All", ...new Set(allContent.map(item => item.category).filter(Boolean))];
-
-  tabs.innerHTML = categories.map(category => `
-    <button class="${category === currentCategory ? "active" : ""}"
-            onclick="filterByCategory('${esc(category)}', this)">${esc(category)}</button>
-  `).join("");
-}
-
-function filterByCategory(category, button){
-  currentCategory = category;
-
-  document.querySelectorAll("#contentTabs button").forEach(btn => btn.classList.remove("active"));
-  button.classList.add("active");
-
-  applyFilters();
 }
 
 // A new search or tab starts at page 1; paging itself keeps the page it set.
@@ -479,10 +452,6 @@ function applyFilters(keepPage){
   const search = document.getElementById("contentSearch").value.toLowerCase().trim();
 
   let filtered = allContent;
-
-  if(currentCategory !== "All"){
-    filtered = filtered.filter(item => item.category === currentCategory);
-  }
 
   if(search){
     filtered = filtered.filter(item =>
@@ -596,8 +565,6 @@ function selectContent(id){
 
   renderLink(item);
 
-  document.getElementById("detailClient").innerText = item.client || "—";
-  document.getElementById("detailCreatedBy").innerText = item.created_by || "—";
   document.getElementById("detailTiming").innerText = formatTiming(item);
 }
 
