@@ -129,10 +129,12 @@ $responses = fetchList($pdo, "
 ", [$userId]);
 
 $appointments = fetchList($pdo, "
-    SELECT id, title, date, time, status
-    FROM appointments
-    WHERE user_id = ?
-    ORDER BY date DESC, time DESC
+    SELECT a.id, a.title, a.topic, a.notes, a.date, a.time, a.status,
+           a.requested_by, a.client, ad.name AS admin_name
+    FROM appointments a
+    LEFT JOIN admins ad ON ad.id = a.admin_id
+    WHERE a.user_id = ?
+    ORDER BY a.date DESC, a.time DESC
 ", [$userId]);
 
 $files = fetchList($pdo, "

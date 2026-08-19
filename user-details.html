@@ -110,6 +110,40 @@ td a{color:var(--nav-active);font-weight:700}
 .field.wide{grid-column:1/-1}
 .field .muted{color:#98a2b3}
 
+/* ── Appointments calendar (same vocabulary as admin-calendar.html) ── */
+.cal-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:22px 28px;border-bottom:1px solid #eef1f5}
+.cal-controls{display:flex;align-items:center;gap:12px}
+.cal-month{font-size:18px;font-weight:800;color:var(--text);min-width:170px}
+.nav-arrow{border:1px solid var(--line);background:#fff;width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:700;font-size:16px;user-select:none}
+.nav-arrow:hover{background:#f1f5f9}
+.btn-today{border:1px solid var(--line);background:#fff;padding:8px 16px;border-radius:8px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.btn-today:hover{background:#f1f5f9}
+
+.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);border-top:1px solid var(--line);border-left:1px solid var(--line);margin:22px 28px 28px;border-radius:12px;overflow:hidden}
+.day-header{background:#f8fafc;padding:12px;font-size:12px;font-weight:700;color:#64748b;border-right:1px solid var(--line);border-bottom:1px solid var(--line);text-align:center}
+.day-cell{min-height:104px;padding:8px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:#fff;font-size:12px;font-weight:600;color:#64748b;display:flex;flex-direction:column;gap:4px;cursor:pointer}
+.day-cell.other-month{background:#fdfdfd;color:#cbd5e1;cursor:default}
+.day-cell.today-cell{background:#f0f9ff}
+/* The day the schedule panel below is describing. */
+.day-cell.selected-cell{box-shadow:inset 0 0 0 2px var(--nav-active)}
+.day-cell.today-cell > span{background:#0284c7;color:#fff;padding:2px 6px;border-radius:12px;width:max-content}
+.event-card{padding:6px;border-radius:6px;font-size:10.5px;font-weight:500;line-height:1.3}
+.event-card.approved{background:#e8faef;border:1px solid #b8e7c8;color:#17803d}
+.event-card.pending{background:#fef3c7;border:1px solid #fde68a;color:#b45309}
+.event-card.rejected{background:#fef2f2;border:1px solid #fecaca;color:#dc2626}
+.badge.rejected{background:#ffe8e8;color:#c9000b}
+
+.schedule-list{padding:8px 28px 26px}
+.schedule-row{display:flex;align-items:center;gap:16px;padding:14px 0;border-top:1px solid #f1f3f7}
+.schedule-row:first-child{border-top:none}
+.schedule-date{flex:none;width:46px;text-align:center;border-radius:10px;background:#f6f7fb;padding:6px 0}
+.schedule-date .m{display:block;font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
+.schedule-date .d{display:block;font-size:16px;font-weight:800;color:var(--text)}
+.schedule-info{flex:1;min-width:0}
+.schedule-info h4{font-size:14px;font-weight:800;color:var(--text);margin-bottom:3px}
+.schedule-info p{font-size:12px;color:var(--muted)}
+.schedule-time{flex:none;font-size:12px;font-weight:700;color:var(--muted)}
+
 @media(max-width:1100px){.fields{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:950px){
   /* Force-collapsed below this width, so the head has nothing left to show. */
@@ -120,6 +154,9 @@ td a{color:var(--nav-active);font-weight:700}
   .fields{grid-template-columns:1fr}
   .panel{overflow-x:auto}
   table{min-width:640px}
+  .cal-head,.schedule-list{padding-left:18px;padding-right:18px}
+  .calendar-grid{margin:18px;min-width:620px}
+  .day-cell{min-height:88px}
 }
 </style>
 
@@ -289,6 +326,191 @@ function formatSize(bytes){
   return (size / 1024 / 1024).toFixed(1) + " MB";
 }
 
+/* ── Appointments calendar ─────────────────────────────────────────────
+   Same behaviour as admin-calendar.html, narrowed to this one client:
+   a month grid, and the schedule for whichever day is selected. */
+
+const MONTHS = ["January","February","March","April","May","June",
+                "July","August","September","October","November","December"];
+const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun",
+                      "Jul","Aug","Sep","Oct","Nov","Dec"];
+
+let appointments = [];
+let currentDate = new Date();
+let selectedDate = toDateStr(new Date());
+
+function toDateStr(date){
+  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
+}
+
+function parseDateStr(value){
+  const [y,m,d] = String(value || "").split("-").map(Number);
+  return new Date(y || 1970, (m || 1) - 1, d || 1);
+}
+
+/** "3:00 PM" from either "15:00" or "15:00:00". */
+function prettyTime(value){
+  const [h,m] = String(value || "").split(":").map(Number);
+  if(Number.isNaN(h)) return "";
+  const suffix = h >= 12 ? "PM" : "AM";
+  const hour = h % 12 === 0 ? 12 : h % 12;
+  return `${hour}:${String(m || 0).padStart(2,"0")} ${suffix}`;
+}
+
+/** "Aug 12, 2026". */
+function prettyDate(value){
+  const date = parseDateStr(value);
+  return `${MONTHS_SHORT[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+}
+
+function statusLabel(status){
+  if(status === "approved") return "Confirmed";
+  if(status === "rejected") return "Declined";
+  return "Pending";
+}
+
+/** A greyed-out cell from the neighbouring month, used only to pad the weeks. */
+function padCell(dayNumber){
+  const cell = document.createElement("div");
+  cell.className = "day-cell other-month";
+  cell.innerHTML = `<span>${dayNumber}</span>`;
+  return cell;
+}
+
+function renderCalendar(){
+  const grid = document.getElementById("calendarGrid");
+  const monthTitle = document.getElementById("calendarMonthTitle");
+  if(!grid || !monthTitle) return;
+
+  monthTitle.textContent = `${MONTHS[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+
+  const headers = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+  grid.innerHTML = headers.map(day => `<div class="day-header">${day}</div>`).join("");
+
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const total = new Date(year, month + 1, 0).getDate();
+  const days = Array.from({length: total}, (unused,i) => new Date(year, month, i + 1));
+  const todayStr = toDateStr(new Date());
+
+  // Cells go in as nodes, never through innerHTML: reassigning innerHTML on the
+  // grid re-parses it and would drop the click handlers set further down.
+  const lead = (days[0].getDay() + 6) % 7;
+  const prevLast = new Date(year, month, 0).getDate();
+  for(let i = lead; i > 0; i--){
+    grid.appendChild(padCell(prevLast - i + 1));
+  }
+
+  days.forEach(day => {
+    const dateStr = toDateStr(day);
+
+    const cell = document.createElement("div");
+    cell.className = "day-cell"
+      + (dateStr === todayStr ? " today-cell" : "")
+      + (dateStr === selectedDate ? " selected-cell" : "");
+
+    cell.innerHTML = `<span>${day.getDate()}</span>`;
+
+    appointments
+      .filter(a => a.date === dateStr)
+      .forEach(a => {
+        cell.innerHTML += `
+          <div class="event-card ${esc(a.status || "pending")}">
+            ● <b>${esc(a.topic || a.title || "Meeting")}</b><br>
+            <small>${esc(prettyTime(a.time))}</small>
+          </div>`;
+      });
+
+    cell.onclick = () => {
+      selectedDate = dateStr;
+      renderCalendar();
+      renderDailySchedule();
+    };
+
+    grid.appendChild(cell);
+  });
+
+  const cells = grid.children.length - 7;
+  const trail = (7 - (cells % 7)) % 7;
+  for(let i = 1; i <= trail; i++){
+    grid.appendChild(padCell(i));
+  }
+}
+
+function renderDailySchedule(){
+  const list = document.getElementById("dailySchedule");
+  const title = document.getElementById("dailyScheduleTitle");
+  if(!list) return;
+
+  title.textContent = `Daily meeting Schedule – ${prettyDate(selectedDate)}`;
+
+  const rows = appointments
+    .filter(a => a.date === selectedDate)
+    .sort((a,b) => String(a.time).localeCompare(String(b.time)));
+
+  if(!rows.length){
+    list.innerHTML = `<div class="empty">Nothing scheduled for this day.</div>`;
+    return;
+  }
+
+  list.innerHTML = rows.map(row => {
+    const date = parseDateStr(row.date);
+    const raisedBy = row.requested_by === "user"
+      ? "Requested by the client"
+      : `Requested by ${row.admin_name || "the team"}`;
+
+    return `
+      <div class="schedule-row">
+        <div class="schedule-date">
+          <span class="m">${MONTHS_SHORT[date.getMonth()]}</span>
+          <span class="d">${String(date.getDate()).padStart(2,"0")}</span>
+        </div>
+
+        <div class="schedule-info">
+          <h4>${esc(row.topic || row.title || "Meeting")}</h4>
+          <p>${esc(raisedBy)}${row.notes ? " · " + esc(row.notes) : ""}</p>
+        </div>
+
+        <span class="schedule-time">${esc(prettyTime(row.time))}</span>
+        <span class="badge ${esc(row.status || "pending")}">${statusLabel(row.status)}</span>
+      </div>`;
+  }).join("");
+}
+
+/** Wires the month controls and paints the calendar, once its markup is in the DOM. */
+function initCalendar(rows){
+  appointments = rows || [];
+
+  // Land on the month of the newest appointment, so the grid is not empty.
+  const latest = appointments
+    .map(a => a.date)
+    .filter(Boolean)
+    .sort()
+    .pop();
+
+  if(latest){
+    currentDate = parseDateStr(latest);
+    selectedDate = latest;
+  }
+
+  const shift = step => {
+    currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + step, 1);
+    renderCalendar();
+  };
+
+  document.getElementById("prevMonthBtn").onclick = () => shift(-1);
+  document.getElementById("nextMonthBtn").onclick = () => shift(1);
+  document.getElementById("todayBtn").onclick = () => {
+    currentDate = new Date();
+    selectedDate = toDateStr(new Date());
+    renderCalendar();
+    renderDailySchedule();
+  };
+
+  renderCalendar();
+  renderDailySchedule();
+}
+
 /** A panel wrapping a table, or its empty state when there are no rows. */
 function tablePanel(title, description, headers, rows, emptyText){
   const body = rows.length
@@ -379,18 +601,31 @@ function render(data){
     "This user has not submitted any responses."
   );
 
-  const appointments = tablePanel(
-    "Appointments", "Bookings on the content calendar.",
-    ["Title", "Date", "Time", "Status"],
-    (data.appointments || []).map(a => `
-      <tr>
-        <td>${esc(a.title || "Untitled")}</td>
-        <td>${formatDate(a.date)}</td>
-        <td>${esc(String(a.time || "").slice(0,5) || "—")}</td>
-        <td><span class="badge neutral">${orDash(a.status)}</span></td>
-      </tr>`),
-    "No appointments for this user."
-  );
+  // The calendar renders itself after this markup is in the DOM, see renderCalendar().
+  const appointments = `
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Appointments ${(data.appointments || []).length ? `<span class="badge neutral">${(data.appointments || []).length}</span>` : ""}</h2>
+        <p>Bookings on the content calendar. Pick a day to see what is on it.</p>
+      </div>
+      <div class="cal-head">
+        <div class="cal-controls">
+          <span class="cal-month" id="calendarMonthTitle">—</span>
+          <button class="nav-arrow" type="button" id="prevMonthBtn" aria-label="Previous month">&lt;</button>
+          <button class="nav-arrow" type="button" id="nextMonthBtn" aria-label="Next month">&gt;</button>
+        </div>
+        <button class="btn-today" type="button" id="todayBtn">Today</button>
+      </div>
+      <div class="calendar-grid" id="calendarGrid"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2 id="dailyScheduleTitle">Daily meeting Schedule</h2>
+        <p>Appointments booked with this client on the selected day.</p>
+      </div>
+      <div class="schedule-list" id="dailySchedule"></div>
+    </div>`;
 
   const files = tablePanel(
     "Files shared", "Source files this user can download.",
@@ -418,6 +653,8 @@ function render(data){
 
   document.getElementById("pageBody").innerHTML =
     header + details + surveys + responses + appointments + files + content;
+
+  initCalendar(data.appointments || []);
 }
 
 function fail(message){
