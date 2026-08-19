@@ -9,199 +9,15 @@
 * { margin:0; padding:0; box-sizing:border-box; font-family:Arial, sans-serif; }
 body { background:#f6f7fb; color:#101828; padding:35px; }
 
-/* Top Navigation Bar */
-
-/* Panel Styles */
-.panel {
-  background:#fff;
-  border-radius:20px;
-  box-shadow:0 14px 35px rgba(0,0,0,.04);
-  margin-bottom:28px;
-  overflow:hidden;
-  border: 1px solid #eaecf0;
-}
-
-.panel-head {
-  padding:24px 28px;
-  border-bottom:1px solid #eef1f5;
-}
-.panel-head h2 { font-size:20px; margin-bottom:4px; font-weight:800; }
-.panel-head p { color:#667085; font-size:14px; }
-.panel-body { padding:28px; }
-
-/* Dynamic Calendar UI Styles */
-.calendar-top-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px 24px;
-  border-bottom: 1px solid #eaecf0;
-}
-.calendar-top-left { display: flex; align-items: center; gap: 20px; }
-.calendar-title-text { font-size: 18px; font-weight: 800; color: #101828; }
-
-.view-toggle {
-  display: flex;
-  background: #f2f4f7;
-  padding: 4px;
-  border-radius: 8px;
-}
-.view-btn {
-  border: none;
-  background: transparent;
-  padding: 6px 14px;
-  font-size: 13px;
-  font-weight: 700;
-  color: #667085;
-  border-radius: 6px;
-  cursor: pointer;
-}
-.view-btn.active { background: #ffffff; color: #101828; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-
-.month-nav-controls { display: flex; align-items: center; gap: 12px; }
-.month-arrow-btn {
-  background: transparent;
-  border: 1px solid #eaecf0;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: bold;
-  color: #667085;
-  cursor: pointer;
-  padding: 4px 10px;
-}
-.month-arrow-btn:hover { background: #f8fafc; }
-.month-display-name { font-size: 16px; font-weight: 800; color: #101828; min-width: 140px; text-align: center; }
-
-.ui-calendar-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  border-bottom: 1px solid #eaecf0;
-}
-.ui-day-header {
-  background: #f8fafc;
-  padding: 14px;
-  text-align: center;
-  font-size: 12px;
-  font-weight: 800;
-  color: #64748b;
-  border-right: 1px solid #eaecf0;
-  border-bottom: 1px solid #eaecf0;
-  text-transform: uppercase;
-}
-.ui-day-header:nth-child(7n) { border-right: none; }
-
-.ui-day-cell {
-  min-height: 115px;
-  padding: 8px;
-  border-right: 1px solid #eaecf0;
-  border-bottom: 1px solid #eaecf0;
-  background: #ffffff;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.ui-day-cell:nth-child(7n) { border-right: none; }
-.ui-day-cell.other-month { background: #fafafa; }
-.ui-day-cell.other-month .num { color: #d0d5dd; }
-
-.ui-day-cell .num { font-size: 12px; font-weight: 800; color: #344054; margin-bottom: 2px; }
-.ui-day-cell.is-today .num {
-  background: var(--nav-active);
-  color: #ffffff;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Dynamic Event Tags inside Calendar */
-.cal-event-tag {
-  padding: 5px 7px;
-  border-radius: 6px;
-  font-size: 10.5px;
-  font-weight: 700;
-  line-height: 1.3;
-}
-.cal-event-tag.approved { background: #e8faef; border-left: 3px solid #20a95a; color: #157f43; }
-.cal-event-tag.pending { background: #fef3c7; border-left: 3px solid #b45309; color: #b45309; }
-.cal-event-tag.rejected { background: #fef2f2; border-left: 3px solid #dc2626; color: #dc2626; }
-.cal-event-tag.blocked { background: #ffe8e8; border-left: 3px solid #c9000b; color: #c9000b; }
-
-/* Review Queue Panel Styles */
-.queue-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 18px;
-}
-.queue-title-wrap { display: flex; align-items: center; gap: 10px; }
-.queue-title { font-size: 18px; font-weight: 800; color: #101828; display: flex; align-items: center; gap: 8px; }
-.queue-badge { background: #eef0f6; color: var(--nav-active); font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 12px; }
-.queue-view-all { color: var(--nav-active); font-size: 13px; font-weight: 700; text-decoration: none; }
-
-.queue-list { display: flex; flex-direction: column; gap: 12px; }
-.queue-item {
-  background: #f8fafc;
-  border: 1px solid #eaecf0;
-  border-radius: 12px;
-  padding: 14px 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.queue-item-left { display: flex; align-items: center; gap: 14px; }
-.queue-icon-box {
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  background: #eaecf0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-}
-.queue-item-info h4 { font-size: 14px; font-weight: 800; color: #101828; margin-bottom: 2px; }
-.queue-item-info p { font-size: 12px; color: #667085; }
-
-.queue-item-actions { display: flex; align-items: center; gap: 12px; }
-.btn-details { background: transparent; border: none; font-size: 13px; font-weight: 700; color: #475467; cursor: pointer; }
-.btn-approve { background: #20a95a; border: none; color: #ffffff; padding: 8px 18px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; }
-
 /* Control Form & Tables */
 label { display:block; font-weight:bold; margin-bottom:8px; font-size:14px; }
 select, input { width:100%; padding:12px; border:1px solid #ddd; border-radius:10px; font-size:14px; outline:none; }
 
-.form-grid {
-  display:grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap:15px;
-  margin-top:15px;
-  align-items:end;
-}
-
-.btn-primary {
-  background:var(--nav-active);
-  color:#fff;
-  border:none;
-  padding:12px 20px;
-  border-radius:10px;
-  font-weight:bold;
-  cursor:pointer;
-}
-.btn-primary:hover { background:#a00009; }
-
-table { width:100%; border-collapse:collapse; margin-top:15px; }
-th, td { padding:12px 15px; text-align:left; border-bottom:1px solid #eef1f5; font-size:14px; }
-th { background:#f8fafc; color:#667085; font-weight: 700; }
 
 .badge { padding:5px 10px; border-radius:20px; font-size:12px; font-weight:bold; display:inline-block; }
 .badge.pending { background:#fef3c7; color:#b45309; }
 .badge.approved { background:#e8faef; color:#20a95a; }
 .badge.rejected { background:#ffe8e8; color:#c9000b; }
-
-.blocked-list { margin:10px 0 0 20px; color:#667085; font-size:14px; }
 
 /* ── Admin shell: sidebar + header (shared across admin pages) ── */
 :root{
@@ -297,55 +113,6 @@ body{padding:0}
 .acct-role{display:inline-block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--nav-active);background:#eef0f6;border-radius:20px;padding:5px 12px;margin-bottom:22px}
 .acct-logout{width:100%;height:46px;border:1px solid #f0d2d4;background:#fff;color:var(--brand);border-radius:12px;font-weight:800;font-size:14px;cursor:pointer}
 .acct-logout:hover{background:#fff5f5}
-.calendar-modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.45);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  z-index: 99999;
-  padding: 20px;
-}
-
-.calendar-modal.show {
-  display: flex;
-}
-
-.calendar-modal-box {
-  width: 100%;
-  max-width: 450px;
-  background: #fff;
-  border-radius: 18px;
-  padding: 24px;
-  box-shadow: 0 20px 60px rgba(0,0,0,.2);
-}
-
-.calendar-modal-header {
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  margin-bottom:20px;
-}
-
-.calendar-modal-header button {
-  width:32px;
-  height:32px;
-  border:none;
-  border-radius:50%;
-  background:#1b1e3a;
-  color:white;
-  cursor:pointer;
-}
-
-.day-details-item {
-  padding:12px;
-  border-radius:10px;
-  background:#f8fafc;
-  margin-bottom:10px;
-  font-size:13px;
-}
-
 /* ── Shell refresh: the collapse control lives in the sidebar head ── */
 .side-head{
   display:flex;align-items:center;justify-content:space-between;gap:8px;
@@ -385,6 +152,425 @@ body{padding:0}
   /* Force-collapsed below this width, so the head has nothing left to show. */
   .side-head{display:none}
   .admin-topbar{padding:0 18px}
+}
+
+/* ── Calendar page vocabulary, shared with user-appointments.html ── */
+.card {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.04);
+  margin-bottom: 34px;
+}
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.calendar-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.month-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #101828;
+  min-width: 180px;
+}
+
+.nav-arrow {
+  border: 1px solid #eaecf0;
+  background: #ffffff;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 16px;
+  user-select: none;
+}
+.nav-arrow:hover { background: #f1f5f9; }
+.btn-today {
+  border: 1px solid #eaecf0;
+  background: #ffffff;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-today:hover { background: #f1f5f9; }
+
+.btn-primary {
+  background: var(--nav-active);
+  color: #ffffff;
+  border: none;
+  padding: 11px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+}
+.btn-primary:hover { background: #a80009; }
+
+/* Calendar Dynamic Grid */
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border-top: 1px solid #eaecf0;
+  border-left: 1px solid #eaecf0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.day-header {
+  background: #f8fafc;
+  padding: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+  border-right: 1px solid #eaecf0;
+  border-bottom: 1px solid #eaecf0;
+  text-align: center;
+}
+.day-cell {
+  min-height: 110px;
+  padding: 8px;
+  border-right: 1px solid #eaecf0;
+  border-bottom: 1px solid #eaecf0;
+  background: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.day-cell.other-month { background: #fdfdfd; color: #cbd5e1; }
+.day-cell.today-cell { background: #f0f9ff; }
+
+/* The day the schedule panel below is describing. */
+.day-cell.selected-cell { box-shadow: inset 0 0 0 2px var(--nav-active); }
+.day-cell.today-cell > span {
+  background: #0284c7;
+  color: #ffffff;
+  padding: 2px 6px;
+  border-radius: 12px;
+  width: max-content;
+}
+
+.event-card {
+  padding: 6px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+.event-card.approved { background: #e8faef; border: 1px solid #b8e7c8; color: #17803d; }
+.event-card.pending { background: #fef3c7; border: 1px solid #fde68a; color: #b45309; }
+.event-card.rejected { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
+
+
+.page-header { margin-bottom: 8px; }
+.page-title h1 { font-size: 24px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
+.page-title p { font-size: 14px; color: var(--muted); }
+
+
+/* ── Redesigned calendar page ──────────────────────────────────────────────
+   The panels below the grid: daily schedule, approvals hub, request lists
+   and the request form. Everything reuses .card as its shell. */
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.view-toggle {
+  display: flex;
+  background: #f2f4f7;
+  padding: 4px;
+  border-radius: 9px;
+  flex: none;
+}
+
+.view-btn {
+  border: none;
+  background: transparent;
+  padding: 6px 16px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: #667085;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.view-btn.active {
+  background: #ffffff;
+  color: #101828;
+  box-shadow: 0 2px 4px rgba(16, 24, 40, .06);
+}
+
+/* ── Section heads ── */
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.section-head h3 {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.section-sub {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+
+.section-link {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--nav-active);
+  text-decoration: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.section-link:hover { text-decoration: underline; }
+
+/* ── Daily schedule ── */
+.schedule-list { display: flex; flex-direction: column; }
+
+.schedule-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 0;
+  border-top: 1px solid #f1f3f7;
+}
+
+.schedule-row:first-child { border-top: none; }
+
+/* The little month/day block on the left of each row. */
+.schedule-date {
+  flex: none;
+  width: 46px;
+  text-align: center;
+  border-radius: 10px;
+  background: #f6f7fb;
+  padding: 6px 0;
+}
+
+.schedule-date .m {
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .6px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.schedule-date .d {
+  display: block;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.schedule-info { flex: 1; min-width: 0; }
+
+.schedule-info h4 {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 3px;
+}
+
+.schedule-info p {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.schedule-time {
+  flex: none;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+/* ── Tables inside the new panels ── */
+.data-table { width: 100%; border-collapse: collapse; }
+
+.data-table th {
+  text-align: left;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0 12px 10px 0;
+  border-bottom: 1px solid #eef1f5;
+}
+
+.data-table td {
+  padding: 14px 12px 14px 0;
+  border-bottom: 1px solid #f1f3f7;
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.data-table tr:last-child td { border-bottom: none; }
+
+.data-table .primary-cell {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.data-table .sub-cell {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.data-table .empty-cell {
+  text-align: center;
+  color: var(--muted);
+  padding: 22px 0;
+}
+
+/* Requester cell: avatar + name. */
+.who { display: flex; align-items: center; gap: 10px; }
+
+.who-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #dce3ff;
+  color: #3745a4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  flex: none;
+}
+
+.who strong { font-size: 13px; font-weight: 700; color: var(--text); }
+
+/* ── Approve / decline circles ── */
+.row-actions { display: flex; gap: 8px; }
+
+.icon-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #ffffff;
+  color: #475467;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.icon-btn svg { width: 15px; height: 15px; }
+.icon-btn:hover { background: #f6f7f9; }
+
+.icon-btn.confirm {
+  background: var(--nav-active);
+  border-color: var(--nav-active);
+  color: #ffffff;
+}
+
+.icon-btn.confirm:hover { background: #2a2f5c; }
+
+.icon-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ── "Your requests" cards ── */
+.request-list { display: flex; flex-direction: column; gap: 12px; }
+
+.request-item {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.request-item h4 {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 3px;
+}
+
+.request-item p { font-size: 12px; color: var(--muted); }
+
+/* ── Request form ── */
+.request-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.request-form .full { grid-column: 1 / -1; }
+
+.request-form label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 7px;
+}
+
+.request-form input,
+.request-form select,
+.request-form textarea {
+  width: 100%;
+  padding: 11px 13px;
+  border: 1px solid #dfe3ea;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: #ffffff;
+  outline: none;
+}
+
+.request-form input:focus,
+.request-form select:focus,
+.request-form textarea:focus { border-color: var(--nav-active); }
+
+.request-form textarea { min-height: 96px; resize: vertical; }
+
+.form-status { font-size: 13px; font-weight: 700; margin-top: 12px; }
+.form-status.error { color: var(--brand); }
+.form-status.ok { color: #17803d; }
+
+@media (max-width: 760px) {
+  .request-form { grid-template-columns: minmax(0, 1fr); }
 }
 </style>
 
@@ -447,9 +633,9 @@ document.addEventListener("DOMContentLoaded", function () {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
         <span>Content</span>
       </a>
-      <a href="users-management.html" id="usersManagementLink" title="Users Management">
+      <a href="clients-management.html" id="clientsManagementLink" title="Clients Management">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        <span>Users Management</span>
+        <span>Clients Management</span>
       </a>
       <a href="sources-files.html" title="Sources &amp; Files">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
@@ -485,535 +671,739 @@ document.addEventListener("DOMContentLoaded", function () {
   </header>
   <div class="admin-content">
 
-<!-- 1. USER CALENDAR MANAGEMENT CONTROLS (Top Selection) -->
-<div class="panel">
-  <div class="panel-head">
-    <h2>User Calendar Management Controls</h2>
-    <p>Select a user to manage appointments and view blocked calendar dates.</p>
-  </div>
-  <div class="panel-body">
-    <label for="calendarUserSelect">Choose a User to view/book appointments:</label>
-    <select id="calendarUserSelect" onchange="loadUserCalendarData()">
-      <option value="">-- Choose User --</option>
-    </select>
-  </div>
-</div>
-
-<!-- 2. CONTENT CALENDAR (Editorial Dynamic Calendar Grid) -->
-<div class="panel">
-  <div class="calendar-top-bar">
-    <div class="calendar-top-left">
-      <span class="calendar-title-text">Content Calendar</span>
-      <div class="view-toggle">
-        <button class="view-btn active">Month</button>
-        <button class="view-btn">Week</button>
-        <button class="view-btn">List</button>
-      </div>
-    </div>
-    <div class="month-nav-controls">
-      <button class="month-arrow-btn" id="adminCalPrev">&lt;</button>
-      <span class="month-display-name" id="adminCalMonthTitle">Loading...</span>
-      <button class="month-arrow-btn" id="adminCalNext">&gt;</button>
-    </div>
-  </div>
-
-  <div class="ui-calendar-grid" id="adminUiCalendarGrid">
-    <!-- Grid elements generated dynamically by JavaScript -->
-  </div>
-</div>
-
-<!-- 3. BOOK NEW APPOINTMENT FORM -->
-<div class="panel" id="bookingSection" style="display:none;">
-  <div class="panel-body">
-    <h2>Book New Appointment</h2>
-    <div class="form-grid">
-      <div>
-        <label>Appointment Title</label>
-        <input type="text" id="appTitle" placeholder="e.g. Project Discussion">
-      </div>
-      <div>
-        <label>Date</label>
-        <input type="date" id="appDate">
-      </div>
-      <div>
-        <label>Time</label>
-        <input type="time" id="appTime">
-      </div>
-      <div>
-        <button class="btn-primary" onclick="createNewAppointment()">Send Request</button>
-      </div>
-    </div>
-  </div>
-</div>
-<!-- SEND APPOINTMENT DIRECTLY -->
-<div class="panel" id="sendSection" style="display:none;">
-  <div class="panel-body">
-    <h2>Send Appointment</h2>
-
-    <div class="form-grid">
-      <div>
-        <label>Appointment Title</label>
-        <input type="text" id="sendTitle" placeholder="Appointment Title">
+    <div class="page-header">
+      <div class="page-title">
+        <h1>Dynamic Content Calendar</h1>
+        <p>Manage and schedule your enterprise content releases and appointments.</p>
       </div>
 
-      <div>
-        <label>Date</label>
-        <input type="date" id="sendDate">
-      </div>
-
-      <div>
-        <label>Time</label>
-        <input type="time" id="sendTime">
-      </div>
-
-      <div>
-        <button class="btn-primary" onclick="sendAppointmentDirect()">
-          Send Appointment
-        </button>
+      <div class="view-toggle" id="viewToggle">
+        <button type="button" class="view-btn" data-view="day">Day</button>
+        <button type="button" class="view-btn" data-view="week">Week</button>
+        <button type="button" class="view-btn active" data-view="month">Month</button>
       </div>
     </div>
 
-  </div>
-</div>
-{% comment %} <!-- 4. BLOCKED SLOTS BY USER & APPOINTMENTS LIST -->
-<div class="panel" id="calendarDataSection" style="display:none;">
-  <div class="panel-body">
-    <h2>Blocked Slots by User</h2>
-    <p style="font-size:13px; color:#667085;">Times the user has marked as unavailable:</p>
-    <ul id="userBlockedList" class="blocked-list">
-      <li>No blocked slots set.</li>
-    </ul>
-
-    <h2 style="margin-top:30px;">Appointments List</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Title</th>
-          <th>Date</th>
-          <th>Time</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody id="adminAppointmentsTable">
-        <tr><td colspan="4">No appointments recorded for this user.</td></tr>
-      </tbody>
-    </table>
-  </div>
-</div> {% endcomment %}
-
-<!-- 5. REVIEW QUEUE PANEL -->
-<div class="panel">
-  <div class="panel-body">
-    <div class="queue-header">
-      <div class="queue-title-wrap">
-        <div class="queue-title">
-          <span>📝 Review Queue</span>
-          <span class="queue-badge">3 PENDING</span>
+    <!-- Calendar grid -->
+    <div class="card">
+      <div class="card-header">
+        <div class="calendar-controls">
+          <span class="month-title" id="calendarMonthTitle">Loading...</span>
+          <button class="nav-arrow" id="prevMonthBtn" aria-label="Previous">&lt;</button>
+          <button class="nav-arrow" id="nextMonthBtn" aria-label="Next">&gt;</button>
         </div>
+        <button class="btn-today" id="todayBtn">Today</button>
       </div>
-      <a href="#" class="queue-view-all">View All</a>
+
+      <div class="calendar-grid" id="calendarGrid"></div>
     </div>
 
-    <div class="queue-list">
-      <div class="queue-item">
-        <div class="queue-item-left">
-          <div class="queue-icon-box">🖼️</div>
-          <div class="queue-item-info">
-            <h4>Global Q4 Branding Assets</h4>
-            <p>Created by Sarah J. • 2 hours ago</p>
-          </div>
-        </div>
-        <div class="queue-item-actions">
-          <button class="btn-details">Details</button>
-          <button class="btn-approve">Approve</button>
-        </div>
+    <!-- What is on for the selected day -->
+    <div class="card">
+      <div class="section-head">
+        <h3 id="dailyScheduleTitle">Daily meeting Schedule</h3>
       </div>
-
-      <div class="queue-item">
-        <div class="queue-item-left">
-          <div class="queue-icon-box">📄</div>
-          <div class="queue-item-info">
-            <h4>Customer Sentiment Analysis Draft</h4>
-            <p>Created by Mark T. • 5 hours ago</p>
-          </div>
-        </div>
-        <div class="queue-item-actions">
-          <button class="btn-details">Details</button>
-          <button class="btn-approve">Approve</button>
-        </div>
-      </div>
-
-      <div class="queue-item">
-        <div class="queue-item-left">
-          <div class="queue-icon-box">📱</div>
-          <div class="queue-item-info">
-            <h4>New Mobile UI Feedback Loop</h4>
-            <p>Created by Elena R. • Yesterday</p>
-          </div>
-        </div>
-        <div class="queue-item-actions">
-          <button class="btn-details">Details</button>
-          <button class="btn-approve">Approve</button>
-        </div>
-      </div>
+      <div class="schedule-list" id="dailySchedule"></div>
     </div>
-  </div>
-</div>
+
+    <!-- Requests waiting on an admin's answer -->
+    <div class="card">
+      <div class="section-head">
+        <h3>Approvals Hub</h3>
+        <button type="button" class="section-link" onclick="toggleApprovals()"
+                id="approvalsToggle">View All Requests</button>
+      </div>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Meeting &amp; Survey Item</th>
+            <th>Requester</th>
+            <th>Date / Time</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="approvalsTable">
+          <tr><td colspan="4" class="empty-cell">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Requests this admin team has sent out -->
+    <div class="card">
+      <div class="section-head">
+        <h3>Your requests</h3>
+      </div>
+      <div class="request-list" id="yourRequests"></div>
+    </div>
+
+    <!-- Ask a client for time -->
+    <div class="card">
+      <div class="section-head">
+        <h3>Send a new request</h3>
+      </div>
+      <p class="section-sub">Pick a client and ask for a slot. They confirm or decline it.</p>
+
+      <div class="request-form">
+        <div class="full">
+          <label for="reqClient">Client</label>
+          <select id="reqClient">
+            <option value="">Select a client</option>
+          </select>
+          <p class="section-sub" style="margin:7px 0 0;">
+            Every account at that company gets the request, one each, so they
+            can answer for their own diary.
+          </p>
+        </div>
+        <div>
+          <label for="reqDate">Preferred date</label>
+          <input type="date" id="reqDate">
+        </div>
+        <div>
+          <label for="reqTime">Preferred time</label>
+          <input type="time" id="reqTime">
+        </div>
+        <div class="full">
+          <label for="reqTopic">Topic</label>
+          <input type="text" id="reqTopic" maxlength="200" placeholder="e.g. Q3 content review">
+        </div>
+        <div class="full">
+          <label for="reqNotes">Notes for the client</label>
+          <textarea id="reqNotes" placeholder="Anything they should know before the call"></textarea>
+        </div>
+      </div>
+
+      <button class="btn-primary" style="margin-top:16px;" onclick="sendRequest()"
+              id="sendRequestBtn">Send request</button>
+
+      <div class="form-status" id="requestStatus"></div>
+    </div>
 
 <script>
 let adminToken = localStorage.getItem("admin_token");
 let adminUser = JSON.parse(localStorage.getItem("admin_user") || "{}");
 
-if(!adminToken || !adminUser.role){
+if (!adminToken || !adminUser.role) {
   window.location.href = "admin-login.html";
 }
 
-// Users Management is open to every admin, so the sidebar no longer hides it.
+let currentDate = new Date();
 
-function logoutAdmin() {
-  localStorage.removeItem("admin_token");
-  localStorage.removeItem("admin_user");
-  location.href = "admin-login.html";
+// The day the schedule panel is describing. Clicking a cell moves it; the
+// Day and Week views narrow the grid around it.
+let selectedDate = toDateStr(new Date());
+
+let currentView = "month";
+let showAllApprovals = false;
+
+let calendarEvents = { appointments: [] };
+let myAdminId = 0;
+
+const MONTHS = ["January", "February", "March", "April", "May", "June",
+                "July", "August", "September", "October", "November", "December"];
+
+const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/* ── Small helpers ─────────────────────────────────────────────────────── */
+
+function esc(value) {
+  return String(value == null ? "" : value)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
-let currentCalDate = new Date();
-let activeUserCalendarData = { blocked: [], appointments: [] };
+function toDateStr(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
 
-// Render Dynamic Editorial Calendar
-function renderAdminCalendar() {
-  const grid = document.getElementById("adminUiCalendarGrid");
-  const monthTitle = document.getElementById("adminCalMonthTitle");
+function parseDateStr(value) {
+  const [y, m, d] = String(value || "").split("-").map(Number);
+  return new Date(y || 1970, (m || 1) - 1, d || 1);
+}
+
+/** "3:00 PM" from either "15:00" or "15:00:00". */
+function prettyTime(value) {
+  const [h, m] = String(value || "").split(":").map(Number);
+
+  if (Number.isNaN(h)) return "";
+
+  const suffix = h >= 12 ? "PM" : "AM";
+  const hour = h % 12 === 0 ? 12 : h % 12;
+
+  return `${hour}:${String(m || 0).padStart(2, "0")} ${suffix}`;
+}
+
+/** "Aug 12, 2026". */
+function prettyDate(value) {
+  const date = parseDateStr(value);
+  return `${MONTHS_SHORT[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+}
+
+function initials(name) {
+  return String(name || "?").trim().charAt(0).toUpperCase() || "?";
+}
+
+function statusLabel(status) {
+  if (status === "approved") return "Confirmed";
+  if (status === "rejected") return "Declined";
+  return "Pending";
+}
+
+/* Rows a client raised, and rows this admin team raised. */
+function clientRequests() {
+  return calendarEvents.appointments.filter(a => a.requested_by === "user");
+}
+
+function ourRequests() {
+  return calendarEvents.appointments.filter(a => (a.requested_by || "admin") === "admin");
+}
+
+/* ── Load ──────────────────────────────────────────────────────────────── */
+
+/* ── Local preview data ────────────────────────────────────────────────────
+   The bypass button on admin-login.html writes a token no server will accept,
+   so there is nothing to fetch. Rather than show four empty panels, the page
+   runs on this fixture instead and keeps every action working in memory.
+   Nothing here is reachable with a real session - delete the block and the
+   PREVIEW guards below to drop it. */
+
+const PREVIEW = adminToken === "preview";
+
+const DEMO_CLIENTS = ["Acme Media", "Northwind", "Vertex Labs"];
+
+function demoDate(offset) {
+  const date = new Date();
+  date.setDate(date.getDate() + offset);
+  return toDateStr(date);
+}
+
+function demoData() {
+  return {
+    appointments: [
+      { id: 1, title: "AI Research Interview", topic: "AI Research Interview",
+        notes: "Wants the Q3 numbers first", date: demoDate(0), time: "10:30:00",
+        status: "pending", requested_by: "user",
+        user_name: "Jane Cooper", company_name: "Acme Media", client: "Acme Media" },
+
+      { id: 2, title: "Lead Gen Survey Review", topic: "Lead Gen Survey Review",
+        notes: "", date: demoDate(2), time: "15:00:00",
+        status: "pending", requested_by: "user",
+        user_name: "Peter Lee", company_name: "Northwind", client: "Northwind" },
+
+      { id: 3, title: "Modern SaaS Architecture", topic: "Modern SaaS Architecture",
+        notes: "Kick-off for the new build", date: demoDate(0), time: "09:30:00",
+        status: "approved", requested_by: "admin", admin_name: "Sarah Miller",
+        user_name: "Jane Cooper", company_name: "Acme Media", client: "Acme Media" },
+
+      { id: 4, title: "User Experience Trends", topic: "User Experience Trends",
+        notes: "", date: demoDate(1), time: "12:00:00",
+        status: "approved", requested_by: "admin", admin_name: "Sarah Miller",
+        user_name: "Dana White", company_name: "Vertex Labs", client: "Vertex Labs" },
+
+      { id: 5, title: "Feedback loop review", topic: "Feedback loop review",
+        notes: "", date: demoDate(6), time: "15:00:00",
+        status: "pending", requested_by: "admin", admin_name: "Sarah Miller",
+        user_name: "Peter Lee", company_name: "Northwind", client: "Northwind" },
+
+      { id: 6, title: "Content strategy", topic: "Content strategy",
+        notes: "", date: demoDate(-3), time: "11:00:00",
+        status: "rejected", requested_by: "admin", admin_name: "Rob Lee",
+        user_name: "Dana White", company_name: "Vertex Labs", client: "Vertex Labs" }
+    ]
+  };
+}
+
+/** Highest id in play, so a request added in preview gets a fresh one. */
+function nextDemoId() {
+  return calendarEvents.appointments.reduce((max, a) => Math.max(max, Number(a.id) || 0), 0) + 1;
+}
+
+async function fetchCalendarData() {
+
+  if (PREVIEW) {
+    calendarEvents = demoData();
+    renderAll();
+    return;
+  }
+
+  try {
+    const res = await fetch("api/calendar.php?action=get_admin_calendar", {
+      headers: { Authorization: "Bearer " + adminToken }
+    });
+
+    if (!res.ok) throw new Error(`HTTP Error! Status: ${res.status}`);
+
+    const data = await res.json();
+
+    if (!data.success) {
+      console.error(data.message);
+      return;
+    }
+
+    calendarEvents.appointments = data.appointments || [];
+    myAdminId = data.admin_id || 0;
+
+    renderAll();
+
+  } catch (err) {
+    console.error("Error fetching data:", err.message);
+  }
+}
+
+/* The Client dropdown, same list the content form offers: the distinct
+   company names on the clients this admin can reach. */
+async function loadClients() {
+  const select = document.getElementById("reqClient");
+
+  if (!select) return;
+
+  if (PREVIEW) {
+    select.innerHTML = `<option value="">Select a client</option>`
+      + DEMO_CLIENTS.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
+    return;
+  }
+
+  try {
+    const res = await fetch("api/calendar.php?action=get_clients", {
+      headers: { Authorization: "Bearer " + adminToken }
+    });
+
+    const data = await res.json();
+
+    if (!data.success) return;
+
+    select.innerHTML = `<option value="">Select a client</option>`
+      + (data.clients || []).map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
+
+  } catch (err) {
+    console.error("Could not load clients:", err);
+  }
+}
+
+function renderAll() {
+  renderCalendar();
+  renderDailySchedule();
+  renderApprovals();
+  renderYourRequests();
+}
+
+/* ── Calendar grid ─────────────────────────────────────────────────────── */
+
+/** The days the grid covers, which is what Day / Week / Month actually change. */
+function visibleDays() {
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+
+  if (currentView === "day") {
+    return [parseDateStr(selectedDate)];
+  }
+
+  if (currentView === "week") {
+    const anchor = parseDateStr(selectedDate);
+
+    // Monday-first, matching the column headers.
+    const offset = (anchor.getDay() + 6) % 7;
+    const monday = new Date(anchor);
+    monday.setDate(anchor.getDate() - offset);
+
+    return Array.from({ length: 7 }, (unused, i) => {
+      const day = new Date(monday);
+      day.setDate(monday.getDate() + i);
+      return day;
+    });
+  }
+
+  const total = new Date(year, month + 1, 0).getDate();
+
+  return Array.from({ length: total }, (unused, i) => new Date(year, month, i + 1));
+}
+
+/** A greyed-out cell from the neighbouring month, used only to pad the weeks. */
+function padCell(dayNumber) {
+  const cell = document.createElement("div");
+  cell.className = "day-cell other-month";
+  cell.innerHTML = `<span>${dayNumber}</span>`;
+  return cell;
+}
+
+function renderCalendar() {
+  const grid = document.getElementById("calendarGrid");
+  const monthTitle = document.getElementById("calendarMonthTitle");
+
   if (!grid || !monthTitle) return;
 
-  const year = currentCalDate.getFullYear();
-  const month = currentCalDate.getMonth();
+  monthTitle.innerText = `${MONTHS[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
 
-  const monthNames = ["January", "February", "March", "April", "May", "June", 
-                      "July", "August", "September", "October", "November", "December"];
-  monthTitle.innerText = `${monthNames[month]} ${year}`;
+  const headers = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  grid.innerHTML = headers.map(day => `<div class="day-header">${day}</div>`).join("");
 
-  grid.innerHTML = `
-    <div class="ui-day-header">Mon</div>
-    <div class="ui-day-header">Tue</div>
-    <div class="ui-day-header">Wed</div>
-    <div class="ui-day-header">Thu</div>
-    <div class="ui-day-header">Fri</div>
-    <div class="ui-day-header">Sat</div>
-    <div class="ui-day-header">Sun</div>
-  `;
+  const days = visibleDays();
+  const todayStr = toDateStr(new Date());
 
-  const firstDay = new Date(year, month, 1);
-  const lastDay = new Date(year, month + 1, 0);
+  // Month view pads to whole weeks so the columns line up with the headers.
+  // These go in as nodes, never through innerHTML: assigning innerHTML on the
+  // grid re-parses it and would drop the click handlers set further down.
+  if (currentView === "month") {
+    const lead = (days[0].getDay() + 6) % 7;
+    const prevLast = new Date(days[0].getFullYear(), days[0].getMonth(), 0).getDate();
 
-  let startingDay = firstDay.getDay() - 1;
-  if (startingDay === -1) startingDay = 6;
-
-  const totalDays = lastDay.getDate();
-  const prevMonthLastDay = new Date(year, month, 0).getDate();
-
-  const today = new Date();
-  const isCurrentMonthReal = today.getFullYear() === year && today.getMonth() === month;
-
-  // Fill previous month trailing days
-  for (let i = startingDay; i > 0; i--) {
-    const cell = document.createElement("div");
-    cell.className = "ui-day-cell other-month";
-    cell.innerHTML = `<span class="num">${prevMonthLastDay - i + 1}</span>`;
-    grid.appendChild(cell);
+    for (let i = lead; i > 0; i--) {
+      grid.appendChild(padCell(prevLast - i + 1));
+    }
   }
 
-  // Fill current month days
-  for (let day = 1; day <= totalDays; day++) {
+  days.forEach(day => {
+    const dateStr = toDateStr(day);
+
     const cell = document.createElement("div");
-    const isToday = isCurrentMonthReal && day === today.getDate();
-    cell.className = `ui-day-cell ${isToday ? 'is-today' : ''}`;
-    cell.innerHTML = `<span class="num">${day}</span>`;
-    cell.onclick = function () {
-    showDayDetails(dateStr);
-};
+    cell.className = "day-cell"
+      + (dateStr === todayStr ? " today-cell" : "")
+      + (dateStr === selectedDate && currentView !== "day" ? " selected-cell" : "");
 
-    const formattedMonth = String(month + 1).padStart(2, '0');
-    const formattedDay = String(day).padStart(2, '0');
-    const dateStr = `${year}-${formattedMonth}-${formattedDay}`;
+    cell.innerHTML = `<span>${day.getDate()}</span>`;
 
-    // Display appointments
-    const dayApps = activeUserCalendarData.appointments.filter(a => a.date === dateStr);
-    dayApps.forEach(app => {
-      const statusClass = app.status || 'pending';
-      cell.innerHTML += `
-        <div class="cal-event-tag ${statusClass}">
-          <b>${app.title}</b><br><small>${app.time}</small>
-        </div>
-      `;
-    });
-
-    // Display blocked slots
-    const dayBlocked = activeUserCalendarData.blocked.filter(b => b.date === dateStr);
-    dayBlocked.forEach(b => {
-      const startTime = b.start_time ? b.start_time.substring(0,5) : '';
-      const endTime = b.end_time ? b.end_time.substring(0,5) : '';
-      cell.innerHTML += `
-        <div class="cal-event-tag blocked">
-          🚫 Blocked<br><small>${startTime}-${endTime}</small>
-        </div>
-      `;
-    });
-
-    grid.appendChild(cell);
-  }
-
-  // Fill next month leading days
-  const totalCells = grid.children.length - 7;
-  const remainingCells = (7 - (totalCells % 7)) % 7;
-  for (let i = 1; i <= remainingCells; i++) {
-    const cell = document.createElement("div");
-    cell.className = "ui-day-cell other-month";
-    cell.innerHTML = `<span class="num">${i}</span>`;
-    grid.appendChild(cell);
-  }
-}
-
-// 1. Fetch Users Dropdown
-async function loadUsersDropdown() {
-  try {
-    const res = await fetch("api/admin-users.php", {
-      headers: { Authorization: "Bearer " + adminToken }
-    });
-    
-    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-
-    const data = await res.json();
-    const select = document.getElementById("calendarUserSelect");
-    select.innerHTML = `<option value="">-- Choose User --</option>`;
-
-    const usersList = data.users || data.data || [];
-
-    if (usersList.length > 0) {
-      usersList.forEach(u => {
-        const name = u.name || u.full_name || u.username || u.email;
-        select.innerHTML += `<option value="${u.id}">${name} (${u.email})</option>`;
+    calendarEvents.appointments
+      .filter(a => a.date === dateStr)
+      .forEach(a => {
+        cell.innerHTML += `
+          <div class="event-card ${esc(a.status || "pending")}">
+            ● <b>${esc(a.topic || a.title || "Meeting")}</b><br>
+            <small>${esc(a.user_name || "")} · ${esc(prettyTime(a.time))}</small>
+          </div>
+        `;
       });
-    } else {
-      select.innerHTML = `<option value="">-- No Users Found --</option>`;
+
+    cell.onclick = () => {
+      selectedDate = dateStr;
+      renderCalendar();
+      renderDailySchedule();
+    };
+
+    grid.appendChild(cell);
+  });
+
+  if (currentView === "month") {
+    const cells = grid.children.length - 7;
+    const trail = (7 - (cells % 7)) % 7;
+
+    for (let i = 1; i <= trail; i++) {
+      grid.appendChild(padCell(i));
     }
-  } catch (err) {
-    console.error("Error fetching users:", err);
   }
 }
 
-// 2. Fetch User's Calendar & Blocked Slots
-async function loadUserCalendarData() {
-  const userId = document.getElementById("calendarUserSelect").value;
-  const bookingSection = document.getElementById("bookingSection");
-  const dataSection = document.getElementById("calendarDataSection");
+/* ── Daily schedule ────────────────────────────────────────────────────── */
 
-  if (!userId) {
-    bookingSection.style.display = "none";
-    document.getElementById("sendSection").style.display="none";
-    dataSection.style.display = "none";
-    activeUserCalendarData = { blocked: [], appointments: [] };
-    renderAdminCalendar();
+function renderDailySchedule() {
+  const list = document.getElementById("dailySchedule");
+  const title = document.getElementById("dailyScheduleTitle");
+
+  if (!list) return;
+
+  title.innerText = `Daily meeting Schedule – ${prettyDate(selectedDate)}`;
+
+  const rows = calendarEvents.appointments
+    .filter(a => a.date === selectedDate)
+    .sort((a, b) => String(a.time).localeCompare(String(b.time)));
+
+  if (!rows.length) {
+    list.innerHTML = `<div class="empty-cell" style="padding:22px 0;">Nothing scheduled for this day.</div>`;
     return;
   }
 
-  bookingSection.style.display = "block";
-  document.getElementById("sendSection").style.display = "block";
-  dataSection.style.display = "block";
+  list.innerHTML = rows.map(row => {
+    const date = parseDateStr(row.date);
+    const who = row.client || row.company_name || row.user_name || "Client";
 
-  try {
-    const res = await fetch(`api/calendar.php?action=get_admin_calendar_data&user_id=${userId}`, {
-      headers: { Authorization: "Bearer " + adminToken }
-    });
-    const data = await res.json();
+    return `
+      <div class="schedule-row">
+        <div class="schedule-date">
+          <span class="m">${MONTHS_SHORT[date.getMonth()]}</span>
+          <span class="d">${String(date.getDate()).padStart(2, "0")}</span>
+        </div>
 
-    activeUserCalendarData.blocked = data.blocked || [];
-    activeUserCalendarData.appointments = data.appointments || [];
+        <div class="schedule-info">
+          <h4>${esc(row.topic || row.title || "Meeting")}</h4>
+          <p>${esc(who)} · ${esc(row.user_name || "")}</p>
+        </div>
 
-    // Re-render Dynamic Top Calendar Grid
-    renderAdminCalendar();
-
-    // Render Blocked Slots List
-    const blockedList = document.getElementById("userBlockedList");
-    if (!data.blocked || !data.blocked.length) {
-      blockedList.innerHTML = `<li>No unavailable times set by user.</li>`;
-    } else {
-      blockedList.innerHTML = data.blocked.map(b => 
-        `<li>Date: <b>${b.date}</b> | Unavailable from <b>${b.start_time}</b> to <b>${b.end_time}</b></li>`
-      ).join("");
-    }
-
-    // Render Appointments Table
-    const tbody = document.getElementById("adminAppointmentsTable");
-    if (!data.appointments || !data.appointments.length) {
-      tbody.innerHTML = `<tr><td colspan="4">No appointments recorded for this user.</td></tr>`;
-    } else {
-      tbody.innerHTML = data.appointments.map(a => `
-        <tr>
-          <td>${a.title}</td>
-          <td>${a.date}</td>
-          <td>${a.time}</td>
-          <td><span class="badge ${a.status}">${a.status}</span></td>
-        </tr>
-      `).join("");
-    }
-  } catch (err) {
-    console.error("Error loading calendar data", err);
-  }
+        <span class="schedule-time">${esc(prettyTime(row.time))}</span>
+        <span class="badge ${esc(row.status || "pending")}">${statusLabel(row.status)}</span>
+      </div>
+    `;
+  }).join("");
 }
 
-// 3. Create Appointment from Admin
-async function createNewAppointment() {
-  const userId = document.getElementById("calendarUserSelect").value;
-  const title = document.getElementById("appTitle").value.trim();
-  const date = document.getElementById("appDate").value;
-  const time = document.getElementById("appTime").value;
+/* ── Approvals Hub ─────────────────────────────────────────────────────── */
 
-  if (!userId || !title || !date || !time) {
-    alert("Please fill all appointment details!");
+function toggleApprovals() {
+  showAllApprovals = !showAllApprovals;
+
+  document.getElementById("approvalsToggle").innerText =
+    showAllApprovals ? "Show pending only" : "View All Requests";
+
+  renderApprovals();
+}
+
+function renderApprovals() {
+  const table = document.getElementById("approvalsTable");
+
+  if (!table) return;
+
+  // Only client-raised rows are the admin's to answer; the ones this team
+  // sent out wait on the client and live in "Your requests" instead.
+  const rows = clientRequests()
+    .filter(a => showAllApprovals || (a.status || "pending") === "pending")
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+
+  if (!rows.length) {
+    table.innerHTML = `
+      <tr><td colspan="4" class="empty-cell">
+        ${showAllApprovals ? "No client requests yet." : "Nothing waiting on you."}
+      </td></tr>
+    `;
+    return;
+  }
+
+  table.innerHTML = rows.map(row => {
+    const pending = (row.status || "pending") === "pending";
+    const requester = row.user_name || "Client";
+
+    const actions = pending
+      ? `
+        <div class="row-actions">
+          <button class="icon-btn" title="Decline" aria-label="Decline"
+                  onclick="respondRequest(${row.id}, 'rejected')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
+          <button class="icon-btn confirm" title="Confirm" aria-label="Confirm"
+                  onclick="respondRequest(${row.id}, 'approved')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          </button>
+        </div>
+      `
+      : `<span class="badge ${esc(row.status)}">${statusLabel(row.status)}</span>`;
+
+    return `
+      <tr>
+        <td>
+          <div class="primary-cell">${esc(row.topic || row.title || "Meeting")}</div>
+          <div class="sub-cell">${esc(row.notes || "No notes")}</div>
+        </td>
+        <td>
+          <div class="who">
+            <span class="who-avatar">${esc(initials(requester))}</span>
+            <div>
+              <strong>${esc(requester)}</strong>
+              <div class="sub-cell">${esc(row.company_name || "")}</div>
+            </div>
+          </div>
+        </td>
+        <td>
+          <div class="primary-cell" style="font-size:13px;">${esc(prettyDate(row.date))}</div>
+          <div class="sub-cell">${esc(prettyTime(row.time))}</div>
+        </td>
+        <td>${actions}</td>
+      </tr>
+    `;
+  }).join("");
+}
+
+/* ── Your requests ─────────────────────────────────────────────────────── */
+
+function renderYourRequests() {
+  const list = document.getElementById("yourRequests");
+
+  if (!list) return;
+
+  const rows = ourRequests()
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+
+  if (!rows.length) {
+    list.innerHTML = `<div class="empty-cell" style="padding:22px 0;">Your team has not asked a client for a meeting yet.</div>`;
+    return;
+  }
+
+  list.innerHTML = rows.map(row => `
+    <div class="request-item">
+      <div>
+        <h4>${esc(row.topic || row.title || "Meeting")}</h4>
+        <p>
+          ${esc(row.client || row.company_name || "Client")} ·
+          ${esc(row.user_name || "")} ·
+          Requested for ${esc(prettyDate(row.date))} · ${esc(prettyTime(row.time))}
+        </p>
+      </div>
+      <span class="badge ${esc(row.status || "pending")}">${statusLabel(row.status)}</span>
+    </div>
+  `).join("");
+}
+
+/* ── Actions ───────────────────────────────────────────────────────────── */
+
+async function respondRequest(id, status) {
+
+  if (PREVIEW) {
+    const row = calendarEvents.appointments.find(a => Number(a.id) === Number(id));
+    if (row) row.status = status;
+    renderAll();
     return;
   }
 
   try {
-    const res = await fetch("api/calendar.php?action=create_appointment", {
+    const res = await fetch("api/calendar.php?action=respond_request", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: "Bearer " + adminToken
       },
-      body: JSON.stringify({ user_id: userId, title, date, time })
+      body: JSON.stringify({ id, status })
     });
 
     const data = await res.json();
-    alert(data.message);
+    alert(data.message || "Status updated!");
 
-    if (data.success) {
-      document.getElementById("appTitle").value = "";
-      document.getElementById("appDate").value = "";
-      document.getElementById("appTime").value = "";
-      await loadUserCalendarData();
-    }
+    await fetchCalendarData();
+
   } catch (err) {
-    alert("Error creating appointment");
+    console.error(err);
+    alert("Failed to update status");
   }
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  document.getElementById("adminCalPrev").onclick = () => {
-    currentCalDate.setDate(1);
-    currentCalDate.setMonth(currentCalDate.getMonth() - 1);
-    renderAdminCalendar();
+async function sendRequest() {
+  const status = document.getElementById("requestStatus");
+  const button = document.getElementById("sendRequestBtn");
+
+  const client = document.getElementById("reqClient").value;
+  const date = document.getElementById("reqDate").value;
+  const time = document.getElementById("reqTime").value;
+  const topic = document.getElementById("reqTopic").value.trim();
+  const notes = document.getElementById("reqNotes").value.trim();
+
+  const fail = message => {
+    status.innerText = message;
+    status.className = "form-status error";
   };
 
-  document.getElementById("adminCalNext").onclick = () => {
-    currentCalDate.setDate(1);
-    currentCalDate.setMonth(currentCalDate.getMonth() + 1);
-    renderAdminCalendar();
-  };
+  if (!client) {
+    fail("Pick the client this request is for.");
+    return;
+  }
 
-  renderAdminCalendar();
-  loadUsersDropdown();
-});
-async function sendAppointmentDirect(){
+  if (!date || !time) {
+    fail("Pick a preferred date and time.");
+    return;
+  }
 
-    const userId=document.getElementById("calendarUserSelect").value;
+  if (!topic) {
+    fail("Say what the meeting is about.");
+    return;
+  }
 
-    const title=document.getElementById("sendTitle").value.trim();
+  status.innerText = "Sending...";
+  status.className = "form-status";
+  button.disabled = true;
 
-    const date=document.getElementById("sendDate").value;
-
-    const time=document.getElementById("sendTime").value;
-
-    if(!userId || !title || !date || !time){
-        alert("Please fill all fields");
-        return;
-    }
-
-    const res=await fetch("api/calendar.php?action=send_appointment",{
-
-        method:"POST",
-
-        headers:{
-            "Content-Type":"application/json",
-            Authorization:"Bearer "+adminToken
-        },
-
-        body:JSON.stringify({
-
-            user_id:userId,
-            title:title,
-            date:date,
-            time:time
-
-        })
-
+  if (PREVIEW) {
+    calendarEvents.appointments.push({
+      id: nextDemoId(), title: topic, topic, notes,
+      date, time: time + ":00", status: "pending", requested_by: "admin",
+      admin_name: "Sarah Miller", user_name: client + " team",
+      company_name: client, client
     });
 
-    const data=await res.json();
+    document.getElementById("reqTopic").value = "";
+    document.getElementById("reqNotes").value = "";
 
-    alert(data.message);
+    status.innerText = "Request sent to 1 client.";
+    status.className = "form-status ok";
+    button.disabled = false;
 
-    if(data.success){
+    renderAll();
+    return;
+  }
 
-        document.getElementById("sendTitle").value="";
-        document.getElementById("sendDate").value="";
-        document.getElementById("sendTime").value="";
+  try {
+    const res = await fetch("api/calendar.php?action=create_admin_request", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + adminToken
+      },
+      body: JSON.stringify({ client, date, time, topic, notes })
+    });
 
-        loadUserCalendarData();
+    const data = await res.json();
 
+    status.innerText = data.message;
+    status.className = "form-status " + (data.success ? "ok" : "error");
+
+    if (data.success) {
+      document.getElementById("reqDate").value = "";
+      document.getElementById("reqTime").value = "";
+      document.getElementById("reqTopic").value = "";
+      document.getElementById("reqNotes").value = "";
     }
 
+    await fetchCalendarData();
+
+  } catch (err) {
+    console.error(err);
+    fail("Network or server error.");
+  }
+
+  button.disabled = false;
 }
-function showDayDetails(date){
 
-    const dayApps = activeUserCalendarData.appointments.filter(a => a.date === date);
-    const dayBlocked = activeUserCalendarData.blocked.filter(b => b.date === date);
+/* ── Chrome ────────────────────────────────────────────────────────────── */
 
-    let content = `
-        <h2>Day Details</h2>
-        <p><b>Date:</b> ${date}</p>
-        <hr>
-    `;
-
-
-    if(dayApps.length){
-
-        content += `<h3>Appointments</h3>`;
-
-        dayApps.forEach(app => {
-            content += `
-                <div style="margin:10px 0;padding:10px;background:#f8fafc;border-radius:8px;">
-                    <b>Title:</b> ${app.title}<br>
-                    <b>Time:</b> ${app.time}<br>
-                    <b>Status:</b> ${app.status}
-                </div>
-            `;
-        });
-
-    } else {
-
-        content += `<p>No appointments on this day.</p>`;
-
-    }
-
-
-    if(dayBlocked.length){
-
-        content += `<h3 style="margin-top:15px;">Blocked Slots</h3>`;
-
-        dayBlocked.forEach(b => {
-            content += `
-                <div style="margin:10px 0;padding:10px;background:#ffe8e8;border-radius:8px;">
-                    🚫 ${b.start_time} - ${b.end_time}
-                </div>
-            `;
-        });
-
-    }
-
-
-    document.getElementById("dayPopupContent").innerHTML = content;
-    document.getElementById("dayPopup").style.display = "flex";
+function logoutAdmin() {
+  localStorage.removeItem("admin_token");
+  localStorage.removeItem("admin_user");
+  window.location.href = "admin-login.html";
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+
+  document.getElementById("prevMonthBtn").onclick = () => {
+    currentDate.setDate(1);
+    currentDate.setMonth(currentDate.getMonth() - 1);
+    renderCalendar();
+  };
+
+  document.getElementById("nextMonthBtn").onclick = () => {
+    currentDate.setDate(1);
+    currentDate.setMonth(currentDate.getMonth() + 1);
+    renderCalendar();
+  };
+
+  document.getElementById("todayBtn").onclick = () => {
+    currentDate = new Date();
+    selectedDate = toDateStr(new Date());
+    renderCalendar();
+    renderDailySchedule();
+  };
+
+  document.querySelectorAll("#viewToggle .view-btn").forEach(button => {
+    button.onclick = () => {
+      document.querySelectorAll("#viewToggle .view-btn")
+        .forEach(other => other.classList.toggle("active", other === button));
+
+      currentView = button.dataset.view;
+
+      // Day and Week read from selectedDate, so keep the month in step with
+      // whatever day is selected before repainting.
+      currentDate = parseDateStr(selectedDate);
+
+      renderCalendar();
+    };
+  });
+
+  loadClients();
+  fetchCalendarData();
+});
 </script>
 
   </div>
@@ -1033,42 +1423,6 @@ function showDayDetails(date){
       <button class="acct-logout" onclick="logoutAdmin()">&#8617; Logout</button>
     </div>
   </div>
-</div>
-<div id="dayPopup" style="
-display:none;
-position:fixed;
-inset:0;
-background:rgba(0,0,0,.4);
-align-items:center;
-justify-content:center;
-z-index:99999;
-">
-
-<div style="
-background:white;
-width:400px;
-max-width:90%;
-padding:25px;
-border-radius:15px;
-box-shadow:0 20px 50px #0003;
-">
-
-<div id="dayPopupContent"></div>
-
-<button onclick="document.getElementById('dayPopup').style.display='none'"
-style="
-margin-top:15px;
-padding:10px 20px;
-border:none;
-border-radius:8px;
-background:#1b1e3a;
-color:white;
-cursor:pointer;
-">
-Close
-</button>
-
-</div>
 </div>
 </body>
 </html>
