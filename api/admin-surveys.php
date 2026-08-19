@@ -68,7 +68,8 @@ if ($method === "GET") {
 
     if ($singleSurveyId) {
         $stmt = $pdo->prepare("
-            SELECT id, assigned_user_id, title, status, created_at
+            SELECT id, assigned_user_id, title, status, created_at,
+                   created_by_admin_id, reviewed_by_admin_id, review_note, reviewed_at
             FROM surveys
             WHERE id = ?
             LIMIT 1
@@ -148,10 +149,14 @@ if ($method === "GET") {
             surveys.title,
             surveys.status,
             surveys.created_at,
+            surveys.review_note,
+            surveys.reviewed_at,
             users.name AS user_name,
-            users.email AS user_email
+            users.email AS user_email,
+            creator.name AS created_by_name
         FROM surveys
         JOIN users ON users.id = surveys.assigned_user_id
+        LEFT JOIN admins creator ON creator.id = surveys.created_by_admin_id
         ORDER BY surveys.created_at DESC
     ");
 
@@ -164,12 +169,16 @@ if ($method === "GET") {
             surveys.title,
             surveys.status,
             surveys.created_at,
+            surveys.review_note,
+            surveys.reviewed_at,
             users.name AS user_name,
-            users.email AS user_email
+            users.email AS user_email,
+            creator.name AS created_by_name
         FROM surveys
         JOIN users ON users.id = surveys.assigned_user_id
         INNER JOIN admin_user_assignments aua
             ON aua.user_id = users.id
+        LEFT JOIN admins creator ON creator.id = surveys.created_by_admin_id
         WHERE aua.admin_id = ?
         ORDER BY surveys.created_at DESC
     ");
@@ -218,14 +227,19 @@ if ($method === "POST" || $method === "PUT") {
 
         if ($method === "POST") {
 
+            // New surveys always start life awaiting the account manager's
+            // sign-off - they are NOT visible to the assigned user yet.
+            // See admin-survey-review.php for the approve/reject step that
+            // flips this to 'pending' (which is when it actually reaches the user).
             $stmt = $pdo->prepare("
-                INSERT INTO surveys (title, assigned_user_id, status)
-                VALUES (?, ?, 'pending')
+                INSERT INTO surveys (title, assigned_user_id, status, created_by_admin_id)
+                VALUES (?, ?, 'pending_review', ?)
             ");
 
             $stmt->execute([
                 $title,
-                $assignedUserId
+                $assignedUserId,
+                $currentAdmin["id"]
             ]);
 
             $surveyId = $pdo->lastInsertId();
@@ -249,13 +263,19 @@ if ($method === "POST" || $method === "PUT") {
                 throw new Exception("Survey not found");
             }
 
-            if ($survey["status"] !== "pending") {
-                throw new Exception("Only pending surveys can be edited");
+            // Editable any time before the user has actually completed it -
+            // covers surveys still awaiting review, already approved but not
+            // yet filled out, and ones the account manager sent back.
+            if (!in_array($survey["status"], ["pending_review", "pending", "rejected"], true)) {
+                throw new Exception("Only surveys that are pending review, pending, or rejected can be edited");
             }
 
+            // Any edit re-opens the review gate: content changed, so it goes
+            // back to the account manager before it can reach the user again.
             $updateStmt = $pdo->prepare("
                 UPDATE surveys
-                SET title = ?, assigned_user_id = ?
+                SET title = ?, assigned_user_id = ?, status = 'pending_review',
+                    reviewed_by_admin_id = NULL, review_note = NULL, reviewed_at = NULL
                 WHERE id = ?
             ");
             $updateStmt->execute([
@@ -312,8 +332,8 @@ if ($method === "POST" || $method === "PUT") {
         echo json_encode([
             "success" => true,
             "message" => $method === "POST"
-                ? "Survey created successfully"
-                : "Survey updated successfully"
+                ? "Survey created successfully - awaiting account manager approval before it's sent to the user"
+                : "Survey updated successfully - sent back for account manager approval"
         ]);
         exit;
 

@@ -255,6 +255,25 @@ td{
   color:#3478f6;
 }
 
+/* Extra survey states: awaiting the account manager, and sent back to the creator. */
+.awaiting-review{
+  background:#e7f0ff;
+  color:#3478f6;
+}
+
+.rejected{
+  background:#fde8e8;
+  color:#c9000b;
+}
+
+.rejection-note{
+  display:block;
+  margin-top:4px;
+  font-size:11px;
+  color:#c9000b;
+  font-weight:600;
+}
+
 .actions{
   display:flex;
   gap:8px;
@@ -612,6 +631,10 @@ document.addEventListener("DOMContentLoaded", function () {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         <span>Calendar</span>
       </a>
+      <a href="survey-review.html" id="surveyReviewLink" title="Survey Review" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/><circle cx="18" cy="6" r="3" fill="currentColor" stroke="none"/></svg>
+        <span>Survey Review</span>
+      </a>
       <a href="settings.html" title="Settings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         <span>Settings</span>
@@ -641,7 +664,7 @@ document.addEventListener("DOMContentLoaded", function () {
   <div class="panel">
     <div class="panel-head">
       <h1>Create Form & Checklist</h1>
-      <p>Assign a form or checklist with custom questions/items to a specific approved user.</p>
+      <p>Assign a form or checklist with custom questions/items to a specific approved user. Submissions are sent to the account manager for approval before the user sees them.</p>
     </div>
 
     <div class="form">
@@ -669,7 +692,7 @@ document.addEventListener("DOMContentLoaded", function () {
         </button>
 
         <button class="primary-btn" id="surveySubmitBtn" onclick="saveSurvey()" type="button">
-          Create Form & Checklist
+          Submit for Approval
         </button>
 
         <button class="secondary-btn" id="cancelEditBtn" onclick="cancelEditSurvey()" type="button" style="display:none;">
@@ -699,7 +722,9 @@ document.addEventListener("DOMContentLoaded", function () {
     <label>Filter by Status</label>
     <select id="surveyStatusFilter" onchange="renderSurveysTable()">
       <option value="all">All Status</option>
+      <option value="pending_review">Awaiting Approval</option>
       <option value="pending">Pending</option>
+      <option value="rejected">Rejected</option>
       <option value="completed">Completed</option>
     </select>
   </div>
@@ -735,6 +760,18 @@ let adminUser = JSON.parse(localStorage.getItem("admin_user") || "{}");
 
 if(!adminToken || !adminUser.role){
   window.location.href = "admin-login.html";
+}
+
+// Account managers don't build surveys - their job is reviewing the ones
+// other admins create, so they land straight on the review queue instead.
+if(adminUser.role === "account_manager"){
+  window.location.href = "survey-review.html";
+}
+
+// The owner can also see the review queue link, for oversight.
+if(adminUser.role === "account_manager" || adminUser.role === "owner"){
+  const reviewLink = document.getElementById("surveyReviewLink");
+  if(reviewLink) reviewLink.style.display = "";
 }
 
 function logoutAdmin(){
@@ -948,22 +985,38 @@ function renderSurveysTable(){
     return;
   }
 
-  surveysTable.innerHTML = surveys.map(survey => `
+  const statusMeta = {
+    pending_review: { label: "Awaiting Approval", cls: "awaiting-review" },
+    pending: { label: "Pending", cls: "pending" },
+    rejected: { label: "Rejected", cls: "rejected" },
+    completed: { label: "Completed", cls: "approved" }
+  };
+
+  surveysTable.innerHTML = surveys.map(survey => {
+    const meta = statusMeta[survey.status] || { label: survey.status, cls: "pending" };
+    const editable = ["pending_review", "pending", "rejected"].includes(survey.status);
+
+    return `
     <tr>
       <td>#${survey.id}</td>
       <td>${survey.title}</td>
       <td>${survey.user_name}</td>
       <td>${survey.user_email}</td>
       <td>
-  <span class="badge ${survey.status === 'completed' ? 'approved' : 'pending'}">
-    ${survey.status}
+  <span class="badge ${meta.cls}">
+    ${meta.label}
   </span>
+  ${
+    survey.status === "rejected" && survey.review_note
+    ? `<span class="rejection-note">Reason: ${survey.review_note}</span>`
+    : ``
+  }
 </td>
       <td>${survey.created_at}</td>
       <td>
   <div class="actions">
     ${
-      survey.status === "pending"
+      editable
       ? `<button class="btn action-btn" onclick="editSurvey(${survey.id})">Edit</button>`
       : ``
     }
@@ -976,7 +1029,8 @@ function renderSurveysTable(){
   </div>
 </td>
     </tr>
-  `).join("");
+  `;
+  }).join("");
 }
 async function editSurvey(surveyId){
   editingSurveyId = surveyId;
@@ -998,8 +1052,8 @@ async function editSurvey(surveyId){
       return;
     }
 
-    if(data.survey.status !== "pending"){
-      alert("Only pending forms can be edited.");
+    if(!["pending_review", "pending", "rejected"].includes(data.survey.status)){
+      alert("Only forms awaiting approval, pending, or rejected can be edited.");
       return;
     }
 
@@ -1024,7 +1078,9 @@ async function editSurvey(surveyId){
       addEditQuestion(q.question_text, q.question_type, chipsText);
     });
 
-    status.innerText = "";
+    status.innerText = (data.survey.status === "rejected" && data.survey.review_note)
+      ? "Rejected by account manager: " + data.survey.review_note
+      : "";
     document.getElementById("editSurveyModal").classList.add("show");
 
   }catch(error){
@@ -1041,7 +1097,7 @@ function cancelEditSurvey(){
 
   addQuestion();
 
-  document.getElementById("surveySubmitBtn").innerText = "Create Survey & Checklist";
+  document.getElementById("surveySubmitBtn").innerText = "Submit for Approval";
   document.getElementById("cancelEditBtn").style.display = "none";
   document.getElementById("surveyStatus").innerText = "";
 }
@@ -1393,7 +1449,7 @@ async function saveSurvey(){
     if(data.success){
       clearDraft();
       editingSurveyId = null;
-      document.getElementById("surveySubmitBtn").innerText = "Create Survey & Checklist";
+      document.getElementById("surveySubmitBtn").innerText = "Submit for Approval";
       document.getElementById("cancelEditBtn").style.display = "none";
       document.getElementById("surveyTitle").value = "";
       document.getElementById("assignedUser").value = "";
