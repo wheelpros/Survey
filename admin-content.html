@@ -128,9 +128,9 @@ body{background:#f6f7fb;color:var(--text);padding:0}
 .detail-footer{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:flex-start;gap:22px 40px}
 .detail-footer .field{min-width:0}
 .link-slot:empty{display:none}
-.view-link{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:800;color:var(--nav-active);text-decoration:none;border:1px solid #dfe3ea;border-radius:9px;padding:8px 14px;white-space:nowrap}
-.view-link:hover{background:#f6f7f9}
-.view-link svg{width:14px;height:14px}
+/* A plain blue link, not a button: no frame, no icon. */
+.view-link{display:inline-block;font-size:13px;font-weight:800;color:#1d6fe0;text-decoration:none;white-space:nowrap}
+.view-link:hover{text-decoration:underline}
 
 .empty{background:#fff;border-radius:18px;padding:30px;color:var(--muted);grid-column:1/-1}
 
@@ -431,11 +431,7 @@ function renderLink(item){
   anchor.target = "_blank";
   anchor.rel = "noopener noreferrer";
   anchor.title = item.link;
-  anchor.innerHTML =
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
-    '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>' +
-    '<polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
-  anchor.append("View link");
+  anchor.textContent = "View link";
 
   slot.appendChild(anchor);
 }

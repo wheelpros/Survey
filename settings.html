@@ -419,6 +419,14 @@ body{padding:0}
     border-radius: 12px;
 }
 
+/* A logo is not a photo: show all of it on a plain field rather than
+   cropping it to fill the box the way a slide image is cropped. */
+.media-preview .thumb.logo-thumb {
+    aspect-ratio: 5/2;
+    background: #fff center/contain no-repeat;
+    border: 1px solid #e6e9f0;
+}
+
 .media-preview .remove {
     position: absolute;
     top: 8px;
@@ -627,7 +635,26 @@ document.addEventListener("DOMContentLoaded", function () {
   <div class="panel-body">
     <img id="currentLogo" src="logo.png" alt="Logo" style="width:180px; display:block; margin:0 0 20px 0;">
 
-    <input type="file" id="logoFile" accept=".png,.jpg,.jpeg,.svg">
+    <label for="logoFile">Logo</label>
+
+    <!-- Same upload control as the slideshow below, so both panels behave
+         identically: click or drop, then a preview replaces the box. -->
+    <div class="dropzone" id="logoDropzone" role="button" tabindex="0"
+         onclick="document.getElementById('logoFile').click()"
+         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('logoFile').click();}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <strong>Upload logo</strong>
+      <span>PNG, JPG or SVG &middot; max size 3 MB</span>
+    </div>
+
+    <div class="media-preview" id="logoPreview">
+      <div class="thumb logo-thumb" id="logoThumb"></div>
+      <button class="remove" type="button" onclick="clearLogoMedia()" title="Remove logo">&times;</button>
+    </div>
+
+    <input type="file" id="logoFile" accept=".png,.jpg,.jpeg,.svg" hidden>
+
+    <div class="media-error" id="logoMediaError"></div>
 
     <button class="primary" onclick="uploadLogo()" style="margin-top:15px;">Update Logo</button>
 
@@ -639,26 +666,26 @@ document.addEventListener("DOMContentLoaded", function () {
 <div class="panel">
   <div class="panel-head">
     <h1>Login Page Slideshow</h1>
-    <p>Up to 5 logos shown beside the sign-in form. Top of the list shows first.</p>
+    <p>Up to 5 images shown beside the sign-in form. Top of the list shows first.</p>
   </div>
   <div class="panel-body">
     <div id="slidesList" class="admin-list">
       <div class="no-admins">Loading slides...</div>
     </div>
 
-    <label for="slideFile">Logo</label>
+    <label for="slideFile">Image</label>
 
     <div class="dropzone" id="slideDropzone" role="button" tabindex="0"
          onclick="document.getElementById('slideFile').click()"
          onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('slideFile').click();}">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-      <strong>Drop logo</strong>
-      <span>Max size 3 MB &middot; 1600 &times; 900 px recommended</span>
+      <strong>Upload image</strong>
+      <span>Max size 3 MB &middot; 1200 &times; 1600 px recommended</span>
     </div>
 
     <div class="media-preview" id="slidePreview">
       <div class="thumb" id="slideThumb"></div>
-      <button class="remove" type="button" onclick="clearSlideMedia()" title="Remove logo">&times;</button>
+      <button class="remove" type="button" onclick="clearSlideMedia()" title="Remove image">&times;</button>
     </div>
 
     <input type="file" id="slideFile" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
@@ -666,12 +693,12 @@ document.addEventListener("DOMContentLoaded", function () {
     <div class="media-error" id="slideMediaError"></div>
 
     <label for="slideTitle">Title</label>
-    <input type="text" id="slideTitle" placeholder="Headline shown over the logo" maxlength="120">
+    <input type="text" id="slideTitle" placeholder="Headline shown over the image" maxlength="120">
 
     <label for="slideSubtitle">Subtitle</label>
     <input type="text" id="slideSubtitle" placeholder="One supporting line" maxlength="255">
 
-    <div class="small" id="slideHint">JPG, PNG, WEBP or GIF. Max 3 MB. Landscape logos work best &mdash; 1600 &times; 900 px recommended, 800 &times; 450 px minimum.</div>
+    <div class="small" id="slideHint">JPG, PNG, WEBP or GIF. Max 3 MB. The login panel is a tall half-screen column, so portrait images fill it best &mdash; 1200 &times; 1600 px recommended, 800 &times; 450 px minimum.</div>
 
     <button class="primary" id="addSlideBtn" onclick="uploadSlide()" style="margin-top:0;">Add Slide</button>
 
@@ -821,10 +848,96 @@ async function savePassword() {
   }
 }
 
+/* ── The logo upload box ──────────────────────────────────────────────────
+   Same control as the slideshow dropzone below: click or drop, then a
+   preview replaces the box. Dragging never touches the file input, so the
+   chosen file is held here rather than read back off <input type="file">. */
+
+const MAX_LOGO_MEDIA = 3 * 1024 * 1024;
+const LOGO_EXTENSIONS = ["png", "jpg", "jpeg", "svg"];
+
+let pendingLogoFile = null;
+
+const logoDropzone = document.getElementById("logoDropzone");
+
+if (logoDropzone) {
+
+    document.getElementById("logoFile").addEventListener("change", event => {
+        if (event.target.files[0]) handleLogoMedia(event.target.files[0]);
+    });
+
+    ["dragenter", "dragover"].forEach(type => {
+        logoDropzone.addEventListener(type, event => {
+            event.preventDefault();
+            logoDropzone.classList.add("dragging");
+        });
+    });
+
+    ["dragleave", "drop"].forEach(type => {
+        logoDropzone.addEventListener(type, event => {
+            event.preventDefault();
+            logoDropzone.classList.remove("dragging");
+        });
+    });
+
+    logoDropzone.addEventListener("drop", event => {
+        const file = event.dataTransfer.files[0];
+        if (file) handleLogoMedia(file);
+    });
+}
+
+function handleLogoMedia(file) {
+    const error = document.getElementById("logoMediaError");
+
+    const fail = message => {
+        error.innerText = message;
+        error.classList.add("show");
+    };
+
+    // Matches the extension list in api/upload-logo.php.
+    const ext = (file.name.split(".").pop() || "").toLowerCase();
+
+    if (!LOGO_EXTENSIONS.includes(ext)) {
+        fail("Only PNG, JPG, JPEG or SVG logos are allowed.");
+        return;
+    }
+
+    if (file.size > MAX_LOGO_MEDIA) {
+        fail("That logo is over 3 MB. Pick a smaller one.");
+        return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onerror = () => fail("That logo could not be read.");
+
+    reader.onload = () => {
+        error.classList.remove("show");
+        pendingLogoFile = file;
+
+        document.getElementById("logoThumb").style.backgroundImage =
+            `url('${reader.result}')`;
+        document.getElementById("logoPreview").classList.add("show");
+        logoDropzone.style.display = "none";
+    };
+
+    reader.readAsDataURL(file);
+}
+
+function clearLogoMedia() {
+    pendingLogoFile = null;
+
+    document.getElementById("logoFile").value = "";
+    document.getElementById("logoThumb").style.backgroundImage = "";
+    document.getElementById("logoPreview").classList.remove("show");
+    document.getElementById("logoMediaError").classList.remove("show");
+    logoDropzone.style.display = "";
+}
+
 // ✅ رفع اللوجو
 async function uploadLogo() {
   const status = document.getElementById("logoStatus");
-  const file = document.getElementById("logoFile").files[0];
+  const file = pendingLogoFile;
 
   if (!file) {
     alert("Please select a logo file first.");
@@ -854,7 +967,7 @@ async function uploadLogo() {
       document.querySelectorAll(".side-logo img").forEach(img => {
         img.src = bust;
       });
-      document.getElementById("logoFile").value = "";
+      clearLogoMedia();
     }
   } catch (err) {
     status.innerText = "An error occurred while uploading.";
@@ -874,9 +987,11 @@ const MAX_SLIDE_MEDIA = 3 * 1024 * 1024;
 const MIN_SLIDE_WIDTH = 800;
 const MIN_SLIDE_HEIGHT = 450;
 
-// Only guidance - nothing rejects an image for being under these.
-const REC_SLIDE_WIDTH = 1600;
-const REC_SLIDE_HEIGHT = 900;
+// Only guidance - nothing rejects an image for being under these. Portrait,
+// because the login slideshow is a full-height half-width column and a 16:9
+// image gets centre-cropped down to roughly half its width to cover it.
+const REC_SLIDE_WIDTH = 1200;
+const REC_SLIDE_HEIGHT = 1600;
 
 async function loadSlides() {
     const list = document.getElementById("slidesList");
@@ -938,7 +1053,7 @@ function renderSlidesList() {
                     <img class="slide-thumb" src="${escapeHtml(slide.image_path)}" alt="">
 
                     <button type="button" class="slide-change"
-                            title="Change logo" aria-label="Change logo"
+                            title="Change image" aria-label="Change image"
                             onclick="document.getElementById('slide-file-${slide.id}').click()">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
                     </button>
@@ -998,7 +1113,8 @@ function updateSlideControls() {
     if (hint) {
         hint.innerText = full
             ? `Maximum of ${MAX_SLIDES} slides reached. Remove one to add another.`
-            : "JPG, PNG, WEBP or GIF. Max 3 MB. Landscape logos work best — "
+            : "JPG, PNG, WEBP or GIF. Max 3 MB. The login panel is a tall "
+                + "half-screen column, so portrait images fill it best — "
                 + `${REC_SLIDE_WIDTH} × ${REC_SLIDE_HEIGHT} px recommended, `
                 + `${MIN_SLIDE_WIDTH} × ${MIN_SLIDE_HEIGHT} px minimum.`;
     }
@@ -1122,7 +1238,7 @@ function clearSlideMedia() {
     slideDropzone.style.display = "";
 }
 
-/* ── Change the logo on a slide already saved ─────────────────────────────
+/* ── Change the image on a slide already saved ─────────────────────────────
    The pencil over a thumbnail. Only the file changes - title, subtitle and
    position stay exactly where they were. */
 
@@ -1158,7 +1274,7 @@ async function replaceSlideImage(id, input) {
         return;
     }
 
-    status.innerText = "Replacing logo...";
+    status.innerText = "Replacing image...";
 
     const form = new FormData();
     form.append("action", "replace");
@@ -1192,7 +1308,7 @@ async function uploadSlide() {
     const file = pendingSlideFile;
 
     if (!file) {
-        alert("Please choose a logo first.");
+        alert("Please choose an image first.");
         return;
     }
 

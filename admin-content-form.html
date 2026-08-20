@@ -430,7 +430,7 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
           <div class="panel-body">
             <div class="dropzone" id="dropzone" onclick="document.getElementById('mediaInput').click()">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-              <strong>Drop image</strong>
+              <strong>Upload image</strong>
               <span>Max size 3 MB</span>
             </div>
 
@@ -1289,7 +1289,11 @@ function saveDraft(){
   if(!draftingEnabled) return;
 
   try{
-    if(isDirty()){
+    // hasWork(), not isDirty(): an attached image is worth warning about on the
+    // way out, but it cannot be written to localStorage. Saving on mediaFile
+    // alone leaves a draft holding nothing but the content type and the
+    // orientation - it restores nothing, so it must not be stored at all.
+    if(hasWork(currentDraft())){
       localStorage.setItem(DRAFT_KEY, JSON.stringify(currentDraft()));
     }else{
       localStorage.removeItem(DRAFT_KEY);
@@ -1324,6 +1328,14 @@ async function loadDraft(){
     return;
   }
 
+  // JSON.parse happily returns null, a number or a string for a key that was
+  // written by an older build or corrupted; destructuring any of those in
+  // hasWork() throws and kills the rest of this function.
+  if(!draft || typeof draft !== "object" || Array.isArray(draft)){
+    clearDraft();
+    return;
+  }
+
   // Drafts written by the earlier rule can hold nothing but a content type.
   // Restoring one shows the notice over an empty form, so drop it instead.
   if(!hasWork(draft)){
@@ -1352,6 +1364,14 @@ async function loadDraft(){
   syncPublishNow();
 
   await selectClient(draft.client || "");
+
+  // Last word on whether the notice is honest: read the form back. If nothing
+  // the draft carried actually landed in a field - a client that no longer
+  // exists, a value the widget rejected - there is nothing to announce.
+  if(!hasWork(currentDraft())){
+    clearDraft();
+    return;
+  }
 
   restoredDraft = true;
 
