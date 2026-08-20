@@ -508,6 +508,40 @@ body{padding:0}
 /* ── "Your requests" cards ── */
 .request-list { display: flex; flex-direction: column; gap: 12px; }
 
+/* Same pager as the admin content and clients lists. */
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.pager[hidden] { display: none; }
+.pager-info { font-size: 13px; font-weight: 600; color: var(--muted); }
+.pager-pages { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.pager button {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid #dfe3ea;
+  background: #fff;
+  border-radius: 9px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.pager button:hover:not(:disabled) { background: #f6f7f9; }
+.pager button.current { background: var(--nav-active); border-color: var(--nav-active); color: #fff; }
+.pager button:disabled { opacity: .45; cursor: not-allowed; }
+
 .request-item {
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -735,6 +769,11 @@ document.addEventListener("DOMContentLoaded", function () {
         <h3>Your requests</h3>
       </div>
       <div class="request-list" id="yourRequests"></div>
+
+      <div class="pager" id="requestsPager" hidden>
+        <span class="pager-info" id="requestsPagerInfo"></span>
+        <div class="pager-pages" id="requestsPagerPages"></div>
+      </div>
     </div>
 
     <!-- Ask a client for time -->
@@ -1212,6 +1251,46 @@ function renderApprovals() {
 
 /* ── Your requests ─────────────────────────────────────────────────────── */
 
+// Five to a page; the rest live behind the pager under the list.
+const REQUESTS_PAGE_SIZE = 5;
+let requestsPage = 1;
+
+function goToRequestsPage(page) {
+  requestsPage = page;
+  renderYourRequests();
+
+  // The list is above the pager, so jump back to the top of the new page.
+  document.getElementById("yourRequests")
+    .scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function renderRequestsPager(total, totalPages, start, shown) {
+  const pager = document.getElementById("requestsPager");
+
+  if (!pager) return;
+
+  if (total <= REQUESTS_PAGE_SIZE) {
+    pager.hidden = true;
+    return;
+  }
+
+  pager.hidden = false;
+
+  document.getElementById("requestsPagerInfo").innerText =
+    `Showing ${start + 1}–${start + shown} of ${total}`;
+
+  const pages = Array.from({ length: totalPages }, (unused, index) => index + 1);
+
+  document.getElementById("requestsPagerPages").innerHTML = `
+    <button type="button" onclick="goToRequestsPage(${requestsPage - 1})" ${requestsPage === 1 ? "disabled" : ""}>Prev</button>
+    ${pages.map(page => `
+      <button type="button" class="${page === requestsPage ? "current" : ""}"
+              onclick="goToRequestsPage(${page})">${page}</button>
+    `).join("")}
+    <button type="button" onclick="goToRequestsPage(${requestsPage + 1})" ${requestsPage === totalPages ? "disabled" : ""}>Next</button>
+  `;
+}
+
 function renderYourRequests() {
   const list = document.getElementById("yourRequests");
 
@@ -1222,10 +1301,20 @@ function renderYourRequests() {
 
   if (!rows.length) {
     list.innerHTML = `<div class="empty-cell" style="padding:22px 0;">Your team has not asked a client for a meeting yet.</div>`;
+    renderRequestsPager(0, 0, 0, 0);
     return;
   }
 
-  list.innerHTML = rows.map(row => `
+  // Answering a request can shorten the list out from under the current page.
+  const totalPages = Math.max(1, Math.ceil(rows.length / REQUESTS_PAGE_SIZE));
+  requestsPage = Math.min(Math.max(1, requestsPage), totalPages);
+
+  const start = (requestsPage - 1) * REQUESTS_PAGE_SIZE;
+  const pageRows = rows.slice(start, start + REQUESTS_PAGE_SIZE);
+
+  renderRequestsPager(rows.length, totalPages, start, pageRows.length);
+
+  list.innerHTML = pageRows.map(row => `
     <div class="request-item">
       <div>
         <h4>${esc(row.topic || row.title || "Meeting")}</h4>

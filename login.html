@@ -27,11 +27,13 @@
         max-width: 560px;
       }
 
+      /* The form sits straight on the page - no panel, no shadow. The padding
+         stays so the fields keep their breathing room on narrow screens. */
       .card {
-        background: #fff;
-        border-radius: 24px;
-        padding: 34px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        background: transparent;
+        border-radius: 0;
+        padding: 34px 0;
+        box-shadow: none;
       }
 
       .login-card {
@@ -323,6 +325,8 @@
         position: sticky;
         top: 0;
         height: 100vh;
+        /* Kept after the vh line so browsers without dvh still get a height. */
+        height: 100dvh;
         overflow: hidden;
         background: #1b1e3a;
       }
@@ -362,11 +366,16 @@
         opacity: 1;
       }
 
+      /* The column is a tall half-screen rectangle, so the image is scaled to
+         cover it and centre-cropped - its aspect ratio is never distorted. */
       .slide img {
         width: 100%;
         height: 100%;
         object-fit: cover;
+        object-position: center;
         display: block;
+        -webkit-user-select: none;
+        user-select: none;
       }
 
       /* Sits low over the image, just clear of the dot rail below it. */
@@ -734,6 +743,8 @@
 
           const img = document.createElement("img");
           img.alt = "";
+          img.decoding = "async";
+          img.draggable = false;
           // Wired before src: a cached 404 can fire before the next line runs.
           img.onerror = () => dropSlide(figure);
           img.src = slide.image_path;
