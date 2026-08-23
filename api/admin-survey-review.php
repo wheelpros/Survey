@@ -47,6 +47,7 @@ if ($method === "GET") {
             SELECT
                 surveys.id,
                 surveys.title,
+                surveys.description,
                 surveys.status,
                 surveys.created_at,
                 surveys.reviewed_at,
@@ -107,6 +108,7 @@ if ($method === "GET") {
         SELECT
             surveys.id,
             surveys.title,
+            surveys.description,
             surveys.status,
             surveys.created_at,
             surveys.reviewed_at,

@@ -284,10 +284,15 @@ body{background:#f7f8fc;color:var(--text)}
                reader's: the footer carries the timing and the link only. -->
           <div class="detail-footer">
             <div class="field">
-              <h5>Timing</h5>
-              <p id="detailTiming">Not scheduled</p>
+              <h5>Scheduled</h5>
+              <p id="detailScheduled">Not scheduled</p>
             </div>
             <div class="field link-slot" id="linkSlot"></div>
+            <!-- Last on the line: when the post was created, not when it runs. -->
+            <div class="field">
+              <h5>Timing</h5>
+              <p id="detailTiming">—</p>
+            </div>
           </div>
         </div>
       </article>
@@ -403,6 +408,20 @@ function formatTiming(item){
   if(isNaN(date)) return "Not scheduled";
 
   return date.toLocaleDateString(undefined,{day:"numeric",month:"short",year:"numeric"}) + " · " + time;
+}
+
+/* When the post was created. MySQL hands back "YYYY-MM-DD HH:MM:SS", which
+   only some browsers parse - the T is what makes it a valid date string
+   everywhere. */
+function formatCreated(item){
+  if(!item.created_at) return "—";
+
+  const date = new Date(String(item.created_at).replace(" ", "T"));
+
+  if(isNaN(date)) return String(item.created_at);
+
+  return date.toLocaleDateString(undefined,{day:"numeric",month:"short",year:"numeric"})
+    + " · " + date.toTimeString().slice(0,5);
 }
 
 // The user endpoint returns published content only, with `created_by` already
@@ -561,7 +580,8 @@ function selectContent(id){
 
   renderLink(item);
 
-  document.getElementById("detailTiming").innerText = formatTiming(item);
+  document.getElementById("detailScheduled").innerText = formatTiming(item);
+  document.getElementById("detailTiming").innerText = formatCreated(item);
 }
 
 function setAvatarImage(user){

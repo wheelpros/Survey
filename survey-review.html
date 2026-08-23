@@ -99,6 +99,13 @@ td{ padding:15px 24px; border-top:1px solid #eef1f5; font-size:13px; }
 .review-meta div span{ display:block; font-size:11px; color:#98a2b3; font-weight:700; text-transform:uppercase; margin-bottom:4px; }
 .review-meta div strong{ font-size:14px; }
 
+/* The creator's blurb, above the questions it explains. */
+.review-description{
+  font-size:14px; line-height:1.6; color:#475467;
+  margin:-6px 0 22px; white-space:pre-wrap;
+}
+.review-description[hidden]{ display:none; }
+
 .review-question{
   border:1px solid #dfe3ea; border-radius:14px; padding:16px 18px; margin-bottom:12px;
 }
@@ -416,6 +423,8 @@ document.addEventListener("DOMContentLoaded", function () {
         </div>
       </div>
 
+      <p class="review-description" id="reviewDescription" hidden></p>
+
       <div id="reviewQuestions"></div>
 
       <div class="reject-note-field" id="rejectNoteField" style="display:none;">
@@ -579,6 +588,12 @@ async function openReview(surveyId){
     const survey = data.survey;
 
     document.getElementById("reviewTitle").innerText = survey.title;
+
+    const description = (survey.description || "").trim();
+    const descriptionEl = document.getElementById("reviewDescription");
+    descriptionEl.innerText = description;
+    descriptionEl.hidden = !description;
+
     document.getElementById("reviewFrom").innerText = (survey.created_by_name || "Unknown admin") + (survey.created_by_email ? " (" + survey.created_by_email + ")" : "");
     document.getElementById("reviewTo").innerText = survey.user_name + " (" + survey.user_email + ")";
 

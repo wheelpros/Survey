@@ -15,6 +15,8 @@ if (!$token) {
     ]);
     exit;
 }
+ensureSurveyColumns($pdo);
+
 $adminStmt = $pdo->prepare("
     SELECT id, role
     FROM admins
@@ -68,7 +70,7 @@ if ($method === "GET") {
 
     if ($singleSurveyId) {
         $stmt = $pdo->prepare("
-            SELECT id, assigned_user_id, title, status, created_at,
+            SELECT id, assigned_user_id, title, description, status, created_at,
                    created_by_admin_id, reviewed_by_admin_id, review_note, reviewed_at
             FROM surveys
             WHERE id = ?
@@ -200,6 +202,7 @@ if ($method === "POST" || $method === "PUT") {
 
     $surveyId = (int)($input["surveyId"] ?? 0);
     $title = trim($input["title"] ?? "");
+    $description = trim($input["description"] ?? "");
     $assignedUserId = (int)($input["assignedUserId"] ?? 0);
     $questions = $input["questions"] ?? [];
 
@@ -232,12 +235,13 @@ if ($method === "POST" || $method === "PUT") {
             // See admin-survey-review.php for the approve/reject step that
             // flips this to 'pending' (which is when it actually reaches the user).
             $stmt = $pdo->prepare("
-                INSERT INTO surveys (title, assigned_user_id, status, created_by_admin_id)
-                VALUES (?, ?, 'pending_review', ?)
+                INSERT INTO surveys (title, description, assigned_user_id, status, created_by_admin_id)
+                VALUES (?, ?, ?, 'pending_review', ?)
             ");
 
             $stmt->execute([
                 $title,
+                $description,
                 $assignedUserId,
                 $currentAdmin["id"]
             ]);
@@ -274,12 +278,13 @@ if ($method === "POST" || $method === "PUT") {
             // back to the account manager before it can reach the user again.
             $updateStmt = $pdo->prepare("
                 UPDATE surveys
-                SET title = ?, assigned_user_id = ?, status = 'pending_review',
+                SET title = ?, description = ?, assigned_user_id = ?, status = 'pending_review',
                     reviewed_by_admin_id = NULL, review_note = NULL, reviewed_at = NULL
                 WHERE id = ?
             ");
             $updateStmt->execute([
                 $title,
+                $description,
                 $assignedUserId,
                 $surveyId
             ]);

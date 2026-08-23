@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Create Form — Admin</title>
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+
+body{
+  background:#f6f7fb;
+  color:#101828;
+  padding:35px;
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:28px;
+}
+
+.panel{
+  background:#fff;
+  border-radius:20px;
+  box-shadow:0 14px 35px rgba(0,0,0,.06);
+  overflow:hidden;
+}
+
+.panel-head{
+  padding:24px 28px;
+  border-bottom:1px solid #eef1f5;
+}
+
+.panel-head h1{
+  font-size:24px;
+  margin-bottom:6px;
+}
+
+.panel-head p{
+  color:#667085;
+  font-size:14px;
+}
+
+.form{
+  padding:26px 28px;
+}
+
+.form-row{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:18px;
+  margin-bottom:18px;
+}
+
+label{
+  display:block;
+  font-size:13px;
+  font-weight:800;
+  margin-bottom:8px;
+}
+
+input,select,textarea{
+  width:100%;
+  border:1px solid #dfe3ea;
+  background:#f8fafc;
+  border-radius:12px;
+  padding:13px 14px;
+  outline:none;
+  font-size:14px;
+}
+
+textarea{
+  min-height:90px;
+  resize:vertical;
+}
+
+input:focus,select:focus,textarea:focus{
+  border-color:#1b1e3a;
+  box-shadow:0 0 0 3px rgba(27,30,58,.10);
+}
+
+.question-box{
+  display:grid;
+  grid-template-columns:1fr 160px 90px;
+  gap:12px;
+  margin-bottom:12px;
+}
+
+.question-card{
+  border:1px solid #dfe3ea;
+  border-radius:14px;
+  background:#fff;
+  margin-bottom:14px;
+  overflow:hidden;
+  transition:all 0.2s ease;
+}
+
+.question-card-header{
+  padding:14px 18px;
+  background:#f8fafc;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  cursor:pointer;
+  user-select:none;
+}
+
+.question-card-header:hover{
+  background:#f1f5f9;
+}
+
+.question-card-header-left{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  font-weight:700;
+  font-size:14px;
+  color:#101828;
+  flex:1;
+  overflow:hidden;
+}
+
+.question-card-title-preview{
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  max-width:320px;
+}
+
+.type-badge{
+  font-size:11px;
+  padding:4px 10px;
+  border-radius:12px;
+  font-weight:800;
+  text-transform:capitalize;
+}
+
+.type-badge.badge-input{ background:#e7f0ff; color:#1e5bb8; }
+.type-badge.badge-file{ background:#fef3c7; color:#92400e; }
+.type-badge.badge-checkbox, .type-badge.badge-checklist{ background:#e8faef; color:#166534; }
+
+.question-card-actions{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.toggle-icon{
+  display:inline-block;
+  transition:transform 0.2s ease;
+  font-size:12px;
+  color:#667085;
+}
+
+.question-card.collapsed .toggle-icon{
+  transform:rotate(-90deg);
+}
+
+.question-card-body{
+  padding:18px;
+  border-top:1px solid #eef1f5;
+  display:grid;
+  grid-template-columns:1fr 180px;
+  gap:14px;
+}
+
+.question-card.collapsed .question-card-body{
+  display:none;
+}
+
+.question-chips-input{
+  grid-column:1 / -1;
+}
+
+.primary-btn{
+  border:none;
+  background:var(--nav-active);
+  color:#fff;
+  padding:13px 18px;
+  border-radius:10px;
+  font-weight:800;
+  cursor:pointer;
+}
+
+.secondary-btn{
+  border:none;
+  background:#eef1f5;
+  color:#101828;
+  padding:12px 16px;
+  border-radius:10px;
+  font-weight:800;
+  cursor:pointer;
+}
+
+.remove-btn{
+  border:none;
+  background:#c9000b;
+  color:#fff;
+  border-radius:10px;
+  font-weight:800;
+  cursor:pointer;
+}
+
+.form-actions{
+  display:flex;
+  gap:12px;
+  margin-top:18px;
+}
+
+.status-text{
+  margin-top:15px;
+  font-size:13px;
+  color:#667085;
+}
+
+@media(max-width:800px){
+  body{
+    padding:18px;
+  }
+
+  .form-row{
+    grid-template-columns:1fr;
+  }
+
+  .question-box{
+    grid-template-columns:1fr;
+  }
+
+  .panel{
+    overflow-x:auto;
+  }
+}
+
+/* ── Admin shell: sidebar + header (shared across admin pages) ── */
+:root{
+  --brand:#c9000b;
+  --nav-active:#1b1e3a;
+  --text:#101828;
+  --muted:#667085;
+  --line:#eaecf0;
+  --sidebar-w:260px;
+}
+body{padding:0}
+.admin-sidebar{
+  width:var(--sidebar-w);
+  background:#fff;
+  border-right:1px solid var(--line);
+  position:fixed;top:0;left:0;bottom:0;
+  padding:26px 12px 18px;
+  display:flex;flex-direction:column;justify-content:space-between;
+  z-index:100;
+}
+.side-logo{padding:0 6px;margin-bottom:30px}
+.side-logo img{width:150px;max-width:100%;height:auto;display:block}
+
+.side-nav a{
+  display:flex;gap:12px;align-items:center;
+  text-decoration:none;color:var(--muted);
+  padding:11px 12px;border-radius:10px;margin-bottom:4px;
+  font-size:14px;font-weight:600;
+  transition:background .15s,color .15s;
+}
+.side-nav a svg{width:18px;height:18px;flex:none}
+.side-nav a:hover{background:#f6f7f9;color:var(--text)}
+.side-nav a.active{background:var(--nav-active);color:#fff}
+.side-user{
+  width:100%;font:inherit;text-align:left;background:#fff;
+  border:1px solid var(--line);border-radius:12px;padding:10px;
+  display:flex;gap:10px;align-items:center;cursor:pointer;
+  transition:background .15s,border-color .15s;
+}
+.side-user:hover{background:#fafbfc;border-color:#d7dae0}
+.side-avatar{
+  width:36px;height:36px;border-radius:50%;
+  background:#dce3ff;color:#3745a4;
+  display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:13px;flex:none;
+}
+.side-meta{flex:1;min-width:0}
+.side-meta strong{display:block;font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.side-meta span{font-size:11px;color:#98a2b3}
+.side-dots{color:#98a2b3;flex:none}
+
+.admin-main{margin-left:var(--sidebar-w);width:calc(100% - var(--sidebar-w))}
+.admin-topbar{
+  height:72px;background:#fff;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;justify-content:space-between;padding:0 32px;
+}
+.admin-bell{
+  width:40px;height:40px;border-radius:50%;border:none;background:transparent;
+  color:#344054;display:flex;align-items:center;justify-content:center;cursor:pointer;
+}
+.admin-bell:hover{background:#f6f7f9}
+.admin-bell{position:relative}
+.admin-bell .dot{position:absolute;top:9px;right:10px;width:8px;height:8px;border-radius:50%;background:var(--brand);border:2px solid #fff}
+.admin-content{padding:35px}
+
+/* ── Collapsible sidebar ── */
+:root.sidebar-collapsed{--sidebar-w:78px}
+.admin-sidebar,.admin-main{transition:width .18s ease,margin-left .18s ease}
+:root.sidebar-collapsed .admin-sidebar{padding:26px 4px 18px}
+:root.sidebar-collapsed .side-logo{padding:0}
+:root.sidebar-collapsed .side-logo img{display:none}
+
+:root.sidebar-collapsed .side-nav a{justify-content:center;padding:12px 0}
+:root.sidebar-collapsed .side-nav a span{display:none}
+/* The account card is the only entry point to logout — collapse it, never hide it. */
+:root.sidebar-collapsed .side-user{justify-content:center;padding:8px}
+:root.sidebar-collapsed .side-meta,:root.sidebar-collapsed .side-dots{display:none}
+@media(max-width:950px){
+
+  .admin-content{padding:24px 18px}
+}
+
+/* ── Account popup (sidebar card) ── */
+.acct-modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:99999;padding:20px}
+.acct-modal.show{display:flex}
+.acct-box{width:100%;max-width:380px;background:#fff;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.18);overflow:hidden}
+.acct-head{display:flex;justify-content:space-between;align-items:center;padding:20px 24px;border-bottom:1px solid #eef1f5}
+.acct-head h2{font-size:17px}
+.acct-head button{border:none;background:var(--nav-active);color:#fff;width:34px;height:34px;border-radius:50%;font-size:22px;line-height:1;cursor:pointer}
+.acct-body{padding:24px;text-align:center}
+.acct-avatar{width:72px;height:72px;border-radius:50%;background:#dce3ff;color:#3745a4;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:26px;margin:0 auto 16px}
+.acct-body strong{display:block;font-size:16px;margin-bottom:8px}
+.acct-role{display:inline-block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--nav-active);background:#eef0f6;border-radius:20px;padding:5px 12px;margin-bottom:22px}
+.acct-logout{width:100%;height:46px;border:1px solid #f0d2d4;background:#fff;color:var(--brand);border-radius:12px;font-weight:800;font-size:14px;cursor:pointer}
+.acct-logout:hover{background:#fff5f5}
+
+/* ── Shell refresh: the collapse control lives in the sidebar head ── */
+.side-head{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  min-height:36px;margin-bottom:26px;padding:0 2px;
+}
+.side-logo{padding:0;margin:0;flex:1;min-width:0}
+.side-logo img{width:132px;max-width:100%;height:auto;display:block}
+
+.side-toggle{
+  width:34px;height:34px;flex:none;border-radius:9px;border:none;
+  background:transparent;color:var(--muted);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .15s,color .15s;
+}
+.side-toggle:hover{background:#f2f4f8;color:var(--text)}
+.side-toggle svg{width:18px;height:18px}
+
+/* Collapsed to 78px the wordmark is illegible, so the head keeps only the toggle. */
+:root.sidebar-collapsed .side-head{justify-content:center;margin-bottom:22px}
+:root.sidebar-collapsed .side-logo{display:none}
+
+/* Tighter nav rows: the active/hover pill was heavier than the label needs. */
+.side-nav a{gap:10px;padding:8px 10px;border-radius:9px;margin-bottom:2px}
+.side-nav a svg{width:17px;height:17px}
+:root.sidebar-collapsed .side-nav a{
+  width:38px;height:38px;padding:0;margin:0 auto 4px;
+  border-radius:10px;justify-content:center;
+}
+
+/* Header sits on the page background rather than its own white bar. */
+.admin-topbar{
+  height:64px;background:transparent;border-bottom:none;
+  justify-content:flex-end;padding:0 35px;
+}
+
+@media(max-width:950px){
+  /* Force-collapsed below this width, so the head has nothing left to show. */
+  .side-head{display:none}
+  .admin-topbar{padding:0 18px}
+}
+
+/* ── Page header: the Back action sits on the title line, same as the
+      content form ── */
+.page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:28px}
+.page-title h1{font-size:30px;margin-bottom:8px}
+.page-title p{font-size:14px;color:var(--muted);max-width:620px}
+.back-link{flex:none;display:inline-flex;align-items:center;gap:8px;border:1px solid #dfe3ea;background:#fff;color:var(--text);text-decoration:none;padding:11px 18px;border-radius:10px;font-size:13px;font-weight:800}
+.back-link:hover{background:#f6f7f9}
+.back-link svg{width:15px;height:15px}
+
+/* ── Restored-draft notice ── */
+.restore-bar{
+  display:flex;align-items:center;gap:12px;
+  background:#fff8e6;border:1px solid #f5d98a;border-radius:12px;
+  padding:12px 16px;margin-bottom:22px;
+  font-size:13px;font-weight:700;color:#7a5a00;
+}
+/* display:flex above beats the browser's [hidden]{display:none}. */
+.restore-bar[hidden]{display:none}
+.restore-bar svg{width:17px;height:17px;flex:none}
+.restore-bar span{flex:1}
+.restore-bar button{
+  flex:none;border:1px solid #e0c471;background:#fff;color:#7a5a00;
+  font:inherit;font-size:12px;font-weight:800;
+  padding:7px 14px;border-radius:8px;cursor:pointer;
+}
+.restore-bar button:hover{background:#fffdf6}
+
+/* Sits under a field to explain it, without competing with the label. */
+.field-hint{
+  margin:-10px 0 18px;
+  font-size:12px;
+  color:var(--muted);
+}
+</style>
+
+<script>
+// Runs before paint so the collapsed state never flashes open on load.
+(function () {
+  var root = document.documentElement;
+  var KEY = "wz_sidebar_collapsed";
+  var MOBILE = 950;
+  function prefersCollapsed(){ return localStorage.getItem(KEY) === "1"; }
+  function apply(){ root.classList.toggle("sidebar-collapsed", window.innerWidth <= MOBILE || prefersCollapsed()); }
+  window.toggleSidebar = function(){
+    if (window.innerWidth <= MOBILE) return; // forced collapsed, nothing to toggle
+    localStorage.setItem(KEY, prefersCollapsed() ? "0" : "1");
+    apply();
+  };
+  apply();
+  window.addEventListener("resize", apply);
+})();
+
+// Sidebar account card -> popup. Admins have no editable profile record, so this
+// is identity + logout only; system config lives on settings.html.
+function openAccount(){ document.getElementById("acctModal").classList.add("show"); }
+function closeAccount(){ document.getElementById("acctModal").classList.remove("show"); }
+document.addEventListener("DOMContentLoaded", function () {
+  var a = {};
+  try { a = JSON.parse(localStorage.getItem("admin_user") || "{}"); } catch (e) {}
+  var name = a.name || "Admin";
+  var label = a.role === "super_admin" ? "Super Admin" : "Administrator";
+  var initial = name.charAt(0).toUpperCase();
+  function set(id, v){ var el = document.getElementById(id); if (el) el.textContent = v; }
+  set("adminName", name);  set("adminRole", label);  set("adminAvatar", initial);
+  set("acctName", name);   set("acctRole", label);   set("acctAvatar", initial);
+});
+</script>
+</head>
+
+<body>
+
+<aside class="admin-sidebar">
+  <div>
+    <div class="side-head">
+      <div class="side-logo">
+        <img src="logo.png" alt="W|ZONE London" onerror="this.onerror=null;this.src='assets/WZONE%20source.png'">
+      </div>
+      <button class="side-toggle" type="button" onclick="toggleSidebar()" title="Toggle sidebar" aria-label="Toggle sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9.5 4v16"/></svg>
+      </button>
+    </div>
+    <nav class="side-nav">
+      <a href="admin.html" class="active" title="Forms">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <span>Forms</span>
+      </a>
+      <a href="responses.html" title="Responses">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span>Responses</span>
+      </a>
+      <a href="admin-content.html" title="Content">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+        <span>Content</span>
+      </a>
+      <a href="clients-management.html" id="clientsManagementLink" title="Clients Management">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Clients Management</span>
+      </a>
+      <a href="sources-files.html" title="Sources &amp; Files">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        <span>Sources &amp; Files</span>
+      </a>
+      <a href="admin-calendar.html" title="Calendar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span>Calendar</span>
+      </a>
+      <a href="survey-review.html" id="surveyReviewLink" title="Survey Review" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/><circle cx="18" cy="6" r="3" fill="currentColor" stroke="none"/></svg>
+        <span>Survey Review</span>
+      </a>
+      <a href="settings.html" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span>Settings</span>
+      </a>
+    </nav>
+  </div>
+
+  <button class="side-user" type="button" onclick="openAccount()" title="Account">
+    <div class="side-avatar" id="adminAvatar">A</div>
+    <div class="side-meta">
+      <strong id="adminName">Admin</strong>
+      <span id="adminRole">Administrator</span>
+    </div>
+    <svg class="side-dots" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
+  </button>
+</aside>
+
+
+<div class="admin-main">
+  <header class="admin-topbar">
+    <button class="admin-bell" type="button" title="Notifications">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 6-3 7-3 7h18s-3-1-3-7"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+      <span class="dot"></span>
+    </button>
+  </header>
+
+  <div class="admin-content">
+
+    <div class="page-head">
+      <div class="page-title">
+        <h1 id="pageHeading">Create Form &amp; Checklist</h1>
+        <p id="pageSub">Assign a form or checklist with custom questions/items to a specific approved user. Submissions are sent to the account manager for approval before the user sees them.</p>
+      </div>
+      <a class="back-link" href="admin.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        Back to Forms
+      </a>
+    </div>
+
+    <!-- Only shown when a draft was restored, and only in create mode. -->
+    <div class="restore-bar" id="restoreBar" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 9 8 9"/></svg>
+      <span id="restoreText">Restored unsaved changes.</span>
+      <button type="button" onclick="startFresh()">Start fresh</button>
+    </div>
+
+    <div class="grid">
+      <div class="panel">
+        <div class="panel-head">
+          <h1 id="panelHeading">Form Details</h1>
+          <p>Give the form a title, pick who it goes to, then build the items below.</p>
+        </div>
+
+        <div class="form">
+          <div class="form-row">
+            <div>
+              <label for="surveyTitle">Title</label>
+              <input type="text" id="surveyTitle" placeholder="Form or Checklist Title">
+            </div>
+
+            <div>
+              <label for="assignedUser">Assigned User</label>
+              <select id="assignedUser">
+                <option value="">Loading users...</option>
+              </select>
+            </div>
+          </div>
+
+          <label for="surveyDescription">Description</label>
+          <textarea id="surveyDescription" maxlength="1000"
+                    placeholder="What this form is for, and anything the user should know before filling it in. Optional."></textarea>
+          <div class="field-hint">Shown to the assigned user above the questions, and to the account manager reviewing the form.</div>
+
+          <label>Questions &amp; Checklist Items</label>
+
+          <div id="questionsWrap"></div>
+
+          <div class="form-actions">
+            <button class="secondary-btn" onclick="addQuestion()" type="button">
+              + Add Item / Question
+            </button>
+
+            <button class="primary-btn" id="surveySubmitBtn" onclick="saveSurvey()" type="button">
+              Submit for Approval
+            </button>
+          </div>
+
+          <div class="status-text" id="surveyStatus"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ACCOUNT POPUP (opened from the sidebar card) -->
+<div class="acct-modal" id="acctModal">
+  <div class="acct-box">
+    <div class="acct-head">
+      <h2>Account</h2>
+      <button type="button" onclick="closeAccount()" aria-label="Close">&times;</button>
+    </div>
+    <div class="acct-body">
+      <div class="acct-avatar" id="acctAvatar">A</div>
+      <strong id="acctName">Admin</strong>
+      <div class="acct-role" id="acctRole">Administrator</div>
+      <button class="acct-logout" onclick="logoutAdmin()">&#8617; Logout</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let adminToken = localStorage.getItem("admin_token");
+let adminUser = JSON.parse(localStorage.getItem("admin_user") || "{}");
+
+if(!adminToken || !adminUser.role){
+  window.location.href = "admin-login.html";
+}
+
+// Account managers review forms rather than build them, same rule as the list.
+if(adminUser.role === "account_manager"){
+  window.location.href = "survey-review.html";
+}
+
+if(adminUser.role === "account_manager" || adminUser.role === "owner"){
+  const reviewLink = document.getElementById("surveyReviewLink");
+  if(reviewLink) reviewLink.style.display = "";
+}
+
+function logoutAdmin(){
+  localStorage.removeItem("admin_token");
+  localStorage.removeItem("admin_user");
+  window.location.href = "admin-login.html";
+}
+
+/* ── Create or edit ─────────────────────────────────────────────────────────
+   One builder, two modes, picked off the query string exactly like the content
+   form: admin-form-builder.html for a new form, ?edit=<id> for an existing
+   one. Editing an existing form never touches the draft. */
+
+const editingSurveyId = new URLSearchParams(location.search).get("edit");
+const draftingEnabled = !editingSurveyId;
+
+const DRAFT_KEY = `survey_draft_${adminUser.id || "admin"}`;
+
+/* ── The item cards ─────────────────────────────────────────────────────── */
+
+function parseChipsToArray(chips){
+  if(!chips) return [];
+  if(Array.isArray(chips)) return chips;
+  try{
+    const parsed = JSON.parse(chips);
+    if(Array.isArray(parsed)) return parsed;
+  }catch(e){}
+  return String(chips).split(",").map(s => s.trim()).filter(Boolean);
+}
+
+function createOptionsBuilder(initialChips = [], isCheckbox = false, onUpdate = null){
+  const wrapper = document.createElement("div");
+  wrapper.className = "extra-field-options";
+  wrapper.style.cssText = "grid-column: 1 / -1;";
+
+  const label = document.createElement("label");
+  label.className = "options-field-label";
+  label.style.cssText = "font-weight:700; font-size:13px; margin-bottom:8px; display:block;";
+  label.textContent = isCheckbox ? "Checklist Items / Options" : "Quick Keywords (Optional)";
+
+  const itemsContainer = document.createElement("div");
+  itemsContainer.className = "options-items-list";
+  itemsContainer.style.cssText = "display:flex; flex-direction:column; gap:8px;";
+
+  function addOptionRow(val = ""){
+    const row = document.createElement("div");
+    row.className = "option-row";
+    row.style.cssText = "display:flex; align-items:center; gap:8px;";
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "option-input";
+    input.placeholder = isCheckbox ? "Enter checklist item (e.g. Check Tires)" : "Enter keyword (e.g. Quick Service)";
+    input.value = val;
+    input.style.cssText = "flex:1;";
+
+    if(onUpdate){
+      input.addEventListener("input", onUpdate);
+      input.addEventListener("change", onUpdate);
+    }
+
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "remove-option-btn";
+    removeBtn.title = "Remove Option";
+    removeBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none; display:block;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`;
+    removeBtn.style.cssText = "background:#fee2e2; color:#ef4444; border:1px solid #fca5a5; border-radius:8px; width:40px; height:40px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all 0.15s ease;";
+
+    removeBtn.onmouseenter = () => { removeBtn.style.background = "#dc2626"; removeBtn.style.color = "#ffffff"; };
+    removeBtn.onmouseleave = () => { removeBtn.style.background = "#fee2e2"; removeBtn.style.color = "#ef4444"; };
+
+    removeBtn.addEventListener("click", function(){
+      row.remove();
+      if(onUpdate) onUpdate();
+    });
+
+    row.appendChild(input);
+    row.appendChild(removeBtn);
+    itemsContainer.appendChild(row);
+
+    return input;
+  }
+
+  const initialArray = parseChipsToArray(initialChips);
+  if(initialArray.length > 0){
+    initialArray.forEach(val => addOptionRow(val));
+  } else {
+    addOptionRow("");
+  }
+
+  const addBtn = document.createElement("button");
+  addBtn.type = "button";
+  addBtn.className = "secondary-btn add-option-btn";
+  addBtn.style.cssText = "margin-top:10px; padding:9px 14px; font-size:13px; font-weight:700; display:inline-flex; align-items:center; gap:6px; border-radius:8px; cursor:pointer;";
+  addBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg> Add Option`;
+
+  addBtn.addEventListener("click", function(){
+    const newInput = addOptionRow("");
+    newInput.focus();
+    if(onUpdate) onUpdate();
+  });
+
+  wrapper.appendChild(label);
+  wrapper.appendChild(itemsContainer);
+  wrapper.appendChild(addBtn);
+
+  return {
+    wrapper,
+    label,
+    itemsContainer,
+    addOptionRow
+  };
+}
+
+function addQuestion(value = "", type = "input", chips = "", maxFileSizeMb = ""){
+  const wrap = document.getElementById("questionsWrap");
+
+  const div = document.createElement("div");
+  div.className = "question-card";
+
+  const typeLabels = {
+    input: "Input",
+    file: "File Upload",
+    checkbox: "Checklist",
+    checklist: "Checklist"
+  };
+
+  const initialType = (type === "textarea" ? "input" : type) || "input";
+  const isCheckbox = initialType === "checkbox" || initialType === "checklist";
+
+  div.innerHTML = `
+    <div class="question-card-header">
+      <div class="question-card-header-left">
+        <span class="toggle-icon">▼</span>
+        <span class="question-card-title-preview">${escapeHtml(value) || "New Item / Question"}</span>
+        <span class="type-badge badge-${isCheckbox ? 'checkbox' : initialType}">${typeLabels[initialType] || initialType}</span>
+      </div>
+      <div class="question-card-actions">
+        <button class="remove-btn" type="button" style="padding:6px 14px;font-size:12px;">Remove</button>
+      </div>
+    </div>
+    <div class="question-card-body">
+      <div>
+        <label>Item / Question Text</label>
+        <input type="text" class="questionText" placeholder="Enter title or text" value="${escapeHtml(value)}">
+      </div>
+      <div>
+        <label>Type</label>
+        <select class="questionType">
+          <option value="input" ${initialType === "input" ? "selected" : ""}>Input</option>
+          <option value="file" ${initialType === "file" ? "selected" : ""}>File Upload</option>
+          <option value="checkbox" ${isCheckbox ? "selected" : ""}>Checklist</option>
+        </select>
+      </div>
+      <div class="extra-field-file" style="grid-column: 1 / -1; display: ${initialType === 'file' ? 'block' : 'none'};">
+        <label>Max File Size (MB)</label>
+        <input
+          type="number"
+          class="questionMaxFileSize question-chips-input"
+          placeholder="Max file size MB (e.g. 5)"
+          value="${escapeHtml(maxFileSizeMb)}"
+        >
+      </div>
+    </div>
+  `;
+
+  const body = div.querySelector(".question-card-body");
+  const optionsBuilder = createOptionsBuilder(chips, isCheckbox, saveDraft);
+
+  if(!isCheckbox && initialType !== "input"){
+    optionsBuilder.wrapper.style.display = "none";
+  }
+  body.appendChild(optionsBuilder.wrapper);
+
+  const header = div.querySelector(".question-card-header");
+  header.addEventListener("click", function(e){
+    if (e.target.classList.contains("remove-btn")) return;
+    div.classList.toggle("collapsed");
+  });
+
+  const textInput = div.querySelector(".questionText");
+  const previewSpan = div.querySelector(".question-card-title-preview");
+  textInput.addEventListener("input", function(){
+    previewSpan.textContent = textInput.value.trim() || "New Item / Question";
+  });
+
+  const typeSelect = div.querySelector(".questionType");
+  const badgeSpan = div.querySelector(".type-badge");
+  const fileField = div.querySelector(".extra-field-file");
+
+  typeSelect.addEventListener("change", function(){
+    const selected = typeSelect.value;
+    const isCb = selected === "checkbox" || selected === "checklist";
+    badgeSpan.className = `type-badge badge-${isCb ? 'checkbox' : selected}`;
+    badgeSpan.textContent = typeLabels[selected] || selected;
+
+    if (selected === "input") {
+      optionsBuilder.wrapper.style.display = "block";
+      optionsBuilder.label.textContent = "Quick Keywords (Optional)";
+      fileField.style.display = "none";
+    } else if (isCb) {
+      optionsBuilder.wrapper.style.display = "block";
+      optionsBuilder.label.textContent = "Checklist Items / Options";
+      fileField.style.display = "none";
+    } else if (selected === "file") {
+      optionsBuilder.wrapper.style.display = "none";
+      fileField.style.display = "block";
+    }
+  });
+
+  div.querySelector(".remove-btn").addEventListener("click", function(e){
+    e.stopPropagation();
+    div.remove();
+    saveDraft();
+  });
+
+  div.querySelectorAll("input, select").forEach(el => {
+    el.addEventListener("input", saveDraft);
+    el.addEventListener("change", saveDraft);
+  });
+
+  wrap.appendChild(div);
+  saveDraft();
+}
+
+/* The card markup is built from a template string, so anything coming back
+   from the server or a draft has to be escaped before it goes in. */
+function escapeHtml(value){
+  return String(value == null ? "" : value)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+function getQuestionsData(){
+  return Array.from(document.querySelectorAll("#questionsWrap .question-card")).map(box => {
+    const chipInputs = Array.from(box.querySelectorAll(".option-input")).map(i => i.value.trim()).filter(Boolean);
+    return {
+      text: box.querySelector(".questionText")?.value.trim() || "",
+      type: box.querySelector(".questionType")?.value || "input",
+      chips: chipInputs.join(", "),
+      maxFileSizeMb: box.querySelector(".questionMaxFileSize")?.value.trim() || ""
+    };
+  }).filter(q => q.text);
+}
+
+/* ── Unsaved-work recovery ──────────────────────────────────────────────────
+   Create mode only. A draft holding no title, no user and no item text would
+   restore nothing, so it is never written and never announced. */
+
+function currentDraft(){
+  return {
+    savedAt: Date.now(),
+    title: document.getElementById("surveyTitle").value,
+    description: document.getElementById("surveyDescription").value,
+    assignedUserId: document.getElementById("assignedUser").value,
+    questions: getQuestionsData()
+  };
+}
+
+function hasWork(draft){
+  if(!draft) return false;
+
+  return Boolean(
+    (draft.title || "").trim() ||
+    (draft.description || "").trim() ||
+    draft.assignedUserId ||
+    (draft.questions || []).some(q => (q.text || "").trim())
+  );
+}
+
+function saveDraft(){
+  if(!draftingEnabled) return;
+
+  try{
+    const draft = currentDraft();
+
+    if(hasWork(draft)){
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    }else{
+      localStorage.removeItem(DRAFT_KEY);
+    }
+  }catch(e){
+    // Quota or private mode - autosave is a convenience, never block the form.
+  }
+}
+
+function clearDraft(){
+  try{ localStorage.removeItem(DRAFT_KEY); }catch(e){}
+}
+
+function describeAge(savedAt){
+  const mins = Math.round((Date.now() - savedAt) / 60000);
+  if(!savedAt || mins < 1) return "a moment ago";
+  if(mins < 60) return `${mins} minute${mins === 1 ? "" : "s"} ago`;
+  const hours = Math.round(mins / 60);
+  if(hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  return "earlier";
+}
+
+function loadDraft(){
+  if(!draftingEnabled) return false;
+
+  let draft;
+  try{
+    const saved = localStorage.getItem(DRAFT_KEY);
+    if(!saved) return false;
+    draft = JSON.parse(saved);
+  }catch(e){
+    return false;
+  }
+
+  // JSON.parse returns null, a number or a string for a key written by an
+  // older build or corrupted; none of those can be restored.
+  if(!draft || typeof draft !== "object" || Array.isArray(draft) || !hasWork(draft)){
+    clearDraft();
+    return false;
+  }
+
+  document.getElementById("surveyTitle").value = draft.title || "";
+  document.getElementById("surveyDescription").value = draft.description || "";
+  document.getElementById("assignedUser").value = draft.assignedUserId || "";
+
+  document.getElementById("questionsWrap").innerHTML = "";
+  (draft.questions || []).forEach(q => addQuestion(q.text, q.type, q.chips, q.maxFileSizeMb));
+
+  document.getElementById("restoreText").innerText =
+    `Restored unsaved changes from ${describeAge(draft.savedAt)}.`;
+  document.getElementById("restoreBar").hidden = false;
+
+  return true;
+}
+
+function startFresh(){
+  if(!confirm("Discard the restored changes and start a blank form?")) return;
+
+  clearDraft();
+  location.href = location.pathname;
+}
+
+/* ── Load ───────────────────────────────────────────────────────────────── */
+
+async function loadAssignableUsers(){
+  const userSelect = document.getElementById("assignedUser");
+
+  try{
+    const res = await fetch("api/admin-surveys.php",{
+      headers:{ Authorization:"Bearer " + adminToken }
+    });
+
+    const data = await res.json();
+
+    if(!data.success){
+      userSelect.innerHTML = `<option value="">Unable to load users</option>`;
+      return false;
+    }
+
+    if(data.users && data.users.length){
+      userSelect.innerHTML = `
+        <option value="">Select user</option>
+        ${data.users.map(user => `
+          <option value="${escapeHtml(user.id)}">${escapeHtml(user.name)} - ${escapeHtml(user.email)}</option>
+        `).join("")}
+      `;
+    }else{
+      userSelect.innerHTML = `<option value="">No approved users</option>`;
+    }
+
+    return true;
+
+  }catch(error){
+    userSelect.innerHTML = `<option value="">Connection error</option>`;
+    return false;
+  }
+}
+
+async function loadSurveyForEdit(){
+  const status = document.getElementById("surveyStatus");
+  status.innerText = "Loading form...";
+
+  try{
+    const res = await fetch("api/admin-surveys.php?survey_id=" + encodeURIComponent(editingSurveyId),{
+      headers:{ Authorization:"Bearer " + adminToken }
+    });
+
+    const data = await res.json();
+
+    if(!data.success){
+      status.innerText = data.message || "Unable to load this form.";
+      return;
+    }
+
+    if(!["pending_review", "pending", "rejected"].includes(data.survey.status)){
+      alert("Only forms awaiting approval, pending, or rejected can be edited.");
+      window.location.href = "admin.html";
+      return;
+    }
+
+    document.getElementById("surveyTitle").value = data.survey.title || "";
+    document.getElementById("surveyDescription").value = data.survey.description || "";
+    document.getElementById("assignedUser").value = data.survey.assigned_user_id || "";
+
+    document.getElementById("questionsWrap").innerHTML = "";
+
+    (data.questions || []).forEach(q => {
+      const chipsText = parseChipsToArray(q.chips).join(", ");
+      addQuestion(q.question_text, q.question_type, chipsText, q.max_file_size_mb || "");
+    });
+
+    if(!document.querySelector("#questionsWrap .question-card")) addQuestion();
+
+    // The account manager's reason for sending it back belongs on screen, not
+    // buried in the list it was opened from.
+    status.innerText = (data.survey.status === "rejected" && data.survey.review_note)
+      ? "Rejected by account manager: " + data.survey.review_note
+      : "";
+
+  }catch(error){
+    status.innerText = "Connection error.";
+  }
+}
+
+async function init(){
+  if(editingSurveyId){
+    document.title = "Edit Form — Admin";
+    document.getElementById("pageHeading").innerText = "Edit Form & Checklist";
+    document.getElementById("pageSub").innerText =
+      "Change the title, the assigned user or the items below, then send it back for approval.";
+    document.getElementById("surveySubmitBtn").innerText = "Update Form";
+  }
+
+  await loadAssignableUsers();
+
+  if(editingSurveyId){
+    await loadSurveyForEdit();
+    return;
+  }
+
+  // The users have to be in the select before a draft can select one.
+  if(!loadDraft()) addQuestion();
+}
+
+/* ── Save ───────────────────────────────────────────────────────────────── */
+
+async function saveSurvey(){
+  const title = document.getElementById("surveyTitle").value.trim();
+  const description = document.getElementById("surveyDescription").value.trim();
+  const assignedUserId = document.getElementById("assignedUser").value;
+  const status = document.getElementById("surveyStatus");
+
+  const questions = getQuestionsData();
+
+  if(!title || !assignedUserId || !questions.length){
+    status.innerText = "Please add title, user and at least one item/question.";
+    return;
+  }
+
+  const submitBtn = document.getElementById("surveySubmitBtn");
+  submitBtn.disabled = true;
+  status.innerText = editingSurveyId ? "Updating..." : "Creating...";
+
+  try{
+    const res = await fetch("api/admin-surveys.php",{
+      method: editingSurveyId ? "PUT" : "POST",
+      headers:{
+        "Content-Type":"application/json",
+        Authorization:"Bearer " + adminToken
+      },
+      body:JSON.stringify({
+        surveyId: editingSurveyId,
+        title,
+        description,
+        assignedUserId,
+        questions
+      })
+    });
+
+    const data = await res.json();
+
+    status.innerText = data.message;
+
+    if(data.success){
+      clearDraft();
+      // Back to the list, the way the content form returns to Content.
+      window.location.href = "admin.html";
+      return;
+    }
+
+    submitBtn.disabled = false;
+
+  }catch(error){
+    status.innerText = "Connection error.";
+    submitBtn.disabled = false;
+  }
+}
+
+// Autosave anything typed outside a card too - the title and the user select.
+document.getElementById("surveyTitle").addEventListener("input", saveDraft);
+document.getElementById("surveyDescription").addEventListener("input", saveDraft);
+document.getElementById("assignedUser").addEventListener("change", saveDraft);
+
+init();
+</script>
+
+</body>
+</html>

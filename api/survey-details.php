@@ -30,7 +30,7 @@ if (!$user || (int)$user["approved"] !== 1) {
 }
 
 $stmt = $pdo->prepare("
-    SELECT id, title, status, created_at
+    SELECT id, title, description, status, created_at
     FROM surveys
     WHERE id = ? AND assigned_user_id = ?
     LIMIT 1

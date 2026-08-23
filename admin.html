@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Admin Panel</title>
+<title>Forms — Admin</title>
 
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
@@ -42,17 +42,6 @@ body{
   font-size:14px;
 }
 
-.form{
-  padding:26px 28px;
-}
-
-.form-row{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:18px;
-  margin-bottom:18px;
-}
-
 label{
   display:block;
   font-size:13px;
@@ -78,140 +67,6 @@ textarea{
 input:focus,select:focus,textarea:focus{
   border-color:#1b1e3a;
   box-shadow:0 0 0 3px rgba(27,30,58,.10);
-}
-
-.question-box{
-  display:grid;
-  grid-template-columns:1fr 160px 90px;
-  gap:12px;
-  margin-bottom:12px;
-}
-
-.question-card{
-  border:1px solid #dfe3ea;
-  border-radius:14px;
-  background:#fff;
-  margin-bottom:14px;
-  overflow:hidden;
-  transition:all 0.2s ease;
-}
-
-.question-card-header{
-  padding:14px 18px;
-  background:#f8fafc;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  cursor:pointer;
-  user-select:none;
-}
-
-.question-card-header:hover{
-  background:#f1f5f9;
-}
-
-.question-card-header-left{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  font-weight:700;
-  font-size:14px;
-  color:#101828;
-  flex:1;
-  overflow:hidden;
-}
-
-.question-card-title-preview{
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  max-width:320px;
-}
-
-.type-badge{
-  font-size:11px;
-  padding:4px 10px;
-  border-radius:12px;
-  font-weight:800;
-  text-transform:capitalize;
-}
-
-.type-badge.badge-input{ background:#e7f0ff; color:#1e5bb8; }
-.type-badge.badge-file{ background:#fef3c7; color:#92400e; }
-.type-badge.badge-checkbox, .type-badge.badge-checklist{ background:#e8faef; color:#166534; }
-
-.question-card-actions{
-  display:flex;
-  align-items:center;
-  gap:10px;
-}
-
-.toggle-icon{
-  display:inline-block;
-  transition:transform 0.2s ease;
-  font-size:12px;
-  color:#667085;
-}
-
-.question-card.collapsed .toggle-icon{
-  transform:rotate(-90deg);
-}
-
-.question-card-body{
-  padding:18px;
-  border-top:1px solid #eef1f5;
-  display:grid;
-  grid-template-columns:1fr 180px;
-  gap:14px;
-}
-
-.question-card.collapsed .question-card-body{
-  display:none;
-}
-
-.question-chips-input{
-  grid-column:1 / -1;
-}
-
-.primary-btn{
-  border:none;
-  background:var(--nav-active);
-  color:#fff;
-  padding:13px 18px;
-  border-radius:10px;
-  font-weight:800;
-  cursor:pointer;
-}
-
-.secondary-btn{
-  border:none;
-  background:#eef1f5;
-  color:#101828;
-  padding:12px 16px;
-  border-radius:10px;
-  font-weight:800;
-  cursor:pointer;
-}
-
-.remove-btn{
-  border:none;
-  background:#c9000b;
-  color:#fff;
-  border-radius:10px;
-  font-weight:800;
-  cursor:pointer;
-}
-
-.form-actions{
-  display:flex;
-  gap:12px;
-  margin-top:18px;
-}
-
-.status-text{
-  margin-top:15px;
-  font-size:13px;
-  color:#667085;
 }
 
 table{
@@ -316,14 +171,6 @@ td{
     padding:18px;
   }
 
-  .form-row{
-    grid-template-columns:1fr;
-  }
-
-  .question-box{
-    grid-template-columns:1fr;
-  }
-
   table{
     min-width:760px;
   }
@@ -332,60 +179,7 @@ td{
     overflow-x:auto;
   }
 }
-.edit-modal{
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,.45);
-  display:none;
-  align-items:center;
-  justify-content:center;
-  z-index:99999;
-  padding:20px;
-}
 
-.edit-modal.show{
-  display:flex;
-}
-
-.edit-box{
-  width:100%;
-  max-width:760px;
-  max-height:85vh;
-  overflow:auto;
-  background:#fff;
-  border-radius:20px;
-}
-
-.edit-head{
-  padding:22px 24px;
-  border-bottom:1px solid #eef1f5;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
-
-.edit-head button{
-  width:34px;
-  height:34px;
-  border-radius:50%;
-  border:none;
-  background:var(--nav-active);
-  color:#fff;
-  font-size:20px;
-  cursor:pointer;
-}
-
-.edit-body{
-  padding:24px;
-}
-
-.edit-footer{
-  padding:18px 24px 30px;
-  border-top:1px solid #eef1f5;
-  display:flex;
-  justify-content:flex-end;
-  gap:12px;
-}
 .survey-filters{
   display:flex;
   gap:20px;
@@ -558,6 +352,18 @@ body{padding:0}
   .side-head{display:none}
   .admin-topbar{padding:0 18px}
 }
+
+/* ── Page header: the Create action sits on the title line, same as Content ── */
+.page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:28px}
+.page-title h1{font-size:30px;margin-bottom:8px}
+.page-title p{font-size:14px;color:var(--muted);max-width:620px}
+.create-btn{flex:none;display:inline-flex;align-items:center;gap:8px;background:var(--nav-active);color:#fff;text-decoration:none;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:800}
+.create-btn:hover{background:#282c52}
+.create-btn svg{width:16px;height:16px}
+
+/* Edit is a link to the builder now, so it has to look like the buttons it
+   sits beside rather than inheriting anchor styling. */
+.actions .action-btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
 </style>
 
 <script>
@@ -652,6 +458,7 @@ document.addEventListener("DOMContentLoaded", function () {
   </button>
 </aside>
 
+
 <div class="admin-main">
   <header class="admin-topbar">
     <button class="admin-bell" type="button" title="Notifications">
@@ -659,98 +466,87 @@ document.addEventListener("DOMContentLoaded", function () {
       <span class="dot"></span>
     </button>
   </header>
+
   <div class="admin-content">
-<div class="grid">
-  <div class="panel">
-    <div class="panel-head">
-      <h1>Create Form & Checklist</h1>
-      <p>Assign a form or checklist with custom questions/items to a specific approved user. Submissions are sent to the account manager for approval before the user sees them.</p>
+
+    <div class="page-head">
+      <div class="page-title">
+        <h1>Forms</h1>
+        <p>All forms and checklists assigned to approved users. Submissions go to the account manager for approval before the user sees them.</p>
+      </div>
+      <a class="create-btn" href="admin-form-builder.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Create Form
+      </a>
     </div>
 
-    <div class="form">
-      <div class="form-row">
-        <div>
-          <label>Title</label>
-          <input type="text" id="surveyTitle" placeholder="Form or Checklist Title">
+    <div class="grid">
+      <div class="panel">
+        <div class="panel-head">
+          <h1>Forms List</h1>
+          <p>All forms assigned to approved users.</p>
+
+          <div class="survey-filters">
+
+            <div class="filter-box">
+              <label>Filter by User</label>
+              <select id="surveyUserFilter" onchange="renderSurveysTable()">
+                <option value="all">All Users</option>
+              </select>
+            </div>
+
+            <div class="filter-box">
+              <label>Filter by Status</label>
+              <select id="surveyStatusFilter" onchange="renderSurveysTable()">
+                <option value="all">All Status</option>
+                <option value="pending_review">Awaiting Approval</option>
+                <option value="pending">Pending</option>
+                <option value="rejected">Rejected</option>
+                <option value="completed">Completed</option>
+              </select>
+            </div>
+
+          </div>
         </div>
 
-        <div>
-          <label>Assigned User</label>
-          <select id="assignedUser">
-            <option value="">Loading users...</option>
-          </select>
-        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Form</th>
+              <th>User</th>
+              <th>Email</th>
+              <th>Status</th>
+              <th>Created At</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+
+          <tbody id="surveysTable">
+            <tr>
+              <td colspan="7" class="empty">Loading forms...</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-
-      <label>Questions & Checklist Items</label>
-
-      <div id="questionsWrap"></div>
-
-      <div class="form-actions">
-        <button class="secondary-btn" onclick="addQuestion()" type="button">
-          + Add Item / Question
-        </button>
-
-        <button class="primary-btn" id="surveySubmitBtn" onclick="saveSurvey()" type="button">
-          Submit for Approval
-        </button>
-
-        <button class="secondary-btn" id="cancelEditBtn" onclick="cancelEditSurvey()" type="button" style="display:none;">
-          Cancel Edit
-        </button>
-      </div>
-
-      <div class="status-text" id="surveyStatus"></div>
     </div>
+
   </div>
-
-  <div class="panel">
-    <div class="panel-head">
-      <h1>Forms List</h1>
-      <p>All forms assigned to approved users.</p>
-      
-      <div class="survey-filters">
-
-  <div class="filter-box">
-    <label>Filter by User</label>
-    <select id="surveyUserFilter" onchange="renderSurveysTable()">
-      <option value="all">All Users</option>
-    </select>
-  </div>
-
-  <div class="filter-box">
-    <label>Filter by Status</label>
-    <select id="surveyStatusFilter" onchange="renderSurveysTable()">
-      <option value="all">All Status</option>
-      <option value="pending_review">Awaiting Approval</option>
-      <option value="pending">Pending</option>
-      <option value="rejected">Rejected</option>
-      <option value="completed">Completed</option>
-    </select>
-  </div>
-
 </div>
+
+<!-- ACCOUNT POPUP (opened from the sidebar card) -->
+<div class="acct-modal" id="acctModal">
+  <div class="acct-box">
+    <div class="acct-head">
+      <h2>Account</h2>
+      <button type="button" onclick="closeAccount()" aria-label="Close">&times;</button>
     </div>
-
-    <table>
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Form</th>
-          <th>User</th>
-          <th>Email</th>
-          <th>Status</th>
-          <th>Created At</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-
-      <tbody id="surveysTable">
-        <tr>
-          <td colspan="7" class="empty">Loading surveys...</td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="acct-body">
+      <div class="acct-avatar" id="acctAvatar">A</div>
+      <strong id="acctName">Admin</strong>
+      <div class="acct-role" id="acctRole">Administrator</div>
+      <button class="acct-logout" onclick="logoutAdmin()">&#8617; Logout</button>
+    </div>
   </div>
 </div>
 
@@ -762,8 +558,8 @@ if(!adminToken || !adminUser.role){
   window.location.href = "admin-login.html";
 }
 
-// Account managers don't build surveys - their job is reviewing the ones
-// other admins create, so they land straight on the review queue instead.
+// Account managers don't build forms - their job is reviewing the ones other
+// admins create, so they land straight on the review queue instead.
 if(adminUser.role === "account_manager"){
   window.location.href = "survey-review.html";
 }
@@ -780,131 +576,20 @@ function logoutAdmin(){
   window.location.href = "admin-login.html";
 }
 
-// Clients Management is open to every admin, so the sidebar no longer hides it.
-
-async function loadUsers(){
-
-  const table = document.getElementById("usersTable");
-
-  try{
-
-    const res = await fetch("api/admin-users.php",{
-      headers:{
-        Authorization:"Bearer " + adminToken
-      }
-    });
-
-    const data = await res.json();
-
-    if(!data.success){
-      table.innerHTML = `<tr><td colspan="7" class="empty">${data.message || "Unable to load surveys."}</td></tr>`;
-      return;
-    }
-
-    if(!data.users.length){
-      table.innerHTML = `
-        <tr>
-          <td colspan="6" class="empty">No users found.</td>
-        </tr>
-      `;
-      return;
-    }
-
-    table.innerHTML = data.users.map(user => {
-
-      const approved = Number(user.approved) === 1;
-
-      return `
-        <tr>
-          <td>#${user.id}</td>
-          <td>${user.name}</td>
-          <td>${user.email}</td>
-          <td>
-            <span class="badge ${approved ? "approved" : "pending"}">
-              ${approved ? "Approved" : "Pending"}
-            </span>
-          </td>
-          <td>${user.created_at}</td>
-          <td>
-  <div class="actions">
-    ${
-      approved
-      ? `<button class="btn approve-btn" disabled>Approved</button>`
-      : `<button class="btn approve-btn" onclick="updateUser(${user.id}, 'approve')">Approve</button>`
-    }
-    <button class="btn reject-btn" onclick="updateUser(${user.id}, 'reject')">Reject</button>
-  </div>
-</td>
-        </tr>
-      `;
-
-    }).join("");
-
-  }catch(error){
-
-    table.innerHTML = `
-      <tr>
-        <td colspan="6" class="empty">Connection error.</td>
-      </tr>
-    `;
-
-  }
-
+function esc(value){
+  return String(value == null ? "" : value)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
+
+/* ── The forms list ─────────────────────────────────────────────────────────
+   Building and editing both live on admin-form-builder.html, the same split
+   the Content page uses. This page only lists and routes. */
+
 let allAdminSurveys = [];
-let editingSurveyId = null;
-const DRAFT_KEY = `survey_draft_${adminUser.id || "admin"}`;
 
-function getQuestionsData(){
-  return Array.from(document.querySelectorAll("#questionsWrap .question-card")).map(box => {
-    const chipInputs = Array.from(box.querySelectorAll(".option-input")).map(i => i.value.trim()).filter(Boolean);
-    return {
-      text: box.querySelector(".questionText")?.value.trim() || "",
-      type: box.querySelector(".questionType")?.value || "input",
-      chips: chipInputs.join(", "),
-      maxFileSizeMb: box.querySelector(".questionMaxFileSize")?.value.trim() || ""
-    };
-  }).filter(q => q.text);
-}
-
-function saveDraft(){
-  if(editingSurveyId) return;
-
-  const draft = {
-    title: document.getElementById("surveyTitle").value,
-    assignedUserId: document.getElementById("assignedUser").value,
-    questions: getQuestionsData()
-  };
-
-  localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-}
-
-function loadDraft(){
-  const saved = localStorage.getItem(DRAFT_KEY);
-  if(!saved) return;
-
-  try{
-    const draft = JSON.parse(saved);
-
-    document.getElementById("surveyTitle").value = draft.title || "";
-    document.getElementById("assignedUser").value = draft.assignedUserId || "";
-
-    document.getElementById("questionsWrap").innerHTML = "";
-
-    if(draft.questions && draft.questions.length){
-      draft.questions.forEach(q => addQuestion(q.text, q.type, q.chips, q.maxFileSizeMb));
-    }else{
-      addQuestion();
-    }
-  }catch(e){}
-}
-
-function clearDraft(){
-  localStorage.removeItem(DRAFT_KEY);
-}
 async function loadSurveyData(){
 
-  const userSelect = document.getElementById("assignedUser");
   const surveysTable = document.getElementById("surveysTable");
   const surveyUserFilter = document.getElementById("surveyUserFilter");
 
@@ -919,39 +604,30 @@ async function loadSurveyData(){
     const data = await res.json();
 
     if(!data.success){
-      userSelect.innerHTML = `<option value="">Unable to load users</option>`;
       surveysTable.innerHTML = `
         <tr>
-          <td colspan="7" class="empty">Unable to load surveys.</td>
+          <td colspan="7" class="empty">Unable to load forms.</td>
         </tr>
       `;
       return;
     }
 
-    if(data.users.length){
-      userSelect.innerHTML = `
-        <option value="">Select user</option>
-        ${data.users.map(user => `
-          <option value="${user.id}">${user.name} - ${user.email}</option>
-        `).join("")}
-      `;
+    if(data.users && data.users.length){
       surveyUserFilter.innerHTML = `
         <option value="all">All Users</option>
         ${data.users.map(user => `
-          <option value="${user.id}">${user.name} - ${user.email}</option>
+          <option value="${esc(user.id)}">${esc(user.name)} - ${esc(user.email)}</option>
         `).join("")}
       `;
     }else{
-      userSelect.innerHTML = `<option value="">No approved users</option>`;
       surveyUserFilter.innerHTML = `<option value="all">All Users</option>`;
     }
 
     allAdminSurveys = data.surveys || [];
     renderSurveysTable();
-    loadDraft();
+
   }catch(error){
 
-    userSelect.innerHTML = `<option value="">Connection error</option>`;
     surveysTable.innerHTML = `
       <tr>
         <td colspan="7" class="empty">Connection error.</td>
@@ -960,6 +636,7 @@ async function loadSurveyData(){
 
   }
 }
+
 function renderSurveysTable(){
 
   const surveysTable = document.getElementById("surveysTable");
@@ -971,11 +648,11 @@ function renderSurveysTable(){
   if(filterValue !== "all"){
     surveys = allAdminSurveys.filter(s => Number(s.assigned_user_id) === Number(filterValue));
   }
+
   if(statusFilter !== "all"){
-  surveys = surveys.filter(
-    s => s.status === statusFilter
-  );
-}
+    surveys = surveys.filter(s => s.status === statusFilter);
+  }
+
   if(!surveys.length){
     surveysTable.innerHTML = `
       <tr>
@@ -998,564 +675,41 @@ function renderSurveysTable(){
 
     return `
     <tr>
-      <td>#${survey.id}</td>
-      <td>${survey.title}</td>
-      <td>${survey.user_name}</td>
-      <td>${survey.user_email}</td>
+      <td>#${esc(survey.id)}</td>
+      <td>${esc(survey.title)}</td>
+      <td>${esc(survey.user_name)}</td>
+      <td>${esc(survey.user_email)}</td>
       <td>
-  <span class="badge ${meta.cls}">
-    ${meta.label}
-  </span>
-  ${
-    survey.status === "rejected" && survey.review_note
-    ? `<span class="rejection-note">Reason: ${survey.review_note}</span>`
-    : ``
-  }
-</td>
-      <td>${survey.created_at}</td>
+        <span class="badge ${meta.cls}">
+          ${esc(meta.label)}
+        </span>
+        ${
+          survey.status === "rejected" && survey.review_note
+          ? `<span class="rejection-note">Reason: ${esc(survey.review_note)}</span>`
+          : ``
+        }
+      </td>
+      <td>${esc(survey.created_at)}</td>
       <td>
-  <div class="actions">
-    ${
-      editable
-      ? `<button class="btn action-btn" onclick="editSurvey(${survey.id})">Edit</button>`
-      : ``
-    }
+        <div class="actions">
+          ${
+            editable
+            ? `<a class="btn action-btn" href="admin-form-builder.html?edit=${encodeURIComponent(survey.id)}">Edit</a>`
+            : ``
+          }
 
-    ${
-      survey.status === "completed"
-      ? `<button class="btn action-btn" onclick="viewSurveyResponses(${survey.id})">View Responses</button>`
-      : ``
-    }
-  </div>
-</td>
+          ${
+            survey.status === "completed"
+            ? `<button class="btn action-btn" onclick="viewSurveyResponses(${Number(survey.id)})">View Responses</button>`
+            : ``
+          }
+        </div>
+      </td>
     </tr>
   `;
   }).join("");
 }
-async function editSurvey(surveyId){
-  editingSurveyId = surveyId;
 
-  const status = document.getElementById("editSurveyStatus");
-  status.innerText = "Loading survey...";
-
-  try{
-    const res = await fetch("api/admin-surveys.php?survey_id=" + surveyId,{
-      headers:{
-        Authorization:"Bearer " + adminToken
-      }
-    });
-
-    const data = await res.json();
-
-    if(!data.success){
-      status.innerText = data.message;
-      return;
-    }
-
-    if(!["pending_review", "pending", "rejected"].includes(data.survey.status)){
-      alert("Only forms awaiting approval, pending, or rejected can be edited.");
-      return;
-    }
-
-    document.getElementById("editSurveyTitle").value = data.survey.title;
-
-    const editUserSelect = document.getElementById("editAssignedUser");
-    editUserSelect.innerHTML = document.getElementById("assignedUser").innerHTML;
-    editUserSelect.value = data.survey.assigned_user_id;
-
-    document.getElementById("editQuestionsWrap").innerHTML = "";
-
-    data.questions.forEach(q => {
-      let chipsText = "";
-
-      try{
-        const chipsArr = q.chips ? JSON.parse(q.chips) : [];
-        chipsText = chipsArr.join(", ");
-      }catch(e){
-        chipsText = "";
-      }
-
-      addEditQuestion(q.question_text, q.question_type, chipsText);
-    });
-
-    status.innerText = (data.survey.status === "rejected" && data.survey.review_note)
-      ? "Rejected by account manager: " + data.survey.review_note
-      : "";
-    document.getElementById("editSurveyModal").classList.add("show");
-
-  }catch(error){
-    status.innerText = "Connection error.";
-  }
-}
-
-function cancelEditSurvey(){
-  editingSurveyId = null;
-
-  document.getElementById("surveyTitle").value = "";
-  document.getElementById("assignedUser").value = "";
-  document.getElementById("questionsWrap").innerHTML = "";
-
-  addQuestion();
-
-  document.getElementById("surveySubmitBtn").innerText = "Submit for Approval";
-  document.getElementById("cancelEditBtn").style.display = "none";
-  document.getElementById("surveyStatus").innerText = "";
-}
-
-function parseChipsToArray(chips){
-  if(!chips) return [];
-  if(Array.isArray(chips)) return chips;
-  try{
-    const parsed = JSON.parse(chips);
-    if(Array.isArray(parsed)) return parsed;
-  }catch(e){}
-  return String(chips).split(",").map(s => s.trim()).filter(Boolean);
-}
-
-function createOptionsBuilder(initialChips = [], isCheckbox = false, onUpdate = null){
-  const wrapper = document.createElement("div");
-  wrapper.className = "extra-field-options";
-  wrapper.style.cssText = "grid-column: 1 / -1;";
-
-  const label = document.createElement("label");
-  label.className = "options-field-label";
-  label.style.cssText = "font-weight:700; font-size:13px; margin-bottom:8px; display:block;";
-  label.textContent = isCheckbox ? "Checklist Items / Options" : "Quick Keywords (Optional)";
-
-  const itemsContainer = document.createElement("div");
-  itemsContainer.className = "options-items-list";
-  itemsContainer.style.cssText = "display:flex; flex-direction:column; gap:8px;";
-
-  function addOptionRow(val = ""){
-    const row = document.createElement("div");
-    row.className = "option-row";
-    row.style.cssText = "display:flex; align-items:center; gap:8px;";
-
-    const input = document.createElement("input");
-    input.type = "text";
-    input.className = "option-input";
-    input.placeholder = isCheckbox ? "Enter checklist item (e.g. Check Tires)" : "Enter keyword (e.g. Quick Service)";
-    input.value = val;
-    input.style.cssText = "flex:1;";
-
-    if(onUpdate){
-      input.addEventListener("input", onUpdate);
-      input.addEventListener("change", onUpdate);
-    }
-
-    const removeBtn = document.createElement("button");
-    removeBtn.type = "button";
-    removeBtn.className = "remove-option-btn";
-    removeBtn.title = "Remove Option";
-    removeBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none; display:block;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`;
-    removeBtn.style.cssText = "background:#fee2e2; color:#ef4444; border:1px solid #fca5a5; border-radius:8px; width:40px; height:40px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all 0.15s ease;";
-
-    removeBtn.onmouseenter = () => { removeBtn.style.background = "#dc2626"; removeBtn.style.color = "#ffffff"; };
-    removeBtn.onmouseleave = () => { removeBtn.style.background = "#fee2e2"; removeBtn.style.color = "#ef4444"; };
-
-    removeBtn.addEventListener("click", function(){
-      row.remove();
-      if(onUpdate) onUpdate();
-    });
-
-    row.appendChild(input);
-    row.appendChild(removeBtn);
-    itemsContainer.appendChild(row);
-
-    return input;
-  }
-
-  const initialArray = parseChipsToArray(initialChips);
-  if(initialArray.length > 0){
-    initialArray.forEach(val => addOptionRow(val));
-  } else {
-    addOptionRow("");
-  }
-
-  const addBtn = document.createElement("button");
-  addBtn.type = "button";
-  addBtn.className = "secondary-btn add-option-btn";
-  addBtn.style.cssText = "margin-top:10px; padding:9px 14px; font-size:13px; font-weight:700; display:inline-flex; align-items:center; gap:6px; border-radius:8px; cursor:pointer;";
-  addBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg> Add Option`;
-
-  addBtn.addEventListener("click", function(){
-    const newInput = addOptionRow("");
-    newInput.focus();
-    if(onUpdate) onUpdate();
-  });
-
-  wrapper.appendChild(label);
-  wrapper.appendChild(itemsContainer);
-  wrapper.appendChild(addBtn);
-
-  return {
-    wrapper,
-    label,
-    itemsContainer,
-    addOptionRow
-  };
-}
-
-function addEditQuestion(value = "", type = "input", chips = ""){
-  const wrap = document.getElementById("editQuestionsWrap");
-
-  const div = document.createElement("div");
-  div.className = "question-card";
-
-  const typeLabels = {
-    input: "Input",
-    file: "File Upload",
-    checkbox: "Checklist",
-    checklist: "Checklist"
-  };
-
-  const initialType = (type === "textarea" ? "input" : type) || "input";
-  const isCheckbox = initialType === "checkbox" || initialType === "checklist";
-
-  div.innerHTML = `
-    <div class="question-card-header">
-      <div class="question-card-header-left">
-        <span class="toggle-icon">▼</span>
-        <span class="question-card-title-preview">${value || "Edit Item / Question"}</span>
-        <span class="type-badge badge-${isCheckbox ? 'checkbox' : initialType}">${typeLabels[initialType] || initialType}</span>
-      </div>
-      <div class="question-card-actions">
-        <button class="remove-btn" type="button" style="padding:6px 14px;font-size:12px;">Remove</button>
-      </div>
-    </div>
-    <div class="question-card-body">
-      <div>
-        <label>Item / Question Text</label>
-        <input type="text" class="editQuestionText" placeholder="Enter title or text" value="${value}">
-      </div>
-      <div>
-        <label>Type</label>
-        <select class="editQuestionType">
-          <option value="input" ${initialType === "input" ? "selected" : ""}>Input</option>
-          <option value="file" ${initialType === "file" ? "selected" : ""}>File Upload</option>
-          <option value="checkbox" ${isCheckbox ? "selected" : ""}>Checklist</option>
-        </select>
-      </div>
-    </div>
-  `;
-
-  const body = div.querySelector(".question-card-body");
-  const optionsBuilder = createOptionsBuilder(chips, isCheckbox, null);
-
-  if(!isCheckbox && initialType !== "input"){
-    optionsBuilder.wrapper.style.display = "none";
-  }
-  body.appendChild(optionsBuilder.wrapper);
-
-  const header = div.querySelector(".question-card-header");
-  header.addEventListener("click", function(e){
-    if (e.target.classList.contains("remove-btn")) return;
-    div.classList.toggle("collapsed");
-  });
-
-  const textInput = div.querySelector(".editQuestionText");
-  const previewSpan = div.querySelector(".question-card-title-preview");
-  textInput.addEventListener("input", function(){
-    previewSpan.textContent = textInput.value.trim() || "Edit Item / Question";
-  });
-
-  const typeSelect = div.querySelector(".editQuestionType");
-  const badgeSpan = div.querySelector(".type-badge");
-
-  typeSelect.addEventListener("change", function(){
-    const selected = typeSelect.value;
-    const isCb = selected === "checkbox" || selected === "checklist";
-    badgeSpan.className = `type-badge badge-${isCb ? 'checkbox' : selected}`;
-    badgeSpan.textContent = typeLabels[selected] || selected;
-
-    if (selected === "input") {
-      optionsBuilder.wrapper.style.display = "block";
-      optionsBuilder.label.textContent = "Quick Keywords (Optional)";
-    } else if (isCb) {
-      optionsBuilder.wrapper.style.display = "block";
-      optionsBuilder.label.textContent = "Checklist Items / Options";
-    } else {
-      optionsBuilder.wrapper.style.display = "none";
-    }
-  });
-
-  div.querySelector(".remove-btn").addEventListener("click", function(e){
-    e.stopPropagation();
-    div.remove();
-  });
-
-  wrap.appendChild(div);
-}
-
-function closeEditSurvey(){
-  editingSurveyId = null;
-  document.getElementById("editSurveyModal").classList.remove("show");
-}
-
-function addQuestion(value = "", type = "input", chips = "", maxFileSizeMb = ""){
-  const wrap = document.getElementById("questionsWrap");
-
-  const div = document.createElement("div");
-  div.className = "question-card";
-
-  const typeLabels = {
-    input: "Input",
-    file: "File Upload",
-    checkbox: "Checklist",
-    checklist: "Checklist"
-  };
-
-  const initialType = (type === "textarea" ? "input" : type) || "input";
-  const isCheckbox = initialType === "checkbox" || initialType === "checklist";
-
-  div.innerHTML = `
-    <div class="question-card-header">
-      <div class="question-card-header-left">
-        <span class="toggle-icon">▼</span>
-        <span class="question-card-title-preview">${value || "New Item / Question"}</span>
-        <span class="type-badge badge-${isCheckbox ? 'checkbox' : initialType}">${typeLabels[initialType] || initialType}</span>
-      </div>
-      <div class="question-card-actions">
-        <button class="remove-btn" type="button" style="padding:6px 14px;font-size:12px;">Remove</button>
-      </div>
-    </div>
-    <div class="question-card-body">
-      <div>
-        <label>Item / Question Text</label>
-        <input type="text" class="questionText" placeholder="Enter title or text" value="${value}">
-      </div>
-      <div>
-        <label>Type</label>
-        <select class="questionType">
-          <option value="input" ${initialType === "input" ? "selected" : ""}>Input</option>
-          <option value="file" ${initialType === "file" ? "selected" : ""}>File Upload</option>
-          <option value="checkbox" ${isCheckbox ? "selected" : ""}>Checklist</option>
-        </select>
-      </div>
-      <div class="extra-field-file" style="grid-column: 1 / -1; display: ${initialType === 'file' ? 'block' : 'none'};">
-        <label>Max File Size (MB)</label>
-        <input 
-          type="number" 
-          class="questionMaxFileSize question-chips-input" 
-          placeholder="Max file size MB (e.g. 5)"
-          value="${maxFileSizeMb || ""}"
-        >
-      </div>
-    </div>
-  `;
-
-  const body = div.querySelector(".question-card-body");
-  const optionsBuilder = createOptionsBuilder(chips, isCheckbox, saveDraft);
-
-  if(!isCheckbox && initialType !== "input"){
-    optionsBuilder.wrapper.style.display = "none";
-  }
-  body.appendChild(optionsBuilder.wrapper);
-
-  const header = div.querySelector(".question-card-header");
-  header.addEventListener("click", function(e){
-    if (e.target.classList.contains("remove-btn")) return;
-    div.classList.toggle("collapsed");
-  });
-
-  const textInput = div.querySelector(".questionText");
-  const previewSpan = div.querySelector(".question-card-title-preview");
-  textInput.addEventListener("input", function(){
-    previewSpan.textContent = textInput.value.trim() || "New Item / Question";
-  });
-
-  const typeSelect = div.querySelector(".questionType");
-  const badgeSpan = div.querySelector(".type-badge");
-  const fileField = div.querySelector(".extra-field-file");
-
-  typeSelect.addEventListener("change", function(){
-    const selected = typeSelect.value;
-    const isCb = selected === "checkbox" || selected === "checklist";
-    badgeSpan.className = `type-badge badge-${isCb ? 'checkbox' : selected}`;
-    badgeSpan.textContent = typeLabels[selected] || selected;
-
-    if (selected === "input") {
-      optionsBuilder.wrapper.style.display = "block";
-      optionsBuilder.label.textContent = "Quick Keywords (Optional)";
-      fileField.style.display = "none";
-    } else if (isCb) {
-      optionsBuilder.wrapper.style.display = "block";
-      optionsBuilder.label.textContent = "Checklist Items / Options";
-      fileField.style.display = "none";
-    } else if (selected === "file") {
-      optionsBuilder.wrapper.style.display = "none";
-      fileField.style.display = "block";
-    }
-  });
-
-  div.querySelector(".remove-btn").addEventListener("click", function(e){
-    e.stopPropagation();
-    div.remove();
-    saveDraft();
-  });
-
-  div.querySelectorAll("input, select").forEach(el => {
-    el.addEventListener("input", saveDraft);
-    el.addEventListener("change", saveDraft);
-  });
-
-  wrap.appendChild(div);
-  saveDraft();
-}
-
-async function saveSurvey(){
-
-  const title = document.getElementById("surveyTitle").value.trim();
-  const assignedUserId = document.getElementById("assignedUser").value;
-  const status = document.getElementById("surveyStatus");
-
-  const questions = Array.from(document.querySelectorAll("#questionsWrap .question-card")).map(box => {
-    const chipInputs = Array.from(box.querySelectorAll(".option-input")).map(i => i.value.trim()).filter(Boolean);
-    return {
-      text: box.querySelector(".questionText").value.trim(),
-      type: box.querySelector(".questionType").value,
-      chips: chipInputs.join(", "),
-      maxFileSizeMb: box.querySelector(".questionMaxFileSize")?.value.trim() || ""
-    };
-  }).filter(q => q.text);
-
-  if(!title || !assignedUserId || !questions.length){
-    status.innerText = "Please add title, user and at least one item/question.";
-    return;
-  }
-
-  status.innerText = editingSurveyId ? "Updating..." : "Creating...";
-
-  try{
-
-    const res = await fetch("api/admin-surveys.php",{
-      method: editingSurveyId ? "PUT" : "POST",
-      headers:{
-        "Content-Type":"application/json",
-        Authorization:"Bearer " + adminToken
-      },
-      body:JSON.stringify({
-        surveyId: editingSurveyId,
-        title,
-        assignedUserId,
-        questions
-      })
-    });
-
-    const data = await res.json();
-
-    status.innerText = data.message;
-
-    if(data.success){
-      clearDraft();
-      editingSurveyId = null;
-      document.getElementById("surveySubmitBtn").innerText = "Submit for Approval";
-      document.getElementById("cancelEditBtn").style.display = "none";
-      document.getElementById("surveyTitle").value = "";
-      document.getElementById("assignedUser").value = "";
-      document.getElementById("questionsWrap").innerHTML = "";
-      addQuestion();
-
-      loadSurveyData();
-    }
-
-  }catch(error){
-
-    status.innerText = "Connection error.";
-
-  }
-}
-
-async function updateSurvey(){
-  const title = document.getElementById("editSurveyTitle").value.trim();
-  const assignedUserId = document.getElementById("editAssignedUser").value;
-  const status = document.getElementById("editSurveyStatus");
-
-  const questions = Array.from(document.querySelectorAll("#editQuestionsWrap .question-card")).map(box => {
-    const chipInputs = Array.from(box.querySelectorAll(".option-input")).map(i => i.value.trim()).filter(Boolean);
-    return {
-      text: box.querySelector(".editQuestionText").value.trim(),
-      type: box.querySelector(".editQuestionType").value,
-      chips: chipInputs.join(", ")
-    };
-  }).filter(q => q.text);
-
-  if(!title || !assignedUserId || !questions.length){
-    status.innerText = "Please add title, user and at least one item/question.";
-    return;
-  }
-
-  status.innerText = "Updating survey...";
-
-  try{
-    const res = await fetch("api/admin-surveys.php",{
-      method:"PUT",
-      headers:{
-        "Content-Type":"application/json",
-        Authorization:"Bearer " + adminToken
-      },
-      body:JSON.stringify({
-        surveyId: editingSurveyId,
-        title,
-        assignedUserId,
-        questions
-      })
-    });
-
-    const data = await res.json();
-    status.innerText = data.message;
-
-    if(data.success){
-      closeEditSurvey();
-      loadSurveyData();
-    }
-
-  }catch(error){
-    status.innerText = "Connection error.";
-  }
-}
-async function updateUser(userId, action){
-
-  if(action === "reject"){
-    const confirmDelete = confirm("Are you sure you want to reject and delete this user?");
-    if(!confirmDelete) return;
-  }
-
-  try{
-
-    const res = await fetch("api/admin-users.php",{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        Authorization:"Bearer " + adminToken
-      },
-      body:JSON.stringify({
-        userId,
-        action
-      })
-    });
-
-    const data = await res.json();
-
-    alert(data.message);
-
-    loadUsers();
-    loadSurveyData();
-
-  }catch(error){
-
-    alert("Connection error");
-
-  }
-
-}
-
-function logoutAdmin(){
-  localStorage.removeItem("admin_token");
-  localStorage.removeItem("admin_user");
-  window.location.href="admin-login.html";
-}
-loadSurveyData();
 async function viewSurveyResponses(surveyId){
   try{
     const res = await fetch("api/admin-responses.php?survey_id=" + surveyId,{
@@ -1577,59 +731,9 @@ async function viewSurveyResponses(surveyId){
     alert("Connection error.");
   }
 }
+
+loadSurveyData();
 </script>
-<div class="edit-modal" id="editSurveyModal">
-  <div class="edit-box">
-    <div class="edit-head">
-      <h2>Edit Form</h2>
-      <button onclick="closeEditSurvey()">×</button>
-    </div>
-
-    <div class="edit-body">
-      <label>Survey Title</label>
-      <input type="text" id="editSurveyTitle">
-
-      <br><br>
-
-      <label>Assigned User</label>
-      <select id="editAssignedUser"></select>
-
-      <br><br>
-
-      <label>Questions</label>
-      <div id="editQuestionsWrap"></div>
-
-      <button class="secondary-btn" type="button" onclick="addEditQuestion()">
-        + Add Question
-      </button>
-
-      <div class="status-text" id="editSurveyStatus"></div>
-    </div>
-
-    <div class="edit-footer">
-      <button class="secondary-btn" type="button" onclick="closeEditSurvey()">Cancel</button>
-      <button class="primary-btn" type="button" onclick="updateSurvey()">Update Form</button>
-    </div>
-  </div>
-</div>
-  </div>
-</div>
-
-<!-- ACCOUNT POPUP (opened from the sidebar card) -->
-<div class="acct-modal" id="acctModal">
-  <div class="acct-box">
-    <div class="acct-head">
-      <h2>Account</h2>
-      <button type="button" onclick="closeAccount()" aria-label="Close">&times;</button>
-    </div>
-    <div class="acct-body">
-      <div class="acct-avatar" id="acctAvatar">A</div>
-      <strong id="acctName">Admin</strong>
-      <div class="acct-role" id="acctRole">Administrator</div>
-      <button class="acct-logout" onclick="logoutAdmin()">&#8617; Logout</button>
-    </div>
-  </div>
-</div>
 
 </body>
 </html>

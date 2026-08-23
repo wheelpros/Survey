@@ -46,6 +46,15 @@ h1{
   margin-bottom:28px;
 }
 
+/* The admin's blurb for this form. Optional, so it hides itself when empty -
+   and display:block below would otherwise beat the hidden attribute. */
+#surveyDescription{
+  margin-top:-18px;
+  line-height:1.6;
+  white-space:pre-wrap;
+}
+#surveyDescription[hidden]{ display:none; }
+
 .field{
   margin-bottom:22px;
 }
@@ -381,6 +390,7 @@ input,textarea{
 
     <h1 id="surveyTitle">Loading...</h1>
     <p class="subtitle" id="surveyMeta">Please answer all required questions.</p>
+    <p class="subtitle" id="surveyDescription" hidden></p>
 
     <div id="questionsWrap"></div>
     <div class="confirm-box" id="confirmBox">
@@ -477,6 +487,13 @@ async function loadSurvey(){
     }
 
     document.getElementById("surveyTitle").innerText = data.survey.title;
+
+    // Optional: hidden entirely rather than left as an empty gap.
+    const description = (data.survey.description || "").trim();
+    const descriptionEl = document.getElementById("surveyDescription");
+    descriptionEl.innerText = description;
+    descriptionEl.hidden = !description;
+
     document.getElementById("surveyMeta").innerText =
       "Status: " + data.survey.status + " | Created: " + data.survey.created_at;
 

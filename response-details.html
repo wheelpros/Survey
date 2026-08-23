@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Answers</title>
+<title>Form Answers — Admin</title>
 
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
@@ -12,21 +12,65 @@ body{
   padding:35px;
 }
 
-.card{
+/* ── Page header and panel: the same shell every other admin page uses ── */
+.page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:28px}
+.page-title h1{font-size:30px;margin-bottom:8px}
+.page-title p{font-size:14px;color:var(--muted);max-width:620px}
+.back-link{flex:none;display:inline-flex;align-items:center;gap:8px;border:1px solid #dfe3ea;background:#fff;color:var(--text);text-decoration:none;padding:11px 18px;border-radius:10px;font-size:13px;font-weight:800}
+.back-link:hover{background:#f6f7f9}
+.back-link svg{width:15px;height:15px}
+
+.panel{
   background:#fff;
-  padding:20px;
-  border-radius:15px;
-  margin-bottom:15px;
+  border-radius:20px;
+  box-shadow:0 14px 35px rgba(0,0,0,.06);
+  overflow:hidden;
 }
 
+.panel-head{
+  padding:24px 28px;
+  border-bottom:1px solid #eef1f5;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:20px;
+  flex-wrap:wrap;
+}
+
+.panel-head h2{font-size:20px}
+.panel-body{padding:26px 28px}
+
+.downloads{display:flex;gap:10px;flex-wrap:wrap}
+
+/* One answer. A plain divided row inside the panel rather than its own
+   floating card - the panel is the card now. */
+.card{
+  padding:18px 0;
+  border-bottom:1px solid #eef1f5;
+}
+
+.card:first-child{padding-top:0}
+.card:last-child{border-bottom:none;padding-bottom:0}
+
 .question{
-  font-weight:bold;
-  margin-bottom:10px;
+  font-weight:800;
+  font-size:14px;
+  margin-bottom:8px;
 }
 
 .answer{
   margin-bottom:12px;
-  color:#101828;
+  font-size:14px;
+  line-height:1.6;
+  color:var(--muted);
+}
+
+.answer:last-child{margin-bottom:0}
+
+.empty{
+  padding:30px;
+  text-align:center;
+  color:var(--muted);
 }
 
 .download-file{
@@ -41,14 +85,17 @@ body{
 }
 
 .btn{
-  color:white;
+  background:var(--nav-active);
+  color:#fff;
   border:none;
-  padding:12px 18px;
+  padding:11px 16px;
   border-radius:10px;
-  font-weight:bold;
+  font-weight:800;
+  font-size:13px;
   cursor:pointer;
-  margin-bottom:25px;
 }
+
+.btn:hover{background:#282c52}
 
 /* ── Admin shell: sidebar + header (shared across admin pages) ── */
 :root{
@@ -144,6 +191,46 @@ body{padding:0}
 .acct-role{display:inline-block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--nav-active);background:#eef0f6;border-radius:20px;padding:5px 12px;margin-bottom:22px}
 .acct-logout{width:100%;height:46px;border:1px solid #f0d2d4;background:#fff;color:var(--brand);border-radius:12px;font-weight:800;font-size:14px;cursor:pointer}
 .acct-logout:hover{background:#fff5f5}
+/* ── Shell refresh: the collapse control lives in the sidebar head ── */
+.side-head{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  min-height:36px;margin-bottom:26px;padding:0 2px;
+}
+.side-logo{padding:0;margin:0;flex:1;min-width:0}
+.side-logo img{width:132px;max-width:100%;height:auto;display:block}
+
+.side-toggle{
+  width:34px;height:34px;flex:none;border-radius:9px;border:none;
+  background:transparent;color:var(--muted);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .15s,color .15s;
+}
+.side-toggle:hover{background:#f2f4f8;color:var(--text)}
+.side-toggle svg{width:18px;height:18px}
+
+/* Collapsed to 78px the wordmark is illegible, so the head keeps only the toggle. */
+:root.sidebar-collapsed .side-head{justify-content:center;margin-bottom:22px}
+:root.sidebar-collapsed .side-logo{display:none}
+
+/* Tighter nav rows: the active/hover pill was heavier than the label needs. */
+.side-nav a{gap:10px;padding:8px 10px;border-radius:9px;margin-bottom:2px}
+.side-nav a svg{width:17px;height:17px}
+:root.sidebar-collapsed .side-nav a{
+  width:38px;height:38px;padding:0;margin:0 auto 4px;
+  border-radius:10px;justify-content:center;
+}
+
+/* Header sits on the page background rather than its own white bar. */
+.admin-topbar{
+  height:64px;background:transparent;border-bottom:none;
+  justify-content:flex-end;padding:0 35px;
+}
+
+@media(max-width:950px){
+  /* Force-collapsed below this width, so the head has nothing left to show. */
+  .side-head{display:none}
+  .admin-topbar{padding:0 18px}
+}
 </style>
 
 <script>
@@ -243,21 +330,31 @@ document.addEventListener("DOMContentLoaded", function () {
   </header>
   <div class="admin-content">
 
-<h1 style="margin-bottom:20px;font-size:24px;">Survey Answers</h1>
+    <div class="page-head">
+      <div class="page-title">
+        <h1>Form Answers</h1>
+        <p>Everything the user submitted for this form, with any files they attached.</p>
+      </div>
+      <a class="back-link" href="responses.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        Back to Responses
+      </a>
+    </div>
 
-<button onclick="downloadWord()" class="btn" style="background:#1b1e3a;">
-  Download Word
-</button>
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Answers</h2>
+        <div class="downloads">
+          <button onclick="downloadWord()" class="btn" type="button">Download Word</button>
+          <button onclick="downloadExcel()" class="btn" type="button">Download Excel</button>
+          <button onclick="downloadMarkdown()" class="btn" type="button">Download File.md</button>
+        </div>
+      </div>
 
-<button onclick="downloadExcel()" class="btn" style="background:#101828;margin-left:10px;">
-  Download Excel
-</button>
-
-<button onclick="downloadMarkdown()" class="btn" style="background:#101828;margin-left:10px;">
-  Download File.md
-</button>
-
-<div id="answers"></div>
+      <div class="panel-body">
+        <div id="answers"><div class="empty">Loading answers...</div></div>
+      </div>
+    </div>
 
 <script>
 const id = new URLSearchParams(location.search).get("id");
@@ -278,42 +375,57 @@ function logoutAdmin(){
 
 let responseAnswers = [];
 
-fetch("api/response-details.php?id=" + id)
+// Answers are typed by the user and file names come off their upload, so both
+// are escaped before they go anywhere near innerHTML.
+function esc(value){
+  return String(value == null ? "" : value)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+
+fetch("api/response-details.php?id=" + encodeURIComponent(id))
 .then(r => r.json())
 .then(data => {
 
   responseAnswers = data.answers || [];
 
-  let html = "";
+  const target = document.getElementById("answers");
 
-  responseAnswers.forEach(item => {
+  if(!responseAnswers.length){
+    target.innerHTML = `<div class="empty">No answers were submitted for this response.</div>`;
+    return;
+  }
+
+  target.innerHTML = responseAnswers.map(item => {
 
     const fileButton = item.file_id
       ? `
         <a class="download-file"
-          href="api/download-survey-file.php?id=${item.file_id}&token=${encodeURIComponent(adminToken)}">
-          Download File: ${item.file_name}
+          href="api/download-survey-file.php?id=${encodeURIComponent(item.file_id)}&token=${encodeURIComponent(adminToken)}">
+          Download File: ${esc(item.file_name)}
         </a>
       `
       : "";
 
-    html += `
+    return `
       <div class="card">
         <div class="question">
-          ${item.question_text}
+          ${esc(item.question_text)}
         </div>
 
         <div class="answer">
-          ${item.answer || ""}
+          ${esc(item.answer) || "—"}
         </div>
 
         ${fileButton}
       </div>
     `;
-  });
+  }).join("");
 
-  document.getElementById("answers").innerHTML = html;
-
+})
+.catch(() => {
+  document.getElementById("answers").innerHTML =
+    `<div class="empty">Connection error.</div>`;
 });
 
 function downloadWord(){
@@ -327,7 +439,7 @@ function downloadWord(){
     <html>
     <head>
       <meta charset="UTF-8">
-      <title>Survey Answers</title>
+      <title>Form Answers</title>
       <style>
         body{font-family:Arial;line-height:1.6;}
         h1{color:#c9000b;}
@@ -338,51 +450,10 @@ function downloadWord(){
           border-radius:10px;
         }
         .question{font-weight:bold;margin-bottom:8px;}
-      
-/* ── Shell refresh: the collapse control lives in the sidebar head ── */
-.side-head{
-  display:flex;align-items:center;justify-content:space-between;gap:8px;
-  min-height:36px;margin-bottom:26px;padding:0 2px;
-}
-.side-logo{padding:0;margin:0;flex:1;min-width:0}
-.side-logo img{width:132px;max-width:100%;height:auto;display:block}
-
-.side-toggle{
-  width:34px;height:34px;flex:none;border-radius:9px;border:none;
-  background:transparent;color:var(--muted);cursor:pointer;
-  display:flex;align-items:center;justify-content:center;
-  transition:background .15s,color .15s;
-}
-.side-toggle:hover{background:#f2f4f8;color:var(--text)}
-.side-toggle svg{width:18px;height:18px}
-
-/* Collapsed to 78px the wordmark is illegible, so the head keeps only the toggle. */
-:root.sidebar-collapsed .side-head{justify-content:center;margin-bottom:22px}
-:root.sidebar-collapsed .side-logo{display:none}
-
-/* Tighter nav rows: the active/hover pill was heavier than the label needs. */
-.side-nav a{gap:10px;padding:8px 10px;border-radius:9px;margin-bottom:2px}
-.side-nav a svg{width:17px;height:17px}
-:root.sidebar-collapsed .side-nav a{
-  width:38px;height:38px;padding:0;margin:0 auto 4px;
-  border-radius:10px;justify-content:center;
-}
-
-/* Header sits on the page background rather than its own white bar. */
-.admin-topbar{
-  height:64px;background:transparent;border-bottom:none;
-  justify-content:flex-end;padding:0 35px;
-}
-
-@media(max-width:950px){
-  /* Force-collapsed below this width, so the head has nothing left to show. */
-  .side-head{display:none}
-  .admin-topbar{padding:0 18px}
-}
-</style>
+      </style>
     </head>
     <body>
-      <h1>Survey Answers</h1>
+      <h1>Form Answers</h1>
   `;
 
   responseAnswers.forEach(item => {
@@ -406,7 +477,7 @@ function downloadWord(){
 
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
-  link.download = "survey-answers.doc";
+  link.download = "form-answers.doc";
   link.click();
 
   URL.revokeObjectURL(link.href);
@@ -435,7 +506,7 @@ function downloadExcel(){
 
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
-  link.download = "survey-answers.csv";
+  link.download = "form-answers.csv";
   link.click();
 
   URL.revokeObjectURL(link.href);
@@ -447,7 +518,7 @@ function downloadMarkdown(){
     return;
   }
 
-  let markdown = "# Survey Answers\n\n";
+  let markdown = "# Form Answers\n\n";
 
   responseAnswers.forEach((item, index) => {
 
@@ -468,7 +539,7 @@ function downloadMarkdown(){
 
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
-  link.download = "survey-answers.md";
+  link.download = "form-answers.md";
   link.click();
 
   URL.revokeObjectURL(link.href);
