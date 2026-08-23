@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Survey Responses</title>
+<title>Form Responses — Admin</title>
 
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
@@ -277,7 +277,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 <div class="panel">
   <div class="panel-head">
-    <h1 id="pageTitle">Survey Responses</h1>
+    <h1 id="pageTitle">Form Responses</h1>
     <p>View and manage survey submissions.</p>
   </div>
   <div class="panel-body">
@@ -334,7 +334,7 @@ async function loadResponses(){
     }
 
     if(surveyId){
-      document.getElementById("pageTitle").innerText = "Survey Responses #" + surveyId;
+      document.getElementById("pageTitle").innerText = "Form Responses #" + surveyId;
     }
 
     box.innerHTML = data.responses.map(item => `

@@ -78,6 +78,9 @@ body{background:#f6f7fb;color:var(--text);padding:0}
   padding:12px 16px;margin-bottom:22px;
   font-size:13px;font-weight:700;color:#7a5a00;
 }
+/* display:flex above beats the browser's [hidden]{display:none}, so the bar
+   showed on every load. It has to be opted out of explicitly. */
+.restore-bar[hidden]{display:none}
 .restore-bar svg{width:17px;height:17px;flex:none}
 .restore-bar span{flex:1}
 .restore-bar button{
@@ -162,7 +165,10 @@ input:disabled{opacity:.5;cursor:not-allowed}
 .media-preview{display:none;position:relative}
 .media-preview.show{display:block}
 .media-preview .thumb{background:#f1f3f7 center/cover no-repeat;border-radius:12px}
-.media-preview.is-horizontal .thumb{aspect-ratio:16/9}
+/* 2.4/1, not 16/9: it has to match what the Content page renders, and the
+   recommended size the dropzone quotes. A 16/9 box centre-crops a correctly
+   sized banner and makes the advice look wrong. */
+.media-preview.is-horizontal .thumb{aspect-ratio:2.4/1}
 .media-preview.is-vertical .thumb{aspect-ratio:9/16}
 .media-preview .remove{position:absolute;top:8px;right:8px;width:28px;height:28px;border:none;border-radius:50%;background:rgba(16,24,40,.75);color:#fff;font-size:16px;line-height:1;cursor:pointer}
 .media-error{display:none;font-size:12px;color:var(--brand);font-weight:700;margin-top:10px}
@@ -431,7 +437,8 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
             <div class="dropzone" id="dropzone" onclick="document.getElementById('mediaInput').click()">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
               <strong>Upload image</strong>
-              <span>Max size 3 MB</span>
+              <!-- Rewritten by updateMediaHint() whenever the orientation changes. -->
+              <span id="mediaHint">Max size 3 MB</span>
             </div>
 
             <div class="media-preview is-horizontal" id="mediaPreview">
@@ -724,10 +731,30 @@ function openPanel(id){
 
 /* ── Orientation ── */
 
+/* What the Content page actually renders the media at, per orientation:
+   a horizontal post is a 2.4/1 banner capped at 672 x 280 CSS px, a vertical
+   one a 9/16 panel 300 px wide. The recommended sizes are those ratios at
+   roughly 2x, so the image stays sharp without paying for pixels the layout
+   throws away. The grid thumbnail is a square centre-crop either way, so keep
+   the subject away from the edges. */
+const MEDIA_GUIDE = {
+  horizontal: {size: "1440 × 600 px", ratio: "2.4:1"},
+  vertical:   {size: "1080 × 1920 px", ratio: "9:16"}
+};
+
+function updateMediaHint(){
+  const hint = document.getElementById("mediaHint");
+  if(!hint) return;
+
+  const guide = MEDIA_GUIDE[orientation] || MEDIA_GUIDE.horizontal;
+
+  hint.innerText = `Max size 3 MB · ${guide.size} recommended (${guide.ratio})`;
+}
+
 function selectOrientation(value){
   orientation = value;
 
-  
+
 document.querySelectorAll("[data-orientation]").forEach(btn => {
   btn.classList.toggle(
     "selected",
@@ -739,6 +766,8 @@ document.querySelectorAll("[data-orientation]").forEach(btn => {
   const preview = document.getElementById("mediaPreview");
   const shown = preview.classList.contains("show");
   preview.className = "media-preview is-" + value + (shown ? " show" : "");
+
+  updateMediaHint();
 }
 
 /* ── Caption editor ─────────────────────────────────────────────────────────
@@ -1092,21 +1121,13 @@ async function prepareEditMode(){
     |--------------------------------------------------------------------------
     */
 
-    orientation =
-      item.orientation === "vertical"
-        ? "vertical"
-        : "horizontal";
-
-    document
-      .querySelectorAll("[data-orientation]")
-      .forEach(btn => {
-
-        btn.classList.toggle(
-          "active",
-          btn.dataset.orientation === orientation
-        );
-
-      });
+    // Through selectOrientation() rather than inline: this block set the
+    // variable and toggled "active", but the styled state is "selected", so
+    // an edited post opened with neither button lit. It also syncs the
+    // preview's aspect ratio and the recommended size in the dropzone.
+    selectOrientation(
+      item.orientation === "vertical" ? "vertical" : "horizontal"
+    );
 
     /*
     |--------------------------------------------------------------------------
@@ -1418,6 +1439,7 @@ document.addEventListener("click", event => {
 
 renderTypes();
 updateCounter();
+updateMediaHint();
 
 if(editId){
   prepareEditMode();

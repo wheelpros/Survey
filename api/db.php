@@ -83,6 +83,41 @@ const CONTENT_EXTRA_COLUMNS = [
     "link"     => "VARCHAR(500) NULL",
 ];
 
+/**
+ * Columns added to `surveys` after the table first shipped. Same lazy approach
+ * as the content columns below; sql/survey_description.sql is the manual
+ * version for a DB user without ALTER rights.
+ */
+const SURVEY_EXTRA_COLUMNS = [
+    "description" => "TEXT NULL",
+];
+
+function ensureSurveyColumns(PDO $pdo)
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    try {
+        $stmt = $pdo->query("
+            SELECT COLUMN_NAME
+            FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'surveys'
+        ");
+        $existing = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+        foreach (SURVEY_EXTRA_COLUMNS as $column => $type) {
+            if (!in_array($column, $existing, true)) {
+                $pdo->exec("ALTER TABLE surveys ADD COLUMN `$column` $type");
+            }
+        }
+    } catch (PDOException $e) {
+        // Read-only DB user: the callers fall back to an empty description.
+    }
+}
+
 function ensureContentColumns(PDO $pdo)
 {
     static $done = false;
@@ -162,12 +197,14 @@ function ensureContentTypesTable(PDO $pdo)
 const LOGIN_SLIDES_MAX = 5;
 
 /**
- * Floor for a slide image. The panel is half a desktop screen tall, so
- * anything under this is visibly stretched. settings.html mirrors these two
+ * Floor for a slide image. The panel is a full-height, half-width column -
+ * around 720 x 900 CSS px on a 1440 x 900 screen - so the floor is portrait
+ * too. A landscape image under this is stretched to cover the height and
+ * loses most of its width to the crop. settings.html mirrors these two
  * numbers so the admin hears about it before the upload, not after.
  */
-const LOGIN_SLIDE_MIN_WIDTH = 800;
-const LOGIN_SLIDE_MIN_HEIGHT = 450;
+const LOGIN_SLIDE_MIN_WIDTH = 600;
+const LOGIN_SLIDE_MIN_HEIGHT = 800;
 
 function ensureLoginSlidesTable(PDO $pdo)
 {
