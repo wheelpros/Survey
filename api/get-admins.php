@@ -25,10 +25,7 @@ $stmt->execute([$token]);
 
 $admin = $stmt->fetch(PDO::FETCH_ASSOC);
 
-
-// Only owner
-if (!$admin || $admin["role"] !== "owner") {
-
+if (!$admin) {
     http_response_code(403);
 
     echo json_encode([
@@ -39,18 +36,47 @@ if (!$admin || $admin["role"] !== "owner") {
     exit;
 }
 
+if ($admin["role"] === "owner") {
 
-// Get Admins ("seo_admin"), Super Admins and Account Managers.
-// `active` is included so the Available Admins list can actually show
-// whether each admin is active/inactive and render the right button.
-$stmt = $pdo->prepare("
-    SELECT id, name, email, role, active
-    FROM admins
-    WHERE role IN ('seo_admin', 'super_admin', 'account_manager')
-    ORDER BY id DESC
-");
+    // The owner sees every Admin, Super Admin and Account Manager, plus
+    // who each Admin has been distributed to (for the Distribute Admins panel).
+    $stmt = $pdo->prepare("
+        SELECT
+            admins.id, admins.name, admins.email, admins.role, admins.active,
+            admins.managed_by_admin_id,
+            manager.name AS managed_by_name
+        FROM admins
+        LEFT JOIN admins manager ON manager.id = admins.managed_by_admin_id
+        WHERE admins.role IN ('seo_admin', 'super_admin', 'account_manager')
+        ORDER BY admins.id DESC
+    ");
 
-$stmt->execute();
+    $stmt->execute();
+
+} else if (in_array($admin["role"], ["super_admin", "account_manager"], true)) {
+
+    // A super admin / account manager only sees the plain Admin accounts
+    // the owner has distributed to them specifically.
+    $stmt = $pdo->prepare("
+        SELECT id, name, email, role, active, managed_by_admin_id
+        FROM admins
+        WHERE role = 'seo_admin' AND managed_by_admin_id = ?
+        ORDER BY id DESC
+    ");
+
+    $stmt->execute([$admin["id"]]);
+
+} else {
+
+    http_response_code(403);
+
+    echo json_encode([
+        "success" => false,
+        "message" => "Unauthorized"
+    ]);
+
+    exit;
+}
 
 $admins = $stmt->fetchAll(PDO::FETCH_ASSOC);
 

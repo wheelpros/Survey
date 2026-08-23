@@ -27,7 +27,7 @@ $stmt = $pdo->prepare("
 $stmt->execute([$email]);
 $admin = $stmt->fetch();
 
-if (!$admin || (int)$admin["active"] !== 1) {
+if (!$admin) {
     echo json_encode([
         "success" => false,
         "message" => "Invalid email or password"
@@ -39,6 +39,16 @@ if (!password_verify($password, $admin["password"])) {
     echo json_encode([
         "success" => false,
         "message" => "Invalid email or password"
+    ]);
+    exit;
+}
+
+// Correct credentials, but the account has been deactivated - tell them
+// that directly instead of the generic wrong-credentials message.
+if ((int)$admin["active"] !== 1) {
+    echo json_encode([
+        "success" => false,
+        "message" => "This account has been deactivated. Contact the owner for access."
     ]);
     exit;
 }

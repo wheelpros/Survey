@@ -760,11 +760,25 @@ document.addEventListener("DOMContentLoaded", function () {
   </div>
 </div>
 </div>
+<div id="distributeAdminsSection" style="display:none;">
+<div class="panel">
+  <div class="panel-head">
+    <h1>Distribute Admins</h1>
+    <p>Hand a plain Admin account off to a Super Admin or Account Manager, who can then activate/deactivate it.</p>
+  </div>
+
+  <div class="panel-body">
+    <div id="distributeList" class="admin-list">
+      <div class="no-admins">Loading admins...</div>
+    </div>
+  </div>
+</div>
+</div>
 <div id="availableAdminsSection" style="display:none;">
     <div class="panel">
         <div class="panel-head">
             <h1>Available Admins</h1>
-            <p>Manage SEO Admins, Super Admins and Account Managers.</p>
+            <p id="availableAdminsDesc">Manage SEO Admins, Super Admins and Account Managers.</p>
         </div>
 
         <div class="panel-body">
@@ -798,25 +812,46 @@ if (adminUser.role === "account_manager" || adminUser.role === "owner") {
 }
 
 // Clients Management is open to every admin, so the sidebar no longer hides it.
-// Adding and removing admins stays owner-only.
-if (adminUser.role !== "owner") {
+// Add Admin and Distribute Admins stay owner-only. Available Admins now
+// also opens for super_admin/account_manager, scoped to admins distributed to them.
+if (adminUser.role === "owner") {
 
     const addAdmin = document.getElementById("addAdminSection");
+    const distributeAdmins = document.getElementById("distributeAdminsSection");
     const availableAdmins = document.getElementById("availableAdminsSection");
 
+    if (addAdmin) addAdmin.style.display = "block";
+    if (distributeAdmins) distributeAdmins.style.display = "block";
+    if (availableAdmins) availableAdmins.style.display = "block";
+
+    loadAdmins();
+    loadDistribution();
+
+} else if (adminUser.role === "super_admin" || adminUser.role === "account_manager") {
+
+    const addAdmin = document.getElementById("addAdminSection");
+    const distributeAdmins = document.getElementById("distributeAdminsSection");
+    const availableAdmins = document.getElementById("availableAdminsSection");
+    const availableAdminsDesc = document.getElementById("availableAdminsDesc");
+
     if (addAdmin) addAdmin.style.display = "none";
-    if (availableAdmins) availableAdmins.style.display = "none";
+    if (distributeAdmins) distributeAdmins.style.display = "none";
+    if (availableAdmins) availableAdmins.style.display = "block";
+    if (availableAdminsDesc) availableAdminsDesc.innerText = "Admin accounts the owner has distributed to you.";
+
+    loadAdmins();
 
 } else {
 
     const addAdmin = document.getElementById("addAdminSection");
+    const distributeAdmins = document.getElementById("distributeAdminsSection");
     const availableAdmins = document.getElementById("availableAdminsSection");
 
-    if (addAdmin) addAdmin.style.display = "block";
-    if (availableAdmins) availableAdmins.style.display = "block";
-
-    loadAdmins();
+    if (addAdmin) addAdmin.style.display = "none";
+    if (distributeAdmins) distributeAdmins.style.display = "none";
+    if (availableAdmins) availableAdmins.style.display = "none";
 }
+
 // ✅ تحديث اللوجو (كاش)
 document.getElementById("currentLogo").src = "logo.png?" + Date.now();
 
@@ -1641,6 +1676,108 @@ async function setAdminActive(id, name, makeActive) {
         alert("Network or server error ❌");
     }
 }
+let allDistributionAdmins = [];
+
+async function loadDistribution() {
+    const list = document.getElementById("distributeList");
+    if (!list) return;
+
+    list.innerHTML = `<div class="no-admins">Loading admins...</div>`;
+
+    try {
+        const res = await fetch("api/get-admins.php", {
+            headers: { "Authorization": "Bearer " + adminToken }
+        });
+
+        const data = await res.json();
+
+        if (!data.success) {
+            list.innerHTML = `<div class="no-admins">${data.message || "Unable to load admins."}</div>`;
+            return;
+        }
+
+        allDistributionAdmins = data.admins || [];
+        renderDistribution();
+
+    } catch (err) {
+        list.innerHTML = `<div class="no-admins">Network or server error.</div>`;
+    }
+}
+
+function renderDistribution() {
+    const list = document.getElementById("distributeList");
+    if (!list) return;
+
+    // Only plain Admin accounts get distributed; managers themselves aren't.
+    const plainAdmins = allDistributionAdmins.filter(a => a.role === "seo_admin");
+
+    // Any super_admin or account_manager is a valid recipient.
+    const managers = allDistributionAdmins.filter(a =>
+        a.role === "super_admin" || a.role === "account_manager"
+    );
+
+    if (!plainAdmins.length) {
+        list.innerHTML = `<div class="no-admins">No Admin accounts yet - add one above first.</div>`;
+        return;
+    }
+
+    if (!managers.length) {
+        list.innerHTML = `<div class="no-admins">Add a Super Admin or Account Manager above before distributing.</div>`;
+        return;
+    }
+
+    list.innerHTML = plainAdmins.map(adm => `
+        <div class="admin-row" id="distribute-row-${adm.id}">
+            <div class="admin-info">
+                <strong>${escapeHtml(adm.name)}</strong>
+                <span>${escapeHtml(adm.email)}</span>
+                <span class="admin-role">${adminRoleLabel(adm.role)}</span>
+            </div>
+
+            <select onchange="distributeAdmin(${adm.id}, this.value)" style="max-width:220px;">
+                <option value="">Unassigned</option>
+                ${managers.map(mgr => `
+                    <option value="${mgr.id}" ${Number(adm.managed_by_admin_id) === Number(mgr.id) ? "selected" : ""}>
+                        ${escapeHtml(mgr.name)} (${adminRoleLabel(mgr.role)})
+                    </option>
+                `).join("")}
+            </select>
+        </div>
+    `).join("");
+}
+
+async function distributeAdmin(adminId, managerId) {
+    try {
+        const res = await fetch("api/settings.php", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + adminToken
+            },
+            body: JSON.stringify({
+                action: "distribute_admin",
+                adminId: adminId,
+                managerId: managerId || 0
+            })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+            alert(data.message || "Failed to update distribution.");
+            loadDistribution();
+            return;
+        }
+
+        loadDistribution();
+
+    } catch (err) {
+        console.error("Distribute admin error:", err);
+        alert("Network or server error ❌");
+        loadDistribution();
+    }
+}
+
 function escapeHtml(value) {
     return String(value ?? "")
         .replace(/&/g, "&amp;")
