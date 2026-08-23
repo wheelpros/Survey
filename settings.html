@@ -703,6 +703,7 @@ document.addEventListener("DOMContentLoaded", function () {
 </div>
 
 <!-- Logo Panel -->
+<div id="logoSection" style="display:none;">
 <div class="panel">
   <div class="panel-head">
     <h1>Website Logo</h1>
@@ -718,8 +719,10 @@ document.addEventListener("DOMContentLoaded", function () {
     <div id="logoStatus" class="status"></div>
   </div>
 </div>
+</div>
 
 <!-- Login Page Slideshow -->
+<div id="slideshowSection" style="display:none;">
 <div class="panel">
   <div class="panel-head">
     <h1>Login Page Slideshow</h1>
@@ -761,6 +764,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     <div id="slideStatus" class="status"></div>
   </div>
+</div>
 </div>
 
 <div id="addAdminSection">
@@ -820,7 +824,7 @@ document.addEventListener("DOMContentLoaded", function () {
     <div class="panel">
         <div class="panel-head">
             <h1>Available Admins</h1>
-            <p id="availableAdminsDesc">Manage SEO Admins, Super Admins and Account Managers.</p>
+            <p id="availableAdminsDesc">Manage Admins, Super Admins and Account Managers.</p>
         </div>
 
         <div class="panel-body">
@@ -894,11 +898,18 @@ if (adminUser.role === "owner") {
     if (availableAdmins) availableAdmins.style.display = "none";
 }
 
-// ✅ تحديث اللوجو (كاش)
-document.getElementById("currentLogo").src = "logo.png?" + Date.now();
+// Website Logo and Login Page Slideshow are owner-only settings.
+if (adminUser.role === "owner") {
+    const logoSection = document.getElementById("logoSection");
+    const slideshowSection = document.getElementById("slideshowSection");
 
-// The slideshow panel is open to every admin, same as the logo above it.
-loadSlides();
+    if (logoSection) logoSection.style.display = "block";
+    if (slideshowSection) slideshowSection.style.display = "block";
+
+    // ✅ تحديث اللوجو (كاش)
+    document.getElementById("currentLogo").src = "logo.png?" + Date.now();
+    loadSlides();
+}
 
 // ✅ تسجيل الخروج
 function logoutAdmin() {
