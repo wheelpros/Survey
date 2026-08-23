@@ -287,6 +287,57 @@ body{padding:0}
     background: #fff5f5;
 }
 
+/* Deactivate looks like the old remove button (destructive-ish, but reversible).
+   Activate is the calmer, positive action. */
+.deactivate-admin-btn {
+    flex: none;
+    border: 1px solid #f0d2d4;
+    background: #fff;
+    color: #c9000b;
+    padding: 9px 14px;
+    border-radius: 9px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.deactivate-admin-btn:hover {
+    background: #fff5f5;
+}
+
+.activate-admin-btn {
+    flex: none;
+    border: 1px solid #bfe8cf;
+    background: #fff;
+    color: #1a9a53;
+    padding: 9px 14px;
+    border-radius: 9px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.activate-admin-btn:hover {
+    background: #f2fbf5;
+}
+
+.admin-status {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-top: 4px;
+}
+
+.admin-status.is-active {
+    background: #e8faef;
+    color: #20a95a;
+}
+
+.admin-status.is-inactive {
+    background: #f2f4f7;
+    color: #667085;
+}
+
 .no-admins {
     padding: 20px;
     text-align: center;
@@ -419,14 +470,6 @@ body{padding:0}
     border-radius: 12px;
 }
 
-/* A logo is not a photo: show all of it on a plain field rather than
-   cropping it to fill the box the way a slide image is cropped. */
-.media-preview .thumb.logo-thumb {
-    aspect-ratio: 5/2;
-    background: #fff center/contain no-repeat;
-    border: 1px solid #e6e9f0;
-}
-
 .media-preview .remove {
     position: absolute;
     top: 8px;
@@ -519,7 +562,7 @@ function adminRoleLabel(role){
     case "owner": return "Owner";
     case "super_admin": return "Super Admin";
     case "account_manager": return "Account Manager";
-    case "seo_admin": return "SEO Admin";
+    case "seo_admin": return "Admin";
     default: return "Administrator";
   }
 }
@@ -635,26 +678,7 @@ document.addEventListener("DOMContentLoaded", function () {
   <div class="panel-body">
     <img id="currentLogo" src="logo.png" alt="Logo" style="width:180px; display:block; margin:0 0 20px 0;">
 
-    <label for="logoFile">Logo</label>
-
-    <!-- Same upload control as the slideshow below, so both panels behave
-         identically: click or drop, then a preview replaces the box. -->
-    <div class="dropzone" id="logoDropzone" role="button" tabindex="0"
-         onclick="document.getElementById('logoFile').click()"
-         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('logoFile').click();}">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-      <strong>Upload logo</strong>
-      <span>PNG, JPG or SVG &middot; max size 3 MB</span>
-    </div>
-
-    <div class="media-preview" id="logoPreview">
-      <div class="thumb logo-thumb" id="logoThumb"></div>
-      <button class="remove" type="button" onclick="clearLogoMedia()" title="Remove logo">&times;</button>
-    </div>
-
-    <input type="file" id="logoFile" accept=".png,.jpg,.jpeg,.svg" hidden>
-
-    <div class="media-error" id="logoMediaError"></div>
+    <input type="file" id="logoFile" accept=".png,.jpg,.jpeg,.svg">
 
     <button class="primary" onclick="uploadLogo()" style="margin-top:15px;">Update Logo</button>
 
@@ -666,26 +690,26 @@ document.addEventListener("DOMContentLoaded", function () {
 <div class="panel">
   <div class="panel-head">
     <h1>Login Page Slideshow</h1>
-    <p>Up to 5 images shown beside the sign-in form. Top of the list shows first.</p>
+    <p>Up to 5 logos shown beside the sign-in form. Top of the list shows first.</p>
   </div>
   <div class="panel-body">
     <div id="slidesList" class="admin-list">
       <div class="no-admins">Loading slides...</div>
     </div>
 
-    <label for="slideFile">Image</label>
+    <label for="slideFile">Logo</label>
 
     <div class="dropzone" id="slideDropzone" role="button" tabindex="0"
          onclick="document.getElementById('slideFile').click()"
          onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('slideFile').click();}">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-      <strong>Upload image</strong>
-      <span>Max size 3 MB &middot; 1200 &times; 1600 px recommended</span>
+      <strong>Drop logo</strong>
+      <span>Max size 3 MB &middot; 1600 &times; 900 px recommended</span>
     </div>
 
     <div class="media-preview" id="slidePreview">
       <div class="thumb" id="slideThumb"></div>
-      <button class="remove" type="button" onclick="clearSlideMedia()" title="Remove image">&times;</button>
+      <button class="remove" type="button" onclick="clearSlideMedia()" title="Remove logo">&times;</button>
     </div>
 
     <input type="file" id="slideFile" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
@@ -693,12 +717,12 @@ document.addEventListener("DOMContentLoaded", function () {
     <div class="media-error" id="slideMediaError"></div>
 
     <label for="slideTitle">Title</label>
-    <input type="text" id="slideTitle" placeholder="Headline shown over the image" maxlength="120">
+    <input type="text" id="slideTitle" placeholder="Headline shown over the logo" maxlength="120">
 
     <label for="slideSubtitle">Subtitle</label>
     <input type="text" id="slideSubtitle" placeholder="One supporting line" maxlength="255">
 
-    <div class="small" id="slideHint">JPG, PNG, WEBP or GIF. Max 3 MB. The login panel is a tall half-screen column, so portrait images fill it best &mdash; 1200 &times; 1600 px recommended, 800 &times; 450 px minimum.</div>
+    <div class="small" id="slideHint">JPG, PNG, WEBP or GIF. Max 3 MB. Landscape logos work best &mdash; 1600 &times; 900 px recommended, 800 &times; 450 px minimum.</div>
 
     <button class="primary" id="addSlideBtn" onclick="uploadSlide()" style="margin-top:0;">Add Slide</button>
 
@@ -726,8 +750,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     <label>Role</label>
     <select id="role">
-      <option value="user">User</option>
-      <option value="seo_admin">SEO Admin</option>
+      <option value="seo_admin">Admin</option>
       <option value="super_admin">Super Admin</option>
       <option value="account_manager">Account Manager</option>
     </select>
@@ -848,96 +871,10 @@ async function savePassword() {
   }
 }
 
-/* ── The logo upload box ──────────────────────────────────────────────────
-   Same control as the slideshow dropzone below: click or drop, then a
-   preview replaces the box. Dragging never touches the file input, so the
-   chosen file is held here rather than read back off <input type="file">. */
-
-const MAX_LOGO_MEDIA = 3 * 1024 * 1024;
-const LOGO_EXTENSIONS = ["png", "jpg", "jpeg", "svg"];
-
-let pendingLogoFile = null;
-
-const logoDropzone = document.getElementById("logoDropzone");
-
-if (logoDropzone) {
-
-    document.getElementById("logoFile").addEventListener("change", event => {
-        if (event.target.files[0]) handleLogoMedia(event.target.files[0]);
-    });
-
-    ["dragenter", "dragover"].forEach(type => {
-        logoDropzone.addEventListener(type, event => {
-            event.preventDefault();
-            logoDropzone.classList.add("dragging");
-        });
-    });
-
-    ["dragleave", "drop"].forEach(type => {
-        logoDropzone.addEventListener(type, event => {
-            event.preventDefault();
-            logoDropzone.classList.remove("dragging");
-        });
-    });
-
-    logoDropzone.addEventListener("drop", event => {
-        const file = event.dataTransfer.files[0];
-        if (file) handleLogoMedia(file);
-    });
-}
-
-function handleLogoMedia(file) {
-    const error = document.getElementById("logoMediaError");
-
-    const fail = message => {
-        error.innerText = message;
-        error.classList.add("show");
-    };
-
-    // Matches the extension list in api/upload-logo.php.
-    const ext = (file.name.split(".").pop() || "").toLowerCase();
-
-    if (!LOGO_EXTENSIONS.includes(ext)) {
-        fail("Only PNG, JPG, JPEG or SVG logos are allowed.");
-        return;
-    }
-
-    if (file.size > MAX_LOGO_MEDIA) {
-        fail("That logo is over 3 MB. Pick a smaller one.");
-        return;
-    }
-
-    const reader = new FileReader();
-
-    reader.onerror = () => fail("That logo could not be read.");
-
-    reader.onload = () => {
-        error.classList.remove("show");
-        pendingLogoFile = file;
-
-        document.getElementById("logoThumb").style.backgroundImage =
-            `url('${reader.result}')`;
-        document.getElementById("logoPreview").classList.add("show");
-        logoDropzone.style.display = "none";
-    };
-
-    reader.readAsDataURL(file);
-}
-
-function clearLogoMedia() {
-    pendingLogoFile = null;
-
-    document.getElementById("logoFile").value = "";
-    document.getElementById("logoThumb").style.backgroundImage = "";
-    document.getElementById("logoPreview").classList.remove("show");
-    document.getElementById("logoMediaError").classList.remove("show");
-    logoDropzone.style.display = "";
-}
-
 // ✅ رفع اللوجو
 async function uploadLogo() {
   const status = document.getElementById("logoStatus");
-  const file = pendingLogoFile;
+  const file = document.getElementById("logoFile").files[0];
 
   if (!file) {
     alert("Please select a logo file first.");
@@ -967,7 +904,7 @@ async function uploadLogo() {
       document.querySelectorAll(".side-logo img").forEach(img => {
         img.src = bust;
       });
-      clearLogoMedia();
+      document.getElementById("logoFile").value = "";
     }
   } catch (err) {
     status.innerText = "An error occurred while uploading.";
@@ -987,11 +924,9 @@ const MAX_SLIDE_MEDIA = 3 * 1024 * 1024;
 const MIN_SLIDE_WIDTH = 800;
 const MIN_SLIDE_HEIGHT = 450;
 
-// Only guidance - nothing rejects an image for being under these. Portrait,
-// because the login slideshow is a full-height half-width column and a 16:9
-// image gets centre-cropped down to roughly half its width to cover it.
-const REC_SLIDE_WIDTH = 1200;
-const REC_SLIDE_HEIGHT = 1600;
+// Only guidance - nothing rejects an image for being under these.
+const REC_SLIDE_WIDTH = 1600;
+const REC_SLIDE_HEIGHT = 900;
 
 async function loadSlides() {
     const list = document.getElementById("slidesList");
@@ -1053,7 +988,7 @@ function renderSlidesList() {
                     <img class="slide-thumb" src="${escapeHtml(slide.image_path)}" alt="">
 
                     <button type="button" class="slide-change"
-                            title="Change image" aria-label="Change image"
+                            title="Change logo" aria-label="Change logo"
                             onclick="document.getElementById('slide-file-${slide.id}').click()">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
                     </button>
@@ -1113,8 +1048,7 @@ function updateSlideControls() {
     if (hint) {
         hint.innerText = full
             ? `Maximum of ${MAX_SLIDES} slides reached. Remove one to add another.`
-            : "JPG, PNG, WEBP or GIF. Max 3 MB. The login panel is a tall "
-                + "half-screen column, so portrait images fill it best — "
+            : "JPG, PNG, WEBP or GIF. Max 3 MB. Landscape logos work best — "
                 + `${REC_SLIDE_WIDTH} × ${REC_SLIDE_HEIGHT} px recommended, `
                 + `${MIN_SLIDE_WIDTH} × ${MIN_SLIDE_HEIGHT} px minimum.`;
     }
@@ -1238,7 +1172,7 @@ function clearSlideMedia() {
     slideDropzone.style.display = "";
 }
 
-/* ── Change the image on a slide already saved ─────────────────────────────
+/* ── Change the logo on a slide already saved ─────────────────────────────
    The pencil over a thumbnail. Only the file changes - title, subtitle and
    position stay exactly where they were. */
 
@@ -1274,7 +1208,7 @@ async function replaceSlideImage(id, input) {
         return;
     }
 
-    status.innerText = "Replacing image...";
+    status.innerText = "Replacing logo...";
 
     const form = new FormData();
     form.append("action", "replace");
@@ -1308,7 +1242,7 @@ async function uploadSlide() {
     const file = pendingSlideFile;
 
     if (!file) {
-        alert("Please choose an image first.");
+        alert("Please choose a logo first.");
         return;
     }
 
@@ -1586,7 +1520,10 @@ function renderAdmins() {
     const start = (adminsPage - 1) * ADMINS_PAGE_SIZE;
     const pageAdmins = allAdmins.slice(start, start + ADMINS_PAGE_SIZE);
 
-    list.innerHTML = pageAdmins.map(admin => `
+    list.innerHTML = pageAdmins.map(admin => {
+        const isActive = Number(admin.active) === 1;
+
+        return `
         <div class="admin-row" id="admin-row-${admin.id}">
 
             <div class="admin-info">
@@ -1595,18 +1532,32 @@ function renderAdmins() {
                 <span class="admin-role">
                     ${adminRoleLabel(admin.role)}
                 </span>
+                <span class="admin-status ${isActive ? "is-active" : "is-inactive"}">
+                    ${isActive ? "Active" : "Inactive"}
+                </span>
             </div>
 
-            <button
-                type="button"
-                class="remove-admin-btn"
-                onclick="removeAdmin(${admin.id}, '${escapeHtml(admin.name)}')"
-            >
-                Remove
-            </button>
+            ${
+                isActive
+                ? `<button
+                    type="button"
+                    class="deactivate-admin-btn"
+                    onclick="setAdminActive(${admin.id}, '${escapeHtml(admin.name)}', false)"
+                  >
+                    Deactivate
+                  </button>`
+                : `<button
+                    type="button"
+                    class="activate-admin-btn"
+                    onclick="setAdminActive(${admin.id}, '${escapeHtml(admin.name)}', true)"
+                  >
+                    Activate
+                  </button>`
+            }
 
         </div>
-    `).join("");
+        `;
+    }).join("");
 
     renderAdminsPager(allAdmins.length, totalPages, start, pageAdmins.length);
 }
@@ -1644,17 +1595,19 @@ function goToAdminsPage(page) {
 
     document.getElementById("adminsList").scrollIntoView({behavior:"smooth", block:"center"});
 }
-async function removeAdmin(id, name) {
+async function setAdminActive(id, name, makeActive) {
 
     const confirmed = confirm(
-        `Are you sure you want to remove "${name}"?`
+        makeActive
+            ? `Reactivate "${name}"? They'll be able to log in again.`
+            : `Deactivate "${name}"? They won't be able to log in, but nothing about their account is deleted.`
     );
 
     if (!confirmed) return;
 
     try {
 
-        const res = await fetch("api/remove-admin.php", {
+        const res = await fetch("api/settings.php", {
             method: "POST",
 
             headers: {
@@ -1663,25 +1616,27 @@ async function removeAdmin(id, name) {
             },
 
             body: JSON.stringify({
-                id: id
+                action: "toggle_admin_status",
+                id: id,
+                active: makeActive ? 1 : 0
             })
         });
 
         const data = await res.json();
 
         if (!res.ok || !data.success) {
-            alert(data.message || "Failed to remove admin.");
+            alert(data.message || "Failed to update admin status.");
             return;
         }
 
-        alert(data.message || "Admin removed successfully.");
+        alert(data.message || (makeActive ? "Admin activated." : "Admin deactivated."));
 
         // Reload list
         loadAdmins();
 
     } catch (err) {
 
-        console.error("Remove admin error:", err);
+        console.error("Toggle admin status error:", err);
 
         alert("Network or server error ❌");
     }

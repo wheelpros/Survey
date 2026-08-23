@@ -74,6 +74,54 @@ if($_SERVER["REQUEST_METHOD"]=="POST"){
         exit;
     }
 
+    // Activate / deactivate an admin. Blocks login only - nothing about
+    // that admin (assignments, surveys, review history) is touched or
+    // deleted, and reactivating restores full access exactly as it was.
+    if(($input["action"] ?? "")=="toggle_admin_status"){
+
+        $targetId = (int)($input["id"] ?? 0);
+        $active = isset($input["active"]) && (int)$input["active"] === 1 ? 1 : 0;
+
+        if(!$targetId){
+            echo json_encode([
+                "success"=>false,
+                "message"=>"Admin id is required"
+            ]);
+            exit;
+        }
+
+        if($targetId === (int)$admin["id"]){
+            echo json_encode([
+                "success"=>false,
+                "message"=>"You can't deactivate your own account"
+            ]);
+            exit;
+        }
+
+        $checkStmt = $pdo->prepare("SELECT id FROM admins WHERE id=? LIMIT 1");
+        $checkStmt->execute([$targetId]);
+
+        if(!$checkStmt->fetch()){
+            echo json_encode([
+                "success"=>false,
+                "message"=>"Admin not found"
+            ]);
+            exit;
+        }
+
+        $updateStmt = $pdo->prepare("UPDATE admins SET active=? WHERE id=?");
+        $updateStmt->execute([$active, $targetId]);
+
+        echo json_encode([
+            "success"=>true,
+            "message"=>$active
+                ? "Admin activated - they can log in again."
+                : "Admin deactivated - they can no longer log in."
+        ]);
+
+        exit;
+    }
+
     $current=trim($input["current_password"] ?? "");
     $new=trim($input["new_password"] ?? "");
     $confirm=trim($input["confirm_password"] ?? "");
