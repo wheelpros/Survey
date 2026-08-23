@@ -73,6 +73,10 @@ input[type="password"], input[type="file"]{
   background:#1f2937;
 }
 
+.btn{ border:none; padding:8px 12px; border-radius:8px; cursor:pointer; font-weight:800; font-size:12px; }
+.action-btn{ background:var(--nav-active); color:#fff; }
+.action-btn:hover{ background:#282c52; }
+
 .status{
   margin-top:15px;
   font-weight:bold;
@@ -336,6 +340,35 @@ body{padding:0}
 .admin-status.is-inactive {
     background: #f2f4f7;
     color: #667085;
+}
+
+/* Same look as the Owner Assignments box on clients-management.html,
+   reused here for Distribute Admins. */
+.assignment-box {
+    padding: 24px;
+}
+
+.assignment-box label {
+    display: block;
+    font-size: 15px;
+    font-weight: 800;
+    margin-bottom: 10px;
+}
+
+.assignment-box select {
+    width: 100%;
+    height: 56px;
+    border: 1px solid #dfe3ea;
+    background: #f8fafc;
+    border-radius: 14px;
+    padding: 0 18px;
+    font-size: 15px;
+    outline: none;
+}
+
+.assignment-box select:focus {
+    border-color: #1b1e3a;
+    box-shadow: 0 0 0 4px rgba(27,30,58,.10);
 }
 
 .no-admins {
@@ -763,23 +796,23 @@ document.addEventListener("DOMContentLoaded", function () {
 <div id="distributeAdminsSection" style="display:none;">
 <div class="panel">
   <div class="panel-head">
-    <h1>Distribute Admins</h1>
-    <p>Pick a Super Admin or Account Manager, then check off every Admin account that belongs to them.</p>
+    <h1>Owner Assignments</h1>
+    <p>Choose which Admin accounts each Super Admin or Account Manager can manage.</p>
   </div>
 
-  <div class="panel-body">
-    <label>Manager</label>
+  <div class="assignment-box">
+    <label>Select Super Admin / Account Manager</label>
     <select id="distributeManagerSelect" onchange="renderDistribution()">
-      <option value="">Select a Super Admin or Account Manager...</option>
+      <option value="">Loading...</option>
     </select>
 
-    <div id="distributeList" class="admin-list" style="margin-top:18px;">
-      <div class="no-admins">Select a manager above to see their admins.</div>
-    </div>
+    <div id="distributeList" style="margin-top:20px;"></div>
 
-    <button class="primary" id="saveDistributionBtn" onclick="saveDistribution()" style="margin-top:15px; display:none;">Save Assignments</button>
+    <button class="action-btn btn" onclick="saveDistribution()" style="margin-top:20px;padding:12px 18px;">
+      Save Assignments
+    </button>
 
-    <div id="distributeStatus" class="status"></div>
+    <div id="distributeStatus" style="margin-top:12px;color:#667085;"></div>
   </div>
 </div>
 </div>
@@ -1685,107 +1718,132 @@ async function setAdminActive(id, name, makeActive) {
         alert("Network or server error ❌");
     }
 }
-let allDistributionAdmins = [];
+// ---- Distribute Admins panel: owner -> super_admin/account_manager ----
+// Same pattern as the Owner Assignments panel on clients-management.html,
+// just handing off Admin accounts instead of clients.
+let distributeManagers = [];
+let distributePool = [];
+let distributeAssignments = {};
 
-async function loadDistribution() {
-    const list = document.getElementById("distributeList");
-    if (!list) return;
+async function loadDistribution(){
+    const select = document.getElementById("distributeManagerSelect");
+    if (!select) return;
 
-    list.innerHTML = `<div class="no-admins">Loading admins...</div>`;
-
-    try {
-        const res = await fetch("api/get-admins.php", {
-            headers: { "Authorization": "Bearer " + adminToken }
+    try{
+        const res = await fetch("api/admin-manager-assignments.php", {
+            headers: { Authorization: "Bearer " + adminToken }
         });
 
         const data = await res.json();
 
-        if (!data.success) {
-            list.innerHTML = `<div class="no-admins">${data.message || "Unable to load admins."}</div>`;
+        if(!data.success){
+            select.innerHTML = `<option value="">${escapeHtml(data.message || "Unable to load")}</option>`;
             return;
         }
 
-        allDistributionAdmins = data.admins || [];
-        renderDistribution();
+        distributeManagers = data.targetAdmins || [];
+        distributePool = data.admins || [];
+        distributeAssignments = data.assignments || {};
 
-    } catch (err) {
-        list.innerHTML = `<div class="no-admins">Network or server error.</div>`;
+        if(!distributeManagers.length){
+            select.innerHTML = `<option value="">No super admins or account managers found.</option>`;
+            return;
+        }
+
+        select.innerHTML = `
+            <option value="">Select Super Admin / Account Manager</option>
+            ${distributeManagers.map(mgr => `
+                <option value="${mgr.id}">${escapeHtml(mgr.name)} - ${escapeHtml(mgr.email)} (${adminRoleLabel(mgr.role)})</option>
+            `).join("")}
+        `;
+
+    }catch(error){
+        select.innerHTML = `<option value="">Connection error</option>`;
     }
 }
 
-function renderDistribution() {
-    const list = document.getElementById("distributeList");
-    if (!list) return;
+function renderDistribution(){
+    const managerId = document.getElementById("distributeManagerSelect").value;
+    const box = document.getElementById("distributeList");
 
-    // Only plain Admin accounts get distributed; managers themselves aren't.
-    const plainAdmins = allDistributionAdmins.filter(a => a.role === "seo_admin");
-
-    // Any super_admin or account_manager is a valid recipient.
-    const managers = allDistributionAdmins.filter(a =>
-        a.role === "super_admin" || a.role === "account_manager"
-    );
-
-    if (!plainAdmins.length) {
-        list.innerHTML = `<div class="no-admins">No Admin accounts yet - add one above first.</div>`;
+    if(!managerId){
+        box.innerHTML = "";
         return;
     }
 
-    if (!managers.length) {
-        list.innerHTML = `<div class="no-admins">Add a Super Admin or Account Manager above before distributing.</div>`;
+    if(!distributePool.length){
+        box.innerHTML = `<div class="empty">No Admin accounts available to assign yet.</div>`;
         return;
     }
 
-    list.innerHTML = plainAdmins.map(adm => `
-        <div class="admin-row" id="distribute-row-${adm.id}">
-            <div class="admin-info">
-                <strong>${escapeHtml(adm.name)}</strong>
-                <span>${escapeHtml(adm.email)}</span>
-                <span class="admin-role">${adminRoleLabel(adm.role)}</span>
+    const assigned = distributeAssignments[managerId] || [];
+
+    box.innerHTML = distributePool.map(adm => `
+        <label style="
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            border:1px solid #eef1f5;
+            border-radius:12px;
+            padding:12px 16px;
+            margin-bottom:10px;
+            background:#fff;
+        ">
+            <div>
+                <strong>${escapeHtml(adm.name)}</strong><br>
+                <span style="color:#667085;font-size:12px;">${escapeHtml(adm.email)}</span>
             </div>
 
-            <select onchange="distributeAdmin(${adm.id}, this.value)" style="max-width:220px;">
-                <option value="">Unassigned</option>
-                ${managers.map(mgr => `
-                    <option value="${mgr.id}" ${Number(adm.managed_by_admin_id) === Number(mgr.id) ? "selected" : ""}>
-                        ${escapeHtml(mgr.name)} (${adminRoleLabel(mgr.role)})
-                    </option>
-                `).join("")}
-            </select>
-        </div>
+            <input
+                type="checkbox"
+                value="${escapeHtml(adm.id)}"
+                ${assigned.includes(Number(adm.id)) ? "checked" : ""}
+                style="width:18px;height:18px;"
+            >
+        </label>
     `).join("");
 }
 
-async function distributeAdmin(adminId, managerId) {
-    try {
-        const res = await fetch("api/settings.php", {
+async function saveDistribution(){
+    const managerId = document.getElementById("distributeManagerSelect").value;
+    const status = document.getElementById("distributeStatus");
+
+    if(!managerId){
+        status.innerText = "Please make a selection.";
+        return;
+    }
+
+    const adminIds = Array.from(
+        document.querySelectorAll("#distributeList input[type='checkbox']:checked")
+    ).map(input => input.value);
+
+    status.innerText = "Saving...";
+
+    try{
+        const res = await fetch("api/admin-manager-assignments.php", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "Authorization": "Bearer " + adminToken
+                Authorization: "Bearer " + adminToken
             },
             body: JSON.stringify({
-                action: "distribute_admin",
-                adminId: adminId,
-                managerId: managerId || 0
+                managerId,
+                adminIds
             })
         });
 
         const data = await res.json();
+        status.innerText = data.message;
 
-        if (!res.ok || !data.success) {
-            alert(data.message || "Failed to update distribution.");
-            loadDistribution();
-            return;
+        if(data.success){
+            distributeAssignments[managerId] = adminIds.map(id => Number(id));
         }
 
-        loadDistribution();
-
-    } catch (err) {
-        console.error("Distribute admin error:", err);
-        alert("Network or server error ❌");
-        loadDistribution();
+    }catch(error){
+        status.innerText = "Connection error.";
     }
 }
+
 
 function escapeHtml(value) {
     return String(value ?? "")
