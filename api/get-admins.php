@@ -40,11 +40,13 @@ if (!$admin || $admin["role"] !== "owner") {
 }
 
 
-// Get SEO Admins + Super Admins
+// Get Admins ("seo_admin"), Super Admins and Account Managers.
+// `active` is included so the Available Admins list can actually show
+// whether each admin is active/inactive and render the right button.
 $stmt = $pdo->prepare("
-    SELECT id, name, email, role
+    SELECT id, name, email, role, active
     FROM admins
-    WHERE role IN ('seo_admin', 'super_admin')
+    WHERE role IN ('seo_admin', 'super_admin', 'account_manager')
     ORDER BY id DESC
 ");
 
