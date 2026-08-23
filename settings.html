@@ -764,13 +764,22 @@ document.addEventListener("DOMContentLoaded", function () {
 <div class="panel">
   <div class="panel-head">
     <h1>Distribute Admins</h1>
-    <p>Hand a plain Admin account off to a Super Admin or Account Manager, who can then activate/deactivate it.</p>
+    <p>Pick a Super Admin or Account Manager, then check off every Admin account that belongs to them.</p>
   </div>
 
   <div class="panel-body">
-    <div id="distributeList" class="admin-list">
-      <div class="no-admins">Loading admins...</div>
+    <label>Manager</label>
+    <select id="distributeManagerSelect" onchange="renderDistribution()">
+      <option value="">Select a Super Admin or Account Manager...</option>
+    </select>
+
+    <div id="distributeList" class="admin-list" style="margin-top:18px;">
+      <div class="no-admins">Select a manager above to see their admins.</div>
     </div>
+
+    <button class="primary" id="saveDistributionBtn" onclick="saveDistribution()" style="margin-top:15px; display:none;">Save Assignments</button>
+
+    <div id="distributeStatus" class="status"></div>
   </div>
 </div>
 </div>
