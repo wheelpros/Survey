@@ -1,6 +1,7 @@
 <?php
 
 require_once "db.php";
+require_once "notify.php";
 
 header("Content-Type: application/json");
 
@@ -16,6 +17,10 @@ if (!$token) {
     exit;
 }
 ensureSurveyColumns($pdo);
+
+// Before beginTransaction() below: CREATE TABLE is DDL and commits
+// implicitly, which would strand the rollBack() in the catch.
+ensureNotificationsTable($pdo);
 
 $adminStmt = $pdo->prepare("
     SELECT id, role
@@ -333,6 +338,20 @@ if ($method === "POST" || $method === "PUT") {
         }
 
         $pdo->commit();
+
+        // After the commit, never inside it - see the rules at the top of
+        // notify.php. Both branches leave the form awaiting sign-off, so the
+        // reviewers hear about an edit the same way they hear about a new one.
+        notifyReviewers(
+            $pdo,
+            NOTIFY_FORM_AWAITING_REVIEW,
+            $method === "POST"
+                ? "New form awaiting approval"
+                : "Updated form awaiting approval",
+            $title . " needs a review before it reaches the user.",
+            "survey-review.html",
+            (int) $currentAdmin["id"]
+        );
 
         echo json_encode([
             "success" => true,

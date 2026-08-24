@@ -295,3 +295,48 @@ function ensureAppointmentTables(PDO $pdo)
         // Read-only DB user: calendar.php falls back to the base columns.
     }
 }
+
+/**
+ * The inbox behind notifications.html and admin-notifications.html. One row
+ * is one message for one recipient, and `recipient_kind` says which table
+ * `recipient_id` points at - the same two-audience split calendar.php already
+ * resolves tokens against.
+ *
+ * Fan-out happens when the event fires, not when the page is read: something
+ * aimed at "every admin responsible for this client" becomes one row per
+ * admin, so reading is a single indexed lookup and marking one read touches
+ * nobody else. api/notify.php does the writing.
+ *
+ * sql/notifications.sql is the same table to run by hand.
+ */
+function ensureNotificationsTable(PDO $pdo)
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    try {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS notifications (
+              id             INT AUTO_INCREMENT PRIMARY KEY,
+              recipient_kind VARCHAR(10)  NOT NULL,
+              recipient_id   INT          NOT NULL,
+              event_type     VARCHAR(40)  NOT NULL,
+              title          VARCHAR(200) NOT NULL,
+              body           VARCHAR(500)     NULL,
+              link           VARCHAR(255)     NULL,
+              actor_kind     VARCHAR(10)      NULL,
+              actor_id       INT              NULL,
+              read_at        DATETIME         NULL,
+              created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              KEY idx_inbox (recipient_kind, recipient_id, id),
+              KEY idx_unread (recipient_kind, recipient_id, read_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+    } catch (PDOException $e) {
+        // Read-only DB user: notify() stays silent and the sidebar badge never
+        // appears. Nothing else on any page depends on it.
+    }
+}

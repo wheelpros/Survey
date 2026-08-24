@@ -1,8 +1,11 @@
 <?php
 
 require_once "db.php";
+require_once "notify.php";
 
 header("Content-Type: application/json");
+
+ensureNotificationsTable($pdo);
 
 $headers = getallheaders();
 $authHeader = $headers["Authorization"] ?? "";
@@ -167,8 +170,10 @@ if ($method === "POST") {
         exit;
     }
 
+    // title, assigned_user_id and created_by_admin_id ride along for the
+    // notifications below, rather than costing a second read.
     $checkStmt = $pdo->prepare("
-        SELECT id, status
+        SELECT id, status, title, assigned_user_id, created_by_admin_id
         FROM surveys
         WHERE id = ?
         LIMIT 1
@@ -214,6 +219,33 @@ if ($method === "POST") {
             exit;
         }
 
+        // Approving is the moment the form reaches the user, so both ends
+        // hear about it: the person who has to fill it in, and the admin who
+        // wrote it and has been waiting on the gate.
+        notify(
+            $pdo,
+            "user",
+            (int) $survey["assigned_user_id"],
+            NOTIFY_FORM_APPROVED,
+            "A new form is ready for you",
+            $survey["title"] . " is waiting to be filled in.",
+            "dashboard.html",
+            "admin",
+            (int) $currentAdmin["id"]
+        );
+
+        notify(
+            $pdo,
+            "admin",
+            (int) $survey["created_by_admin_id"],
+            NOTIFY_FORM_APPROVED,
+            "Your form was approved",
+            $survey["title"] . " has been sent to the assigned user.",
+            "admin.html",
+            "admin",
+            (int) $currentAdmin["id"]
+        );
+
         echo json_encode([
             "success" => true,
             "message" => "Survey approved and sent to the user"
@@ -239,6 +271,20 @@ if ($method === "POST") {
             ]);
             exit;
         }
+
+        // Only the creator: the assigned user never knew this form existed,
+        // because a rejected form has not been released to them.
+        notify(
+            $pdo,
+            "admin",
+            (int) $survey["created_by_admin_id"],
+            NOTIFY_FORM_REJECTED,
+            "Your form was sent back",
+            $survey["title"] . ": " . $note,
+            "admin-form-builder.html?edit=" . (int) $survey["id"],
+            "admin",
+            (int) $currentAdmin["id"]
+        );
 
         echo json_encode([
             "success" => true,

@@ -1,8 +1,13 @@
 <?php
 
 require_once "db.php";
+require_once "notify.php";
 
 header("Content-Type: application/json");
+
+// Before beginTransaction() below: CREATE TABLE is DDL and commits implicitly,
+// which would strand the rollBack() in the catch.
+ensureNotificationsTable($pdo);
 
 $headers = getallheaders();
 $authHeader = $headers["Authorization"] ?? "";
@@ -216,6 +221,18 @@ try {
     $updateStmt->execute([$survey["id"]]);
 
     $pdo->commit();
+
+    // After the commit, never inside it - see the rules at the top of
+    // notify.php. notify() swallows its own failures, so nothing here can
+    // reach the catch below and call rollBack() on a closed transaction.
+    notifyAdminsForUser(
+        $pdo,
+        (int) $user["id"],
+        NOTIFY_FORM_SUBMITTED,
+        "New response from " . $user["name"],
+        $survey["title"] . " has been filled in and submitted.",
+        "responses.html"
+    );
 
     sendSurveyEmail($user, $survey, $answers);
     
