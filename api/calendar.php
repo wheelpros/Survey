@@ -27,6 +27,7 @@ if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") {
 }
 
 require_once "db.php";
+require_once "notify.php";
 
 function reply($success, $message = "", $extra = [])
 {
@@ -62,6 +63,7 @@ if (!$token) {
 
 ensureUserProfileColumns($pdo);
 ensureAppointmentTables($pdo);
+ensureNotificationsTable($pdo);
 
 $stmt = $pdo->prepare("
     SELECT id, name, email, company_name
@@ -148,12 +150,36 @@ if ($action === "respond_appointment" && $user) {
 
     // requested_by is checked so a client cannot answer their own request -
     // that one is the admin team's to decide.
+    // Read before writing, so the admin who asked can be told the answer.
+    $lookup = $pdo->prepare("
+        SELECT admin_id, topic
+        FROM appointments
+        WHERE id = ? AND user_id = ? AND requested_by = 'admin'
+        LIMIT 1
+    ");
+    $lookup->execute([$appointmentId, $user["id"]]);
+    $request = $lookup->fetch(PDO::FETCH_ASSOC);
+
     $stmt = $pdo->prepare("
         UPDATE appointments
         SET status = ?
         WHERE id = ? AND user_id = ? AND requested_by = 'admin'
     ");
     $stmt->execute([$status, $appointmentId, $user["id"]]);
+
+    if ($request && (int) $request["admin_id"] > 0) {
+        notify(
+            $pdo,
+            "admin",
+            (int) $request["admin_id"],
+            NOTIFY_APPOINTMENT_ANSWERED,
+            $user["name"] . ($status === "approved" ? " confirmed your meeting" : " declined your meeting"),
+            (string) ($request["topic"] ?? "Meeting"),
+            "admin-calendar.html",
+            "user",
+            (int) $user["id"]
+        );
+    }
 
     reply(true, $status === "approved" ? "Meeting confirmed" : "Meeting declined");
 }
@@ -184,6 +210,15 @@ if ($action === "create_user_request" && $user) {
         $notes !== "" ? $notes : null,
         $user["company_name"] ?? null
     ]);
+
+    notifyAdminsForUser(
+        $pdo,
+        (int) $user["id"],
+        NOTIFY_APPOINTMENT_REQUEST,
+        "Meeting request from " . $user["name"],
+        $topic . " - " . $date . " at " . $time,
+        "admin-calendar.html"
+    );
 
     reply(true, "Request sent to the admin team.");
 }
@@ -288,6 +323,19 @@ if ($action === "create_admin_request" && $admin) {
             $client
         ]);
 
+        // One notification per account, matching the one row each of them got.
+        notify(
+            $pdo,
+            "user",
+            (int) $target["id"],
+            NOTIFY_APPOINTMENT_REQUEST,
+            "Meeting request from " . $admin["name"],
+            $topic . " - " . $date . " at " . $time,
+            "user-appointments.html",
+            "admin",
+            (int) $admin["id"]
+        );
+
         $sent++;
     }
 
@@ -307,7 +355,7 @@ if ($action === "respond_request" && $admin) {
     $allowed = array_map("intval", array_column(scopedClients($pdo, $admin), "id"));
 
     $stmt = $pdo->prepare("
-        SELECT user_id
+        SELECT user_id, topic
         FROM appointments
         WHERE id = ? AND requested_by = 'user'
         LIMIT 1
@@ -325,6 +373,18 @@ if ($action === "respond_request" && $admin) {
         WHERE id = ?
     ");
     $stmt->execute([$status, $admin["id"], $appointmentId]);
+
+    notify(
+        $pdo,
+        "user",
+        (int) $row["user_id"],
+        NOTIFY_APPOINTMENT_ANSWERED,
+        $status === "approved" ? "Your meeting was confirmed" : "Your meeting request was declined",
+        (string) ($row["topic"] ?? "Meeting"),
+        "user-appointments.html",
+        "admin",
+        (int) $admin["id"]
+    );
 
     reply(true, $status === "approved" ? "Meeting confirmed" : "Request declined");
 }

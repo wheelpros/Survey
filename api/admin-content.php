@@ -1,6 +1,7 @@
 <?php
 
 require_once "db.php";
+require_once "notify.php";
 
 header("Content-Type: application/json; charset=UTF-8");
 
@@ -132,6 +133,7 @@ try {
 */
 
 ensureContentColumns($pdo);
+ensureNotificationsTable($pdo);
 
 /*
 |--------------------------------------------------------------------------
@@ -591,6 +593,20 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             $newId = $pdo->lastInsertId();
 
+            // Only a post that is live has anything to announce. A draft or a
+            // scheduled post notifies nobody until it actually publishes.
+            if ($status === "published") {
+                notifyUsersAtCompany(
+                    $pdo,
+                    $client,
+                    NOTIFY_CONTENT_PUBLISHED,
+                    "New content published",
+                    $title,
+                    "content.html",
+                    (int) $admin["id"]
+                );
+            }
+
             response(
                 true,
                 $status === "draft"
@@ -731,6 +747,20 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $status,
             $id
         ]);
+
+        // Only on the transition into published. Without this test every later
+        // edit of a live post would notify the whole client all over again.
+        if ($status === "published" && ($existing["status"] ?? "") !== "published") {
+            notifyUsersAtCompany(
+                $pdo,
+                $client,
+                NOTIFY_CONTENT_PUBLISHED,
+                "New content published",
+                $title,
+                "content.html",
+                (int) $admin["id"]
+            );
+        }
 
         response(
             true,

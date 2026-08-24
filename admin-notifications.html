@@ -1,221 +1,45 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Forms — Admin</title>
+<title>Notifications — Admin</title>
 
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
-
 body{
   background:#f6f7fb;
   color:#101828;
   padding:35px;
 }
 
-.grid{
-  display:grid;
-  grid-template-columns:1fr;
-  gap:28px;
-}
-
-.panel{
+.card{
   background:#fff;
-  border-radius:20px;
-  box-shadow:0 14px 35px rgba(0,0,0,.06);
-  overflow:hidden;
+  padding:20px;
+  border-radius:15px;
+  margin-bottom:15px;
+  box-shadow:0 5px 15px rgba(0,0,0,.05);
 }
 
-.panel-head{
-  padding:24px 28px;
-  border-bottom:1px solid #eef1f5;
+h2{
+  margin-bottom:10px;
 }
 
-.panel-head h1{
-  font-size:24px;
-  margin-bottom:6px;
-}
-
-.panel-head p{
-  color:#667085;
-  font-size:14px;
-}
-
-label{
-  display:block;
-  font-size:13px;
-  font-weight:800;
-  margin-bottom:8px;
-}
-
-input,select,textarea{
-  width:100%;
-  border:1px solid #dfe3ea;
-  background:#f8fafc;
-  border-radius:12px;
-  padding:13px 14px;
-  outline:none;
-  font-size:14px;
-}
-
-textarea{
-  min-height:90px;
-  resize:vertical;
-}
-
-input:focus,select:focus,textarea:focus{
-  border-color:#1b1e3a;
-  box-shadow:0 0 0 3px rgba(27,30,58,.10);
-}
-
-table{
-  width:100%;
-  border-collapse:collapse;
-}
-
-th{
-  text-align:left;
-  background:#f8fafc;
-  padding:14px 24px;
-  color:#667085;
-  font-size:12px;
-}
-
-td{
-  padding:15px 24px;
-  border-top:1px solid #eef1f5;
-  font-size:13px;
-}
-
-.badge{
-  padding:6px 12px;
-  border-radius:20px;
-  font-size:11px;
-  font-weight:800;
-}
-
-.approved{
-  background:#e8faef;
-  color:#20a95a;
-}
-
-.pending{
-  background:#fff3e5;
-  color:#d97706;
-}
-
-.survey-status{
-  background:#e7f0ff;
-  color:#3478f6;
-}
-
-/* Extra survey states: awaiting the account manager, and sent back to the creator. */
-.awaiting-review{
-  background:#e7f0ff;
-  color:#3478f6;
-}
-
-.rejected{
-  background:#fde8e8;
-  color:#c9000b;
-}
-
-.rejection-note{
-  display:block;
-  margin-top:4px;
-  font-size:11px;
-  color:#c9000b;
-  font-weight:600;
-}
-
-.actions{
-  display:flex;
-  gap:8px;
-}
-
-.btn{
-  border:none;
-  padding:8px 12px;
-  border-radius:8px;
-  cursor:pointer;
-  font-weight:800;
-  font-size:12px;
-}
-
-/* Semantic pair — approve is green, reject is red. */
-.approve-btn{
-  background:#20a95a;
-  color:#fff;
-}
-
-.reject-btn{
-  background:#c9000b;
-  color:#fff;
-}
-
-/* Generic table action (Edit, View Responses) — not an approve/reject decision. */
-.action-btn{
-  background:var(--nav-active);
-  color:#fff;
+a{
+  color:var(--nav-active);
+  font-weight:bold;
 }
 
 .empty{
-  padding:30px;
-  text-align:center;
+  background:#fff;
+  padding:25px;
+  border-radius:15px;
   color:#667085;
 }
-
-@media(max-width:800px){
-  body{
-    padding:18px;
-  }
-
-  table{
-    min-width:760px;
-  }
-
-  .panel{
-    overflow-x:auto;
-  }
-}
-
-.survey-filters{
-  display:flex;
-  gap:20px;
-  margin-bottom:25px;
-}
-
-.filter-box{
-  flex:1;
-}
-
-.filter-box label{
-  display:block;
-  margin-bottom:8px;
-  font-weight:700;
-}
-.survey-filters{
-  display:flex;
-  gap:20px;
-  margin-top:25px;
-  margin-bottom:25px;
-}
-.filter-box select{
-  width:100%;
-}
-.section-desc{
-  margin-bottom:30px;
-  color:#667085;
-}
-.surveys-section p{
-  margin-bottom:30px;
-}
-@media(max-width:768px){
-  .survey-filters{
-    flex-direction:column;
-  }
-}
+.panel{background:#fff;border-radius:20px;box-shadow:0 14px 35px rgba(0,0,0,.06);overflow:hidden;}
+.panel-head{padding:24px 28px;border-bottom:1px solid #eef1f5;}
+.panel-head h1{font-size:24px;margin-bottom:6px;}
+.panel-head p{color:#667085;font-size:14px;}
+.panel-body{padding:24px 28px;}
 
 /* ── Admin shell: sidebar + header (shared across admin pages) ── */
 :root{
@@ -335,18 +159,37 @@ body{padding:0}
   /* Force-collapsed below this width, so the head has nothing left to show. */
   .side-head{display:none}
 }
-
-/* ── Page header: the Create action sits on the title line, same as Content ── */
+/* ── Page header: the Mark-all action sits on the title line ── */
 .page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:28px}
 .page-title h1{font-size:30px;margin-bottom:8px}
 .page-title p{font-size:14px;color:var(--muted);max-width:620px}
-.create-btn{flex:none;display:inline-flex;align-items:center;gap:8px;background:var(--nav-active);color:#fff;text-decoration:none;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:800}
+.create-btn{flex:none;display:inline-flex;align-items:center;gap:8px;background:var(--nav-active);color:#fff;border:none;text-decoration:none;padding:12px 20px;border-radius:10px;font:inherit;font-size:13px;font-weight:800;cursor:pointer}
 .create-btn:hover{background:#282c52}
-.create-btn svg{width:16px;height:16px}
+.create-btn[hidden]{display:none}
 
-/* Edit is a link to the builder now, so it has to look like the buttons it
-   sits beside rather than inheriting anchor styling. */
-.actions .action-btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+/* ── One notification ──
+   Read rows keep the dot's slot at transparent rather than dropping it, so
+   every title stays on the same left edge down the list. */
+.notif{display:flex;gap:14px;align-items:flex-start;padding:16px 0;border-bottom:1px solid #eef1f5;text-decoration:none;color:inherit}
+.notif:last-child{border-bottom:none}
+a.notif:hover{background:#fbfcfd}
+.notif-dot{flex:none;width:8px;height:8px;margin-top:7px;border-radius:50%;background:transparent}
+.notif.unread .notif-dot{background:var(--brand)}
+.notif-text{flex:1;min-width:0}
+.notif-text strong{display:block;font-size:14px;font-weight:700;color:var(--muted);margin-bottom:4px}
+.notif.unread .notif-text strong{color:var(--text);font-weight:800}
+.notif-text p{font-size:13px;color:var(--muted);line-height:1.5}
+.notif time{flex:none;font-size:12px;color:#98a2b3;white-space:nowrap}
+
+.more-wrap{margin-top:20px;text-align:center}
+.more-wrap[hidden]{display:none}
+.more-btn{border:1px solid #dfe3ea;background:#fff;color:var(--text);font:inherit;font-size:13px;font-weight:800;padding:11px 18px;border-radius:10px;cursor:pointer}
+.more-btn:hover{background:#f6f7f9}
+
+@media(max-width:600px){
+  .page-head{flex-direction:column;gap:16px}
+  .notif{flex-wrap:wrap}
+}
 /* ── Unread badge on the Notifications nav item ──
    Collapsed, the sidebar hides labels, so the count degrades to a dot on
    the icon - the same affordance the old topbar bell had. */
@@ -412,7 +255,7 @@ document.addEventListener("DOMContentLoaded", function () {
       </button>
     </div>
     <nav class="side-nav">
-      <a href="admin.html" class="active" title="Forms">
+      <a href="admin.html" title="Forms">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
         <span>Forms</span>
       </a>
@@ -436,14 +279,10 @@ document.addEventListener("DOMContentLoaded", function () {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         <span>Calendar</span>
       </a>
-      <a href="admin-notifications.html" title="Notifications">
+      <a href="admin-notifications.html" title="Notifications" class="active">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 6-3 7-3 7h18s-3-1-3-7"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
         <span>Notifications</span>
         <em class="nav-badge" id="notifBadge" hidden></em>
-      </a>
-      <a href="survey-review.html" id="surveyReviewLink" title="Survey Review" style="display:none;">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/><circle cx="18" cy="6" r="3" fill="currentColor" stroke="none"/></svg>
-        <span>Survey Review</span>
       </a>
       <a href="settings.html" title="Settings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -462,71 +301,27 @@ document.addEventListener("DOMContentLoaded", function () {
   </button>
 </aside>
 
-
 <div class="admin-main">
-
   <div class="admin-content">
 
     <div class="page-head">
       <div class="page-title">
-        <h1>Forms</h1>
-        <p>All forms and checklists assigned to approved users. Submissions go to the account manager for approval before the user sees them.</p>
+        <h1>Notifications</h1>
+        <p>Everything that happened across your clients, newest first.</p>
       </div>
-      <a class="create-btn" href="admin-form-builder.html">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Create Form
-      </a>
+      <button class="create-btn" type="button" id="markAllBtn" hidden onclick="markAllRead()">
+        Mark all read
+      </button>
     </div>
 
-    <div class="grid">
-      <div class="panel">
-        <div class="panel-head">
-          <h1>Forms List</h1>
-          <p>All forms assigned to approved users.</p>
-
-          <div class="survey-filters">
-
-            <div class="filter-box">
-              <label>Filter by User</label>
-              <select id="surveyUserFilter" onchange="renderSurveysTable()">
-                <option value="all">All Users</option>
-              </select>
-            </div>
-
-            <div class="filter-box">
-              <label>Filter by Status</label>
-              <select id="surveyStatusFilter" onchange="renderSurveysTable()">
-                <option value="all">All Status</option>
-                <option value="pending_review">Awaiting Approval</option>
-                <option value="pending">Pending</option>
-                <option value="rejected">Rejected</option>
-                <option value="completed">Completed</option>
-              </select>
-            </div>
-
-          </div>
-        </div>
-
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Form</th>
-              <th>User</th>
-              <th>Email</th>
-              <th>Status</th>
-              <th>Created At</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-
-          <tbody id="surveysTable">
-            <tr>
-              <td colspan="7" class="empty">Loading forms...</td>
-            </tr>
-          </tbody>
-        </table>
+    <div class="panel">
+      <div class="panel-body" id="notifList">
+        <div class="empty">Loading notifications...</div>
       </div>
+    </div>
+
+    <div class="more-wrap" id="moreWrap" hidden>
+      <button class="more-btn" type="button" id="moreBtn" onclick="loadMore()">Load older</button>
     </div>
 
   </div>
@@ -549,23 +344,11 @@ document.addEventListener("DOMContentLoaded", function () {
 </div>
 
 <script>
-let adminToken = localStorage.getItem("admin_token");
-let adminUser = JSON.parse(localStorage.getItem("admin_user") || "{}");
+const adminToken = localStorage.getItem("admin_token");
+const adminUser = JSON.parse(localStorage.getItem("admin_user") || "{}");
 
 if(!adminToken || !adminUser.role){
   window.location.href = "admin-login.html";
-}
-
-// Account managers don't build forms - their job is reviewing the ones other
-// admins create, so they land straight on the review queue instead.
-if(adminUser.role === "account_manager"){
-  window.location.href = "survey-review.html";
-}
-
-// The owner can also see the review queue link, for oversight.
-if(adminUser.role === "account_manager" || adminUser.role === "owner"){
-  const reviewLink = document.getElementById("surveyReviewLink");
-  if(reviewLink) reviewLink.style.display = "";
 }
 
 function logoutAdmin(){
@@ -574,165 +357,186 @@ function logoutAdmin(){
   window.location.href = "admin-login.html";
 }
 
+/* ── The inbox ──────────────────────────────────────────────────────────────
+   Rows come from api/notifications.php newest first, paged on id rather than
+   an offset so a fan-out written inside one second cannot shuffle between
+   pages. `link` arrives ready-made, so nothing here knows about event types. */
+
+let oldestId = 0;
+let loadedAny = false;
+
 function esc(value){
   return String(value == null ? "" : value)
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
 }
 
-/* ── The forms list ─────────────────────────────────────────────────────────
-   Building and editing both live on admin-form-builder.html, the same split
-   the Content page uses. This page only lists and routes. */
+/* created_ts is a Unix epoch from the server. The plain created_at string is
+   server-local and would be read as browser-local, so it is display-only. */
+function timeAgo(seconds){
+  if(!seconds) return "";
 
-let allAdminSurveys = [];
+  const diff = Math.round(Date.now() / 1000) - seconds;
 
-async function loadSurveyData(){
+  if(diff < 60) return "just now";
+  if(diff < 3600) return Math.floor(diff / 60) + "m ago";
+  if(diff < 86400) return Math.floor(diff / 3600) + "h ago";
+  if(diff < 604800) return Math.floor(diff / 86400) + "d ago";
 
-  const surveysTable = document.getElementById("surveysTable");
-  const surveyUserFilter = document.getElementById("surveyUserFilter");
+  return new Date(seconds * 1000)
+    .toLocaleDateString(undefined, {day:"numeric", month:"short", year:"numeric"});
+}
+
+function rowHtml(item){
+  const classes = "notif" + (item.read ? "" : " unread");
+
+  const inner = `
+    <span class="notif-dot"></span>
+    <div class="notif-text">
+      <strong>${esc(item.title)}</strong>
+      ${item.body ? `<p>${esc(item.body)}</p>` : ""}
+    </div>
+    <time>${esc(timeAgo(item.created_ts))}</time>
+  `;
+
+  // A row with nowhere to go is not a link - it still marks itself read.
+  return item.link
+    ? `<a class="${classes}" href="${esc(item.link)}" data-id="${item.id}">${inner}</a>`
+    : `<div class="${classes}" data-id="${item.id}">${inner}</div>`;
+}
+
+function paintUnread(count){
+  const button = document.getElementById("markAllBtn");
+  if(button) button.hidden = Number(count) <= 0;
+
+  // Keep the sidebar badge in step without a reload.
+  const badge = document.getElementById("notifBadge");
+  if(!badge) return;
+
+  const n = Number(count) || 0;
+  badge.textContent = n > 9 ? "9+" : String(n);
+  badge.hidden = n <= 0;
+}
+
+async function loadPage(before){
+  const list = document.getElementById("notifList");
+
+  let url = "api/notifications.php?action=list&limit=25";
+  if(before) url += "&before=" + encodeURIComponent(before);
 
   try{
-
-    const res = await fetch("api/admin-surveys.php",{
-      headers:{
-        Authorization:"Bearer " + adminToken
-      }
+    const res = await fetch(url, {
+      headers:{ Authorization:"Bearer " + adminToken }
     });
 
     const data = await res.json();
 
     if(!data.success){
-      surveysTable.innerHTML = `
-        <tr>
-          <td colspan="7" class="empty">Unable to load forms.</td>
-        </tr>
-      `;
+      if(!loadedAny){
+        list.innerHTML = `<div class="empty">${esc(data.message || "Unable to load notifications.")}</div>`;
+      }
       return;
     }
 
-    if(data.users && data.users.length){
-      surveyUserFilter.innerHTML = `
-        <option value="all">All Users</option>
-        ${data.users.map(user => `
-          <option value="${esc(user.id)}">${esc(user.name)} - ${esc(user.email)}</option>
-        `).join("")}
-      `;
-    }else{
-      surveyUserFilter.innerHTML = `<option value="all">All Users</option>`;
+    const rows = data.notifications || [];
+
+    if(!loadedAny && !rows.length){
+      list.innerHTML = `<div class="empty">Nothing yet. New forms, appointments and responses will show up here.</div>`;
+      paintUnread(0);
+      return;
     }
 
-    allAdminSurveys = data.surveys || [];
-    renderSurveysTable();
+    if(!loadedAny) list.innerHTML = "";
 
-  }catch(error){
+    list.insertAdjacentHTML("beforeend", rows.map(rowHtml).join(""));
 
-    surveysTable.innerHTML = `
-      <tr>
-        <td colspan="7" class="empty">Connection error.</td>
-      </tr>
-    `;
+    if(rows.length) oldestId = rows[rows.length - 1].id;
+    loadedAny = true;
 
+    document.getElementById("moreWrap").hidden = !data.has_more;
+    paintUnread(data.unread);
+
+  }catch(err){
+    if(!loadedAny){
+      list.innerHTML = `<div class="empty">Connection error.</div>`;
+    }
   }
 }
 
-function renderSurveysTable(){
-
-  const surveysTable = document.getElementById("surveysTable");
-  const filterValue = document.getElementById("surveyUserFilter").value;
-  const statusFilter = document.getElementById("surveyStatusFilter").value;
-
-  let surveys = allAdminSurveys;
-
-  if(filterValue !== "all"){
-    surveys = allAdminSurveys.filter(s => Number(s.assigned_user_id) === Number(filterValue));
-  }
-
-  if(statusFilter !== "all"){
-    surveys = surveys.filter(s => s.status === statusFilter);
-  }
-
-  if(!surveys.length){
-    surveysTable.innerHTML = `
-      <tr>
-        <td colspan="7" class="empty">No forms found.</td>
-      </tr>
-    `;
-    return;
-  }
-
-  const statusMeta = {
-    pending_review: { label: "Awaiting Approval", cls: "awaiting-review" },
-    pending: { label: "Pending", cls: "pending" },
-    rejected: { label: "Rejected", cls: "rejected" },
-    completed: { label: "Completed", cls: "approved" }
-  };
-
-  surveysTable.innerHTML = surveys.map(survey => {
-    const meta = statusMeta[survey.status] || { label: survey.status, cls: "pending" };
-    const editable = ["pending_review", "pending", "rejected"].includes(survey.status);
-
-    return `
-    <tr>
-      <td>#${esc(survey.id)}</td>
-      <td>${esc(survey.title)}</td>
-      <td>${esc(survey.user_name)}</td>
-      <td>${esc(survey.user_email)}</td>
-      <td>
-        <span class="badge ${meta.cls}">
-          ${esc(meta.label)}
-        </span>
-        ${
-          survey.status === "rejected" && survey.review_note
-          ? `<span class="rejection-note">Reason: ${esc(survey.review_note)}</span>`
-          : ``
-        }
-      </td>
-      <td>${esc(survey.created_at)}</td>
-      <td>
-        <div class="actions">
-          ${
-            editable
-            ? `<a class="btn action-btn" href="admin-form-builder.html?edit=${encodeURIComponent(survey.id)}">Edit</a>`
-            : ``
-          }
-
-          ${
-            survey.status === "completed"
-            ? `<button class="btn action-btn" onclick="viewSurveyResponses(${Number(survey.id)})">View Responses</button>`
-            : ``
-          }
-        </div>
-      </td>
-    </tr>
-  `;
-  }).join("");
+function loadMore(){
+  loadPage(oldestId);
 }
 
-async function viewSurveyResponses(surveyId){
+async function markRead(id){
   try{
-    const res = await fetch("api/admin-responses.php?survey_id=" + surveyId,{
+    const res = await fetch("api/notifications.php?action=mark_read", {
+      method: "POST",
       headers:{
-        Authorization:"Bearer " + adminToken
-      }
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + adminToken
+      },
+      body: JSON.stringify({ id })
+    });
+
+    const data = await res.json();
+    if(data.success) paintUnread(data.unread);
+
+  }catch(err){
+    // The row still opens. Worst case it stays bold until the next load.
+  }
+}
+
+async function markAllRead(){
+  try{
+    const res = await fetch("api/notifications.php?action=mark_all_read", {
+      method: "POST",
+      headers:{
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + adminToken
+      },
+      body: "{}"
     });
 
     const data = await res.json();
 
-    if(!data.success || !data.responses || !data.responses.length){
-      alert("No responses found for this survey.");
-      return;
+    if(data.success){
+      document.querySelectorAll("#notifList .notif.unread")
+        .forEach(row => row.classList.remove("unread"));
+      paintUnread(0);
     }
 
-    window.location.href = "response-details.html?id=" + data.responses[0].id;
-
-  }catch(error){
-    alert("Connection error.");
+  }catch(err){
+    // Nothing changes on screen; the button is still there to retry.
   }
 }
 
-loadSurveyData();
+/* One delegated handler, so rows added by "Load older" are covered too. */
+document.getElementById("notifList").addEventListener("click", async event => {
+  const row = event.target.closest(".notif");
+  if(!row) return;
+
+  const id = Number(row.dataset.id);
+  const wasUnread = row.classList.contains("unread");
+  row.classList.remove("unread");
+
+  const href = row.tagName === "A" ? row.getAttribute("href") : "";
+
+  if(!href){
+    if(wasUnread && id) markRead(id);
+    return;
+  }
+
+  // Mark first so the count is right on the page being opened, but never let
+  // a failed request strand the click.
+  event.preventDefault();
+  if(wasUnread && id) await markRead(id);
+  window.location.href = href;
+});
+
+loadPage(0);
 </script>
 
 <script src="assets/notifications.js?v=1"></script>
+
 </body>
 </html>

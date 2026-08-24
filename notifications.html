@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Content</title>
+<title>Notifications</title>
 
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
@@ -135,6 +135,38 @@ body{background:#f7f8fc;color:var(--text)}
   .detail.is-vertical,.detail.is-horizontal{grid-template-columns:1fr}
   .detail-meta{grid-template-columns:1fr !important}
 }
+/* ── Notifications page ── */
+.page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:28px}
+.mark-all-btn{flex:none;background:var(--nav-active);color:#fff;border:none;padding:12px 20px;border-radius:10px;font:inherit;font-size:13px;font-weight:800;cursor:pointer}
+.mark-all-btn:hover{background:#282c52}
+.mark-all-btn[hidden]{display:none}
+
+.panel{background:#fff;border-radius:18px;box-shadow:0 14px 35px rgba(0,0,0,.06);overflow:hidden}
+.panel-body{padding:8px 24px}
+
+/* ── One notification ──
+   Read rows keep the dot's slot at transparent rather than dropping it, so
+   every title stays on the same left edge down the list. */
+.notif{display:flex;gap:14px;align-items:flex-start;padding:16px 0;border-bottom:1px solid #eef1f5;text-decoration:none;color:inherit}
+.notif:last-child{border-bottom:none}
+a.notif:hover{background:#fbfcfd}
+.notif-dot{flex:none;width:8px;height:8px;margin-top:7px;border-radius:50%;background:transparent}
+.notif.unread .notif-dot{background:var(--brand)}
+.notif-text{flex:1;min-width:0}
+.notif-text strong{display:block;font-size:14px;font-weight:700;color:var(--muted);margin-bottom:4px}
+.notif.unread .notif-text strong{color:var(--text);font-weight:800}
+.notif-text p{font-size:13px;color:var(--muted);line-height:1.5}
+.notif time{flex:none;font-size:12px;color:#98a2b3;white-space:nowrap}
+
+.more-wrap{margin-top:20px;text-align:center}
+.more-wrap[hidden]{display:none}
+.more-btn{border:1px solid #dfe3ea;background:#fff;color:var(--text);font:inherit;font-size:13px;font-weight:800;padding:11px 18px;border-radius:10px;cursor:pointer}
+.more-btn:hover{background:#f6f7f9}
+
+@media(max-width:600px){
+  .page-head{flex-direction:column;gap:16px}
+  .notif{flex-wrap:wrap}
+}
 /* ── Unread badge on the Notifications nav item ──
    Collapsed, the sidebar hides labels, so the count degrades to a dot on
    the icon - the same affordance the old topbar bell had. */
@@ -220,11 +252,11 @@ body{background:#f7f8fc;color:var(--text)}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>
         <span>Appointments</span>
       </a>
-      <a href="content.html" class="active" title="Content">
+      <a href="content.html" title="Content">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
         <span>Content</span>
       </a>
-      <a href="notifications.html" title="Notifications">
+      <a href="notifications.html" title="Notifications" class="active">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 6-3 7-3 7h18s-3-1-3-7"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
         <span>Notifications</span>
         <em class="nav-badge" id="notifBadge" hidden></em>
@@ -253,60 +285,28 @@ body{background:#f7f8fc;color:var(--text)}
 </aside>
 
 <main class="main">
-
   <section class="content">
-    <div class="page-title">
-      <h1>Content</h1>
-      <p>Everything ready to publish — social posts, newsletters, infographics and more.</p>
-    </div>
 
-    <!-- No filter tabs here: a reader only ever sees their own client's posts,
-         so there is nothing to narrow down. The search box stays. -->
-    <div class="filters">
-      <input class="content-search" id="contentSearch" placeholder="Search content...">
-    </div>
-
-
-    <div class="grid" id="contentGrid">
-      <div class="empty">Loading content...</div>
-    </div>
-
-    <div class="pager" id="pager" hidden>
-      <span class="pager-info" id="pagerInfo"></span>
-      <div class="pager-pages" id="pagerPages"></div>
-    </div>
-
-    <div class="detail-wrap" id="detailWrap" style="display:none">
-      <div class="detail-head">
-        <div class="eyebrow" id="detailEyebrow"></div>
-        <h2 id="detailTitle"></h2>
+    <div class="page-head">
+      <div class="page-title">
+        <h1>Notifications</h1>
+        <p>Updates on your forms, meetings and new content, newest first.</p>
       </div>
-
-      <article class="detail is-horizontal" id="detailPanel">
-        <div class="detail-media" id="detailMedia"></div>
-        <div class="detail-meta">
-          <div class="field wide">
-            <h5>Caption</h5>
-            <div class="caption" id="detailCaption"></div>
-          </div>
-
-          <!-- Who it is for and who wrote it are the studio's business, not the
-               reader's: the footer carries the timing and the link only. -->
-          <div class="detail-footer">
-            <div class="field">
-              <h5>Scheduled</h5>
-              <p id="detailScheduled">Not scheduled</p>
-            </div>
-            <div class="field link-slot" id="linkSlot"></div>
-            <!-- Last on the line: when the post was created, not when it runs. -->
-            <div class="field">
-              <h5>Timing</h5>
-              <p id="detailTiming">—</p>
-            </div>
-          </div>
-        </div>
-      </article>
+      <button class="mark-all-btn" type="button" id="markAllBtn" hidden onclick="markAllRead()">
+        Mark all read
+      </button>
     </div>
+
+    <div class="panel">
+      <div class="panel-body" id="notifList">
+        <div class="empty">Loading notifications...</div>
+      </div>
+    </div>
+
+    <div class="more-wrap" id="moreWrap" hidden>
+      <button class="more-btn" type="button" id="moreBtn" onclick="loadMore()">Load older</button>
+    </div>
+
   </section>
 </main>
 
@@ -323,12 +323,13 @@ const user = JSON.parse(localStorage.getItem("portal_user") || "{}");
 document.getElementById("sideName").innerText = user.name || "User";
 setAvatarImage(user);
 
-let allContent = [];
-let selectedId = null;
+/* ── The inbox ──────────────────────────────────────────────────────────────
+   Rows come from api/notifications.php newest first, paged on id rather than
+   an offset so a fan-out written inside one second cannot shuffle between
+   pages. `link` arrives ready-made, so nothing here knows about event types. */
 
-// Six cards to a page; the rest live behind the pager under the grid.
-const PAGE_SIZE = 6;
-let currentPage = 1;
+let oldestId = 0;
+let loadedAny = false;
 
 function esc(value){
   return String(value == null ? "" : value)
@@ -336,263 +337,167 @@ function esc(value){
     .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
 }
 
-// Captions are stored as HTML from the admin editor. The API sanitises them, but
-// this page is the one calling innerHTML — strip anything unexpected here too.
-// Text alignment is the one piece of styling the toolbar can set, so it is read
-// off the node and put back after every other attribute is dropped.
-const ALIGNMENTS = ["left","center","right","justify"];
+/* created_ts is a Unix epoch from the server. The plain created_at string is
+   server-local and would be read as browser-local, so it is display-only. */
+function timeAgo(seconds){
+  if(!seconds) return "";
 
-function sanitizeCaption(html){
-  const box = document.createElement("div");
-  box.innerHTML = html || "";
+  const diff = Math.round(Date.now() / 1000) - seconds;
 
-  const allowed = ["B","STRONG","I","EM","U","UL","OL","LI","A","BR","P","DIV"];
+  if(diff < 60) return "just now";
+  if(diff < 3600) return Math.floor(diff / 60) + "m ago";
+  if(diff < 86400) return Math.floor(diff / 3600) + "h ago";
+  if(diff < 604800) return Math.floor(diff / 86400) + "d ago";
 
-  box.querySelectorAll("*").forEach(node => {
-    // Unwrapping a script or style would leave its source behind as text.
-    if(node.tagName === "SCRIPT" || node.tagName === "STYLE"){
-      node.remove();
-      return;
-    }
+  return new Date(seconds * 1000)
+    .toLocaleDateString(undefined, {day:"numeric", month:"short", year:"numeric"});
+}
 
-    if(!allowed.includes(node.tagName)){
-      node.replaceWith(...node.childNodes);
-      return;
-    }
+function rowHtml(item){
+  const classes = "notif" + (item.read ? "" : " unread");
 
-    // Browsers write alignment as either inline style or an align attribute.
-    const align = ((node.style && node.style.textAlign) || node.getAttribute("align") || "")
-      .toLowerCase();
+  const inner = `
+    <span class="notif-dot"></span>
+    <div class="notif-text">
+      <strong>${esc(item.title)}</strong>
+      ${item.body ? `<p>${esc(item.body)}</p>` : ""}
+    </div>
+    <time>${esc(timeAgo(item.created_ts))}</time>
+  `;
 
-    [...node.attributes].forEach(attr => {
-      const keep = node.tagName === "A" && attr.name === "href"
-        && !/^\s*(javascript|data|vbscript):/i.test(attr.value);
-      if(!keep) node.removeAttribute(attr.name);
+  // A row with nowhere to go is not a link - it still marks itself read.
+  return item.link
+    ? `<a class="${classes}" href="${esc(item.link)}" data-id="${item.id}">${inner}</a>`
+    : `<div class="${classes}" data-id="${item.id}">${inner}</div>`;
+}
+
+function paintUnread(count){
+  const button = document.getElementById("markAllBtn");
+  if(button) button.hidden = Number(count) <= 0;
+
+  // Keep the sidebar badge in step without a reload.
+  const badge = document.getElementById("notifBadge");
+  if(!badge) return;
+
+  const n = Number(count) || 0;
+  badge.textContent = n > 9 ? "9+" : String(n);
+  badge.hidden = n <= 0;
+}
+
+async function loadPage(before){
+  const list = document.getElementById("notifList");
+
+  let url = "api/notifications.php?action=list&limit=25";
+  if(before) url += "&before=" + encodeURIComponent(before);
+
+  try{
+    const res = await fetch(url, {
+      headers:{ Authorization:"Bearer " + token }
     });
-
-    if(ALIGNMENTS.includes(align)) node.style.textAlign = align;
-
-    if(node.tagName === "A"){
-      node.setAttribute("target","_blank");
-      node.setAttribute("rel","noopener noreferrer");
-    }
-  });
-
-  return box.innerHTML;
-}
-
-/** The link shows as a "View link" action on the footer line, never a URL. */
-function renderLink(item){
-  const slot = document.getElementById("linkSlot");
-
-  slot.textContent = "";
-
-  // Only http(s) reaches an href — the API normalises, but this page is the one
-  // building the anchor.
-  if(!item.link || !/^https?:\/\//i.test(item.link)) return;
-
-  // A heading like the field beside it, so the button lines up with its value
-  // rather than floating against its label.
-  const heading = document.createElement("h5");
-  heading.textContent = "Link";
-  slot.appendChild(heading);
-
-  const anchor = document.createElement("a");
-  anchor.className = "view-link";
-  anchor.href = item.link;
-  anchor.target = "_blank";
-  anchor.rel = "noopener noreferrer";
-  anchor.title = item.link;
-  anchor.textContent = "View link";
-
-  slot.appendChild(anchor);
-}
-
-function formatTiming(item){
-  if(Number(item.publish_now) === 1) return "Published immediately";
-  if(!item.post_date) return "Not scheduled";
-
-  const time = (item.post_time || "00:00:00").slice(0,5);
-  const date = new Date(item.post_date + "T" + time);
-
-  if(isNaN(date)) return "Not scheduled";
-
-  return date.toLocaleDateString(undefined,{day:"numeric",month:"short",year:"numeric"}) + " · " + time;
-}
-
-/* When the post was created. MySQL hands back "YYYY-MM-DD HH:MM:SS", which
-   only some browsers parse - the T is what makes it a valid date string
-   everywhere. */
-function formatCreated(item){
-  if(!item.created_at) return "—";
-
-  const date = new Date(String(item.created_at).replace(" ", "T"));
-
-  if(isNaN(date)) return String(item.created_at);
-
-  return date.toLocaleDateString(undefined,{day:"numeric",month:"short",year:"numeric"})
-    + " · " + date.toTimeString().slice(0,5);
-}
-
-// The user endpoint returns published content only, with `created_by` already
-// resolved to the admin's name.
-async function loadContent(){
-  const grid = document.getElementById("contentGrid");
-  grid.innerHTML = `<div class="empty">Loading content...</div>`;
-
-  try {
-    const res = await fetch("api/user-content.php", {
-      headers: { Authorization: "Bearer " + token }
-    });
-
-    // A stale session should send the user back to login, not show an error.
-    if (res.status === 401) {
-      localStorage.removeItem("portal_token");
-      localStorage.removeItem("portal_user");
-      window.location.href = "login.html";
-      return;
-    }
 
     const data = await res.json();
 
-    allContent = (data.success && data.content) || [];
-
-    if (!allContent.length) {
-      grid.innerHTML = `<div class="empty">No content published yet.</div>`;
+    if(!data.success){
+      if(!loadedAny){
+        list.innerHTML = `<div class="empty">${esc(data.message || "Unable to load notifications.")}</div>`;
+      }
       return;
     }
 
-    applyFilters();
+    const rows = data.notifications || [];
 
-  } catch (err) {
-    console.error(err);
-    grid.innerHTML = `<div class="empty">Failed to load content.</div>`;
+    if(!loadedAny && !rows.length){
+      list.innerHTML = `<div class="empty">Nothing yet. Updates on your forms, meetings and new content will show up here.</div>`;
+      paintUnread(0);
+      return;
+    }
+
+    if(!loadedAny) list.innerHTML = "";
+
+    list.insertAdjacentHTML("beforeend", rows.map(rowHtml).join(""));
+
+    if(rows.length) oldestId = rows[rows.length - 1].id;
+    loadedAny = true;
+
+    document.getElementById("moreWrap").hidden = !data.has_more;
+    paintUnread(data.unread);
+
+  }catch(err){
+    if(!loadedAny){
+      list.innerHTML = `<div class="empty">Connection error.</div>`;
+    }
   }
 }
 
-// A new search or tab starts at page 1; paging itself keeps the page it set.
-document.getElementById("contentSearch").addEventListener("input", () => applyFilters());
+function loadMore(){
+  loadPage(oldestId);
+}
 
-function applyFilters(keepPage){
-  const search = document.getElementById("contentSearch").value.toLowerCase().trim();
+async function markRead(id){
+  try{
+    const res = await fetch("api/notifications.php?action=mark_read", {
+      method: "POST",
+      headers:{
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + token
+      },
+      body: JSON.stringify({ id })
+    });
 
-  let filtered = allContent;
+    const data = await res.json();
+    if(data.success) paintUnread(data.unread);
 
-  if(search){
-    filtered = filtered.filter(item =>
-      (item.title || "").toLowerCase().includes(search) ||
-      (item.type_label || "").toLowerCase().includes(search) ||
-      (item.platform || "").toLowerCase().includes(search)
-    );
+  }catch(err){
+    // The row still opens. Worst case it stays bold until the next load.
   }
-
-  if(!keepPage) currentPage = 1;
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  if(currentPage > totalPages) currentPage = totalPages;
-
-  const start = (currentPage - 1) * PAGE_SIZE;
-  const pageItems = filtered.slice(start, start + PAGE_SIZE);
-
-  renderGrid(pageItems);
-  renderPager(filtered.length, totalPages, start, pageItems.length);
-
-  // Keep the current selection when it survives the filter, otherwise take the first.
-  const stillVisible = pageItems.some(item => String(item.id) === String(selectedId));
-  selectContent(stillVisible ? selectedId : (pageItems[0] ? pageItems[0].id : null));
 }
 
-function goToPage(page){
-  currentPage = page;
-  applyFilters(true);
+async function markAllRead(){
+  try{
+    const res = await fetch("api/notifications.php?action=mark_all_read", {
+      method: "POST",
+      headers:{
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + token
+      },
+      body: "{}"
+    });
 
-  // The grid is above the pager, so jump back to the top of the new page.
-  document.getElementById("contentGrid").scrollIntoView({behavior:"smooth", block:"start"});
+    const data = await res.json();
+
+    if(data.success){
+      document.querySelectorAll("#notifList .notif.unread")
+        .forEach(row => row.classList.remove("unread"));
+      paintUnread(0);
+    }
+
+  }catch(err){
+    // Nothing changes on screen; the button is still there to retry.
+  }
 }
 
-function renderPager(total, totalPages, start, shown){
-  const pager = document.getElementById("pager");
+/* One delegated handler, so rows added by "Load older" are covered too. */
+document.getElementById("notifList").addEventListener("click", async event => {
+  const row = event.target.closest(".notif");
+  if(!row) return;
 
-  if(total <= PAGE_SIZE){
-    pager.hidden = true;
+  const id = Number(row.dataset.id);
+  const wasUnread = row.classList.contains("unread");
+  row.classList.remove("unread");
+
+  const href = row.tagName === "A" ? row.getAttribute("href") : "";
+
+  if(!href){
+    if(wasUnread && id) markRead(id);
     return;
   }
 
-  pager.hidden = false;
-
-  document.getElementById("pagerInfo").innerText =
-    `Showing ${start + 1}–${start + shown} of ${total}`;
-
-  const pages = Array.from({length: totalPages}, (unused, index) => index + 1);
-
-  document.getElementById("pagerPages").innerHTML = `
-    <button type="button" onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? "disabled" : ""}>Prev</button>
-    ${pages.map(page => `
-      <button type="button" class="${page === currentPage ? "current" : ""}"
-              onclick="goToPage(${page})">${page}</button>
-    `).join("")}
-    <button type="button" onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? "disabled" : ""}>Next</button>
-  `;
-}
-
-function renderGrid(items){
-  const grid = document.getElementById("contentGrid");
-
-  if(!items.length){
-    grid.innerHTML = `<div class="empty">No content found.</div>`;
-    return;
-  }
-
-  grid.innerHTML = items.map(item => `
-    <div class="card ${String(item.id) === String(selectedId) ? "selected" : ""}"
-         data-id="${esc(item.id)}" onclick="selectContent('${esc(item.id)}')">
-      <div class="card-img" style="${item.media_path ? `background-image:url('${esc(item.media_path)}')` : ""}"></div>
-      <div class="card-body">
-        <div class="card-eyebrow">${esc(item.platform)} · ${esc(item.type_label)}</div>
-        <h3>${esc(item.title)}</h3>
-      </div>
-    </div>
-  `).join("");
-}
-
-function selectContent(id){
-  const wrap = document.getElementById("detailWrap");
-
-  if(id == null){
-    selectedId = null;
-    wrap.style.display = "none";
-    return;
-  }
-
-  const item = allContent.find(entry => String(entry.id) === String(id));
-  if(!item) return;
-
-  selectedId = item.id;
-
-  document.querySelectorAll("#contentGrid .card").forEach(card => {
-    card.classList.toggle("selected", card.dataset.id === String(selectedId));
-  });
-
-  wrap.style.display = "block";
-
-  document.getElementById("detailEyebrow").innerText = `${item.platform} · ${item.type_label}`;
-  document.getElementById("detailTitle").innerText = item.title || "";
-
-  // One markup block — the orientation class is what swaps the layout.
-  const panel = document.getElementById("detailPanel");
-  panel.className = "detail " + (item.orientation === "vertical" ? "is-vertical" : "is-horizontal");
-
-  const media = document.getElementById("detailMedia");
-  media.style.backgroundImage = item.media_path ? `url('${item.media_path}')` : "";
-
-  // Alignment travels with the caption HTML, set on the editor's toolbar.
-  document.getElementById("detailCaption").innerHTML = sanitizeCaption(item.caption) || "—";
-
-  renderLink(item);
-
-  document.getElementById("detailScheduled").innerText = formatTiming(item);
-  document.getElementById("detailTiming").innerText = formatCreated(item);
-}
+  // Mark first so the count is right on the page being opened, but never let
+  // a failed request strand the click.
+  event.preventDefault();
+  if(wasUnread && id) await markRead(id);
+  window.location.href = href;
+});
 
 function setAvatarImage(user){
   const avatar = document.getElementById("sideAvatar");
@@ -612,9 +517,10 @@ function logout(){
   window.location.href = "login.html";
 }
 
-loadContent();
+loadPage(0);
 </script>
 
 <script src="assets/notifications.js?v=1"></script>
+
 </body>
 </html>
