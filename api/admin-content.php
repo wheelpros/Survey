@@ -137,6 +137,27 @@ ensureNotificationsTable($pdo);
 
 /*
 |--------------------------------------------------------------------------
+| Helper: who may edit or delete a post
+|--------------------------------------------------------------------------
+|
+| A post belongs to the admin who wrote it. The one exception is `owner`,
+| which sits above the roles and manages every post on the system. Every
+| other role - super_admin, seo_admin, account_manager - is read-only on
+| someone else's content no matter how senior it sounds.
+|
+*/
+
+function canManageContent($admin, $creatorId)
+{
+    if (($admin["role"] ?? "") === "owner") {
+        return true;
+    }
+
+    return (int) $creatorId === (int) $admin["id"];
+}
+
+/*
+|--------------------------------------------------------------------------
 | Upload Directory
 |--------------------------------------------------------------------------
 */
@@ -269,7 +290,11 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
             $stmt = $pdo->prepare("
                 SELECT
                     c.*,
-                    COALESCE(a.name, 'Unknown') AS created_by_name
+                    COALESCE(a.name, 'Unknown') AS created_by_name,
+
+                    /* The view page names the author by email, not by first
+                       name - two admins can share a name, an address cannot. */
+                    a.email AS created_by_email
                 FROM content c
                 LEFT JOIN admins a
                     ON a.id = c.created_by
@@ -305,9 +330,10 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
                 true,
                 "Content loaded.",
                 [
-                    "content"  => $content,
-                    "admin_id" => (int) $admin["id"],
-                    "is_owner" => (int) $content["created_by_id"] === (int) $admin["id"]
+                    "content"    => $content,
+                    "admin_id"   => (int) $admin["id"],
+                    "admin_role" => $admin["role"],
+                    "is_owner"   => canManageContent($admin, $content["created_by_id"])
                 ]
             );
         }
@@ -358,8 +384,10 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
                 "content" => $contents,
 
                 /* Who is asking. The page can then show Edit/Delete only on
-                   the rows this admin created. */
-                "admin_id" => (int) $admin["id"]
+                   the rows this admin created - or on everything, when the
+                   role is `owner`. */
+                "admin_id"   => (int) $admin["id"],
+                "admin_role" => $admin["role"]
             ]
         );
 
@@ -685,13 +713,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         | Ownership
         |----------------------------------------------------------------------
         |
-        | A post belongs to the admin who wrote it. Role makes no difference
-        | here - super_admin, seo_admin and account_manager are all read-only
-        | on someone else's post. The UI hides Edit for them; this is what
-        | stops a hand-made request getting through anyway.
+        | The author, or the owner. super_admin, seo_admin and account_manager
+        | are all read-only on someone else's post. The UI hides Edit for them;
+        | this is what stops a hand-made request getting through anyway.
         |
         */
-        if ((int) $existing["created_by"] !== (int) $admin["id"]) {
+        if (!canManageContent($admin, $existing["created_by"])) {
             response(
                 false,
                 "You can only edit content you created.",
@@ -866,9 +893,9 @@ if ($_SERVER["REQUEST_METHOD"] === "DELETE") {
         }
 
         /*
-        | Same rule as the update: only the author may remove a post.
+        | Same rule as the update: the author, or the owner.
         */
-        if ((int) $content["created_by"] !== (int) $admin["id"]) {
+        if (!canManageContent($admin, $content["created_by"])) {
             response(
                 false,
                 "You can only delete content you created.",

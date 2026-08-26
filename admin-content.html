@@ -369,9 +369,10 @@ if(!adminToken || !adminUser.role){
 let allContent = [];
 
 /* Who is logged in, as the API sees it. The token is what identifies the
-   admin, so the id comes back with the content rather than being read out of
-   localStorage - that keeps the two in step even after a re-login. */
+   admin, so the id and role come back with the content rather than being read
+   out of localStorage - that keeps the two in step even after a re-login. */
 let currentAdminId = null;
+let currentAdminRole = null;
 
 // The filter dropdown is the client list; "All" is every company.
 let currentClient = "All";
@@ -528,6 +529,7 @@ async function loadContent(){
     allContent = data.content || [];
 
     currentAdminId = data.admin_id != null ? String(data.admin_id) : null;
+    currentAdminRole = data.admin_role || null;
 
     renderFilters();
 
@@ -642,10 +644,13 @@ function renderPager(total, totalPages, start, shown){
   `;
 }
 
-/* A post is editable by the admin who wrote it and nobody else. Role is not
-   part of this test on purpose: super_admin, seo_admin and account_manager all
-   get the read-only View button on a post they did not create. */
-function isMine(item){
+/* A post is editable by the admin who wrote it, plus the owner, who sits above
+   the roles and manages everything. Nobody else: super_admin, seo_admin and
+   account_manager all get the read-only View button on a post they did not
+   create, however senior the role sounds. */
+function canManage(item){
+  if(currentAdminRole === "owner") return true;
+
   return currentAdminId != null
     && item.created_by_id != null
     && String(item.created_by_id) === currentAdminId;
@@ -671,7 +676,7 @@ function renderGrid(items){
         <h3>${esc(item.title)}</h3>
       </div>
       <div class="card-actions">
-        ${isMine(item) ? `
+        ${canManage(item) ? `
           <a href="admin-content-form.html?id=${esc(item.id)}">Edit</a>
           <button class="danger" type="button"
                   onclick="deleteContent('${esc(item.id)}','${esc(item.title)}')">Delete</button>

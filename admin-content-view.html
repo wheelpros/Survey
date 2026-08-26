@@ -460,7 +460,10 @@ function render(item){
   status.className = "badge " + (item.status || "draft");
   status.innerText = item.status || "draft";
 
-  document.getElementById("ownerName").innerText = item.created_by || "another admin";
+  // Email identifies the author unambiguously; the name is only the fallback
+  // for rows whose admin account no longer exists.
+  document.getElementById("ownerName").innerText =
+    item.created_by_email || item.created_by || "another admin";
 
   // One markup block — the orientation class is what swaps the layout.
   const panel = document.getElementById("detailPanel");
