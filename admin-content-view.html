@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Content — Admin</title>
+<title>View Content — Admin</title>
 
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
@@ -41,7 +41,6 @@ body{background:#f6f7fb;color:var(--text);padding:0}
 :root.sidebar-collapsed .side-logo{display:none}
 :root.sidebar-collapsed .side-nav a{width:38px;height:38px;padding:0;margin:0 auto 4px;border-radius:10px;justify-content:center}
 :root.sidebar-collapsed .side-nav a span{display:none}
-/* The account card is the only entry point to logout — collapse it, never hide it. */
 :root.sidebar-collapsed .side-user{justify-content:center;padding:8px}
 :root.sidebar-collapsed .side-meta,:root.sidebar-collapsed .side-dots{display:none}
 
@@ -59,49 +58,26 @@ body{background:#f6f7fb;color:var(--text);padding:0}
 .acct-logout{width:100%;height:46px;border:1px solid #f0d2d4;background:#fff;color:var(--brand);border-radius:12px;font-weight:800;font-size:14px;cursor:pointer}
 .acct-logout:hover{background:#fff5f5}
 
-/* ── Page header: the Create action sits on the title line ── */
-.page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:28px}
-.page-title h1{font-size:30px;margin-bottom:8px}
-.page-title p{font-size:14px;color:var(--muted);max-width:520px}
-.create-btn{flex:none;display:inline-flex;align-items:center;gap:8px;background:var(--nav-active);color:#fff;text-decoration:none;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:800}
-.create-btn:hover{background:#282c52}
-.create-btn svg{width:16px;height:16px}
+/* ── Page head: back link on the left, status on the right ── */
+.back-link{display:inline-flex;align-items:center;gap:7px;text-decoration:none;color:var(--muted);font-size:13px;font-weight:700;margin-bottom:18px}
+.back-link:hover{color:var(--text)}
+.back-link svg{width:15px;height:15px}
 
-.filters{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:24px}
-.client-filter{min-width:240px;height:36px;border:1px solid #e1e5ed;border-radius:22px;background:#fff;padding:0 14px;outline:none;font:inherit;font-size:13px;font-weight:700;color:var(--text);cursor:pointer}
-.client-filter:focus{border-color:var(--nav-active)}
-.content-search{width:260px;height:36px;border:1px solid #e1e5ed;border-radius:22px;background:#fff;padding:0 16px;outline:none;font-size:13px}
+.page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:26px}
+.eyebrow{font-size:11px;font-weight:800;letter-spacing:.6px;color:var(--muted);text-transform:uppercase;margin-bottom:6px}
+.page-head h1{font-size:28px}
 
-/* ── Card grid ── */
-/* Every thumbnail is the same square crop regardless of orientation — only the
-   detail panel below reflects the layout the admin picked. */
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
-.card{background:#fff;border-radius:14px;padding:8px;box-shadow:0 6px 18px rgba(16,24,40,.06);border:2px solid transparent;transition:border-color .15s,transform .15s;display:flex;flex-direction:column}
-.card:hover{transform:translateY(-2px)}
-.card.selected{border-color:var(--nav-active)}
-.card-img{background:#f1f3f7 center/cover no-repeat;aspect-ratio:1/1;border-radius:10px;position:relative;cursor:pointer}
-.badge{position:absolute;top:10px;right:10px;padding:5px 11px;border-radius:20px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.4px}
+.badge{flex:none;padding:6px 13px;border-radius:20px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.4px}
 .badge.draft{background:#f2f4f7;color:#475467}
 .badge.scheduled{background:#fff4e5;color:#b54708}
 .badge.published{background:#e7f6ec;color:#067647}
-.card-body{padding:14px 8px 0;cursor:pointer;flex:1}
-.card-eyebrow{font-size:11px;font-weight:800;letter-spacing:.4px;color:var(--text);text-transform:uppercase;margin-bottom:7px}
-.card-body h3{font-size:13px;font-weight:400;line-height:1.4;color:var(--muted)}
-.card-actions{display:flex;gap:8px;padding:14px 8px 6px}
-.card-actions a,.card-actions button{flex:1;text-align:center;font:inherit;font-size:12px;font-weight:800;padding:9px 0;border-radius:9px;border:1px solid #dfe3ea;background:#fff;color:var(--text);text-decoration:none;cursor:pointer}
-.card-actions a:hover{background:#f6f7f9}
-.card-actions .danger{border-color:#f0d2d4;color:var(--brand)}
-.card-actions .danger:hover{background:#fff5f5}
-/* View replaces Edit + Delete on someone else's post, so it takes the whole line. */
-.card-actions .view{background:var(--nav-active);border-color:var(--nav-active);color:#fff}
-.card-actions .view:hover{background:#282c52}
 
-/* ── Detail panel: one markup block, the orientation class picks the layout ── */
-.detail-wrap{margin-top:40px}
-.detail-head{margin-bottom:18px}
-.detail-head .eyebrow{font-size:11px;font-weight:800;letter-spacing:.6px;color:var(--muted);text-transform:uppercase;margin-bottom:6px}
-.detail-head h2{font-size:26px}
+/* This page never edits, so say so once instead of showing greyed-out buttons. */
+.read-only{display:flex;align-items:center;gap:9px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin-bottom:22px;font-size:13px;color:var(--muted)}
+.read-only svg{width:16px;height:16px;flex:none;color:#98a2b3}
+.read-only strong{color:var(--text);font-weight:700}
 
+/* ── Detail panel: same markup as the grid page, orientation picks the layout ── */
 .detail{display:grid;gap:28px;background:#fff;border-radius:18px;padding:26px;box-shadow:0 14px 30px rgba(0,0,0,.04)}
 .detail-media{background:#f1f3f7 center/cover no-repeat;border-radius:12px;overflow:hidden}
 .detail-meta{display:grid;gap:22px 40px;align-content:start}
@@ -111,56 +87,30 @@ body{background:#f6f7fb;color:var(--text);padding:0}
 .field .caption a{color:var(--nav-active)}
 .field.wide{grid-column:1/-1}
 
-/* Portrait media sits beside the copy. */
 .detail.is-vertical{grid-template-columns:300px 1fr}
 .detail.is-vertical .detail-media{aspect-ratio:9/16}
 .detail.is-vertical .detail-meta{grid-template-columns:repeat(3,1fr)}
 
-/* Landscape media banners across the top. */
 .detail.is-horizontal{grid-template-columns:1fr}
-/* A full-width 16/9 banner runs enormous on a wide screen, so the horizontal
-   media is a shorter strip, capped and centred rather than stretched edge to edge. */
 .detail.is-horizontal .detail-media{aspect-ratio:2.4/1;width:100%;max-width:672px;max-height:280px;margin:0 auto}
 .detail.is-horizontal .detail-meta{grid-template-columns:repeat(3,1fr)}
 
-/* ── Client, Created by, Timing and the link share one line under the copy ── */
 .detail-footer{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:flex-start;gap:22px 40px}
 .detail-footer .field{min-width:0}
 .link-slot:empty{display:none}
-/* A plain blue link, not a button: no frame, no icon. */
 .view-link{display:inline-block;font-size:13px;font-weight:800;color:#1d6fe0;text-decoration:none;white-space:nowrap}
 .view-link:hover{text-decoration:underline}
 
-.empty{background:#fff;border-radius:18px;padding:30px;color:var(--muted);grid-column:1/-1}
+.empty{background:#fff;border-radius:18px;padding:30px;color:var(--muted)}
 
-/* ── Pagination: the grid never shows more than PAGE_SIZE cards ── */
-.pager{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:24px}
-.pager[hidden]{display:none}
-.pager-info{font-size:13px;font-weight:600;color:var(--muted)}
-.pager-pages{display:flex;gap:6px;flex-wrap:wrap}
-.pager button{min-width:36px;height:36px;padding:0 12px;border:1px solid #dfe3ea;background:#fff;border-radius:9px;font:inherit;font-size:13px;font-weight:700;color:var(--text);cursor:pointer}
-.pager button:hover:not(:disabled){background:#f6f7f9}
-.pager button.current{background:var(--nav-active);border-color:var(--nav-active);color:#fff}
-.pager button:disabled{opacity:.45;cursor:not-allowed}
-
-/* The title reads left-aligned whatever the body does. */
-.detail-head h2{text-align:left}
-
-@media(max-width:1100px){.grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:950px){
-  /* Force-collapsed below this width, so the head has nothing left to show. */
   .side-head{display:none}
   .admin-content{padding:10px 18px 40px}
   .page-head{flex-direction:column}
-  .grid{grid-template-columns:1fr}
-  .filters{flex-direction:column;align-items:flex-start}
-  .content-search{width:100%}
   .detail.is-vertical,.detail.is-horizontal{grid-template-columns:1fr}
   .detail-meta{grid-template-columns:1fr !important}
 }
-/* ── Unread badge on the Notifications nav item ──
-   Collapsed, the sidebar hides labels, so the count degrades to a dot on
-   the icon - the same affordance the old topbar bell had. */
+
 .side-nav a{position:relative}
 .nav-badge{
   margin-left:auto;font-style:normal;font-size:11px;font-weight:800;line-height:1;
@@ -258,41 +208,30 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
 </aside>
 
 <div class="admin-main">
-
   <div class="admin-content">
 
-    <div class="page-head">
-      <div class="page-title">
-        <h1>Content</h1>
-        <p>Everything ready to publish — social posts, newsletters, infographics and more.</p>
+    <a class="back-link" href="admin-content.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      Back to Content
+    </a>
+
+    <!-- Everything below is filled in by loadContent(); it stays hidden until
+         the post is actually loaded, so a failure never shows an empty shell. -->
+    <div id="viewState" class="empty">Loading content...</div>
+
+    <div id="viewBody" style="display:none">
+
+      <div class="page-head">
+        <div>
+          <div class="eyebrow" id="detailEyebrow"></div>
+          <h1 id="detailTitle"></h1>
+        </div>
+        <span class="badge" id="detailStatus"></span>
       </div>
-      <a class="create-btn" href="admin-content-form.html">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Create Content
-      </a>
-    </div>
 
-    <div class="filters">
-      <select class="client-filter" id="clientFilter" aria-label="Filter by client"
-              onchange="filterByClient(this.value)">
-        <option value="All">All clients</option>
-      </select>
-      <input class="content-search" id="contentSearch" placeholder="Search content...">
-    </div>
-
-    <div class="grid" id="contentGrid">
-      <div class="empty">Loading content...</div>
-    </div>
-
-    <div class="pager" id="pager" hidden>
-      <span class="pager-info" id="pagerInfo"></span>
-      <div class="pager-pages" id="pagerPages"></div>
-    </div>
-
-    <div class="detail-wrap" id="detailWrap" style="display:none">
-      <div class="detail-head">
-        <div class="eyebrow" id="detailEyebrow"></div>
-        <h2 id="detailTitle"></h2>
+      <div class="read-only">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        <span>View only — this post was created by <strong id="ownerName">another admin</strong>.</span>
       </div>
 
       <article class="detail is-horizontal" id="detailPanel">
@@ -303,7 +242,6 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
             <div class="caption" id="detailCaption"></div>
           </div>
 
-          <!-- Everything but the copy sits on one line under it. -->
           <div class="detail-footer">
             <div class="field">
               <h5>Client</h5>
@@ -318,7 +256,6 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
               <p id="detailScheduled">Not scheduled</p>
             </div>
             <div class="field link-slot" id="linkSlot"></div>
-            <!-- Last on the line: when the post was created, not when it runs. -->
             <div class="field">
               <h5>Timing</h5>
               <p id="detailTiming">—</p>
@@ -326,8 +263,8 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
           </div>
         </div>
       </article>
-    </div>
 
+    </div>
   </div>
 </div>
 
@@ -354,9 +291,6 @@ if(!adminToken || !adminUser.role){
   window.location.href = "admin-login.html";
 }
 
-// Content is open to both `admin` and `super_admin`; only these two links narrow.
-// Clients Management is open to every admin, so the sidebar no longer hides it.
-
 (function(){
   const name = adminUser.name || "Admin";
   const label = adminUser.role === "super_admin" ? "Super Admin" : "Administrator";
@@ -366,31 +300,13 @@ if(!adminToken || !adminUser.role){
   set("acctName",name);   set("acctRole",label);   set("acctAvatar",initial);
 })();
 
-let allContent = [];
+// The post to show comes from the query string: admin-content-view.html?id=12
+const contentId = new URLSearchParams(window.location.search).get("id");
 
-/* Who is logged in, as the API sees it. The token is what identifies the
-   admin, so the id comes back with the content rather than being read out of
-   localStorage - that keeps the two in step even after a re-login. */
-let currentAdminId = null;
-
-// The filter dropdown is the client list; "All" is every company.
-let currentClient = "All";
-let selectedId = null;
-
-// Six cards to a page; the rest live behind the pager under the grid.
-const PAGE_SIZE = 6;
-let currentPage = 1;
-
-function esc(value){
-  return String(value == null ? "" : value)
-    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
-    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
-}
-
-// The caption comes back as HTML from the editor — strip anything the toolbar
-// could not have produced before handing it to innerHTML. Text alignment is the
-// one piece of styling the toolbar can set, so it is read off the node and put
-// back after every other attribute is dropped.
+/* Captions are stored as HTML from the admin editor. The API sanitises them,
+   but this page is the one calling innerHTML — strip anything unexpected here
+   too. Alignment is the one piece of styling the toolbar can set, so it is
+   read off the node and put back after every other attribute is dropped. */
 const ALIGNMENTS = ["left","center","right","justify"];
 
 function sanitizeCaption(html){
@@ -411,7 +327,6 @@ function sanitizeCaption(html){
       return;
     }
 
-    // Browsers write alignment as either inline style or an align attribute.
     const align = ((node.style && node.style.textAlign) || node.getAttribute("align") || "")
       .toLowerCase();
 
@@ -438,12 +353,8 @@ function renderLink(item){
 
   slot.textContent = "";
 
-  // Only http(s) reaches an href — the API normalises, but this page is the one
-  // building the anchor.
   if(!item.link || !/^https?:\/\//i.test(item.link)) return;
 
-  // A heading like the fields beside it, so the button lines up with their
-  // values rather than floating against their labels.
   const heading = document.createElement("h5");
   heading.textContent = "Link";
   slot.appendChild(heading);
@@ -484,17 +395,25 @@ function formatCreated(item){
     + " · " + date.toTimeString().slice(0,5);
 }
 
+function fail(message){
+  document.getElementById("viewBody").style.display = "none";
+
+  const state = document.getElementById("viewState");
+  state.style.display = "block";
+  state.innerText = message;
+}
+
 async function loadContent(){
 
-  const grid = document.getElementById("contentGrid");
-
-  grid.innerHTML =
-    `<div class="empty">Loading content...</div>`;
+  if(!contentId){
+    fail("No content selected.");
+    return;
+  }
 
   try {
 
     const response = await fetch(
-      "api/admin-content.php",
+      `api/admin-content.php?id=${encodeURIComponent(contentId)}`,
       {
         headers: {
           Authorization: "Bearer " + adminToken
@@ -507,204 +426,41 @@ async function loadContent(){
     if (!response.ok || !data.success) {
 
       if (response.status === 401) {
-
         localStorage.removeItem("admin_token");
         localStorage.removeItem("admin_user");
-
-        window.location.href =
-          "admin-login.html";
-
+        window.location.href = "admin-login.html";
         return;
       }
 
-      grid.innerHTML =
-        `<div class="empty">${
-          data.message || "Failed to load content."
-        }</div>`;
-
+      fail(data.message || "Failed to load content.");
       return;
     }
 
-    allContent = data.content || [];
-
-    currentAdminId = data.admin_id != null ? String(data.admin_id) : null;
-
-    renderFilters();
-
-    // Keep the page the admin was on — a reload after a delete should not send
-    // them back to page 1. applyFilters() clamps it if the page no longer exists.
-    applyFilters(true);
+    render(data.content || {});
 
   } catch (error) {
 
     console.error(error);
 
-    grid.innerHTML =
-      `<div class="empty">Connection error.</div>`;
+    fail("Connection error.");
   }
 }
 
-/* Every post belongs to a client, so the filter is the list of companies that
-   have content. Posts saved before a client was compulsory have none; they show
-   under All rather than getting an entry of their own. */
-function renderFilters(){
-  const select = document.getElementById("clientFilter");
+function render(item){
 
-  const clients = [...new Set(
-    allContent.map(item => (item.client || "").trim()).filter(Boolean)
-  )].sort((a, b) => a.localeCompare(b));
+  document.getElementById("viewState").style.display = "none";
+  document.getElementById("viewBody").style.display = "block";
 
-  // The chosen company can disappear when its last post is deleted.
-  if(currentClient !== "All" && !clients.includes(currentClient)){
-    currentClient = "All";
-  }
+  document.getElementById("detailEyebrow").innerText =
+    `${item.platform || "—"} · ${item.type_label || "—"}`;
 
-  select.innerHTML =
-    `<option value="All">All clients</option>` +
-    clients.map(client => `<option value="${esc(client)}">${esc(client)}</option>`).join("");
-
-  select.value = currentClient;
-}
-
-function filterByClient(client){
-  currentClient = client;
-  applyFilters();
-}
-
-// A new search or tab starts at page 1; paging itself keeps the page it set.
-document.getElementById("contentSearch").addEventListener("input", () => applyFilters());
-
-function applyFilters(keepPage){
-  const search = document.getElementById("contentSearch").value.toLowerCase().trim();
-
-  let filtered = allContent;
-
-  if(currentClient !== "All"){
-    filtered = filtered.filter(item => (item.client || "").trim() === currentClient);
-  }
-
-  if(search){
-    filtered = filtered.filter(item =>
-      (item.title || "").toLowerCase().includes(search) ||
-      (item.type_label || "").toLowerCase().includes(search) ||
-      (item.platform || "").toLowerCase().includes(search) ||
-      (item.client || "").toLowerCase().includes(search)
-    );
-  }
-
-  if(!keepPage) currentPage = 1;
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-
-  // Deleting the last card on the last page would otherwise leave an empty grid.
-  if(currentPage > totalPages) currentPage = totalPages;
-
-  const start = (currentPage - 1) * PAGE_SIZE;
-  const pageItems = filtered.slice(start, start + PAGE_SIZE);
-
-  renderGrid(pageItems);
-  renderPager(filtered.length, totalPages, start, pageItems.length);
-
-  const stillVisible = pageItems.some(item => String(item.id) === String(selectedId));
-  selectContent(stillVisible ? selectedId : (pageItems[0] ? pageItems[0].id : null));
-}
-
-function goToPage(page){
-  currentPage = page;
-  applyFilters(true);
-
-  // The grid is above the pager, so jump back to the top of the new page.
-  document.getElementById("contentGrid").scrollIntoView({behavior:"smooth", block:"start"});
-}
-
-function renderPager(total, totalPages, start, shown){
-  const pager = document.getElementById("pager");
-
-  if(total <= PAGE_SIZE){
-    pager.hidden = true;
-    return;
-  }
-
-  pager.hidden = false;
-
-  document.getElementById("pagerInfo").innerText =
-    `Showing ${start + 1}–${start + shown} of ${total}`;
-
-  const pages = Array.from({length: totalPages}, (unused, index) => index + 1);
-
-  document.getElementById("pagerPages").innerHTML = `
-    <button type="button" onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? "disabled" : ""}>Prev</button>
-    ${pages.map(page => `
-      <button type="button" class="${page === currentPage ? "current" : ""}"
-              onclick="goToPage(${page})">${page}</button>
-    `).join("")}
-    <button type="button" onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? "disabled" : ""}>Next</button>
-  `;
-}
-
-/* A post is editable by the admin who wrote it and nobody else. Role is not
-   part of this test on purpose: super_admin, seo_admin and account_manager all
-   get the read-only View button on a post they did not create. */
-function isMine(item){
-  return currentAdminId != null
-    && item.created_by_id != null
-    && String(item.created_by_id) === currentAdminId;
-}
-
-function renderGrid(items){
-  const grid = document.getElementById("contentGrid");
-
-  if(!items.length){
-    grid.innerHTML = `<div class="empty">No content found.</div>`;
-    return;
-  }
-
-  grid.innerHTML = items.map(item => `
-    <div class="card ${String(item.id) === String(selectedId) ? "selected" : ""}"
-         data-id="${esc(item.id)}">
-      <div class="card-img" onclick="selectContent('${esc(item.id)}')"
-           style="${item.media_path ? `background-image:url('${esc(item.media_path)}')` : ""}">
-        <span class="badge ${esc(item.status)}">${esc(item.status)}</span>
-      </div>
-      <div class="card-body" onclick="selectContent('${esc(item.id)}')">
-        <div class="card-eyebrow">${esc(item.platform)} · ${esc(item.type_label)}</div>
-        <h3>${esc(item.title)}</h3>
-      </div>
-      <div class="card-actions">
-        ${isMine(item) ? `
-          <a href="admin-content-form.html?id=${esc(item.id)}">Edit</a>
-          <button class="danger" type="button"
-                  onclick="deleteContent('${esc(item.id)}','${esc(item.title)}')">Delete</button>
-        ` : `
-          <a class="view" href="admin-content-view.html?id=${esc(item.id)}">View</a>
-        `}
-      </div>
-    </div>
-  `).join("");
-}
-
-function selectContent(id){
-  const wrap = document.getElementById("detailWrap");
-
-  if(id == null){
-    selectedId = null;
-    wrap.style.display = "none";
-    return;
-  }
-
-  const item = allContent.find(entry => String(entry.id) === String(id));
-  if(!item) return;
-
-  selectedId = item.id;
-
-  document.querySelectorAll("#contentGrid .card").forEach(card => {
-    card.classList.toggle("selected", card.dataset.id === String(selectedId));
-  });
-
-  wrap.style.display = "block";
-
-  document.getElementById("detailEyebrow").innerText = `${item.platform} · ${item.type_label}`;
   document.getElementById("detailTitle").innerText = item.title || "";
+
+  const status = document.getElementById("detailStatus");
+  status.className = "badge " + (item.status || "draft");
+  status.innerText = item.status || "draft";
+
+  document.getElementById("ownerName").innerText = item.created_by || "another admin";
 
   // One markup block — the orientation class is what swaps the layout.
   const panel = document.getElementById("detailPanel");
@@ -713,7 +469,6 @@ function selectContent(id){
   document.getElementById("detailMedia").style.backgroundImage =
     item.media_path ? `url('${item.media_path}')` : "";
 
-  // Alignment travels with the caption HTML, set on the editor's toolbar.
   document.getElementById("detailCaption").innerHTML = sanitizeCaption(item.caption) || "—";
 
   renderLink(item);
@@ -722,56 +477,6 @@ function selectContent(id){
   document.getElementById("detailCreatedBy").innerText = item.created_by || "—";
   document.getElementById("detailScheduled").innerText = formatTiming(item);
   document.getElementById("detailTiming").innerText = formatCreated(item);
-}
-
-async function deleteContent(id, title){
-
-  if (
-    !confirm(
-      `Delete “${title}”? This also removes its image.`
-    )
-  ) {
-    return;
-  }
-
-  try {
-
-    const response = await fetch(
-      `api/admin-content.php?id=${encodeURIComponent(id)}`,
-      {
-        method: "DELETE",
-        headers: {
-          Authorization: "Bearer " + adminToken
-        }
-      }
-    );
-
-    const data = await response.json();
-
-    if (!response.ok || !data.success) {
-
-      alert(
-        data.message || "Could not delete content."
-      );
-
-      return;
-    }
-
-    if (String(selectedId) === String(id)) {
-      selectedId = null;
-    }
-
-    await loadContent();
-
-    document.getElementById("detailWrap").style.display =
-      "none";
-
-  } catch (error) {
-
-    console.error(error);
-
-    alert("Connection error.");
-  }
 }
 
 function logout(){

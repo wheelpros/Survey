@@ -286,6 +286,14 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
             }
 
             /*
+            | Keep the raw creator id before the name overwrites it. The pages
+            | use it to decide whether this admin owns the post - only the
+            | author gets Edit/Delete, everyone else gets View.
+            */
+            $content["created_by_id"] =
+                (int) $content["created_by"];
+
+            /*
             | Match frontend field
             */
             $content["created_by"] =
@@ -297,7 +305,9 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
                 true,
                 "Content loaded.",
                 [
-                    "content" => $content
+                    "content"  => $content,
+                    "admin_id" => (int) $admin["id"],
+                    "is_owner" => (int) $content["created_by_id"] === (int) $admin["id"]
                 ]
             );
         }
@@ -325,6 +335,10 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
                 c.created_at,
                 c.updated_at,
 
+                /* The raw id stays alongside the name: the grid compares it
+                   with the logged-in admin to pick Edit/Delete vs View. */
+                c.created_by AS created_by_id,
+
                 COALESCE(a.name, 'Unknown') AS created_by
 
             FROM content c
@@ -341,7 +355,11 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
             true,
             "Content loaded.",
             [
-                "content" => $contents
+                "content" => $contents,
+
+                /* Who is asking. The page can then show Edit/Delete only on
+                   the rows this admin created. */
+                "admin_id" => (int) $admin["id"]
             ]
         );
 
@@ -662,6 +680,26 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             response(false, "Content not found.", [], 404);
         }
 
+        /*
+        |----------------------------------------------------------------------
+        | Ownership
+        |----------------------------------------------------------------------
+        |
+        | A post belongs to the admin who wrote it. Role makes no difference
+        | here - super_admin, seo_admin and account_manager are all read-only
+        | on someone else's post. The UI hides Edit for them; this is what
+        | stops a hand-made request getting through anyway.
+        |
+        */
+        if ((int) $existing["created_by"] !== (int) $admin["id"]) {
+            response(
+                false,
+                "You can only edit content you created.",
+                [],
+                403
+            );
+        }
+
     } catch (Throwable $e) {
 
         response(
@@ -813,7 +851,7 @@ if ($_SERVER["REQUEST_METHOD"] === "DELETE") {
     try {
 
         $stmt = $pdo->prepare("
-            SELECT media_path
+            SELECT media_path, created_by
             FROM content
             WHERE id = ?
             LIMIT 1
@@ -825,6 +863,18 @@ if ($_SERVER["REQUEST_METHOD"] === "DELETE") {
 
         if (!$content) {
             response(false, "Content not found.", [], 404);
+        }
+
+        /*
+        | Same rule as the update: only the author may remove a post.
+        */
+        if ((int) $content["created_by"] !== (int) $admin["id"]) {
+            response(
+                false,
+                "You can only delete content you created.",
+                [],
+                403
+            );
         }
 
         /*
