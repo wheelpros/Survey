@@ -85,6 +85,9 @@ body{background:#f6f7fb;color:var(--text);padding:0}
 .badge.scheduled{background:#fff4e5;color:#b54708}
 .badge.published{background:#e7f6ec;color:#067647}
 .card-body{padding:14px 8px 0;cursor:pointer;flex:1}
+/* With no Edit/Delete under it the body is the last thing in the card, so it
+   has to carry the bottom padding the action row would otherwise provide. */
+.card-body:last-child{padding-bottom:12px}
 .card-eyebrow{font-size:11px;font-weight:800;letter-spacing:.4px;color:var(--text);text-transform:uppercase;margin-bottom:7px}
 .card-body h3{font-size:13px;font-weight:400;line-height:1.4;color:var(--muted)}
 .card-actions{display:flex;gap:8px;padding:14px 8px 6px}
@@ -92,9 +95,6 @@ body{background:#f6f7fb;color:var(--text);padding:0}
 .card-actions a:hover{background:#f6f7f9}
 .card-actions .danger{border-color:#f0d2d4;color:var(--brand)}
 .card-actions .danger:hover{background:#fff5f5}
-/* View replaces Edit + Delete on someone else's post, so it takes the whole line. */
-.card-actions .view{background:var(--nav-active);border-color:var(--nav-active);color:#fff}
-.card-actions .view:hover{background:#282c52}
 
 /* ── Detail panel: one markup block, the orientation class picks the layout ── */
 .detail-wrap{margin-top:40px}
@@ -126,6 +126,8 @@ body{background:#f6f7fb;color:var(--text);padding:0}
 /* ── Client, Created by, Timing and the link share one line under the copy ── */
 .detail-footer{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:flex-start;gap:22px 40px}
 .detail-footer .field{min-width:0}
+/* An email is longer than the other footer values and has no spaces to break on. */
+.detail-footer .field p{overflow-wrap:anywhere}
 .link-slot:empty{display:none}
 /* A plain blue link, not a button: no frame, no icon. */
 .view-link{display:inline-block;font-size:13px;font-weight:800;color:#1d6fe0;text-decoration:none;white-space:nowrap}
@@ -646,8 +648,8 @@ function renderPager(total, totalPages, start, shown){
 
 /* A post is editable by the admin who wrote it, plus the owner, who sits above
    the roles and manages everything. Nobody else: super_admin, seo_admin and
-   account_manager all get the read-only View button on a post they did not
-   create, however senior the role sounds. */
+   account_manager see the card and its detail panel but get no buttons on a
+   post they did not create, however senior the role sounds. */
 function canManage(item){
   if(currentAdminRole === "owner") return true;
 
@@ -675,15 +677,13 @@ function renderGrid(items){
         <div class="card-eyebrow">${esc(item.platform)} · ${esc(item.type_label)}</div>
         <h3>${esc(item.title)}</h3>
       </div>
-      <div class="card-actions">
-        ${canManage(item) ? `
+      ${canManage(item) ? `
+        <div class="card-actions">
           <a href="admin-content-form.html?id=${esc(item.id)}">Edit</a>
           <button class="danger" type="button"
                   onclick="deleteContent('${esc(item.id)}','${esc(item.title)}')">Delete</button>
-        ` : `
-          <a class="view" href="admin-content-view.html?id=${esc(item.id)}">View</a>
-        `}
-      </div>
+        </div>
+      ` : ""}
     </div>
   `).join("");
 }
@@ -724,7 +724,11 @@ function selectContent(id){
   renderLink(item);
 
   document.getElementById("detailClient").innerText = item.client || "—";
-  document.getElementById("detailCreatedBy").innerText = item.created_by || "—";
+
+  // The email identifies the author unambiguously; the name is only the
+  // fallback for rows whose admin account no longer exists.
+  document.getElementById("detailCreatedBy").innerText =
+    item.created_by_email || item.created_by || "—";
   document.getElementById("detailScheduled").innerText = formatTiming(item);
   document.getElementById("detailTiming").innerText = formatCreated(item);
 }

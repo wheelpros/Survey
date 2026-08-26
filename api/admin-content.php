@@ -362,8 +362,12 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
                 c.updated_at,
 
                 /* The raw id stays alongside the name: the grid compares it
-                   with the logged-in admin to pick Edit/Delete vs View. */
+                   with the logged-in admin to pick whether Edit/Delete show.
+                   The email is what the detail panel prints - two admins can
+                   share a name, an address cannot. */
                 c.created_by AS created_by_id,
+
+                a.email AS created_by_email,
 
                 COALESCE(a.name, 'Unknown') AS created_by
 
