@@ -111,11 +111,6 @@ td{
 }
 
 /* Extra survey states: awaiting the account manager, and sent back to the creator. */
-.awaiting-review{
-  background:#e7f0ff;
-  color:#3478f6;
-}
-
 .rejected{
   background:#fde8e8;
   color:#c9000b;
@@ -363,6 +358,104 @@ body{padding:0}
   width:8px;height:8px;min-width:0;padding:0;border-radius:50%;
   font-size:0;border:2px solid #fff;
 }
+/* ── Form Review section ── */
+.panel[hidden]{display:none}
+.from-to strong{display:block;font-size:13px}
+.from-to span{display:block;font-size:11px;color:#98a2b3}
+
+.approve-btn{background:#20a95a;color:#fff}
+.reject-btn{background:#c9000b;color:#fff}
+.secondary-btn{border:none;background:#eef1f5;color:#101828;padding:12px 16px;border-radius:10px;font:inherit;font-weight:800;cursor:pointer}
+.status-text{margin-top:15px;font-size:13px;color:#667085}
+
+/* ── Pagination, same control as the content and clients lists ── */
+.pager{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:16px;flex-wrap:wrap;padding:18px 24px;border-top:1px solid #eef1f5;
+}
+.pager[hidden]{display:none}
+.pager-info{font-size:13px;font-weight:600;color:var(--muted)}
+.pager-pages{display:flex;gap:6px;flex-wrap:wrap}
+.pager button{
+  min-width:36px;height:36px;padding:0 12px;border:1px solid #dfe3ea;
+  background:#fff;border-radius:9px;font:inherit;font-size:13px;
+  font-weight:700;color:var(--text);cursor:pointer;
+}
+.pager button:hover:not(:disabled){background:#f6f7f9}
+.pager button.current{background:var(--nav-active);border-color:var(--nav-active);color:#fff}
+.pager button:disabled{opacity:.45;cursor:not-allowed}
+
+/* ── Review modal ── */
+.review-modal{
+  position:fixed;inset:0;background:rgba(0,0,0,.45);
+  display:none;align-items:center;justify-content:center;
+  z-index:99999;padding:20px;
+}
+.review-modal.show{display:flex}
+.review-box{width:100%;max-width:760px;max-height:85vh;overflow:auto;background:#fff;border-radius:20px}
+.review-head{
+  padding:22px 24px;border-bottom:1px solid #eef1f5;
+  display:flex;justify-content:space-between;align-items:center;
+}
+.review-head h2{font-size:17px}
+.review-head button{
+  width:34px;height:34px;border-radius:50%;border:none;
+  background:var(--nav-active);color:#fff;font-size:20px;cursor:pointer;
+}
+.review-body{padding:24px}
+.review-meta{
+  display:grid;grid-template-columns:1fr 1fr;gap:16px;
+  margin-bottom:22px;padding-bottom:20px;border-bottom:1px solid #eef1f5;
+}
+.review-meta div span{display:block;font-size:11px;color:#98a2b3;font-weight:700;text-transform:uppercase;margin-bottom:4px}
+.review-meta div strong{font-size:14px}
+
+/* The creator's blurb, above the questions it explains. */
+.review-description{font-size:14px;line-height:1.6;color:#475467;margin:-6px 0 22px;white-space:pre-wrap}
+.review-description[hidden]{display:none}
+
+.review-question{border:1px solid #dfe3ea;border-radius:14px;padding:16px 18px;margin-bottom:12px}
+.review-question .q-index{font-size:11px;color:#98a2b3;font-weight:800;margin-bottom:4px}
+.review-question .q-text{font-size:14px;font-weight:700;margin-bottom:6px}
+.review-question .q-type{
+  display:inline-block;font-size:11px;padding:3px 10px;border-radius:10px;
+  background:#eef0f6;color:#1b1e3a;font-weight:800;text-transform:capitalize;
+}
+.review-question .q-chips{margin-top:8px;font-size:12px;color:#667085}
+
+.reject-note-field{margin-top:18px}
+.reject-note-field label{display:block;font-size:13px;font-weight:800;margin-bottom:8px}
+.reject-note-field textarea{
+  width:100%;min-height:80px;border:1px solid #dfe3ea;background:#f8fafc;
+  border-radius:12px;padding:12px 14px;font-size:14px;resize:vertical;
+}
+
+.review-footer{
+  padding:18px 24px 30px;border-top:1px solid #eef1f5;
+  display:flex;justify-content:flex-end;gap:12px;
+}
+
+@media(max-width:800px){
+  .review-meta{grid-template-columns:1fr}
+}
+/* ── Dropdown arrow ──
+   Chrome pins the native select arrow to the right border and ignores
+   padding-right, so it is replaced with one that can be placed. The extra
+   selectors match the class rules that set `background` as a shorthand -
+   without them, those rules would reset this image away. */
+select,
+.panel-body select,
+.assignment-box select,
+select.client-filter{
+  -webkit-appearance:none;
+  -moz-appearance:none;
+  appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 14px center;
+  background-size:12px;
+  padding-right:38px;
+}
 </style>
 
 <script>
@@ -441,10 +534,6 @@ document.addEventListener("DOMContentLoaded", function () {
         <span>Notifications</span>
         <em class="nav-badge" id="notifBadge" hidden></em>
       </a>
-      <a href="survey-review.html" id="surveyReviewLink" title="Survey Review" style="display:none;">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/><circle cx="18" cy="6" r="3" fill="currentColor" stroke="none"/></svg>
-        <span>Survey Review</span>
-      </a>
       <a href="settings.html" title="Settings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         <span>Settings</span>
@@ -479,6 +568,50 @@ document.addEventListener("DOMContentLoaded", function () {
     </div>
 
     <div class="grid">
+
+      <!-- Form Review: only account managers and the owner ever see this, and
+           it sits above the list because a queue waiting on you outranks a
+           reference table. -->
+      <div class="panel" id="formReviewSection" hidden>
+        <div class="panel-head">
+          <h1>Form Review</h1>
+          <p>Anything still awaiting a decision is listed first, with a Review button.</p>
+
+          <div class="survey-filters">
+            <div class="filter-box">
+              <label for="reviewStatusFilter">Show</label>
+              <select id="reviewStatusFilter" onchange="switchReviewFilter(this.value)">
+                <option value="pending">Pending</option>
+                <option value="rejected">Rejected</option>
+                <option value="completed">Completed</option>
+                <option value="all">All</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Form</th>
+              <th>From &rarr; To</th>
+              <th>Status</th>
+              <th>Created At</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="reviewTable">
+            <tr><td colspan="6" class="empty">Loading forms...</td></tr>
+          </tbody>
+        </table>
+
+        <div class="pager" id="reviewPager" hidden>
+          <span class="pager-info" id="reviewPagerInfo"></span>
+          <div class="pager-pages" id="reviewPagerPages"></div>
+        </div>
+      </div>
+
       <div class="panel">
         <div class="panel-head">
           <h1>Forms List</h1>
@@ -497,7 +630,6 @@ document.addEventListener("DOMContentLoaded", function () {
               <label>Filter by Status</label>
               <select id="surveyStatusFilter" onchange="renderSurveysTable()">
                 <option value="all">All Status</option>
-                <option value="pending_review">Awaiting Approval</option>
                 <option value="pending">Pending</option>
                 <option value="rejected">Rejected</option>
                 <option value="completed">Completed</option>
@@ -532,6 +664,47 @@ document.addEventListener("DOMContentLoaded", function () {
   </div>
 </div>
 
+
+<!-- Review modal, opened from the Form Review section above. -->
+<div class="review-modal" id="reviewModal">
+  <div class="review-box">
+    <div class="review-head">
+      <h2 id="reviewTitle">Review Form</h2>
+      <button type="button" onclick="closeReview()" aria-label="Close">&times;</button>
+    </div>
+
+    <div class="review-body">
+      <div class="review-meta">
+        <div>
+          <span>From (created by)</span>
+          <strong id="reviewFrom">-</strong>
+        </div>
+        <div>
+          <span>To (assigned user)</span>
+          <strong id="reviewTo">-</strong>
+        </div>
+      </div>
+
+      <p class="review-description" id="reviewDescription" hidden></p>
+
+      <div id="reviewQuestions"></div>
+
+      <div class="reject-note-field" id="rejectNoteField" style="display:none;">
+        <label for="rejectNote">Rejection Reason</label>
+        <textarea id="rejectNote" placeholder="Let the creator know what needs to change..."></textarea>
+      </div>
+
+      <div class="status-text" id="reviewStatus"></div>
+    </div>
+
+    <div class="review-footer" id="reviewFooter">
+      <button class="secondary-btn" type="button" onclick="closeReview()">Cancel</button>
+      <button class="btn reject-btn" type="button" onclick="startReject()">Reject</button>
+      <button class="btn approve-btn" type="button" onclick="approveSurvey()">Approve</button>
+    </div>
+  </div>
+</div>
+
 <!-- ACCOUNT POPUP (opened from the sidebar card) -->
 <div class="acct-modal" id="acctModal">
   <div class="acct-box">
@@ -556,17 +729,6 @@ if(!adminToken || !adminUser.role){
   window.location.href = "admin-login.html";
 }
 
-// Account managers don't build forms - their job is reviewing the ones other
-// admins create, so they land straight on the review queue instead.
-if(adminUser.role === "account_manager"){
-  window.location.href = "survey-review.html";
-}
-
-// The owner can also see the review queue link, for oversight.
-if(adminUser.role === "account_manager" || adminUser.role === "owner"){
-  const reviewLink = document.getElementById("surveyReviewLink");
-  if(reviewLink) reviewLink.style.display = "";
-}
 
 function logoutAdmin(){
   localStorage.removeItem("admin_token");
@@ -579,6 +741,22 @@ function esc(value){
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
+
+/* ── Status vocabulary ───────────────────────────────────────────────────────
+   Three states are shown anywhere a form's status appears: Pending, Completed,
+   Rejected. The database still carries 'pending_review' for the review gate,
+   but outside the Form Review queue that is just another kind of pending -
+   nobody waiting on a form cares which desk it is sitting on. */
+
+function displayStatus(status){
+  return status === "pending_review" ? "pending" : status;
+}
+
+const statusMeta = {
+  pending:   { label: "Pending",   cls: "pending" },
+  rejected:  { label: "Rejected",  cls: "rejected" },
+  completed: { label: "Completed", cls: "approved" }
+};
 
 /* ── The forms list ─────────────────────────────────────────────────────────
    Building and editing both live on admin-form-builder.html, the same split
@@ -648,7 +826,7 @@ function renderSurveysTable(){
   }
 
   if(statusFilter !== "all"){
-    surveys = surveys.filter(s => s.status === statusFilter);
+    surveys = surveys.filter(s => displayStatus(s.status) === statusFilter);
   }
 
   if(!surveys.length){
@@ -660,15 +838,10 @@ function renderSurveysTable(){
     return;
   }
 
-  const statusMeta = {
-    pending_review: { label: "Awaiting Approval", cls: "awaiting-review" },
-    pending: { label: "Pending", cls: "pending" },
-    rejected: { label: "Rejected", cls: "rejected" },
-    completed: { label: "Completed", cls: "approved" }
-  };
+
 
   surveysTable.innerHTML = surveys.map(survey => {
-    const meta = statusMeta[survey.status] || { label: survey.status, cls: "pending" };
+    const meta = statusMeta[displayStatus(survey.status)] || { label: survey.status, cls: "pending" };
     const editable = ["pending_review", "pending", "rejected"].includes(survey.status);
 
     return `
@@ -728,6 +901,312 @@ async function viewSurveyResponses(surveyId){
   }catch(error){
     alert("Connection error.");
   }
+}
+
+/* ── Form Review ────────────────────────────────────────────────────────────
+   The queue that used to be its own page. Only account managers and the owner
+   can see it, which is the same gate api/admin-survey-review.php enforces -
+   this only decides whether the panel is drawn, never what it may do. */
+
+const canReview = adminUser.role === "account_manager" || adminUser.role === "owner";
+
+// The same three statuses the rest of the page uses. 'pending' covers both
+// pending_review and pending - which desk a form sits on is not a status, it
+// is just what the Review button is for.
+let reviewFilter = "pending";
+let allReviewSurveys = [];
+let reviewPage = 1;
+let currentReviewSurveyId = null;
+
+const REVIEW_PAGE_SIZE = 5;
+
+// Filtering is done here rather than by re-querying, because one displayed
+// status maps to two stored ones.
+function switchReviewFilter(value){
+  reviewFilter = value;
+  reviewPage = 1;
+  renderReviewTable();
+}
+
+function visibleReviewSurveys(){
+  if(reviewFilter === "all") return allReviewSurveys;
+  return allReviewSurveys.filter(s => displayStatus(s.status) === reviewFilter);
+}
+
+async function loadReviewSurveys(){
+  const table = document.getElementById("reviewTable");
+  if(!table) return;
+
+  table.innerHTML = `<tr><td colspan="6" class="empty">Loading forms...</td></tr>`;
+
+  try{
+    const res = await fetch("api/admin-survey-review.php?status=all", {
+      headers:{ Authorization:"Bearer " + adminToken }
+    });
+
+    const data = await res.json();
+
+    if(!data.success){
+      allReviewSurveys = [];
+      table.innerHTML = `<tr><td colspan="6" class="empty">${esc(data.message || "Unable to load forms.")}</td></tr>`;
+      renderReviewPager(0, 0, 0, 0);
+      return;
+    }
+
+    // Anything still awaiting a decision floats to the top: it is the only
+    // part of this list the reviewer can actually act on.
+    allReviewSurveys = (data.surveys || []).sort((a, b) => {
+      const aWaiting = a.status === "pending_review" ? 0 : 1;
+      const bWaiting = b.status === "pending_review" ? 0 : 1;
+      return aWaiting - bWaiting;
+    });
+
+    renderReviewTable();
+
+  }catch(error){
+    allReviewSurveys = [];
+    table.innerHTML = `<tr><td colspan="6" class="empty">Connection error.</td></tr>`;
+    renderReviewPager(0, 0, 0, 0);
+  }
+}
+
+function renderReviewTable(){
+  const table = document.getElementById("reviewTable");
+
+  const matching = visibleReviewSurveys();
+
+  if(!matching.length){
+    table.innerHTML = `<tr><td colspan="6" class="empty">Nothing here.</td></tr>`;
+    renderReviewPager(0, 0, 0, 0);
+    return;
+  }
+
+  // Approving a form moves it out of this filter, which can empty the page
+  // you were on.
+  const totalPages = Math.max(1, Math.ceil(matching.length / REVIEW_PAGE_SIZE));
+  reviewPage = Math.min(Math.max(1, reviewPage), totalPages);
+
+  const start = (reviewPage - 1) * REVIEW_PAGE_SIZE;
+  const rows = matching.slice(start, start + REVIEW_PAGE_SIZE);
+
+  renderReviewPager(matching.length, totalPages, start, rows.length);
+
+  table.innerHTML = rows.map(survey => {
+    const meta = statusMeta[displayStatus(survey.status)] || { label: survey.status, cls: "pending" };
+
+    return `
+    <tr>
+      <td>#${esc(survey.id)}</td>
+      <td>${esc(survey.title)}</td>
+      <td>
+        <div class="from-to">
+          <strong>${esc(survey.created_by_name || "Unknown admin")}</strong>
+          <span>${esc(survey.created_by_email || "")}</span>
+          <strong style="margin-top:6px;">&rarr; ${esc(survey.user_name)}</strong>
+          <span>${esc(survey.user_email)}</span>
+        </div>
+      </td>
+      <td>
+        <span class="badge ${meta.cls}">${esc(meta.label)}</span>
+        ${
+          survey.status === "rejected" && survey.review_note
+          ? `<span class="rejection-note">Reason: ${esc(survey.review_note)}</span>`
+          : ``
+        }
+      </td>
+      <td>${esc(survey.created_at)}</td>
+      <td>
+        <div class="actions">
+          <button class="btn action-btn" type="button" onclick="openReview(${Number(survey.id)})">
+            ${survey.status === "pending_review" ? "Review" : "View"}
+          </button>
+        </div>
+      </td>
+    </tr>
+    `;
+  }).join("");
+}
+
+function goToReviewPage(page){
+  reviewPage = page;
+  renderReviewTable();
+  document.getElementById("formReviewSection")
+    .scrollIntoView({ behavior:"smooth", block:"nearest" });
+}
+
+function renderReviewPager(total, totalPages, start, shown){
+  const pager = document.getElementById("reviewPager");
+  if(!pager) return;
+
+  if(total <= REVIEW_PAGE_SIZE){
+    pager.hidden = true;
+    return;
+  }
+
+  pager.hidden = false;
+
+  document.getElementById("reviewPagerInfo").innerText =
+    `Showing ${start + 1}–${start + shown} of ${total}`;
+
+  const pages = Array.from({length: totalPages}, (unused, index) => index + 1);
+
+  document.getElementById("reviewPagerPages").innerHTML = `
+    <button type="button" onclick="goToReviewPage(${reviewPage - 1})" ${reviewPage === 1 ? "disabled" : ""}>Prev</button>
+    ${pages.map(page => `
+      <button type="button" class="${page === reviewPage ? "current" : ""}"
+              onclick="goToReviewPage(${page})">${page}</button>
+    `).join("")}
+    <button type="button" onclick="goToReviewPage(${reviewPage + 1})" ${reviewPage === totalPages ? "disabled" : ""}>Next</button>
+  `;
+}
+
+async function openReview(surveyId){
+  currentReviewSurveyId = surveyId;
+
+  const statusEl = document.getElementById("reviewStatus");
+  statusEl.innerText = "Loading...";
+  document.getElementById("reviewQuestions").innerHTML = "";
+  document.getElementById("rejectNoteField").style.display = "none";
+  document.getElementById("rejectNote").value = "";
+
+  try{
+    const res = await fetch("api/admin-survey-review.php?survey_id=" + encodeURIComponent(surveyId), {
+      headers:{ Authorization:"Bearer " + adminToken }
+    });
+
+    const data = await res.json();
+
+    if(!data.success){
+      statusEl.innerText = data.message || "Unable to load this form.";
+      return;
+    }
+
+    const survey = data.survey;
+
+    document.getElementById("reviewTitle").innerText = survey.title;
+
+    const description = (survey.description || "").trim();
+    const descriptionEl = document.getElementById("reviewDescription");
+    descriptionEl.innerText = description;
+    descriptionEl.hidden = !description;
+
+    document.getElementById("reviewFrom").innerText =
+      (survey.created_by_name || "Unknown admin") +
+      (survey.created_by_email ? " (" + survey.created_by_email + ")" : "");
+    document.getElementById("reviewTo").innerText =
+      survey.user_name + " (" + survey.user_email + ")";
+
+    document.getElementById("reviewQuestions").innerHTML = (data.questions || []).map((q, index) => {
+      let chipsArr = [];
+      try{ chipsArr = q.chips ? JSON.parse(q.chips) : []; }catch(e){ chipsArr = []; }
+
+      return `
+        <div class="review-question">
+          <div class="q-index">Question ${index + 1}</div>
+          <div class="q-text">${esc(q.question_text)}</div>
+          <span class="q-type">${esc(questionTypeLabel(q.question_type))}</span>
+          ${chipsArr.length ? `<div class="q-chips">Options: ${esc(chipsArr.join(", "))}</div>` : ``}
+          ${
+            q.question_type === "file" && q.max_file_size_mb
+            ? `<div class="q-chips">Max file size: ${esc(q.max_file_size_mb)} MB</div>`
+            : ``
+          }
+        </div>
+      `;
+    }).join("") || `<p class="status-text">No questions on this form.</p>`;
+
+    // Approve/Reject only make sense on a form still waiting for an answer.
+    const footer = document.getElementById("reviewFooter");
+    const decidable = survey.status === "pending_review";
+    footer.querySelector(".approve-btn").style.display = decidable ? "" : "none";
+    footer.querySelector(".reject-btn").style.display = decidable ? "" : "none";
+
+    statusEl.innerText = survey.status === "rejected" && survey.review_note
+      ? "Rejection reason: " + survey.review_note
+      : "";
+
+    document.getElementById("reviewModal").classList.add("show");
+
+  }catch(error){
+    statusEl.innerText = "Connection error.";
+  }
+}
+
+/* The builder calls the free-text type "Text"; the DB still stores "input". */
+function questionTypeLabel(type){
+  if(type === "input" || type === "textarea") return "Text";
+  if(type === "file") return "File Upload";
+  if(type === "checkbox" || type === "checklist") return "Checklist";
+  return type;
+}
+
+function closeReview(){
+  currentReviewSurveyId = null;
+  document.getElementById("reviewModal").classList.remove("show");
+  document.getElementById("rejectNoteField").style.display = "none";
+}
+
+/* First click opens the note field, second submits - a rejection without a
+   reason is no use to whoever has to act on it. */
+function startReject(){
+  const field = document.getElementById("rejectNoteField");
+
+  if(field.style.display === "none"){
+    field.style.display = "block";
+    document.getElementById("rejectNote").focus();
+    return;
+  }
+
+  submitReview("reject");
+}
+
+function approveSurvey(){
+  submitReview("approve");
+}
+
+async function submitReview(action){
+  if(!currentReviewSurveyId) return;
+
+  const statusEl = document.getElementById("reviewStatus");
+  const note = document.getElementById("rejectNote").value.trim();
+
+  if(action === "reject" && !note){
+    statusEl.innerText = "Please add a short note explaining the rejection.";
+    return;
+  }
+
+  statusEl.innerText = action === "approve" ? "Approving..." : "Rejecting...";
+
+  try{
+    const res = await fetch("api/admin-survey-review.php", {
+      method: "POST",
+      headers:{
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + adminToken
+      },
+      body: JSON.stringify({ surveyId: currentReviewSurveyId, action, note })
+    });
+
+    const data = await res.json();
+    statusEl.innerText = data.message;
+
+    if(data.success){
+      setTimeout(() => {
+        closeReview();
+        loadReviewSurveys();
+        // The decision changes the form's status, so the list below is stale.
+        loadSurveyData();
+      }, 700);
+    }
+
+  }catch(error){
+    statusEl.innerText = "Connection error.";
+  }
+}
+
+if(canReview){
+  document.getElementById("formReviewSection").hidden = false;
+  loadReviewSurveys();
 }
 
 loadSurveyData();

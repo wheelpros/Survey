@@ -75,6 +75,11 @@ textarea{
   resize:vertical;
 }
 
+/* Fields outside a .form-row carry their own gap to whatever follows. */
+.spaced{
+  margin-bottom:18px;
+}
+
 input:focus,select:focus,textarea:focus{
   border-color:#1b1e3a;
   box-shadow:0 0 0 3px rgba(27,30,58,.10);
@@ -202,10 +207,16 @@ input:focus,select:focus,textarea:focus{
   cursor:pointer;
 }
 
+/* Add-an-item stays on the left with the items it appends to; Submit sits on
+   the right, where the last action on a form belongs. */
 .form-actions{
   display:flex;
   gap:12px;
   margin-top:18px;
+}
+
+.form-actions .primary-btn{
+  margin-left:auto;
 }
 
 .status-text{
@@ -378,12 +389,6 @@ body{padding:0}
 }
 .restore-bar button:hover{background:#fffdf6}
 
-/* Sits under a field to explain it, without competing with the label. */
-.field-hint{
-  margin:-10px 0 18px;
-  font-size:12px;
-  color:var(--muted);
-}
 /* ── Unread badge on the Notifications nav item ──
    Collapsed, the sidebar hides labels, so the count degrades to a dot on
    the icon - the same affordance the old topbar bell had. */
@@ -399,6 +404,24 @@ body{padding:0}
   position:absolute;top:4px;right:8px;margin:0;
   width:8px;height:8px;min-width:0;padding:0;border-radius:50%;
   font-size:0;border:2px solid #fff;
+}
+/* ── Dropdown arrow ──
+   Chrome pins the native select arrow to the right border and ignores
+   padding-right, so it is replaced with one that can be placed. The extra
+   selectors match the class rules that set `background` as a shorthand -
+   without them, those rules would reset this image away. */
+select,
+.panel-body select,
+.assignment-box select,
+select.client-filter{
+  -webkit-appearance:none;
+  -moz-appearance:none;
+  appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 14px center;
+  background-size:12px;
+  padding-right:38px;
 }
 </style>
 
@@ -478,10 +501,6 @@ document.addEventListener("DOMContentLoaded", function () {
         <span>Notifications</span>
         <em class="nav-badge" id="notifBadge" hidden></em>
       </a>
-      <a href="survey-review.html" id="surveyReviewLink" title="Survey Review" style="display:none;">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/><circle cx="18" cy="6" r="3" fill="currentColor" stroke="none"/></svg>
-        <span>Survey Review</span>
-      </a>
       <a href="settings.html" title="Settings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         <span>Settings</span>
@@ -506,8 +525,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
     <div class="page-head">
       <div class="page-title">
-        <h1 id="pageHeading">Create Form &amp; Checklist</h1>
-        <p id="pageSub">Assign a form or checklist with custom questions/items to a specific approved user. Submissions are sent to the account manager for approval before the user sees them.</p>
+        <h1 id="pageHeading">Create Form</h1>
+        <p id="pageSub">Assign a form to an approved user. It goes for review before they see it.</p>
       </div>
       <a class="back-link" href="admin.html">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
@@ -533,7 +552,7 @@ document.addEventListener("DOMContentLoaded", function () {
           <div class="form-row">
             <div>
               <label for="surveyTitle">Title</label>
-              <input type="text" id="surveyTitle" placeholder="Form or Checklist Title">
+              <input type="text" id="surveyTitle" placeholder="Form title">
             </div>
 
             <div>
@@ -545,11 +564,9 @@ document.addEventListener("DOMContentLoaded", function () {
           </div>
 
           <label for="surveyDescription">Description</label>
-          <textarea id="surveyDescription" maxlength="1000"
-                    placeholder="What this form is for, and anything the user should know before filling it in. Optional."></textarea>
-          <div class="field-hint">Shown to the assigned user above the questions, and to the account manager reviewing the form.</div>
+          <textarea id="surveyDescription" class="spaced" maxlength="1000" placeholder="Optional"></textarea>
 
-          <label>Questions &amp; Checklist Items</label>
+          <label>Questions</label>
 
           <div id="questionsWrap"></div>
 
@@ -595,14 +612,10 @@ if(!adminToken || !adminUser.role){
   window.location.href = "admin-login.html";
 }
 
-// Account managers review forms rather than build them, same rule as the list.
+// Account managers review forms rather than build them, same rule as the
+// list. The queue is the Form Review section at the top of that page now.
 if(adminUser.role === "account_manager"){
-  window.location.href = "survey-review.html";
-}
-
-if(adminUser.role === "account_manager" || adminUser.role === "owner"){
-  const reviewLink = document.getElementById("surveyReviewLink");
-  if(reviewLink) reviewLink.style.display = "";
+  window.location.href = "admin.html";
 }
 
 function logoutAdmin(){
@@ -724,7 +737,7 @@ function addQuestion(value = "", type = "input", chips = "", maxFileSizeMb = "")
   div.className = "question-card";
 
   const typeLabels = {
-    input: "Input",
+    input: "Text",
     file: "File Upload",
     checkbox: "Checklist",
     checklist: "Checklist"
@@ -752,7 +765,7 @@ function addQuestion(value = "", type = "input", chips = "", maxFileSizeMb = "")
       <div>
         <label>Type</label>
         <select class="questionType">
-          <option value="input" ${initialType === "input" ? "selected" : ""}>Input</option>
+          <option value="input" ${initialType === "input" ? "selected" : ""}>Text</option>
           <option value="file" ${initialType === "file" ? "selected" : ""}>File Upload</option>
           <option value="checkbox" ${isCheckbox ? "selected" : ""}>Checklist</option>
         </select>
@@ -772,7 +785,9 @@ function addQuestion(value = "", type = "input", chips = "", maxFileSizeMb = "")
   const body = div.querySelector(".question-card-body");
   const optionsBuilder = createOptionsBuilder(chips, isCheckbox, saveDraft);
 
-  if(!isCheckbox && initialType !== "input"){
+  // Options belong to a checklist only. A Text answer is free typing, and a
+  // File Upload has nothing to list either.
+  if(!isCheckbox){
     optionsBuilder.wrapper.style.display = "none";
   }
   body.appendChild(optionsBuilder.wrapper);
@@ -800,8 +815,7 @@ function addQuestion(value = "", type = "input", chips = "", maxFileSizeMb = "")
     badgeSpan.textContent = typeLabels[selected] || selected;
 
     if (selected === "input") {
-      optionsBuilder.wrapper.style.display = "block";
-      optionsBuilder.label.textContent = "Quick Keywords (Optional)";
+      optionsBuilder.wrapper.style.display = "none";
       fileField.style.display = "none";
     } else if (isCb) {
       optionsBuilder.wrapper.style.display = "block";
@@ -1027,7 +1041,7 @@ async function loadSurveyForEdit(){
 async function init(){
   if(editingSurveyId){
     document.title = "Edit Form — Admin";
-    document.getElementById("pageHeading").innerText = "Edit Form & Checklist";
+      document.getElementById("pageHeading").innerText = "Edit Form";
     document.getElementById("pageSub").innerText =
       "Change the title, the assigned user or the items below, then send it back for approval.";
     document.getElementById("surveySubmitBtn").innerText = "Update Form";

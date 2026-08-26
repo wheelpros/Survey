@@ -349,7 +349,7 @@ if ($method === "POST" || $method === "PUT") {
                 ? "New form awaiting approval"
                 : "Updated form awaiting approval",
             $title . " needs a review before it reaches the user.",
-            "survey-review.html",
+            "admin.html",
             (int) $currentAdmin["id"]
         );
 
