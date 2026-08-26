@@ -793,5 +793,23 @@ loadContent();
 
 <script src="assets/notifications.js?v=1"></script>
 <script src="assets/role-nav.js?v=1"></script>
+<script>
+/* The calendar belongs to the roles that deal with clients. A plain seo_admin
+   works on content, so the link comes out of their sidebar. api/calendar.php
+   and the page itself refuse the role too - this only hides a dead link. */
+(function () {
+  var CALENDAR_ROLES = ["owner", "super_admin", "account_manager"];
+
+  var role = "";
+  try {
+    role = (JSON.parse(localStorage.getItem("admin_user") || "{}") || {}).role || "";
+  } catch (e) {}
+
+  if (!role || CALENDAR_ROLES.indexOf(role) !== -1) return;
+
+  document.querySelectorAll('a[href*="admin-calendar.html"]')
+    .forEach(function (link) { link.remove(); });
+})();
+</script>
 </body>
 </html>
