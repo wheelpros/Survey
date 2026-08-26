@@ -89,6 +89,25 @@ if (!$user) {
     if (!$admin) {
         reply(false, "Unauthorized token");
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Which admin roles reach the calendar
+    |--------------------------------------------------------------------------
+    |
+    | The calendar is about client meetings, so it belongs to the roles that
+    | deal with clients: the owner, super admins and account managers. A plain
+    | `seo_admin` works on content and never books time with a client, so the
+    | whole file is closed to that role - hiding the page would not be enough
+    | on its own, since the endpoint is reachable directly.
+    |
+    */
+
+    $calendarRoles = ["owner", "super_admin", "account_manager"];
+
+    if (!in_array($admin["role"] ?? "", $calendarRoles, true)) {
+        reply(false, "You do not have access to the calendar.");
+    }
 }
 
 $action = $_GET["action"] ?? $_POST["action"] ?? "";

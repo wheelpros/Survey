@@ -842,6 +842,17 @@ if (!adminToken || !adminUser.role) {
   window.location.href = "admin-login.html";
 }
 
+/* The calendar is about client meetings, so it belongs to the roles that deal
+   with clients: owner, super admin and account manager. A plain `seo_admin`
+   works on content and never books time with a client, so the page turns them
+   away here rather than loading and failing on every request. api/calendar.php
+   applies the same list - this only saves the round trip. */
+const CALENDAR_ROLES = ["owner", "super_admin", "account_manager"];
+
+if (adminToken && !CALENDAR_ROLES.includes(adminUser.role)) {
+  window.location.replace("admin.html");
+}
+
 let currentDate = new Date();
 
 // The day the schedule panel is describing. Clicking a cell moves it; the
