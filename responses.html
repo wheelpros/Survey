@@ -41,6 +41,15 @@ a{
 .panel-head p{color:#667085;font-size:14px;}
 .panel-body{padding:24px 28px;}
 
+/* ── Page header (the same block on every admin page, button or no button) ── */
+.page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:28px}
+.page-title h1{font-size:30px;margin-bottom:8px}
+.page-title p{font-size:14px;color:var(--muted);max-width:620px}
+.create-btn{flex:none;display:inline-flex;align-items:center;gap:8px;background:var(--nav-active);color:#fff;text-decoration:none;padding:12px 20px;border-radius:10px;font:inherit;font-size:13px;font-weight:800;border:none;cursor:pointer}
+.create-btn:hover{background:#282c52}
+.create-btn svg{width:16px;height:16px}
+@media(max-width:700px){.page-head{flex-direction:column;gap:16px}}
+
 /* ── Admin shell: sidebar + header (shared across admin pages) ── */
 :root{
   --brand:#c9000b;
@@ -273,11 +282,14 @@ document.addEventListener("DOMContentLoaded", function () {
 <div class="admin-main">
   <div class="admin-content">
 
+    <div class="page-head">
+      <div class="page-title">
+        <h1 id="pageTitle">Form Responses</h1>
+        <p>View and manage survey submissions.</p>
+      </div>
+    </div>
+
 <div class="panel">
-  <div class="panel-head">
-    <h1 id="pageTitle">Form Responses</h1>
-    <p>View and manage survey submissions.</p>
-  </div>
   <div class="panel-body">
     <div id="responses">
       <div class="empty">Loading responses...</div>
@@ -387,7 +399,7 @@ loadResponses();
       <button class="acct-logout" onclick="logoutAdmin()">&#8617; Logout</button>
     </div>
   </div>
-</script>
+</div>
 
 <script src="assets/notifications.js?v=1"></script>
 <script src="assets/role-nav.js?v=1"></script>

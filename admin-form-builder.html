@@ -1027,10 +1027,10 @@ async function loadSurveyForEdit(){
 
     if(!document.querySelector("#questionsWrap .question-card")) addQuestion();
 
-    // The account manager's reason for sending it back belongs on screen, not
+    // The reviewer's reason for sending it back belongs on screen, not
     // buried in the list it was opened from.
     status.innerText = (data.survey.status === "rejected" && data.survey.review_note)
-      ? "Rejected by account manager: " + data.survey.review_note
+      ? "Rejected by reviewer: " + data.survey.review_note
       : "";
 
   }catch(error){

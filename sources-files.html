@@ -56,6 +56,15 @@ input{width:100%;border:1px solid #dfe3ea;background:#f8fafc;border-radius:12px;
     color:#4b5563;
 }
 
+/* ── Page header (the same block on every admin page, button or no button) ── */
+.page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:28px}
+.page-title h1{font-size:30px;margin-bottom:8px}
+.page-title p{font-size:14px;color:var(--muted);max-width:620px}
+.create-btn{flex:none;display:inline-flex;align-items:center;gap:8px;background:var(--nav-active);color:#fff;text-decoration:none;padding:12px 20px;border-radius:10px;font:inherit;font-size:13px;font-weight:800;border:none;cursor:pointer}
+.create-btn:hover{background:#282c52}
+.create-btn svg{width:16px;height:16px}
+@media(max-width:700px){.page-head{flex-direction:column;gap:16px}}
+
 /* ── Admin shell: sidebar + header (shared across admin pages) ── */
 :root{
   --brand:#c9000b;
@@ -306,13 +315,18 @@ document.addEventListener("DOMContentLoaded", function () {
 <div class="admin-main">
   <div class="admin-content">
 
+    <div class="page-head">
+      <div class="page-title">
+        <h1>Sources &amp; Files</h1>
+        <p>Create folders and upload files. Each admin can only see their own files.</p>
+      </div>
+    </div>
+
 <div class="panel">
   <div class="panel-head">
-    <h1>Sources & Files</h1>
-    <p>Create folders and upload files. Each admin can only see their own files.</p>
+    <h1>Create Folder / Source</h1>
   </div>
   <div class="panel-body">
-    <h2 style="margin-bottom:12px;">Create Folder / Source</h2>
     <input type="text" id="folderTitle" placeholder="Example: Client Documents">
     <button class="primary" onclick="createFolder()">Create Folder</button>
     <div id="folderStatus" class="small" style="margin-top:8px;"></div>
@@ -730,7 +744,6 @@ loadFolders();
   </div>
 </div>
 
-</script>
 
 <script src="assets/notifications.js?v=1"></script>
 <script src="assets/role-nav.js?v=1"></script>

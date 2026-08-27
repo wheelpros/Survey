@@ -110,7 +110,7 @@ td{
   color:#3478f6;
 }
 
-/* Extra survey states: awaiting the account manager, and sent back to the creator. */
+/* Extra survey states: awaiting review, and sent back to the creator. */
 .rejected{
   background:#fde8e8;
   color:#c9000b;
@@ -569,25 +569,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
     <div class="grid">
 
-      <!-- Form Review: only account managers and the owner ever see this, and
-           it sits above the list because a queue waiting on you outranks a
+      <!-- Form Review: the queue of forms still waiting on a decision, and
+           nothing else - a decided form belongs in the list below. It sits
+           above that list because a queue waiting on you outranks a
            reference table. -->
       <div class="panel" id="formReviewSection" hidden>
         <div class="panel-head">
           <h1>Form Review</h1>
-          <p>Anything still awaiting a decision is listed first, with a Review button.</p>
-
-          <div class="survey-filters">
-            <div class="filter-box">
-              <label for="reviewStatusFilter">Show</label>
-              <select id="reviewStatusFilter" onchange="switchReviewFilter(this.value)">
-                <option value="pending">Pending</option>
-                <option value="rejected">Rejected</option>
-                <option value="completed">Completed</option>
-                <option value="all">All</option>
-              </select>
-            </div>
-          </div>
+          <p id="reviewIntro">Forms waiting on approval or rejection.</p>
         </div>
 
         <table>
@@ -595,7 +584,7 @@ document.addEventListener("DOMContentLoaded", function () {
             <tr>
               <th>ID</th>
               <th>Form</th>
-              <th>From &rarr; To</th>
+              <th>Created By</th>
               <th>Status</th>
               <th>Created At</th>
               <th>Actions</th>
@@ -676,11 +665,11 @@ document.addEventListener("DOMContentLoaded", function () {
     <div class="review-body">
       <div class="review-meta">
         <div>
-          <span>From (created by)</span>
+          <span>Created by</span>
           <strong id="reviewFrom">-</strong>
         </div>
         <div>
-          <span>To (assigned user)</span>
+          <span>Assigned user</span>
           <strong id="reviewTo">-</strong>
         </div>
       </div>
@@ -904,34 +893,23 @@ async function viewSurveyResponses(surveyId){
 }
 
 /* ── Form Review ────────────────────────────────────────────────────────────
-   The queue that used to be its own page. Only account managers and the owner
-   can see it, which is the same gate api/admin-survey-review.php enforces -
-   this only decides whether the panel is drawn, never what it may do. */
+   The queue that used to be its own page, cut down to the forms actually
+   waiting on a decision - anything already approved or rejected shows up in
+   the Forms List below instead.
+
+   Two audiences, one panel, matching the split api/admin-survey-review.php
+   enforces:
+   - account manager and owner see every submission, with Approve/Reject;
+   - any other admin sees only the forms they submitted, sitting there while
+     they wait to hear back. */
 
 const canReview = adminUser.role === "account_manager" || adminUser.role === "owner";
 
-// The same three statuses the rest of the page uses. 'pending' covers both
-// pending_review and pending - which desk a form sits on is not a status, it
-// is just what the Review button is for.
-let reviewFilter = "pending";
 let allReviewSurveys = [];
 let reviewPage = 1;
 let currentReviewSurveyId = null;
 
 const REVIEW_PAGE_SIZE = 5;
-
-// Filtering is done here rather than by re-querying, because one displayed
-// status maps to two stored ones.
-function switchReviewFilter(value){
-  reviewFilter = value;
-  reviewPage = 1;
-  renderReviewTable();
-}
-
-function visibleReviewSurveys(){
-  if(reviewFilter === "all") return allReviewSurveys;
-  return allReviewSurveys.filter(s => displayStatus(s.status) === reviewFilter);
-}
 
 async function loadReviewSurveys(){
   const table = document.getElementById("reviewTable");
@@ -940,7 +918,8 @@ async function loadReviewSurveys(){
   table.innerHTML = `<tr><td colspan="6" class="empty">Loading forms...</td></tr>`;
 
   try{
-    const res = await fetch("api/admin-survey-review.php?status=all", {
+    // No status parameter: the endpoint only ever returns the waiting queue.
+    const res = await fetch("api/admin-survey-review.php", {
       headers:{ Authorization:"Bearer " + adminToken }
     });
 
@@ -953,13 +932,9 @@ async function loadReviewSurveys(){
       return;
     }
 
-    // Anything still awaiting a decision floats to the top: it is the only
-    // part of this list the reviewer can actually act on.
-    allReviewSurveys = (data.surveys || []).sort((a, b) => {
-      const aWaiting = a.status === "pending_review" ? 0 : 1;
-      const bWaiting = b.status === "pending_review" ? 0 : 1;
-      return aWaiting - bWaiting;
-    });
+    // Everything here is pending_review already, so the server's newest-first
+    // order stands.
+    allReviewSurveys = data.surveys || [];
 
     renderReviewTable();
 
@@ -973,16 +948,20 @@ async function loadReviewSurveys(){
 function renderReviewTable(){
   const table = document.getElementById("reviewTable");
 
-  const matching = visibleReviewSurveys();
+  const matching = allReviewSurveys;
 
   if(!matching.length){
-    table.innerHTML = `<tr><td colspan="6" class="empty">Nothing here.</td></tr>`;
+    table.innerHTML = `<tr><td colspan="6" class="empty">${
+      canReview
+        ? "No forms are waiting for a decision."
+        : "None of your forms are waiting for approval."
+    }</td></tr>`;
     renderReviewPager(0, 0, 0, 0);
     return;
   }
 
-  // Approving a form moves it out of this filter, which can empty the page
-  // you were on.
+  // Deciding a form drops it out of the queue, which can empty the page you
+  // were on.
   const totalPages = Math.max(1, Math.ceil(matching.length / REVIEW_PAGE_SIZE));
   reviewPage = Math.min(Math.max(1, reviewPage), totalPages);
 
@@ -992,8 +971,6 @@ function renderReviewTable(){
   renderReviewPager(matching.length, totalPages, start, rows.length);
 
   table.innerHTML = rows.map(survey => {
-    const meta = statusMeta[displayStatus(survey.status)] || { label: survey.status, cls: "pending" };
-
     return `
     <tr>
       <td>#${esc(survey.id)}</td>
@@ -1002,23 +979,16 @@ function renderReviewTable(){
         <div class="from-to">
           <strong>${esc(survey.created_by_name || "Unknown admin")}</strong>
           <span>${esc(survey.created_by_email || "")}</span>
-          <strong style="margin-top:6px;">&rarr; ${esc(survey.user_name)}</strong>
-          <span>${esc(survey.user_email)}</span>
         </div>
       </td>
       <td>
-        <span class="badge ${meta.cls}">${esc(meta.label)}</span>
-        ${
-          survey.status === "rejected" && survey.review_note
-          ? `<span class="rejection-note">Reason: ${esc(survey.review_note)}</span>`
-          : ``
-        }
+        <span class="badge pending">${canReview ? "Awaiting your decision" : "Awaiting approval"}</span>
       </td>
       <td>${esc(survey.created_at)}</td>
       <td>
         <div class="actions">
           <button class="btn action-btn" type="button" onclick="openReview(${Number(survey.id)})">
-            ${survey.status === "pending_review" ? "Review" : "View"}
+            ${canReview ? "Review" : "View"}
           </button>
         </div>
       </td>
@@ -1115,9 +1085,10 @@ async function openReview(surveyId){
       `;
     }).join("") || `<p class="status-text">No questions on this form.</p>`;
 
-    // Approve/Reject only make sense on a form still waiting for an answer.
+    // Approve/Reject only make sense on a form still waiting for an answer,
+    // and only for the admins allowed to give one.
     const footer = document.getElementById("reviewFooter");
-    const decidable = survey.status === "pending_review";
+    const decidable = canReview && survey.status === "pending_review";
     footer.querySelector(".approve-btn").style.display = decidable ? "" : "none";
     footer.querySelector(".reject-btn").style.display = decidable ? "" : "none";
 
@@ -1204,10 +1175,13 @@ async function submitReview(action){
   }
 }
 
-if(canReview){
-  document.getElementById("formReviewSection").hidden = false;
-  loadReviewSurveys();
-}
+// Everyone gets the panel: reviewers to decide on what was submitted to them,
+// every other admin to watch their own submissions wait.
+document.getElementById("formReviewSection").hidden = false;
+document.getElementById("reviewIntro").innerText = canReview
+  ? "Forms submitted by admins, waiting on your approval or rejection."
+  : "Forms you submitted, waiting on approval from an account manager or the owner.";
+loadReviewSurveys();
 
 loadSurveyData();
 </script>

@@ -28,15 +28,19 @@ $adminStmt = $pdo->prepare("
 $adminStmt->execute([$token]);
 $currentAdmin = $adminStmt->fetch();
 
-// Only the account manager reviews surveys. The owner can also open this
-// page for oversight, same as they can see everything else.
-if (!$currentAdmin || !in_array($currentAdmin["role"], ["account_manager", "owner"], true)) {
+if (!$currentAdmin) {
     echo json_encode([
         "success" => false,
         "message" => "Unauthorized"
     ]);
     exit;
 }
+
+// The account manager is the desk a submitted form waits on, with the owner
+// alongside for oversight: only they may approve or reject. Every other admin
+// may still read this endpoint, but only to watch their own submissions sit
+// in the queue.
+$canReview = in_array($currentAdmin["role"], ["account_manager", "owner"], true);
 
 $method = $_SERVER["REQUEST_METHOD"];
 
@@ -81,6 +85,15 @@ if ($method === "GET") {
             exit;
         }
 
+        // A non-reviewer only gets to open what they wrote themselves.
+        if (!$canReview && (int) $survey["created_by_admin_id"] !== (int) $currentAdmin["id"]) {
+            echo json_encode([
+                "success" => false,
+                "message" => "Unauthorized"
+            ]);
+            exit;
+        }
+
         $qStmt = $pdo->prepare("
             SELECT id, question_text, question_type, required, sort_order, chips, max_file_size_mb
             FROM survey_questions
@@ -97,15 +110,9 @@ if ($method === "GET") {
         exit;
     }
 
-    // Filter by review state. Defaults to the actual review queue; the
-    // history tabs on the page pass status=pending / status=rejected /
-    // status=all to look back at past decisions.
-    $statusFilter = $_GET["status"] ?? "pending_review";
-
-    $allowedStatuses = ["pending_review", "pending", "rejected", "completed", "all"];
-    if (!in_array($statusFilter, $allowedStatuses, true)) {
-        $statusFilter = "pending_review";
-    }
+    // The queue is the queue: forms still waiting on a decision, nothing else.
+    // The page no longer offers history filters, so neither does this.
+    $statusFilter = "pending_review";
 
     $sql = "
         SELECT
@@ -130,23 +137,38 @@ if ($method === "GET") {
         LEFT JOIN admins reviewer ON reviewer.id = surveys.reviewed_by_admin_id
     ";
 
-    if ($statusFilter === "all") {
-        $sql .= " ORDER BY surveys.created_at DESC";
-        $stmt = $pdo->query($sql);
-    } else {
-        $sql .= " WHERE surveys.status = ? ORDER BY surveys.created_at DESC";
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([$statusFilter]);
+    $sql .= " WHERE surveys.status = ?";
+    $params = [$statusFilter];
+
+    // An admin who cannot decide sees only their own submissions - the point
+    // of the queue for them is "mine are still waiting", not oversight.
+    if (!$canReview) {
+        $sql .= " AND surveys.created_by_admin_id = ?";
+        $params[] = $currentAdmin["id"];
     }
+
+    $sql .= " ORDER BY surveys.created_at DESC";
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
 
     echo json_encode([
         "success" => true,
+        "canReview" => $canReview,
         "surveys" => $stmt->fetchAll()
     ]);
     exit;
 }
 
 if ($method === "POST") {
+
+    if (!$canReview) {
+        echo json_encode([
+            "success" => false,
+            "message" => "Only an account manager or the owner can approve or reject a form"
+        ]);
+        exit;
+    }
 
     $input = json_decode(file_get_contents("php://input"), true);
 

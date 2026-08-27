@@ -25,10 +25,13 @@ body{background:#f7f8fc;color:var(--text)}
 .main{margin-left:var(--sidebar-w);width:calc(100% - var(--sidebar-w))}
 
 .content{padding:34px 44px}
+.page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:28px}
 .page-title h1{font-size:30px;margin-bottom:8px}
-.page-title p{font-size:14px;color:#667085;max-width:520px}
+.page-title p{font-size:14px;color:#667085;max-width:620px}
 
 .filters{display:flex;justify-content:space-between;align-items:center;gap:20px;margin:28px 0 24px}
+.type-filter{min-width:220px;height:36px;border:1px solid #e1e5ed;border-radius:22px;background:#fff;padding:0 14px;outline:none;font:inherit;font-size:13px;font-weight:700;color:#101828;cursor:pointer}
+.type-filter:focus{border-color:#1b1e3a}
 .content-search{width:260px;height:36px;border:1px solid #e1e5ed;border-radius:22px;background:#fff;padding:0 16px;outline:none;font-size:13px}
 
 /* ── Card grid ── */
@@ -131,6 +134,7 @@ body{background:#f7f8fc;color:var(--text)}
   .content{padding:24px 18px}
   .grid{grid-template-columns:1fr}
   .filters{flex-direction:column;align-items:flex-start}
+  .type-filter{width:100%}
   .content-search{width:100%}
   .detail.is-vertical,.detail.is-horizontal{grid-template-columns:1fr}
   .detail-meta{grid-template-columns:1fr !important}
@@ -255,14 +259,20 @@ body{background:#f7f8fc;color:var(--text)}
 <main class="main">
 
   <section class="content">
-    <div class="page-title">
-      <h1>Content</h1>
-      <p>Everything ready to publish — social posts, newsletters, infographics and more.</p>
+    <div class="page-head">
+      <div class="page-title">
+        <h1>Content</h1>
+        <p>Everything ready to publish — social posts, newsletters, infographics and more.</p>
+      </div>
     </div>
 
-    <!-- No filter tabs here: a reader only ever sees their own client's posts,
-         so there is nothing to narrow down. The search box stays. -->
+    <!-- No client tabs here: a reader only ever sees their own client's posts.
+         The type filter and the search box are the two ways to narrow down. -->
     <div class="filters">
+      <select class="type-filter" id="typeFilter" aria-label="Filter by content type"
+              onchange="filterByType(this.value)">
+        <option value="All">All types</option>
+      </select>
       <input class="content-search" id="contentSearch" placeholder="Search content...">
     </div>
 
@@ -470,13 +480,55 @@ async function loadContent(){
   }
 }
 
-// A new search or tab starts at page 1; paging itself keeps the page it set.
+/* ── Content type filter ────────────────────────────────────────────────────
+   The same nine types the content form offers, named after the icons in
+   assets/icon. Posts written before the list settled carry their own type
+   label; matching on the label as well as the id keeps those findable. */
+
+const TYPE_TITLES = [
+  "Articles", "Campaign", "Design", "Events", "Photos",
+  "Reports", "Social Media", "Training", "Videos"
+];
+
+let currentType = "All";
+
+function typeIdFor(title){
+  return title.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+}
+
+function renderTypeFilter(){
+  const select = document.getElementById("typeFilter");
+
+  select.innerHTML =
+    `<option value="All">All types</option>` +
+    TYPE_TITLES.map(title =>
+      `<option value="${esc(typeIdFor(title))}">${esc(title)}</option>`
+    ).join("");
+
+  select.value = currentType;
+}
+
+function filterByType(type){
+  currentType = type;
+  applyFilters();
+}
+
+function matchesType(item){
+  if(currentType === "All") return true;
+  if((item.content_type || "") === currentType) return true;
+
+  return typeIdFor(item.type_label || "") === currentType;
+}
+
+renderTypeFilter();
+
+// A new search or filter starts at page 1; paging itself keeps the page it set.
 document.getElementById("contentSearch").addEventListener("input", () => applyFilters());
 
 function applyFilters(keepPage){
   const search = document.getElementById("contentSearch").value.toLowerCase().trim();
 
-  let filtered = allContent;
+  let filtered = allContent.filter(matchesType);
 
   if(search){
     filtered = filtered.filter(item =>

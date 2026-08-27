@@ -228,15 +228,22 @@
         padding: 42px 44px;
       }
 
-      /* ── Profile ── */
+      /* ── Page header: the same block every other page uses ── */
+      .page-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 24px;
+        margin-bottom: 28px;
+      }
       .page-title h1 {
-        font-size: 28px;
-        margin-bottom: 6px;
+        font-size: 30px;
+        margin-bottom: 8px;
       }
       .page-title p {
         color: var(--muted);
         font-size: 14px;
-        margin-bottom: 28px;
+        max-width: 620px;
       }
       .card {
         background: #fff;
@@ -551,9 +558,11 @@
       <main class="main">
 
         <section class="content">
-          <div class="page-title">
-            <h1>Profile &amp; Settings</h1>
-            <p>Update the details we show alongside your survey responses.</p>
+          <div class="page-head">
+            <div class="page-title">
+              <h1>Profile &amp; Settings</h1>
+              <p>Update the details we show alongside your survey responses.</p>
+            </div>
           </div>
 
           <form id="profileForm">

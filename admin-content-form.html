@@ -25,7 +25,7 @@ body{background:#f6f7fb;color:var(--text);padding:0}
 .side-dots{color:#98a2b3;flex:none}
 
 .admin-main{margin-left:var(--sidebar-w);width:calc(100% - var(--sidebar-w))}
-.admin-content{padding:10px 35px 45px}
+.admin-content{padding:35px 35px 45px}
 
 .side-head{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:36px;margin-bottom:26px;padding:0 2px}
 .side-logo{padding:0;margin:0;flex:1;min-width:0}
@@ -60,9 +60,9 @@ body{background:#f6f7fb;color:var(--text);padding:0}
 .acct-logout:hover{background:#fff5f5}
 
 /* ── Page header ── */
-.page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:26px}
+.page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:28px}
 .page-title h1{font-size:30px;margin-bottom:8px}
-.page-title p{font-size:14px;color:var(--muted);max-width:520px}
+.page-title p{font-size:14px;color:var(--muted);max-width:620px}
 .back-link{flex:none;display:inline-flex;align-items:center;gap:8px;border:1px solid #dfe3ea;background:#fff;color:var(--text);text-decoration:none;padding:11px 18px;border-radius:10px;font-size:13px;font-weight:800}
 .back-link:hover{background:#f6f7f9}
 .back-link svg{width:15px;height:15px}
@@ -90,6 +90,7 @@ body{background:#f6f7fb;color:var(--text);padding:0}
 .form-wrap{display:grid;grid-template-columns:1fr 340px;gap:24px;align-items:start}
 .col{display:grid;gap:24px}
 .panel{background:#fff;border-radius:18px;box-shadow:0 14px 30px rgba(0,0,0,.05);overflow:hidden}
+.panel[hidden]{display:none}
 .panel-head{padding:18px 22px;border-bottom:1px solid #eef1f5;display:flex;align-items:center;gap:10px}
 .panel-head svg{width:17px;height:17px;color:var(--muted);flex:none}
 .panel-head h2{font-size:15px}
@@ -115,14 +116,19 @@ input:disabled{opacity:.5;cursor:not-allowed}
 
 /* ── Content type chips ── */
 .chips{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-.chip{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:78px;padding:12px 8px;border:1px solid #dfe3ea;background:#fff;border-radius:12px;cursor:pointer;font:inherit;font-size:12px;font-weight:700;color:var(--muted);text-align:center;transition:border-color .15s,background .15s,color .15s}
+.chip{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:126px;padding:16px 10px;border:1px solid #dfe3ea;background:#fff;border-radius:12px;cursor:pointer;font:inherit;font-size:13px;font-weight:700;color:var(--muted);text-align:center;transition:border-color .15s,background .15s,color .15s}
 .chip:hover{background:#f8fafc}
-.chip svg{width:20px;height:20px}
+.chip svg{width:60px;height:60px}
+/* The artwork in assets/icon is 1254px square, so it is boxed and scaled
+   rather than left to its own intrinsic size. */
+.chip img{width:60px;height:60px;object-fit:contain;display:block;pointer-events:none}
 .chip.selected{border-color:var(--nav-active);border-width:2px;background:#f5f6fa;color:var(--text)}
-.custom-type{display:none;margin-top:16px;padding-top:16px;border-top:1px dashed #dfe3ea;gap:12px;grid-template-columns:1fr 1fr 1fr auto;align-items:end}
-.custom-type.open{display:grid}
-.custom-type label{margin-bottom:6px}
-.custom-type .add{height:44px;padding:0 18px;border:none;border-radius:10px;background:var(--nav-active);color:#fff;font:inherit;font-weight:800;font-size:13px;cursor:pointer}
+.type-details{display:none;margin-top:16px;padding-top:16px;border-top:1px dashed #dfe3ea;gap:12px;grid-template-columns:1fr 1fr;align-items:end}
+.type-details.open{display:grid}
+.type-details label{margin-bottom:6px}
+/* The name comes from the icon that was picked, so it reads as a value
+   rather than an empty field waiting for input. */
+.type-details input[readonly]{background:#eef1f5;color:var(--text);cursor:default}
 
 
 /* ── Orientation ── */
@@ -200,10 +206,10 @@ input:disabled{opacity:.5;cursor:not-allowed}
 @media(max-width:950px){
   /* Force-collapsed below this width, so the head has nothing left to show. */
   .side-head{display:none}
-  .admin-content{padding:10px 18px 40px}
-  .page-head{flex-direction:column}
+  .admin-content{padding:24px 18px 40px}
+  .page-head{flex-direction:column;gap:16px}
   .chips{grid-template-columns:repeat(2,1fr)}
-  .custom-type.open{grid-template-columns:1fr}
+  .type-details.open{grid-template-columns:1fr}
 }
 /* ── Unread badge on the Notifications nav item ──
    Collapsed, the sidebar hides labels, so the count degrades to a dot on
@@ -357,16 +363,15 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
           <div class="panel-body" id="panelTypeBody">
             <div class="chips" id="typeChips"></div>
 
-            <div class="custom-type" id="customType">
+            <div class="type-details" id="typeDetails">
               <div>
-                <label for="customLabel">Type name</label>
-                <input type="text" id="customLabel" placeholder="e.g. TikTok Clip">
+                <label for="typeLabel">Type name</label>
+                <input type="text" id="typeLabel" readonly>
               </div>
               <div>
-                <label for="customPlatform">Platform</label>
-                <input type="text" id="customPlatform" placeholder="e.g. TikTok">
+                <label for="typePlatform">Platform</label>
+                <input type="text" id="typePlatform" placeholder="e.g. Instagram">
               </div>
-              <button class="add" type="button" onclick="addCustomType()">Add</button>
             </div>
           </div>
         </section>
@@ -409,13 +414,11 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
               <select id="client">
                 <option value="">Select a client</option>
               </select>
-              <p class="hint">Only this client's users see the post. Every post belongs to one client.</p>
             </div>
 
             <div class="field-row">
               <label for="link">Link</label>
               <input type="text" id="link" placeholder="e.g. https://example.com/campaign">
-              <p class="hint">Optional. Shown with the post so readers can open the original.</p>
             </div>
 
             <div class="field-row">
@@ -479,7 +482,10 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
           </div>
         </section>
 
-        <section class="panel">
+        <!-- Scheduling belongs to the roles that own the posting calendar:
+             the account manager and the owner. Everyone else writes the post
+             and it goes out as soon as it is saved. -->
+        <section class="panel" id="panelScheduling" hidden>
           <div class="panel-head"><h2>Scheduling</h2></div>
           <div class="panel-body">
             <div class="field-row">
@@ -559,29 +565,42 @@ if(!adminToken || !adminUser.role){
 const editId = new URLSearchParams(location.search).get("id");
 
 /* ── Content types ───────────────────────────────────────────────────────────
-   One array drives the chips, the stored platform/category, and therefore the
-   filter tabs on the Content pages. The six below are built in; anything an
-   admin adds with the "+" chip is saved through api/content-types.php and
-   loaded back here on every visit, so a type is only ever created once.       */
+   Nine fixed types, one per icon in assets/icon - the icon's own file name is
+   the type's title, so the two can never drift apart. Types are not created
+   here any more: picking one opens its details, where the name is fixed by the
+   icon and only the platform is the admin's to write. The platform is what the
+   filter tabs on the Content pages group by, which is why it stays editable. */
 
-const ICONS = {
-  camera:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
-  reel:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 6.5 8.5 3"/><rect x="2" y="3" width="20" height="18" rx="3"/><path d="M2 9h20"/><path d="m10 14 5 2.5-5 2.5z"/></svg>',
-  mail:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="2,7 12,13 22,7"/></svg>',
-  case:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
-  ad:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M17 8a5 5 0 0 1 0 8"/></svg>',
-  chart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="15"/></svg>',
-  plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8.5" x2="12" y2="15.5"/><line x1="8.5" y1="12" x2="15.5" y2="12"/></svg>'
-};
-
-const types = [
-  {id:"instagram_post", label:"Instagram Post", platform:"Instagram", category:"Social posts", icon:"camera"},
-  {id:"reel",           label:"Reel",           platform:"Instagram", category:"Social posts", icon:"reel"},
-  {id:"newsletter",     label:"Newsletter",     platform:"Email",     category:"Newsletters",  icon:"mail"},
-  {id:"linkedin_case",  label:"LinkedIn Case",  platform:"LinkedIn",  category:"Social posts", icon:"case"},
-  {id:"fb_ad",          label:"FB Ad",          platform:"Facebook",  category:"Social posts", icon:"ad"},
-  {id:"infographic",    label:"Infographic",    platform:"Design",    category:"Infographics", icon:"chart"}
+// Icon file name = title. Keep this list in step with assets/icon.
+const TYPE_TITLES = [
+  "Articles", "Campaign", "Design", "Events", "Photos",
+  "Reports", "Social Media", "Training", "Videos"
 ];
+
+function typeIdFor(title){
+  return title.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+}
+
+// A tag glyph for the odd type that is not one of the nine - an older post
+// keeps its own type when it is edited, and it has no icon file.
+const FALLBACK_ICON =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 12 22 2 12V2h10l8.6 8.6a2 2 0 0 1 0 2.8z"/><circle cx="7" cy="7" r="1.4"/></svg>';
+
+function iconMarkup(icon){
+  if(!icon) return FALLBACK_ICON;
+  // encodeURIComponent, because two of the file names have a space in them.
+  return `<img src="assets/icon/${encodeURIComponent(icon)}.svg" alt="" width="60" height="60">`;
+}
+
+const types = TYPE_TITLES.map(title => ({
+  id: typeIdFor(title),
+  label: title,
+  // The platform starts as the type's own name and is edited on the form; the
+  // category follows it, the way it always has on this page.
+  platform: title,
+  category: title,
+  icon: title
+}));
 
 let selectedType = null;
 let orientation = "horizontal";
@@ -599,26 +618,46 @@ function renderTypes(){
 
   wrap.innerHTML = types.map(type => `
     <button class="chip ${type.id === selectedType ? "selected" : ""}" type="button"
-            data-id="${esc(type.id)}" onclick="selectType('${esc(type.id)}')" title="${esc(type.platform)}">
-      ${ICONS[type.icon] || ICONS.plus}
+            data-id="${esc(type.id)}" onclick="selectType('${esc(type.id)}')" title="${esc(type.label)}">
+      ${iconMarkup(type.icon)}
       ${esc(type.label)}
     </button>
-  `).join("") + `
-    <button class="chip" type="button" onclick="toggleCustomType()" title="Add a custom type">
-      ${ICONS.plus}
-    </button>`;
+  `).join("");
+}
+
+/** The details a picked type opens: its fixed name, and its editable platform. */
+function showTypeDetails(){
+  const details = document.getElementById("typeDetails");
+  const type = types.find(entry => entry.id === selectedType);
+
+  if(!type){
+    details.classList.remove("open");
+    return;
+  }
+
+  document.getElementById("typeLabel").value = type.label;
+  // Left blank on purpose: the platform is the admin's to write, and a
+  // prefilled one would just get saved unread.
+  document.getElementById("typePlatform").value = "";
+  details.classList.add("open");
 }
 
 function selectType(id){
   selectedType = id;
   renderTypes();
+  showTypeDetails();
 }
 
-function toggleCustomType(){
-  document.getElementById("customType").classList.toggle("open");
+/** Reads the platform back, so a blank field still leaves a usable value. */
+function currentPlatform(){
+  const type = types.find(entry => entry.id === selectedType);
+  if(!type) return "";
+
+  const typed = document.getElementById("typePlatform").value.trim();
+  return typed || type.label;
 }
 
-/** Adds a type to the in-memory list if it is not there already. */
+/** Keeps a post's own type usable when it is not one of the nine. */
 function mergeType(type){
   if(!type || !type.id) return false;
   if(types.some(existing => existing.id === type.id)) return false;
@@ -628,116 +667,10 @@ function mergeType(type){
     label: type.label || type.id,
     platform: type.platform || "",
     category: type.category || "",
-    icon: type.icon || "plus"
+    icon: type.icon || ""
   });
 
   return true;
-}
-
-/** Saved custom types, so a type added on an earlier post is offered again. */
-const savedTypesReady = loadSavedTypes();
-
-async function loadSavedTypes(){
-  try {
-    const res = await fetch("api/content-types.php", {
-      headers: { Authorization: "Bearer " + adminToken }
-    });
-
-    const data = await res.json();
-    if(!data.success || !data.types) return;
-
-    data.types.forEach(type => mergeType({
-      id: type.type_id,
-      label: type.label,
-      platform: type.platform,
-      category: type.category,
-      icon: type.icon
-    }));
-
-    renderTypes();
-
-  } catch (err) {
-    // The built-in types still work; a new custom type just has to be re-added.
-    console.error("Could not load saved types:", err);
-  }
-}
-
-async function addCustomType(){
-  const labelInput = document.getElementById("customLabel");
-  const platformInput = document.getElementById("customPlatform");
-
-  const label = labelInput.value.trim();
-  const platform = platformInput.value.trim();
-
-  if(!label || !platform){
-    setStatus("Custom types need a name and a platform.", "error");
-    return;
-  }
-
-  // The filter tabs on the Content pages group by client; with no category
-  // field on the form the platform is the grouping, so it doubles as one.
-  const category = platform;
-
-  const slug = label.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"");
-  const id = "custom_" + slug;
-
-  // A label with no a-z0-9 in it (an Arabic name, say) has no slug to compare;
-  // the server hashes those, so let it be the one to spot the duplicate.
-  if(slug && types.some(type => type.id === id)){
-    setStatus("That type already exists.", "error");
-    return;
-  }
-
-  const addButton = document.querySelector("#customType .add");
-  addButton.disabled = true;
-
-  try {
-    const res = await fetch("api/content-types.php", {
-      method: "POST",
-      headers: {
-        Authorization: "Bearer " + adminToken,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({label, platform})
-    });
-
-    const data = await res.json();
-
-    // A type the server already knows is still usable here - merge it and move
-    // on rather than making the admin rename a type that exists.
-    const saved = data.type
-      ? {id: data.type.type_id, label: data.type.label,
-         platform: data.type.platform, category: data.type.category,
-         icon: data.type.icon}
-      : {id, label, platform, category};
-
-    if(!data.success && !data.type){
-      setStatus(data.message || "Could not save the type.", "error");
-      return;
-    }
-
-    mergeType(saved);
-    selectedType = saved.id;
-
-    labelInput.value = "";
-    platformInput.value = "";
-    document.getElementById("customType").classList.remove("open");
-
-    setStatus(
-      data.success
-        ? `“${saved.label}” saved — it will be here next time too.`
-        : "That type already existed, so it is selected for you.",
-      data.success ? "ok" : ""
-    );
-
-    renderTypes();
-
-  } catch (err) {
-    console.error(err);
-    setStatus("Connection error while saving the type.", "error");
-  } finally {
-    addButton.disabled = false;
-  }
 }
 
 /* ── Collapsible panels ── */
@@ -946,10 +879,19 @@ function clearMedia(){
   dropzone.style.display = "";
 }
 
-/* ── Scheduling ── */
+/* ── Scheduling ─────────────────────────────────────────────────────────────
+   Only the account manager and the owner decide when a post goes out. For any
+   other admin the panel is not drawn at all, and the post publishes on save -
+   which is why syncPublishNow() forces the switch rather than trusting a
+   value that came back from a draft or an edited post. */
+
+const canSchedule = adminUser.role === "account_manager" || adminUser.role === "owner";
 
 function syncPublishNow(){
-  const on = document.getElementById("publishNow").checked;
+  const toggle = document.getElementById("publishNow");
+  if(!canSchedule) toggle.checked = true;
+
+  const on = toggle.checked;
   const date = document.getElementById("postDate");
   const time = document.getElementById("postTime");
 
@@ -1011,6 +953,7 @@ async function save(){
   }
 
   const type = types.find(entry => entry.id === selectedType);
+  const platform = currentPlatform();
   const status = publishNow ? "published" : "scheduled";
 
   const form = new FormData();
@@ -1022,8 +965,10 @@ async function save(){
   form.append("caption", captionHtml);
   form.append("content_type", type.id);
   form.append("type_label", type.label);
-  form.append("platform", type.platform);
-  form.append("category", type.category);
+  // The platform doubles as the category, which is what the Content pages
+  // group their filter tabs by.
+  form.append("platform", platform);
+  form.append("category", platform);
   form.append("orientation", orientation);
   form.append("post_date", postDate);
   form.append("post_time", postTime);
@@ -1165,10 +1110,8 @@ async function prepareEditMode(){
 
     if (item.content_type) {
 
-      // Wait for the saved custom types, otherwise this post's own snapshot of
-      // the type would be added a second time under the same id.
-      await savedTypesReady;
-
+      // A post written before this list settled on nine types keeps its own
+      // type, so editing it does not silently re-file it under another one.
       mergeType({
         id: item.content_type,
         label: item.type_label || item.content_type,
@@ -1176,9 +1119,10 @@ async function prepareEditMode(){
         category: item.category || ""
       });
 
-      selectedType = item.content_type;
+      selectType(item.content_type);
 
-      renderTypes();
+      // The saved platform is the post's, not the type's default.
+      if(item.platform) document.getElementById("typePlatform").value = item.platform;
     }
 
     /*
@@ -1308,6 +1252,7 @@ function currentDraft(){
     link: document.getElementById("link").value,
     caption: caption.innerHTML,
     contentType: selectedType,
+    platform: selectedType ? currentPlatform() : "",
     orientation,
     postDate: document.getElementById("postDate").value,
     postTime: document.getElementById("postTime").value,
@@ -1398,12 +1343,13 @@ async function loadDraft(){
   caption.innerHTML = draft.caption || "";
   updateCounter();
 
-  // Custom types are saved server-side now; this only covers drafts written
-  // before that, whose types were never stored anywhere else.
+  // Drafts written before the nine fixed types could carry a custom one.
   (draft.customTypes || []).forEach(mergeType);
 
-  selectedType = draft.contentType || null;
-  renderTypes();
+  if(draft.contentType){
+    selectType(draft.contentType);
+    if(draft.platform) document.getElementById("typePlatform").value = draft.platform;
+  }
 
   selectOrientation(draft.orientation === "vertical" ? "vertical" : "horizontal");
 
@@ -1464,6 +1410,9 @@ document.addEventListener("click", event => {
     event.preventDefault();
   }
 });
+
+document.getElementById("panelScheduling").hidden = !canSchedule;
+syncPublishNow();
 
 renderTypes();
 updateCounter();

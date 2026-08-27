@@ -259,20 +259,22 @@ body{padding:0}
 .event-card.rejected { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
 
 
-.page-header { margin-bottom: 8px; }
-.page-title h1 { font-size: 24px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
-.page-title p { font-size: 14px; color: var(--muted); }
+/* Same page header as every other admin page: 30px title, 28px of air
+   below it, and whatever control the page owns on the right. */
+.page-head { margin-bottom: 28px; }
+.page-title h1 { font-size: 30px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+.page-title p { font-size: 14px; color: var(--muted); max-width: 620px; }
 
 
 /* ── Redesigned calendar page ──────────────────────────────────────────────
    The panels below the grid: daily schedule, approvals hub, request lists
    and the request form. Everything reuses .card as its shell. */
 
-.page-header {
+.page-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
+  gap: 24px;
   flex-wrap: wrap;
 }
 
@@ -721,7 +723,7 @@ document.addEventListener("DOMContentLoaded", function () {
 <div class="admin-main">
   <div class="admin-content">
 
-    <div class="page-header">
+    <div class="page-head">
       <div class="page-title">
         <h1>Dynamic Content Calendar</h1>
         <p>Manage and schedule your enterprise content releases and appointments.</p>
@@ -1540,7 +1542,6 @@ document.addEventListener("DOMContentLoaded", () => {
     </div>
   </div>
 </div>
-</script>
 
 <script src="assets/notifications.js?v=1"></script>
 <script src="assets/role-nav.js?v=1"></script>
