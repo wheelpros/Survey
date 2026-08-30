@@ -584,7 +584,7 @@ document.addEventListener("DOMContentLoaded", function () {
             <tr>
               <th>ID</th>
               <th>Form</th>
-              <th>Created By</th>
+              <th>Client</th>
               <th>Status</th>
               <th>Created At</th>
               <th>Actions</th>
@@ -831,7 +831,6 @@ function renderSurveysTable(){
 
   surveysTable.innerHTML = surveys.map(survey => {
     const meta = statusMeta[displayStatus(survey.status)] || { label: survey.status, cls: "pending" };
-    const editable = ["pending_review", "pending", "rejected"].includes(survey.status);
 
     return `
     <tr>
@@ -852,11 +851,7 @@ function renderSurveysTable(){
       <td>${esc(survey.created_at)}</td>
       <td>
         <div class="actions">
-          ${
-            editable
-            ? `<a class="btn action-btn" href="admin-form-builder.html?edit=${encodeURIComponent(survey.id)}">Edit</a>`
-            : ``
-          }
+          <button class="btn action-btn" type="button" onclick="openReview(${Number(survey.id)})">View</button>
 
           ${
             survey.status === "completed"
@@ -977,12 +972,12 @@ function renderReviewTable(){
       <td>${esc(survey.title)}</td>
       <td>
         <div class="from-to">
-          <strong>${esc(survey.created_by_name || "Unknown admin")}</strong>
-          <span>${esc(survey.created_by_email || "")}</span>
+          <strong>${esc(survey.user_name || "Unknown client")}</strong>
+          <span>${esc(survey.user_email || "")}</span>
         </div>
       </td>
       <td>
-        <span class="badge pending">${canReview ? "Awaiting your decision" : "Awaiting approval"}</span>
+        <span class="badge survey-status">In Review</span>
       </td>
       <td>${esc(survey.created_at)}</td>
       <td>

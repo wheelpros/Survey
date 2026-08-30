@@ -330,6 +330,7 @@ function ensureNotificationsTable(PDO $pdo)
               actor_kind     VARCHAR(10)      NULL,
               actor_id       INT              NULL,
               read_at        DATETIME         NULL,
+              announcement_id INT             NULL,
               created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
               KEY idx_inbox (recipient_kind, recipient_id, id),
               KEY idx_unread (recipient_kind, recipient_id, read_at)
@@ -338,5 +339,55 @@ function ensureNotificationsTable(PDO $pdo)
     } catch (PDOException $e) {
         // Read-only DB user: notify() stays silent and the sidebar badge never
         // appears. Nothing else on any page depends on it.
+    }
+}
+
+/**
+ * The announcements the owner writes by hand, plus the notifications column
+ * that points back at them.
+ *
+ * The CREATE above only fires on a fresh install, so an existing database
+ * needs the column added separately - same information_schema check
+ * ensureContentColumns() uses. Callers get both from this one function.
+ *
+ * sql/announcements.sql is the same table to run by hand.
+ */
+function ensureAnnouncementsTable(PDO $pdo)
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    ensureNotificationsTable($pdo);
+
+    try {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS announcements (
+              id                  INT AUTO_INCREMENT PRIMARY KEY,
+              audience            VARCHAR(10)  NOT NULL,
+              title               VARCHAR(200) NOT NULL,
+              body                TEXT             NULL,
+              event_date          DATE             NULL,
+              image_path          VARCHAR(255)     NULL,
+              created_by_admin_id INT              NULL,
+              created_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+
+        $stmt = $pdo->query("
+            SELECT COLUMN_NAME
+            FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'notifications'
+        ");
+        $existing = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+        if (!in_array("announcement_id", $existing, true)) {
+            $pdo->exec("ALTER TABLE notifications ADD COLUMN announcement_id INT NULL");
+        }
+    } catch (PDOException $e) {
+        // Read-only DB user: announcements cannot be written and the reader
+        // below treats every row as an ordinary notification.
     }
 }

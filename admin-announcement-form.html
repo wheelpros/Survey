@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Create Announcement — Admin</title>
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+body{background:#f6f7fb;color:#101828}
+
+/* ── Admin shell: sidebar + header (shared across admin pages) ── */
+:root{
+  --brand:#c9000b;
+  --nav-active:#1b1e3a;
+  --text:#101828;
+  --muted:#667085;
+  --line:#eaecf0;
+  --sidebar-w:260px;
+}
+.admin-sidebar{
+  width:var(--sidebar-w);
+  background:#fff;
+  border-right:1px solid var(--line);
+  position:fixed;top:0;left:0;bottom:0;
+  padding:26px 12px 18px;
+  display:flex;flex-direction:column;justify-content:space-between;
+  z-index:100;
+}
+.side-nav a{
+  display:flex;gap:10px;align-items:center;position:relative;
+  text-decoration:none;color:var(--muted);
+  padding:8px 10px;border-radius:9px;margin-bottom:2px;
+  font-size:14px;font-weight:600;
+  transition:background .15s,color .15s;
+}
+.side-nav a svg{width:17px;height:17px;flex:none}
+.side-nav a:hover{background:#f6f7f9;color:var(--text)}
+.side-nav a.active{background:var(--nav-active);color:#fff}
+.side-user{
+  width:100%;font:inherit;text-align:left;background:#fff;
+  border:1px solid var(--line);border-radius:12px;padding:10px;
+  display:flex;gap:10px;align-items:center;cursor:pointer;
+  transition:background .15s,border-color .15s;
+}
+.side-user:hover{background:#fafbfc;border-color:#d7dae0}
+.side-avatar{
+  width:36px;height:36px;border-radius:50%;
+  background:#dce3ff;color:#3745a4;
+  display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:13px;flex:none;
+}
+.side-meta{flex:1;min-width:0}
+.side-meta strong{display:block;font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.side-meta span{font-size:11px;color:#98a2b3}
+.side-dots{color:#98a2b3;flex:none}
+
+.admin-main{margin-left:var(--sidebar-w);width:calc(100% - var(--sidebar-w))}
+.admin-content{padding:35px}
+
+/* ── Collapsible sidebar ── */
+:root.sidebar-collapsed{--sidebar-w:78px}
+.admin-sidebar,.admin-main{transition:width .18s ease,margin-left .18s ease}
+:root.sidebar-collapsed .admin-sidebar{padding:26px 4px 18px}
+:root.sidebar-collapsed .side-logo{display:none}
+:root.sidebar-collapsed .side-nav a{
+  width:38px;height:38px;padding:0;margin:0 auto 4px;
+  border-radius:10px;justify-content:center;
+}
+:root.sidebar-collapsed .side-nav a span{display:none}
+/* The account card is the only entry point to logout — collapse it, never hide it. */
+:root.sidebar-collapsed .side-user{justify-content:center;padding:8px}
+:root.sidebar-collapsed .side-meta,:root.sidebar-collapsed .side-dots{display:none}
+
+/* ── Account popup (sidebar card) ── */
+.acct-modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:99999;padding:20px}
+.acct-modal.show{display:flex}
+.acct-box{width:100%;max-width:380px;background:#fff;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.18);overflow:hidden}
+.acct-head{display:flex;justify-content:space-between;align-items:center;padding:20px 24px;border-bottom:1px solid #eef1f5}
+.acct-head h2{font-size:17px}
+.acct-head button{border:none;background:var(--nav-active);color:#fff;width:34px;height:34px;border-radius:50%;font-size:22px;line-height:1;cursor:pointer}
+.acct-body{padding:24px;text-align:center}
+.acct-avatar{width:72px;height:72px;border-radius:50%;background:#dce3ff;color:#3745a4;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:26px;margin:0 auto 16px}
+.acct-body strong{display:block;font-size:16px;margin-bottom:8px}
+.acct-role{display:inline-block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--nav-active);background:#eef0f6;border-radius:20px;padding:5px 12px;margin-bottom:22px}
+.acct-logout{width:100%;height:46px;border:1px solid #f0d2d4;background:#fff;color:var(--brand);border-radius:12px;font-weight:800;font-size:14px;cursor:pointer}
+.acct-logout:hover{background:#fff5f5}
+
+/* ── Sidebar head: the collapse control ── */
+.side-head{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  min-height:36px;margin-bottom:26px;padding:0 2px;
+}
+.side-logo{padding:0;margin:0;flex:1;min-width:0}
+.side-logo img{width:132px;max-width:100%;height:auto;display:block}
+.side-toggle{
+  width:34px;height:34px;flex:none;border-radius:9px;border:none;
+  background:transparent;color:var(--muted);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .15s,color .15s;
+}
+.side-toggle:hover{background:#f2f4f8;color:var(--text)}
+.side-toggle svg{width:18px;height:18px}
+:root.sidebar-collapsed .side-head{justify-content:center;margin-bottom:22px}
+
+/* ── Unread badge on the Notifications nav item ── */
+.nav-badge{
+  margin-left:auto;font-style:normal;font-size:11px;font-weight:800;line-height:1;
+  min-width:18px;padding:3px 6px;border-radius:9px;
+  background:var(--brand);color:#fff;text-align:center;
+}
+.nav-badge[hidden]{display:none}
+.side-nav a.active .nav-badge{background:#fff;color:var(--nav-active)}
+:root.sidebar-collapsed .nav-badge{
+  position:absolute;top:4px;right:8px;margin:0;
+  width:8px;height:8px;min-width:0;padding:0;border-radius:50%;
+  font-size:0;border:2px solid #fff;
+}
+
+/* ── Page header: the back arrow sits on the title line, left of it ── */
+.page-head{display:flex;align-items:flex-start;gap:14px;margin-bottom:26px}
+.back-arrow{
+  flex:none;width:34px;height:34px;margin-top:2px;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  border:1px solid #dfe3ea;background:#fff;color:var(--text);text-decoration:none;
+}
+.back-arrow:hover{background:#f6f7f9}
+.back-arrow svg{width:17px;height:17px}
+.page-title h1{font-size:28px;margin-bottom:6px}
+.page-title p{font-size:14px;color:var(--muted);max-width:620px}
+
+/* ── The form ── */
+.form-wrap{width:100%}
+.panel{background:#fff;border-radius:18px;box-shadow:0 14px 30px rgba(0,0,0,.05);padding:26px}
+label{display:block;font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#667085;margin-bottom:8px}
+input[type=text],input[type=date],textarea{width:100%;border:1px solid #dfe3ea;background:#f8fafc;border-radius:12px;padding:12px 14px;outline:none;font-size:14px;color:var(--text)}
+input:focus,textarea:focus{border-color:var(--nav-active);box-shadow:0 0 0 3px rgba(27,30,58,.10)}
+textarea{min-height:150px;resize:vertical;line-height:1.6}
+.field-row{margin-bottom:20px}
+.field-row:last-child{margin-bottom:0}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.hint{font-size:12px;color:#98a2b3;margin-top:7px}
+
+/* ── Audience tabs: team or client, one at a time ── */
+.aud-tabs{display:inline-flex;gap:6px;background:#eef1f5;border-radius:12px;padding:5px;margin-bottom:24px}
+.aud-tab{
+  border:none;background:transparent;color:var(--muted);
+  font:inherit;font-size:13px;font-weight:800;
+  padding:10px 18px;border-radius:9px;cursor:pointer;
+  transition:background .15s,color .15s;
+}
+.aud-tab:hover{color:var(--text)}
+.aud-tab.selected{background:var(--nav-active);color:#fff}
+
+/* ── Send to: everyone, or a checked list ── */
+.radio-row{display:flex;gap:22px;flex-wrap:wrap;margin-bottom:14px}
+.radio{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text);cursor:pointer}
+.radio input{width:16px;height:16px;accent-color:var(--nav-active);cursor:pointer}
+
+/* The picker is a dropdown rather than an inline list: a hundred clients
+   would otherwise push the rest of the form off the screen. */
+.picker{position:relative;max-width:420px}
+.picker[hidden]{display:none}
+.picker-toggle{
+  width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  border:1px solid #dfe3ea;background:#f8fafc;border-radius:12px;
+  padding:12px 14px;font:inherit;font-size:14px;color:var(--text);cursor:pointer;text-align:left;
+}
+.picker-toggle:hover{background:#f2f5f9}
+.picker-toggle svg{width:15px;height:15px;flex:none;color:var(--muted);transition:transform .15s}
+.picker.open .picker-toggle svg{transform:rotate(180deg)}
+.picker-panel{
+  display:none;position:absolute;z-index:60;top:calc(100% + 6px);left:0;right:0;
+  background:#fff;border:1px solid var(--line);border-radius:12px;
+  box-shadow:0 16px 40px rgba(16,24,40,.14);padding:10px;
+}
+.picker.open .picker-panel{display:block}
+.picker-search{margin-bottom:8px}
+.picker-search input{padding:9px 12px;font-size:13px}
+.picker-list{max-height:260px;overflow-y:auto}
+.picker-group{font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#98a2b3;padding:10px 8px 6px}
+.picker-item{display:flex;align-items:center;gap:10px;padding:8px;border-radius:9px;cursor:pointer}
+.picker-item:hover{background:#f6f7f9}
+.picker-item input{width:16px;height:16px;flex:none;accent-color:var(--nav-active);cursor:pointer}
+.picker-item .who{min-width:0}
+.picker-item strong{display:block;font-size:13px;font-weight:700;color:var(--text)}
+.picker-item span{display:block;font-size:11px;color:#98a2b3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.picker-empty{padding:14px 8px;font-size:13px;color:var(--muted)}
+
+/* The checked names again, outside the dropdown, so the selection is still
+   visible once it is closed. */
+.pills{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.pills:empty{display:none}
+.pill{
+  display:inline-flex;align-items:center;gap:8px;
+  background:#eef1f5;border-radius:20px;padding:6px 8px 6px 12px;
+  font-size:12px;font-weight:700;color:var(--text);
+}
+.pill button{border:none;background:transparent;color:#98a2b3;font:inherit;font-size:15px;line-height:1;cursor:pointer;padding:0 2px}
+.pill button:hover{color:var(--brand)}
+
+/* ── Media dropzone (same control as the content creation page) ── */
+.dropzone{border:2px dashed #d5dbe6;border-radius:14px;background:#fbfcfe;padding:26px 16px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
+.dropzone:hover,.dropzone.dragging{border-color:var(--nav-active);background:#f5f6fa}
+.dropzone svg{width:24px;height:24px;color:var(--muted);margin-bottom:10px}
+.dropzone strong{display:block;font-size:13px;margin-bottom:4px}
+.dropzone span{font-size:11px;color:#98a2b3}
+.media-preview{display:none;position:relative}
+.media-preview.show{display:block}
+.media-preview .thumb{background:#f1f3f7 center/cover no-repeat;border-radius:12px;aspect-ratio:2.4/1}
+.media-preview .remove{position:absolute;top:8px;right:8px;width:28px;height:28px;border:none;border-radius:50%;background:rgba(16,24,40,.75);color:#fff;font-size:16px;line-height:1;cursor:pointer}
+.media-error{display:none;font-size:12px;color:var(--brand);font-weight:700;margin-top:10px}
+.media-error.show{display:block}
+
+/* ── Send ── */
+.primary-btn{width:100%;height:52px;margin-top:26px;border:none;border-radius:12px;background:var(--nav-active);color:#fff;font:inherit;font-size:14px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.primary-btn:hover{background:#282c52}
+.primary-btn:disabled{opacity:.6;cursor:not-allowed}
+.primary-btn svg{width:15px;height:15px}
+.status-text{margin-top:12px;font-size:13px;font-weight:700;text-align:center;min-height:18px}
+.status-text.error{color:var(--brand)}
+.status-text.ok{color:#067647}
+
+@media(max-width:950px){
+  .side-head{display:none}
+  .admin-content{padding:24px 18px 40px}
+}
+@media(max-width:600px){
+  .two-col{grid-template-columns:1fr}
+}
+</style>
+
+<script>
+// Runs before paint so the collapsed state never flashes open on load.
+(function () {
+  var root = document.documentElement;
+  var KEY = "wz_sidebar_collapsed";
+  var MOBILE = 950;
+  function prefersCollapsed(){ return localStorage.getItem(KEY) === "1"; }
+  function apply(){ root.classList.toggle("sidebar-collapsed", window.innerWidth <= MOBILE || prefersCollapsed()); }
+  window.toggleSidebar = function(){
+    if (window.innerWidth <= MOBILE) return; // forced collapsed, nothing to toggle
+    localStorage.setItem(KEY, prefersCollapsed() ? "0" : "1");
+    apply();
+  };
+  apply();
+  window.addEventListener("resize", apply);
+})();
+
+// Sidebar account card -> popup. Admins have no editable profile record, so this
+// is identity + logout only; system config lives on settings.html.
+function openAccount(){ document.getElementById("acctModal").classList.add("show"); }
+function closeAccount(){ document.getElementById("acctModal").classList.remove("show"); }
+document.addEventListener("DOMContentLoaded", function () {
+  var a = {};
+  try { a = JSON.parse(localStorage.getItem("admin_user") || "{}"); } catch (e) {}
+  var name = a.name || "Admin";
+  var label = a.role === "super_admin" ? "Super Admin" : "Administrator";
+  var initial = name.charAt(0).toUpperCase();
+  function set(id, v){ var el = document.getElementById(id); if (el) el.textContent = v; }
+  set("adminName", name);  set("adminRole", label);  set("adminAvatar", initial);
+  set("acctName", name);   set("acctRole", label);   set("acctAvatar", initial);
+});
+</script>
+</head>
+
+<body>
+
+<aside class="admin-sidebar">
+  <div>
+    <div class="side-head">
+      <div class="side-logo">
+        <img src="logo.png" alt="W|ZONE London" onerror="this.onerror=null;this.src='assets/WZONE%20source.png'">
+      </div>
+      <button class="side-toggle" type="button" onclick="toggleSidebar()" title="Toggle sidebar" aria-label="Toggle sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9.5 4v16"/></svg>
+      </button>
+    </div>
+    <nav class="side-nav">
+      <a href="admin.html" title="Forms">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <span>Forms</span>
+      </a>
+      <a href="responses.html" title="Responses">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span>Responses</span>
+      </a>
+      <a href="admin-content.html" title="Content">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+        <span>Content</span>
+      </a>
+      <a href="clients-management.html" id="clientsManagementLink" title="Clients Management">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Clients Management</span>
+      </a>
+      <a href="sources-files.html" title="Sources &amp; Files">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        <span>Sources &amp; Files</span>
+      </a>
+      <a href="admin-calendar.html" title="Calendar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span>Calendar</span>
+      </a>
+      <a href="admin-notifications.html" title="Notifications" class="active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 6-3 7-3 7h18s-3-1-3-7"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+        <span>Notifications</span>
+        <em class="nav-badge" id="notifBadge" hidden></em>
+      </a>
+      <a href="settings.html" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span>Settings</span>
+      </a>
+    </nav>
+  </div>
+
+  <button class="side-user" type="button" onclick="openAccount()" title="Account">
+    <div class="side-avatar" id="adminAvatar">A</div>
+    <div class="side-meta">
+      <strong id="adminName">Admin</strong>
+      <span id="adminRole">Administrator</span>
+    </div>
+    <svg class="side-dots" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
+  </button>
+</aside>
+
+<div class="admin-main">
+  <div class="admin-content">
+
+    <div class="page-head">
+      <a class="back-arrow" href="admin-notifications.html" title="Back to Notifications" aria-label="Back to Notifications">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      </a>
+      <div class="page-title">
+        <h1>Create Announcement</h1>
+        <p>Send an announcement to your team or to a client.</p>
+      </div>
+    </div>
+
+    <div class="form-wrap">
+
+      <!-- The audience decides which list the picker below is filled from:
+           the team tab offers admins, the client tab offers portal users. -->
+      <div class="aud-tabs" role="tablist">
+        <button class="aud-tab selected" type="button" id="tabTeam" onclick="selectAudience('team')">Team Announcement</button>
+        <button class="aud-tab" type="button" id="tabClient" onclick="selectAudience('client')">Client Announcement</button>
+      </div>
+
+      <div class="panel">
+
+        <div class="field-row">
+          <label>Send to</label>
+
+          <div class="radio-row">
+            <label class="radio">
+              <input type="radio" name="scope" value="all" checked onchange="selectScope('all')">
+              <span id="scopeAllLabel">Whole team</span>
+            </label>
+            <label class="radio">
+              <input type="radio" name="scope" value="specific" onchange="selectScope('specific')">
+              <span>Specific people</span>
+            </label>
+          </div>
+
+          <div class="picker" id="picker" hidden>
+            <button class="picker-toggle" type="button" id="pickerToggle" onclick="togglePicker()">
+              <span id="pickerLabel">Select people</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+
+            <div class="picker-panel">
+              <div class="picker-search">
+                <input type="text" id="pickerSearch" placeholder="Search by name or email" oninput="renderPicker()">
+              </div>
+              <div class="picker-list" id="pickerList"></div>
+            </div>
+          </div>
+
+          <div class="pills" id="pickerPills"></div>
+        </div>
+
+        <div class="field-row">
+          <label for="titleInput">Title</label>
+          <input type="text" id="titleInput" maxlength="200" placeholder="e.g. Holiday schedule update">
+        </div>
+
+        <div class="field-row">
+          <label for="descInput">Description</label>
+          <textarea id="descInput" maxlength="5000" placeholder="Write the announcement details..."></textarea>
+        </div>
+
+        <div class="field-row two-col">
+          <div>
+            <label for="dateInput">Date</label>
+            <input type="date" id="dateInput">
+            <div class="hint">Shown with the announcement. Nothing is scheduled on it.</div>
+          </div>
+
+          <div>
+            <label>Attach file</label>
+
+            <div class="dropzone" id="dropzone" onclick="document.getElementById('mediaInput').click()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <strong>Upload image</strong>
+              <span>JPG, PNG, WEBP or GIF &middot; max size 3 MB</span>
+            </div>
+
+            <div class="media-preview" id="mediaPreview">
+              <div class="thumb" id="mediaThumb"></div>
+              <button class="remove" type="button" onclick="clearMedia()" title="Remove image">&times;</button>
+            </div>
+
+            <input type="file" id="mediaInput" accept="image/*" hidden>
+            <div class="media-error" id="mediaError"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <button class="primary-btn" type="button" id="sendBtn" onclick="sendAnnouncement()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 6-3 7-3 7h18s-3-1-3-7"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+        <span id="sendLabel">Send to team</span>
+      </button>
+
+      <div class="status-text" id="statusText"></div>
+
+    </div>
+
+  </div>
+</div>
+
+<!-- ACCOUNT POPUP (opened from the sidebar card) -->
+<div class="acct-modal" id="acctModal">
+  <div class="acct-box">
+    <div class="acct-head">
+      <h2>Account</h2>
+      <button type="button" onclick="closeAccount()" aria-label="Close">&times;</button>
+    </div>
+    <div class="acct-body">
+      <div class="acct-avatar" id="acctAvatar">A</div>
+      <strong id="acctName">Admin</strong>
+      <div class="acct-role" id="acctRole">Administrator</div>
+      <button class="acct-logout" onclick="logoutAdmin()">&#8617; Logout</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const adminToken = localStorage.getItem("admin_token");
+const adminUser = JSON.parse(localStorage.getItem("admin_user") || "{}");
+
+if(!adminToken || !adminUser.role){
+  window.location.href = "admin-login.html";
+}
+
+/* Writing an announcement is the owner's alone - api/announcements.php refuses
+   everybody else too, so this only saves them a wasted trip. */
+if(adminUser.role !== "owner"){
+  window.location.href = "admin-notifications.html";
+}
+
+function logoutAdmin(){
+  localStorage.removeItem("admin_token");
+  localStorage.removeItem("admin_user");
+  window.location.href = "admin-login.html";
+}
+
+function esc(value){
+  return String(value == null ? "" : value)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+
+function setStatus(message, kind){
+  const el = document.getElementById("statusText");
+  el.innerText = message || "";
+  el.className = "status-text" + (kind ? " " + kind : "");
+}
+
+/* ── Audience and recipients ─────────────────────────────────────────────────
+   Both lists arrive in one payload and are re-rendered from memory when the
+   tab changes, so switching back and forth costs nothing. The two selections
+   are kept apart: ticking three admins and then switching to clients must not
+   send an announcement to three ids from the wrong table. */
+
+let audience = "team";
+let scope = "all";
+let people = { team: [], client: [] };
+let selected = { team: [], client: [] };
+
+const ROLE_GROUPS = [
+  { role:"owner",           label:"Owner" },
+  { role:"super_admin",     label:"Super Admins" },
+  { role:"account_manager", label:"Account Managers" },
+  { role:"seo_admin",       label:"Team Members" }
+];
+
+async function loadRecipients(){
+  try{
+    const res = await fetch("api/announcements.php?action=recipients", {
+      headers:{ Authorization:"Bearer " + adminToken }
+    });
+
+    const data = await res.json();
+
+    if(!data.success){
+      setStatus(data.message || "Unable to load the people list.", "error");
+      return;
+    }
+
+    people.team = data.team || [];
+    people.client = data.clients || [];
+
+    renderPicker();
+
+  }catch(error){
+    setStatus("Connection error.", "error");
+  }
+}
+
+function selectAudience(value){
+  if(audience === value) return;
+
+  audience = value;
+
+  document.getElementById("tabTeam").classList.toggle("selected", value === "team");
+  document.getElementById("tabClient").classList.toggle("selected", value === "client");
+
+  document.getElementById("scopeAllLabel").innerText =
+    value === "team" ? "Whole team" : "All clients";
+  document.getElementById("sendLabel").innerText =
+    value === "team" ? "Send to team" : "Send to client";
+
+  document.getElementById("pickerSearch").value = "";
+  renderPicker();
+  renderPills();
+  setStatus("");
+}
+
+function selectScope(value){
+  scope = value;
+  document.getElementById("picker").hidden = value !== "specific";
+  if(value !== "specific") closePicker();
+  renderPills();
+}
+
+function togglePicker(){
+  document.getElementById("picker").classList.toggle("open");
+}
+
+function closePicker(){
+  document.getElementById("picker").classList.remove("open");
+}
+
+// A dropdown that stays open behind a click elsewhere on the form reads as
+// stuck, so anything outside it closes it.
+document.addEventListener("click", event => {
+  const picker = document.getElementById("picker");
+  if(picker && !picker.contains(event.target)) closePicker();
+});
+
+/** The people the current tab offers, narrowed by the search box. */
+function visiblePeople(){
+  const term = document.getElementById("pickerSearch").value.trim().toLowerCase();
+  const list = people[audience] || [];
+
+  if(!term) return list;
+
+  return list.filter(person =>
+    (person.name || "").toLowerCase().includes(term) ||
+    (person.email || "").toLowerCase().includes(term) ||
+    (person.company || "").toLowerCase().includes(term)
+  );
+}
+
+function renderPicker(){
+  const list = document.getElementById("pickerList");
+  const visible = visiblePeople();
+
+  if(!visible.length){
+    list.innerHTML = `<div class="picker-empty">${
+      (people[audience] || []).length ? "Nobody matches that search." : "Nobody to send to yet."
+    }</div>`;
+    renderPickerLabel();
+    return;
+  }
+
+  if(audience === "client"){
+    list.innerHTML = visible.map(person => itemHtml(person, person.company || person.email)).join("");
+    renderPickerLabel();
+    return;
+  }
+
+  // Admins are grouped by role, so a long list still reads as a team rather
+  // than one flat column of names.
+  list.innerHTML = ROLE_GROUPS.map(group => {
+    const members = visible.filter(person => person.role === group.role);
+    if(!members.length) return "";
+
+    return `<div class="picker-group">${esc(group.label)}</div>` +
+      members.map(person => itemHtml(person, person.email)).join("");
+  }).join("");
+
+  renderPickerLabel();
+}
+
+function itemHtml(person, secondary){
+  const checked = selected[audience].includes(person.id) ? " checked" : "";
+
+  return `
+    <label class="picker-item">
+      <input type="checkbox" value="${person.id}"${checked} onchange="togglePerson(${person.id}, this.checked)">
+      <span class="who">
+        <strong>${esc(person.name)}</strong>
+        <span>${esc(secondary || "")}</span>
+      </span>
+    </label>
+  `;
+}
+
+function togglePerson(id, checked){
+  const list = selected[audience];
+  const at = list.indexOf(id);
+
+  if(checked && at === -1) list.push(id);
+  if(!checked && at !== -1) list.splice(at, 1);
+
+  renderPickerLabel();
+  renderPills();
+}
+
+function removePerson(id){
+  selected[audience] = selected[audience].filter(entry => entry !== id);
+  renderPicker();
+  renderPills();
+}
+
+function renderPickerLabel(){
+  const count = selected[audience].length;
+
+  document.getElementById("pickerLabel").innerText =
+    count ? count + " selected" : "Select people";
+}
+
+/* The dropdown closes over its own checkboxes, so the names also live outside
+   it - the mockup's chips, each one a way to unpick that person. */
+function renderPills(){
+  const wrap = document.getElementById("pickerPills");
+
+  if(scope !== "specific" || !selected[audience].length){
+    wrap.innerHTML = "";
+    return;
+  }
+
+  const byId = {};
+  (people[audience] || []).forEach(person => { byId[person.id] = person; });
+
+  wrap.innerHTML = selected[audience].map(id => {
+    const person = byId[id];
+    if(!person) return "";
+
+    return `
+      <span class="pill">
+        ${esc(person.name)}
+        <button type="button" onclick="removePerson(${id})" title="Remove" aria-label="Remove">&times;</button>
+      </span>
+    `;
+  }).join("");
+}
+
+/* ── Attachment ──────────────────────────────────────────────────────────────
+   The same control as the content creation page: a hidden input behind a
+   dropzone, previewed as a data URL. A dropped file never reaches the input,
+   so the file object is what gets held, not input.files. */
+
+let mediaFile = null;
+
+const MAX_MEDIA = 3 * 1024 * 1024;
+const dropzone = document.getElementById("dropzone");
+
+document.getElementById("mediaInput").addEventListener("change", event => {
+  if(event.target.files[0]) handleMedia(event.target.files[0]);
+});
+
+["dragenter","dragover"].forEach(type => {
+  dropzone.addEventListener(type, event => {
+    event.preventDefault();
+    dropzone.classList.add("dragging");
+  });
+});
+
+["dragleave","drop"].forEach(type => {
+  dropzone.addEventListener(type, event => {
+    event.preventDefault();
+    dropzone.classList.remove("dragging");
+  });
+});
+
+dropzone.addEventListener("drop", event => {
+  const file = event.dataTransfer.files[0];
+  if(file) handleMedia(file);
+});
+
+function handleMedia(file){
+  const error = document.getElementById("mediaError");
+
+  if(!file.type.startsWith("image/")){
+    error.innerText = "Only image files are allowed.";
+    error.classList.add("show");
+    return;
+  }
+
+  if(file.size > MAX_MEDIA){
+    error.innerText = "That image is over 3 MB. Pick a smaller one.";
+    error.classList.add("show");
+    return;
+  }
+
+  error.classList.remove("show");
+  mediaFile = file;
+
+  const reader = new FileReader();
+  reader.onload = () => showMedia(reader.result);
+  reader.onerror = () => {
+    error.innerText = "That image could not be read.";
+    error.classList.add("show");
+  };
+  reader.readAsDataURL(file);
+}
+
+function showMedia(url){
+  document.getElementById("mediaThumb").style.backgroundImage = `url('${url}')`;
+  document.getElementById("mediaPreview").classList.add("show");
+  dropzone.style.display = "none";
+}
+
+function clearMedia(){
+  mediaFile = null;
+  document.getElementById("mediaInput").value = "";
+  document.getElementById("mediaThumb").style.backgroundImage = "";
+  document.getElementById("mediaPreview").classList.remove("show");
+  document.getElementById("mediaError").classList.remove("show");
+  dropzone.style.display = "";
+}
+
+/* ── Sending ── */
+
+async function sendAnnouncement(){
+  const button = document.getElementById("sendBtn");
+  const title = document.getElementById("titleInput").value.trim();
+
+  if(!title){
+    setStatus("Give the announcement a title.", "error");
+    return;
+  }
+
+  if(scope === "specific" && !selected[audience].length){
+    setStatus("Pick at least one person.", "error");
+    return;
+  }
+
+  const form = new FormData();
+  form.append("action", "create");
+  form.append("audience", audience);
+  form.append("scope", scope);
+  form.append("title", title);
+  form.append("description", document.getElementById("descInput").value.trim());
+  form.append("event_date", document.getElementById("dateInput").value);
+
+  if(scope === "specific"){
+    form.append("recipient_ids", selected[audience].join(","));
+  }
+
+  if(mediaFile) form.append("image", mediaFile);
+
+  button.disabled = true;
+  setStatus("Sending...");
+
+  try{
+    // No Content-Type header: the browser has to set the multipart boundary.
+    const res = await fetch("api/announcements.php", {
+      method: "POST",
+      headers:{ Authorization:"Bearer " + adminToken },
+      body: form
+    });
+
+    const data = await res.json();
+
+    if(!res.ok || !data.success){
+      setStatus(data.message || "Something went wrong.", "error");
+      button.disabled = false;
+      return;
+    }
+
+    setStatus(data.message, "ok");
+
+    // Straight back to the inbox, where the announcement now sits.
+    setTimeout(() => { window.location.href = "admin-notifications.html"; }, 900);
+
+  }catch(error){
+    setStatus("Connection error.", "error");
+    button.disabled = false;
+  }
+}
+
+loadRecipients();
+</script>
+
+<script src="assets/notifications.js?v=1"></script>
+<script src="assets/role-nav.js?v=1"></script>
+
+<script>
+/* The calendar is account-management work, so the link is hidden from admins
+   who cannot open it. api/calendar.php and the page itself refuse the role
+   too - this only hides a dead link. */
+(function () {
+  var CALENDAR_ROLES = ["owner", "super_admin", "account_manager"];
+  var role = "";
+  try { role = (JSON.parse(localStorage.getItem("admin_user") || "{}") || {}).role || ""; } catch (e) {}
+  if (!role || CALENDAR_ROLES.indexOf(role) !== -1) return;
+  document.querySelectorAll('a[href*="admin-calendar.html"]').forEach(function (link) { link.remove(); });
+})();
+</script>
+
+</body>
+</html>

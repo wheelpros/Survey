@@ -158,10 +158,25 @@ a.notif:hover{background:#fbfcfd}
 .notif-text p{font-size:13px;color:var(--muted);line-height:1.5}
 .notif time{flex:none;font-size:12px;color:#98a2b3;white-space:nowrap}
 
-.more-wrap{margin-top:20px;text-align:center}
-.more-wrap[hidden]{display:none}
-.more-btn{border:1px solid #dfe3ea;background:#fff;color:var(--text);font:inherit;font-size:13px;font-weight:800;padding:11px 18px;border-radius:10px;cursor:pointer}
-.more-btn:hover{background:#f6f7f9}
+/* ── Announcement detail ──
+   The .detail / .field / .pager vocabulary is already defined above, so only
+   what an announcement adds to it lives here: the row that opens the panel,
+   the close button, and the one fixed layout - image left, words right. */
+.notif.is-announcement{cursor:pointer}
+.notif-clip{display:inline-flex;align-items:center;gap:5px;margin-top:8px;font-size:11px;font-weight:800;color:#98a2b3}
+.notif-clip svg{width:12px;height:12px}
+.detail-wrap[hidden]{display:none}
+.detail-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.detail-close{flex:none;border:1px solid #dfe3ea;background:#fff;color:var(--muted);width:34px;height:34px;border-radius:50%;font-size:20px;line-height:1;cursor:pointer}
+.detail-close:hover{background:#f6f7f9;color:var(--text)}
+.detail{grid-template-columns:300px 1fr}
+.detail-media{aspect-ratio:9/16}
+/* No attachment: the copy takes the whole panel rather than sitting beside a grey box. */
+.detail.no-media{grid-template-columns:1fr}
+.detail.no-media .detail-media{display:none}
+/* Line breaks the sender typed are part of the message. */
+.field p{white-space:pre-wrap}
+@media(max-width:800px){.detail{grid-template-columns:1fr}}
 
 @media(max-width:600px){
   .page-head{flex-direction:column;gap:16px}
@@ -303,8 +318,44 @@ a.notif:hover{background:#fbfcfd}
       </div>
     </div>
 
-    <div class="more-wrap" id="moreWrap" hidden>
-      <button class="more-btn" type="button" id="moreBtn" onclick="loadMore()">Load older</button>
+    <div class="pager" id="notifPager" hidden>
+      <span class="pager-info" id="notifPagerInfo"></span>
+      <div class="pager-pages" id="notifPagerPages"></div>
+    </div>
+
+    <!-- Opened by an announcement row above, closed by the X. -->
+    <div class="detail-wrap" id="announcementWrap" hidden>
+      <div class="detail-head">
+        <div>
+          <div class="eyebrow" id="announcementEyebrow">Announcement</div>
+          <h2 id="announcementTitle"></h2>
+        </div>
+        <button class="detail-close" type="button" onclick="closeAnnouncement()" aria-label="Close">&times;</button>
+      </div>
+
+      <article class="detail" id="announcementPanel">
+        <div class="detail-media" id="announcementMedia"></div>
+        <div class="detail-meta">
+          <div class="field">
+            <h5>Details</h5>
+            <p id="announcementBody">—</p>
+          </div>
+          <div class="detail-footer">
+            <div class="field">
+              <h5>Date</h5>
+              <p id="announcementDate">—</p>
+            </div>
+            <div class="field">
+              <h5>Sent by</h5>
+              <p id="announcementSender">—</p>
+            </div>
+            <div class="field">
+              <h5>Sent</h5>
+              <p id="announcementSent">—</p>
+            </div>
+          </div>
+        </div>
+      </article>
     </div>
 
   </section>
@@ -328,8 +379,8 @@ setAvatarImage(user);
    an offset so a fan-out written inside one second cannot shuffle between
    pages. `link` arrives ready-made, so nothing here knows about event types. */
 
-let oldestId = 0;
-let loadedAny = false;
+const PAGE_SIZE = 25;
+let currentPage = 1;
 
 function esc(value){
   return String(value == null ? "" : value)
@@ -354,18 +405,27 @@ function timeAgo(seconds){
 }
 
 function rowHtml(item){
-  const classes = "notif" + (item.read ? "" : " unread");
+  const isAnnouncement = Boolean(item.announcement_id);
+  const classes = "notif" + (item.read ? "" : " unread") + (isAnnouncement ? " is-announcement" : "");
 
   const inner = `
     <span class="notif-dot"></span>
     <div class="notif-text">
       <strong>${esc(item.title)}</strong>
       ${item.body ? `<p>${esc(item.body)}</p>` : ""}
+      ${isAnnouncement ? `<span class="notif-clip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        Open announcement</span>` : ""}
     </div>
     <time>${esc(timeAgo(item.created_ts))}</time>
   `;
 
-  // A row with nowhere to go is not a link - it still marks itself read.
+  // An announcement has nowhere to link to: the row opens the panel below
+  // instead. A row with neither still marks itself read.
+  if(isAnnouncement){
+    return `<div class="${classes}" data-id="${item.id}" data-announcement="${item.announcement_id}">${inner}</div>`;
+  }
+
   return item.link
     ? `<a class="${classes}" href="${esc(item.link)}" data-id="${item.id}">${inner}</a>`
     : `<div class="${classes}" data-id="${item.id}">${inner}</div>`;
@@ -384,11 +444,11 @@ function paintUnread(count){
   badge.hidden = n <= 0;
 }
 
-async function loadPage(before){
+async function loadPage(page){
   const list = document.getElementById("notifList");
 
-  let url = "api/notifications.php?action=list&limit=25";
-  if(before) url += "&before=" + encodeURIComponent(before);
+  const url = "api/notifications.php?action=list&limit=" + PAGE_SIZE +
+    "&page=" + encodeURIComponent(page || 1);
 
   try{
     const res = await fetch(url, {
@@ -398,39 +458,137 @@ async function loadPage(before){
     const data = await res.json();
 
     if(!data.success){
-      if(!loadedAny){
-        list.innerHTML = `<div class="empty">${esc(data.message || "Unable to load notifications.")}</div>`;
-      }
+      list.innerHTML = `<div class="empty">${esc(data.message || "Unable to load notifications.")}</div>`;
+      renderPager(0, 0, 0, 0);
       return;
     }
 
     const rows = data.notifications || [];
 
-    if(!loadedAny && !rows.length){
+    // The server clamps the page to what exists, so this is the page actually
+    // being shown, not the one that was asked for.
+    currentPage = Number(data.page) || 1;
+
+    if(!rows.length){
       list.innerHTML = `<div class="empty">Nothing yet. Updates on your forms, meetings and new content will show up here.</div>`;
-      paintUnread(0);
+      renderPager(0, 0, 0, 0);
+      paintUnread(data.unread);
       return;
     }
 
-    if(!loadedAny) list.innerHTML = "";
+    list.innerHTML = rows.map(rowHtml).join("");
 
-    list.insertAdjacentHTML("beforeend", rows.map(rowHtml).join(""));
+    renderPager(
+      Number(data.total) || rows.length,
+      Number(data.total_pages) || 1,
+      (currentPage - 1) * PAGE_SIZE,
+      rows.length
+    );
 
-    if(rows.length) oldestId = rows[rows.length - 1].id;
-    loadedAny = true;
-
-    document.getElementById("moreWrap").hidden = !data.has_more;
     paintUnread(data.unread);
 
   }catch(err){
-    if(!loadedAny){
-      list.innerHTML = `<div class="empty">Connection error.</div>`;
-    }
+    list.innerHTML = `<div class="empty">Connection error.</div>`;
+    renderPager(0, 0, 0, 0);
   }
 }
 
-function loadMore(){
-  loadPage(oldestId);
+/* Paging is server-side, so a page change is a fetch rather than a slice of
+   something already in memory. */
+function goToPage(page){
+  // The open announcement belongs to a row that is about to be replaced.
+  closeAnnouncement();
+  loadPage(page);
+  document.getElementById("notifList").scrollIntoView({ behavior:"smooth", block:"start" });
+}
+
+function renderPager(total, totalPages, start, shown){
+  const pager = document.getElementById("notifPager");
+
+  if(total <= PAGE_SIZE){
+    pager.hidden = true;
+    return;
+  }
+
+  pager.hidden = false;
+
+  document.getElementById("notifPagerInfo").innerText =
+    `Showing ${start + 1}-${start + shown} of ${total}`;
+
+  const pages = Array.from({ length: totalPages }, (unused, index) => index + 1);
+
+  document.getElementById("notifPagerPages").innerHTML = `
+    <button type="button" onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? "disabled" : ""}>Prev</button>
+    ${pages.map(page => `
+      <button type="button" class="${page === currentPage ? "current" : ""}"
+              onclick="goToPage(${page})">${page}</button>
+    `).join("")}
+    <button type="button" onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? "disabled" : ""}>Next</button>
+  `;
+}
+
+/* The announcement panel. The row carries only an id; the message itself -
+   description, date, image - comes from api/announcements.php, which checks
+   the caller was actually sent it. */
+let openAnnouncementId = null;
+
+async function openAnnouncement(id){
+  const wrap = document.getElementById("announcementWrap");
+
+  openAnnouncementId = id;
+
+  try{
+    const res = await fetch("api/announcements.php?action=get&id=" + encodeURIComponent(id), {
+      headers:{ Authorization:"Bearer " + token }
+    });
+
+    const data = await res.json();
+
+    // A second click landed first, and this reply is for the older one.
+    if(openAnnouncementId !== id) return;
+
+    if(!data.success || !data.announcement){
+      wrap.hidden = true;
+      return;
+    }
+
+    const item = data.announcement;
+
+    document.getElementById("announcementTitle").innerText = item.title || "";
+    document.getElementById("announcementBody").innerText = item.body || "—";
+    document.getElementById("announcementDate").innerText = formatDate(item.event_date);
+    document.getElementById("announcementSender").innerText = item.created_by_name || "—";
+    document.getElementById("announcementSent").innerText = timeAgo(item.created_ts);
+
+    const panel = document.getElementById("announcementPanel");
+    panel.className = "detail" + (item.image_path ? "" : " no-media");
+
+    document.getElementById("announcementMedia").style.backgroundImage =
+      item.image_path ? `url('${encodeURI(item.image_path)}')` : "";
+
+    wrap.hidden = false;
+    wrap.scrollIntoView({ behavior:"smooth", block:"nearest" });
+
+  }catch(err){
+    wrap.hidden = true;
+  }
+}
+
+function closeAnnouncement(){
+  openAnnouncementId = null;
+  document.getElementById("announcementWrap").hidden = true;
+}
+
+/* event_date is a bare Y-m-d with no time, so it is split by hand rather than
+   passed to Date(), which would read it as UTC midnight and slip a day. */
+function formatDate(value){
+  if(!value) return "—";
+
+  const parts = String(value).split("-");
+  if(parts.length !== 3) return value;
+
+  return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
+    .toLocaleDateString(undefined, {day:"numeric", month:"short", year:"numeric"});
 }
 
 async function markRead(id){
@@ -476,7 +634,7 @@ async function markAllRead(){
   }
 }
 
-/* One delegated handler, so rows added by "Load older" are covered too. */
+/* One delegated handler, so the rows a page change redraws are covered too. */
 document.getElementById("notifList").addEventListener("click", async event => {
   const row = event.target.closest(".notif");
   if(!row) return;
@@ -484,6 +642,14 @@ document.getElementById("notifList").addEventListener("click", async event => {
   const id = Number(row.dataset.id);
   const wasUnread = row.classList.contains("unread");
   row.classList.remove("unread");
+
+  const announcementId = Number(row.dataset.announcement);
+
+  if(announcementId){
+    if(wasUnread && id) markRead(id);
+    openAnnouncement(announcementId);
+    return;
+  }
 
   const href = row.tagName === "A" ? row.getAttribute("href") : "";
 
@@ -517,7 +683,7 @@ function logout(){
   window.location.href = "login.html";
 }
 
-loadPage(0);
+loadPage(1);
 </script>
 
 <script src="assets/notifications.js?v=1"></script>

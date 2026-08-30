@@ -16,6 +16,10 @@
 -- built at the moment the event fires. Both pages render it verbatim, which
 -- keeps them free of any per-event-type logic.
 --
+-- `announcement_id` is the one exception to that: an announcement has nowhere
+-- to link to, so the row carries a key into sql/announcements.sql instead and
+-- the page opens its detail panel in place.
+--
 -- Rows are ordered by id, never created_at: a fan-out writes N rows inside
 -- the same second, and second-granular ties make paging non-deterministic.
 --
@@ -38,6 +42,8 @@ CREATE TABLE IF NOT EXISTS notifications (
   actor_id       INT              NULL,      -- users.id or admins.id
 
   read_at        DATETIME         NULL,      -- NULL means unread
+
+  announcement_id INT             NULL,      -- announcements.id, for hand-written announcements only
 
   created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
 

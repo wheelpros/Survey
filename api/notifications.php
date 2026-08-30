@@ -58,7 +58,8 @@ if (!$token) {
     reply(false, "No token provided");
 }
 
-ensureNotificationsTable($pdo);
+// Brings the notifications table and the announcement_id column with it.
+ensureAnnouncementsTable($pdo);
 
 $stmt = $pdo->prepare("SELECT id FROM users WHERE session_token = ? LIMIT 1");
 $stmt->execute([$token]);
@@ -110,36 +111,37 @@ if ($action === "list") {
     $limit = (int) ($_GET["limit"] ?? 25);
     $limit = max(1, min(50, $limit));
 
-    // Keyset paging on the primary key, not OFFSET: a fan-out writes several
-    // rows inside the same second, so created_at cannot order them stably.
-    $before = (int) ($_GET["before"] ?? 0);
+    // Numbered pages, like every other list in the app. Ordering stays on the
+    // primary key: a fan-out writes several rows inside the same second, so
+    // created_at cannot order them stably, but id is unique and monotonic, so
+    // an offset over it lands on the same slice every time.
+    $page = max(1, (int) ($_GET["page"] ?? 1));
 
-    $sql = "
-        SELECT id, event_type, title, body, link, read_at,
+    $stmt = $pdo->prepare("
+        SELECT COUNT(*)
+        FROM notifications
+        WHERE recipient_kind = ? AND recipient_id = ?
+    ");
+    $stmt->execute([$kind, $me]);
+    $total = (int) $stmt->fetchColumn();
+
+    $totalPages = max(1, (int) ceil($total / $limit));
+
+    // A row read on the last page can empty it before the next request.
+    $page = min($page, $totalPages);
+
+    $offset = ($page - 1) * $limit;
+
+    $stmt = $pdo->prepare("
+        SELECT id, event_type, title, body, link, read_at, announcement_id,
                created_at, UNIX_TIMESTAMP(created_at) AS created_ts
         FROM notifications
         WHERE recipient_kind = ? AND recipient_id = ?
-    ";
-    $params = [$kind, $me];
-
-    if ($before > 0) {
-        $sql .= " AND id < ?";
-        $params[] = $before;
-    }
-
-    // One more than asked for, so the extra row answers "is there another
-    // page" without a second COUNT.
-    $sql .= " ORDER BY id DESC LIMIT " . ($limit + 1);
-
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
+        ORDER BY id DESC
+        LIMIT " . $limit . " OFFSET " . $offset . "
+    ");
+    $stmt->execute([$kind, $me]);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    $hasMore = count($rows) > $limit;
-
-    if ($hasMore) {
-        array_pop($rows);
-    }
 
     $notifications = array_map(function ($row) {
         return [
@@ -149,6 +151,11 @@ if ($action === "list") {
             "body"       => $row["body"],
             "link"       => $row["link"],
             "read"       => $row["read_at"] !== null,
+            // Set only on a hand-written announcement: the page opens its
+            // detail panel instead of following a link.
+            "announcement_id" => $row["announcement_id"] !== null
+                ? (int) $row["announcement_id"]
+                : null,
             "created_at" => $row["created_at"],
             // MySQL's CURRENT_TIMESTAMP is server-local, and a bare
             // "Y-m-d H:i:s" parsed in a browser is read as browser-local. The
@@ -160,7 +167,9 @@ if ($action === "list") {
     reply(true, "", [
         "notifications" => $notifications,
         "unread"        => unreadCount($pdo, $kind, $me),
-        "has_more"      => $hasMore,
+        "total"         => $total,
+        "page"          => $page,
+        "total_pages"   => $totalPages,
     ]);
 }
 

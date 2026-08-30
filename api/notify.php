@@ -37,6 +37,7 @@ const NOTIFY_FORM_SUBMITTED       = "form_submitted";
 const NOTIFY_APPOINTMENT_REQUEST  = "appointment_request";
 const NOTIFY_APPOINTMENT_ANSWERED = "appointment_answered";
 const NOTIFY_CONTENT_PUBLISHED    = "content_published";
+const NOTIFY_ANNOUNCEMENT         = "announcement";
 
 /**
  * One row for one recipient. $kind is 'user' or 'admin', naming the table
@@ -200,5 +201,65 @@ function notifyUsersAtCompany(
 
     foreach ($ids as $id) {
         notify($pdo, "user", (int) $id, $type, $title, $body, $link, "admin", $actorAdminId);
+    }
+}
+
+/**
+ * The fan-out for one hand-written announcement, to a recipient list the
+ * caller has already resolved and checked.
+ *
+ * It owns its INSERT rather than calling notify() because these rows carry
+ * announcement_id, and the other five callers have no use for that column.
+ * $kind is 'user' or 'admin' for the whole batch - an announcement goes to
+ * one audience, never to both at once.
+ *
+ * The body is only the preview line in the inbox; the full description, the
+ * date and the image live on the announcements row the id points at.
+ */
+function notifyAnnouncement(
+    PDO $pdo,
+    string $kind,
+    array $recipientIds,
+    int $announcementId,
+    string $title,
+    string $body = "",
+    int $actorAdminId = 0
+) {
+    if ($announcementId <= 0 || !in_array($kind, ["user", "admin"], true)) {
+        return;
+    }
+
+    // Rule 2 at the top of this file.
+    if ($pdo->inTransaction()) {
+        error_log("notifyAnnouncement(): refused to emit from inside a transaction");
+        return;
+    }
+
+    try {
+        $stmt = $pdo->prepare("
+            INSERT INTO notifications
+                (recipient_kind, recipient_id, event_type,
+                 title, body, link, actor_kind, actor_id, announcement_id)
+            VALUES (?, ?, ?, ?, ?, NULL, 'admin', ?, ?)
+        ");
+
+        foreach ($recipientIds as $id) {
+            $id = (int) $id;
+            if ($id <= 0) {
+                continue;
+            }
+
+            $stmt->execute([
+                $kind,
+                $id,
+                NOTIFY_ANNOUNCEMENT,
+                mb_substr($title, 0, 200),
+                $body !== "" ? mb_substr($body, 0, 500) : null,
+                $actorAdminId > 0 ? $actorAdminId : null,
+                $announcementId,
+            ]);
+        }
+    } catch (Throwable $e) {
+        // Same silence as notify(): the announcement itself is already saved.
     }
 }
