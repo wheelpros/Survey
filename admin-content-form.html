@@ -881,15 +881,18 @@ function clearMedia(){
 
 /* ── Scheduling ─────────────────────────────────────────────────────────────
    Only the account manager and the owner decide when a post goes out. For any
-   other admin the panel is not drawn at all, and the post publishes on save -
-   which is why syncPublishNow() forces the switch rather than trusting a
-   value that came back from a draft or an edited post. */
+   other admin the panel is not drawn at all and the post is saved as a draft,
+   which is why the switch is cleared rather than trusted: a value restored
+   from a draft or an edited post must not survive into the payload.
 
-const canSchedule = adminUser.role === "account_manager" || adminUser.role === "owner";
+   api/admin-content.php pins the status to draft for those roles too - this
+   only keeps the form honest about what the button is going to do. */
+
+const canPublish = adminUser.role === "account_manager" || adminUser.role === "owner";
 
 function syncPublishNow(){
   const toggle = document.getElementById("publishNow");
-  if(!canSchedule) toggle.checked = true;
+  if(!canPublish) toggle.checked = false;
 
   const on = toggle.checked;
   const date = document.getElementById("postDate");
@@ -901,7 +904,9 @@ function syncPublishNow(){
   if(on){ date.value = ""; time.value = ""; }
 
   document.getElementById("submitLabel").innerText =
-    editId ? "Update Content" : (on ? "Publish Content" : "Schedule Content");
+    editId
+      ? "Update Content"
+      : (!canPublish ? "Save as Draft" : (on ? "Publish Content" : "Schedule Content"));
 }
 
 /* ── Save ── */
@@ -943,18 +948,23 @@ async function save(){
 
   if(!captionText){
     openPanel("panelDetails");
-    setStatus("Write a caption before publishing.", "error");
+    setStatus("Write a caption before saving.", "error");
     return;
   }
 
-  if(!publishNow && (!postDate || !postTime)){
+  // Only the roles that can choose a time have a time to get wrong.
+  if(canPublish && !publishNow && (!postDate || !postTime)){
     setStatus("Set a post date and time, or turn on Publish immediately.", "error");
     return;
   }
 
   const type = types.find(entry => entry.id === selectedType);
   const platform = currentPlatform();
-  const status = publishNow ? "published" : "scheduled";
+  // A post from an admin who cannot publish is saved in full and left as a
+  // draft for the account manager or the owner to send out.
+  const status = !canPublish
+    ? "draft"
+    : (publishNow ? "published" : "scheduled");
 
   const form = new FormData();
   if(editId) form.append("id", editId);
@@ -1411,7 +1421,7 @@ document.addEventListener("click", event => {
   }
 });
 
-document.getElementById("panelScheduling").hidden = !canSchedule;
+document.getElementById("panelScheduling").hidden = !canPublish;
 syncPublishNow();
 
 renderTypes();

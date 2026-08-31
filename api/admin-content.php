@@ -554,6 +554,34 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     /*
     |--------------------------------------------------------------------------
+    | Who may publish
+    |--------------------------------------------------------------------------
+    |
+    | Going live is the account manager's and the owner's call. Every other
+    | admin - seo_admin and super_admin alike - writes drafts: the post is
+    | saved in full, and whoever reviews it decides when it goes out.
+    |
+    | The form hides the scheduling panel for them, so this is what stops a
+    | hand-made request publishing anyway. On an update the row's own status
+    | is restored further down, so an author's later fix can neither publish a
+    | draft nor unpublish a post somebody else already sent out.
+    |
+    */
+    $canPublish = in_array(
+        $admin["role"] ?? "",
+        ["account_manager", "owner"],
+        true
+    );
+
+    if (!$canPublish) {
+        $status = "draft";
+        $publishNow = 0;
+        $postDate = null;
+        $postTime = null;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
     | Caption validation
     |--------------------------------------------------------------------------
     */
@@ -729,6 +757,19 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 [],
                 403
             );
+        }
+
+        /*
+        | An admin who cannot publish cannot change when a post goes out
+        | either, so the row keeps the schedule it already had. Forcing
+        | "draft" here instead would quietly pull a live post down the first
+        | time its author fixed a typo.
+        */
+        if (!$canPublish) {
+            $status      = $existing["status"];
+            $publishNow  = (int) $existing["publish_now"];
+            $postDate    = $existing["post_date"];
+            $postTime    = $existing["post_time"];
         }
 
     } catch (Throwable $e) {
