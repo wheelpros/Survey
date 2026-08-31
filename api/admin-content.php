@@ -158,6 +158,25 @@ function canManageContent($admin, $creatorId)
 
 /*
 |--------------------------------------------------------------------------
+| Helper: who may see a post at all
+|--------------------------------------------------------------------------
+|
+| Separate from the edit rule above, and a shorter list. The owner and the
+| account managers see the whole library because they answer for what goes
+| out. Everyone else - including super_admin - sees only their own posts.
+|
+| Note super_admin appears in neither list: it can neither read nor touch
+| another admin's content. That is deliberate, not an oversight.
+|
+*/
+
+function canViewAllContent($admin)
+{
+    return in_array($admin["role"] ?? "", ["owner", "account_manager"], true);
+}
+
+/*
+|--------------------------------------------------------------------------
 | Upload Directory
 |--------------------------------------------------------------------------
 */
@@ -313,10 +332,21 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
             /*
             | Keep the raw creator id before the name overwrites it. The pages
             | use it to decide whether this admin owns the post - only the
-            | author gets Edit/Delete, everyone else gets View.
+            | author, or the owner, gets Edit and Delete.
             */
             $content["created_by_id"] =
                 (int) $content["created_by"];
+
+            /*
+            | Same visibility rule as the list. Without this the filter there
+            | is decoration: the id is in the URL, so anyone could read a post
+            | that never appeared in their grid. "Not found" rather than a 403,
+            | so the response does not confirm the post exists.
+            */
+            if (!canViewAllContent($admin)
+                && $content["created_by_id"] !== (int) $admin["id"]) {
+                response(false, "Content not found.", [], 404);
+            }
 
             /*
             | Match frontend field
@@ -339,9 +369,16 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
         }
 
         /*
-        | All content
+        | The library, narrowed to what this admin may see. Owner and account
+        | manager get everything; everyone else gets their own rows only, so
+        | the filter goes in the query rather than being applied after the
+        | fetch - content nobody may read should never leave the database.
         */
-        $stmt = $pdo->query("
+        $seesAll = canViewAllContent($admin);
+
+        $scope = $seesAll ? "" : "WHERE c.created_by = ?";
+
+        $stmt = $pdo->prepare("
             SELECT
                 c.id,
                 c.title,
@@ -376,8 +413,12 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
             LEFT JOIN admins a
                 ON a.id = c.created_by
 
+            $scope
+
             ORDER BY c.created_at DESC
         ");
+
+        $stmt->execute($seesAll ? [] : [$admin["id"]]);
 
         $contents = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -550,34 +591,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             );
         }
 
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Who may publish
-    |--------------------------------------------------------------------------
-    |
-    | Going live is the account manager's and the owner's call. Every other
-    | admin - seo_admin and super_admin alike - writes drafts: the post is
-    | saved in full, and whoever reviews it decides when it goes out.
-    |
-    | The form hides the scheduling panel for them, so this is what stops a
-    | hand-made request publishing anyway. On an update the row's own status
-    | is restored further down, so an author's later fix can neither publish a
-    | draft nor unpublish a post somebody else already sent out.
-    |
-    */
-    $canPublish = in_array(
-        $admin["role"] ?? "",
-        ["account_manager", "owner"],
-        true
-    );
-
-    if (!$canPublish) {
-        $status = "draft";
-        $publishNow = 0;
-        $postDate = null;
-        $postTime = null;
     }
 
     /*
@@ -757,19 +770,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 [],
                 403
             );
-        }
-
-        /*
-        | An admin who cannot publish cannot change when a post goes out
-        | either, so the row keeps the schedule it already had. Forcing
-        | "draft" here instead would quietly pull a live post down the first
-        | time its author fixed a typo.
-        */
-        if (!$canPublish) {
-            $status      = $existing["status"];
-            $publishNow  = (int) $existing["publish_now"];
-            $postDate    = $existing["post_date"];
-            $postTime    = $existing["post_time"];
         }
 
     } catch (Throwable $e) {
