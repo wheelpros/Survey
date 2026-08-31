@@ -112,6 +112,24 @@ if($admin){
 
 }
 
+/*
+ Neither table matched. Stop here: sending a reset link to an address with no
+ account emails a token that resets nothing, and every unknown address typed
+ into the form becomes mail from your domain. The reply is the same either way,
+ so this still tells an outsider nothing about who has an account.
+*/
+
+if(!$user && !$admin){
+
+    echo json_encode([
+        "success"=>true,
+        "message"=>"If this email exists, a reset link has been sent."
+    ]);
+
+    exit;
+
+}
+
 $resetLink = 
 "https://survey.websitezone.co.uk/reset-password.html?token=".$token;
 
@@ -179,9 +197,13 @@ try {
 
 catch(Exception $e){
 
+    // The mailer's own error text names the SMTP host and account, so it goes
+    // to the log rather than to whoever typed the address.
+    error_log("forgot-password mail failed: " . $mail->ErrorInfo);
+
     echo json_encode([
         "success"=>false,
-        "message"=>$mail->ErrorInfo
+        "message"=>"Could not send the reset email. Please try again later."
     ]);
 
     exit;

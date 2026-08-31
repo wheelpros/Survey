@@ -87,7 +87,8 @@ if($user){
 
         "success"=>true,
         "message"=>"Password reset successfully",
-        "type"=>"user"  
+        "type"=>"user",
+        "redirect"=>"login.html"
 
     ]);
 
@@ -120,11 +121,18 @@ $admin = $stmt->fetch();
 if($admin){
 
 
+    /*
+     session_token is cleared along with the password. Whoever was signed in on
+     that account is signed out, which is the point of a reset when the reason
+     for it is that someone else had the old password.
+    */
+
     $stmt=$pdo->prepare("
     UPDATE admins
     SET password=?,
         reset_token=NULL,
-        reset_expires=NULL
+        reset_expires=NULL,
+        session_token=NULL
     WHERE id=?
     ");
 
@@ -140,7 +148,11 @@ if($admin){
 
         "success"=>true,
         "message"=>"Password reset successfully",
-        "type"=>"admin"
+        "type"=>"admin",
+
+        // The reset page sends users to login.html and admins here, so nobody
+        // finishes a reset on the wrong sign-in form.
+        "redirect"=>"admin-login.html"
 
     ]);
 
