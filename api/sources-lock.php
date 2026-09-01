@@ -2,14 +2,14 @@
 
 /*
 |--------------------------------------------------------------------------
-| Sources & Files: the second password
+| Files: the second password
 |--------------------------------------------------------------------------
 |
 | Changing it is by emailed link only - there is no form that takes the current
 | password and sets a new one, so a signed-in screen left unattended cannot be
 | used to change the password and lock the real admin out.
 |
-| Signing in as an admin is not enough to reach Sources & Files. The page asks
+| Signing in as an admin is not enough to reach Files. The page asks
 | for a second password, set by that admin the first time they open it, and
 | private to them - it is stored per admin row, so two admins never share it
 | and one cannot open another's folders by knowing theirs.
@@ -141,7 +141,7 @@ function requireSourcesUnlock(PDO $pdo, $adminId)
     echo json_encode([
         "success" => false,
         "locked"  => true,
-        "message" => "Enter your Sources & Files password to continue."
+        "message" => "Enter your Files password to continue."
     ]);
 
     exit;
@@ -223,7 +223,7 @@ if ($action === "reset") {
         $admin["id"]
     ]);
 
-    lockReply(true, "Password updated. You can open Sources & Files now.");
+    lockReply(true, "Password updated. You can open Files now.");
 }
 
 $headers = function_exists("getallheaders") ? getallheaders() : [];
@@ -397,11 +397,11 @@ if ($action === "forgot") {
         $mail->addAddress($admin["email"], $admin["name"]);
 
         $mail->isHTML(true);
-        $mail->Subject = "Reset your Sources & Files password";
+        $mail->Subject = "Reset your Files password";
 
         $mail->Body = "
-            <h2>Sources &amp; Files password</h2>
-            <p>Click below to choose a new password for Sources &amp; Files.</p>
+            <h2>Files password</h2>
+            <p>Click below to choose a new password for Files.</p>
             <p><a href='{$resetLink}'>Reset password</a></p>
             <p>This link expires in 30 minutes. If you did not ask for it,
             ignore this email - nothing changes until the link is used.</p>

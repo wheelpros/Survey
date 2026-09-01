@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sources & Files</title>
+<title>Files</title>
 
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
@@ -218,13 +218,20 @@ select.client-filter{
   padding-right:38px;
 }
 
-/* ── Sources & Files password gate ───────────────────────────────────────
-   Opaque and covering everything, including the sidebar: nothing on this
-   page should be readable over the top of the password box. */
-.lock-shield{position:fixed;inset:0;background:#f6f7fb;display:none;
+/* ── Files password gate ───────────────────────────────────────
+   A dialog over this page, not a page of its own: the Files page stays
+   visible and dimmed behind it, so it reads as "this page is asking you
+   something" rather than "you have been sent somewhere else".
+
+   Nothing readable leaks - the folders and files are only fetched after the
+   unlock succeeds, so what shows through is an empty shell. The real
+   protection is the token: api/source-folders.php and api/source-files.php
+   both refuse without it, whatever the browser is showing. */
+.lock-shield{position:fixed;inset:0;background:rgba(16,24,40,.55);display:none;
   align-items:center;justify-content:center;z-index:100000;padding:20px}
 .lock-box{width:100%;max-width:430px;background:#fff;border-radius:24px;
-  padding:34px;box-shadow:0 14px 35px rgba(0,0,0,.08)}
+  padding:34px;box-shadow:0 24px 60px rgba(16,24,40,.28);
+  max-height:calc(100vh - 40px);overflow:auto}
 .lock-icon{width:52px;height:52px;border-radius:16px;background:#eef0f6;
   color:#1b1e3a;display:flex;align-items:center;justify-content:center;margin-bottom:18px}
 .lock-icon svg{width:24px;height:24px}
@@ -309,9 +316,9 @@ document.addEventListener("DOMContentLoaded", function () {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span>Clients Management</span>
       </a>
-      <a href="sources-files.html" class="active" title="Sources &amp; Files">
+      <a href="sources-files.html" class="active" title="Files">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-        <span>Sources &amp; Files</span>
+        <span>Files</span>
       </a>
       <a href="admin-calendar.html" title="Calendar">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -344,7 +351,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     <div class="page-head">
       <div class="page-title">
-        <h1>Sources &amp; Files</h1>
+        <h1>Files</h1>
         <p>Create folders and upload files. Each admin can only see their own files.</p>
       </div>
     </div>
@@ -699,7 +706,7 @@ async function loadUsers(){
   }
 
 }
-/* ── The Sources & Files password ─────────────────────────────────────────
+/* ── The Files password ─────────────────────────────────────────
    A second password on top of the admin sign-in, chosen by this admin the
    first time they open the page and private to them. It is held in
    sessionStorage, so closing the tab means being asked again next visit.
@@ -721,7 +728,7 @@ function showLock(mode, email){
     : "Enter your password";
 
   lockEl("lockIntro").innerText = first
-    ? "Sources & Files is protected by its own password, separate from your admin login. Choose one now — you will be asked for it each time you open this page."
+    ? "Files is protected by its own password, separate from your admin login. Choose one now — you will be asked for it each time you open this page."
     : "This page has its own password, separate from your admin login.";
 
   lockEl("lockConfirmRow").style.display = first ? "block" : "none";
@@ -791,8 +798,13 @@ function startPage(){
 
 async function initSourcesLock(){
   try{
+    // The unlock token has to go with the question, or the answer is always
+    // "locked" and the fast path below can never be taken.
     const res = await fetch("api/sources-lock.php",{
-      headers:{ Authorization:"Bearer " + adminToken }
+      headers:{
+        Authorization:"Bearer " + adminToken,
+        "X-Sources-Token": sourcesToken
+      }
     });
 
     const data = await res.json();
@@ -870,7 +882,7 @@ initSourcesLock();
 })();
 </script>
 
-<!-- Sources & Files password. Shown by initSourcesLock() before anything on
+<!-- Files password. Shown by initSourcesLock() before anything on
      the page loads; the endpoints refuse without the token it produces. -->
 <div class="lock-shield" id="lockShield">
   <div class="lock-box">
@@ -913,6 +925,17 @@ initSourcesLock();
     <a class="lock-back" href="admin.html">Back to the dashboard</a>
   </div>
 </div>
+
+<script>
+/* No unlock token in this tab means the box is certainly needed, so it goes up
+   with the page rather than waiting on the check in initSourcesLock() - other-
+   wise the Files page flashes up looking open for as long as that round trip
+   takes. initSourcesLock() still decides which mode it ends up in, and hides
+   it again if this tab turns out to be unlocked already. */
+if (!sessionStorage.getItem("sources_token")) {
+  document.getElementById("lockShield").style.display = "flex";
+}
+</script>
 
 </body>
 </html>

@@ -16,7 +16,7 @@ if(!$admin){
 }
 
 /*
- An admin session gets you this far; the Sources & Files password gets you the
+ An admin session gets you this far; the Files password gets you the
  rest. Without this the password would only be hiding the page - the folders
  would still come back to anyone holding a session token.
 */

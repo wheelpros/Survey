@@ -172,10 +172,15 @@ body{padding:0}
 
 /* ── One notification ──
    Read rows keep the dot's slot at transparent rather than dropping it, so
-   every title stays on the same left edge down the list. */
-.notif{display:flex;gap:14px;align-items:flex-start;padding:16px 0;border-bottom:1px solid #eef1f5;text-decoration:none;color:inherit}
+   every title stays on the same left edge down the list. Unread rows carry a
+   tinted field and a brand rail on top of that dot: telling read from unread
+   at a glance is the whole job of this list, and one 8px dot does not do it. */
+.notif{display:flex;gap:14px;align-items:flex-start;padding:16px 14px;border-bottom:1px solid #eef1f5;border-radius:12px;text-decoration:none;color:inherit;cursor:pointer;position:relative;transition:background .15s}
 .notif:last-child{border-bottom:none}
-a.notif:hover{background:#fbfcfd}
+.notif:hover{background:#fbfcfd}
+.notif.unread{background:#fff6f6}
+.notif.unread:hover{background:#fff0f0}
+.notif.unread::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:3px;border-radius:0 3px 3px 0;background:var(--brand)}
 .notif-dot{flex:none;width:8px;height:8px;margin-top:7px;border-radius:50%;background:transparent}
 .notif.unread .notif-dot{background:var(--brand)}
 .notif-text{flex:1;min-width:0}
@@ -183,6 +188,8 @@ a.notif:hover{background:#fbfcfd}
 .notif.unread .notif-text strong{color:var(--text);font-weight:800}
 .notif-text p{font-size:13px;color:var(--muted);line-height:1.5}
 .notif time{flex:none;font-size:12px;color:#98a2b3;white-space:nowrap}
+/* Says in words what the tint and the dot say in colour. */
+.notif-new{display:inline-block;margin-left:8px;padding:2px 7px;border-radius:20px;background:var(--brand);color:#fff;font-style:normal;font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;vertical-align:2px}
 
 /* ── Pagination, the same control as the content and clients lists ── */
 .pager{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:24px}
@@ -194,29 +201,44 @@ a.notif:hover{background:#fbfcfd}
 .pager button.current{background:var(--nav-active);border-color:var(--nav-active);color:#fff}
 .pager button:disabled{opacity:.45;cursor:not-allowed}
 
-/* ── Announcement detail: the image on the left, the words on the right ──
-   An announcement has nowhere to link to, so the row opens the message in
-   place rather than navigating. Same panel as the content page. */
+/* ── Detail popups ──
+   Nothing in this list navigates any more: a row opens over the list, in a
+   card that carries its own title and close control, so the reader keeps
+   their place and their scroll position. */
 .notif.is-announcement{cursor:pointer}
 .notif-clip{display:inline-flex;align-items:center;gap:5px;margin-top:8px;font-size:11px;font-weight:800;color:#98a2b3}
 .notif-clip svg{width:12px;height:12px}
-.detail-wrap{margin-top:32px}
-.detail-wrap[hidden]{display:none}
-.detail-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:18px}
-.detail-head .eyebrow{font-size:11px;font-weight:800;letter-spacing:.6px;color:var(--muted);text-transform:uppercase;margin-bottom:6px}
-.detail-head h2{font-size:24px}
-.detail-close{flex:none;border:1px solid #dfe3ea;background:#fff;color:var(--muted);width:34px;height:34px;border-radius:50%;font-size:20px;line-height:1;cursor:pointer}
-.detail-close:hover{background:#f6f7f9;color:var(--text)}
-.detail{display:grid;grid-template-columns:300px 1fr;gap:28px;background:#fff;border-radius:18px;padding:26px;box-shadow:0 14px 30px rgba(0,0,0,.04)}
+
+.modal{position:fixed;inset:0;background:rgba(16,24,40,.5);display:none;align-items:center;justify-content:center;padding:20px;z-index:99998}
+.modal.show{display:flex}
+.modal-box{background:#fff;border-radius:18px;width:100%;max-width:560px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 60px rgba(16,24,40,.22)}
+.modal-box.wide{max-width:880px}
+.modal-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:22px 24px 16px;border-bottom:1px solid #eef1f5}
+.modal-head .eyebrow{font-size:11px;font-weight:800;letter-spacing:.6px;color:var(--muted);text-transform:uppercase;margin-bottom:6px}
+.modal-head h2{font-size:20px;line-height:1.35;text-align:left;word-break:break-word}
+.modal-close{flex:none;border:1px solid #dfe3ea;background:#fff;color:var(--muted);width:34px;height:34px;border-radius:50%;font-size:20px;line-height:1;cursor:pointer}
+.modal-close:hover{background:#f6f7f9;color:var(--text)}
+.modal-body{padding:22px 24px;overflow:auto}
+.modal-foot{padding:16px 24px;border-top:1px solid #eef1f5;display:flex;justify-content:flex-end;gap:10px}
+.modal-foot[hidden]{display:none}
+.modal-btn{display:inline-flex;align-items:center;gap:8px;border:none;background:var(--nav-active);color:#fff;padding:11px 18px;border-radius:10px;font:inherit;font-size:13px;font-weight:800;text-decoration:none;cursor:pointer}
+.modal-btn:hover{background:#282c52}
+.modal-btn svg{width:15px;height:15px}
+.notif-detail-body{font-size:15px;line-height:1.6;color:var(--text);white-space:pre-wrap}
+.notif-detail-meta{margin-top:18px;padding-top:16px;border-top:1px solid #eef1f5;font-size:12px;font-weight:600;color:#98a2b3}
+
+/* Image left, words right - the same panel as the content page, minus the
+   frame, because the card around it is the frame now. */
+.detail{display:grid;grid-template-columns:260px 1fr;gap:24px}
 .detail-media{background:#f1f3f7 center/cover no-repeat;border-radius:12px;aspect-ratio:9/16;overflow:hidden}
-/* No attachment: the copy takes the whole panel rather than sitting beside a grey box. */
+/* No attachment: the copy takes the whole card rather than sitting beside a grey box. */
 .detail.no-media{grid-template-columns:1fr}
 .detail.no-media .detail-media{display:none}
 .detail-meta{display:grid;gap:22px;align-content:start}
 .field h5{font-size:10px;font-weight:800;letter-spacing:.7px;color:#98a2b3;text-transform:uppercase;margin-bottom:8px}
 .field p{font-size:15px;line-height:1.6;color:var(--text);white-space:pre-wrap}
 .detail-footer{display:flex;flex-wrap:wrap;gap:22px 40px}
-@media(max-width:800px){.detail{grid-template-columns:1fr}}
+@media(max-width:700px){.detail{grid-template-columns:1fr}}
 
 @media(max-width:600px){
   .page-head{flex-direction:column;gap:16px}
@@ -303,9 +325,9 @@ document.addEventListener("DOMContentLoaded", function () {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span>Clients Management</span>
       </a>
-      <a href="sources-files.html" title="Sources &amp; Files">
+      <a href="sources-files.html" title="Files">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-        <span>Sources &amp; Files</span>
+        <span>Files</span>
       </a>
       <a href="admin-calendar.html" title="Calendar">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -364,16 +386,22 @@ document.addEventListener("DOMContentLoaded", function () {
       <div class="pager-pages" id="notifPagerPages"></div>
     </div>
 
-    <!-- Opened by an announcement row above, closed by the X. -->
-    <div class="detail-wrap" id="announcementWrap" hidden>
-      <div class="detail-head">
-        <div>
-          <div class="eyebrow" id="announcementEyebrow">Announcement</div>
-          <h2 id="announcementTitle"></h2>
-        </div>
-        <button class="detail-close" type="button" onclick="closeAnnouncement()" aria-label="Close">&times;</button>
-      </div>
+  </div>
+</div>
 
+<!-- Opened by an announcement row: title, message, image and meta all live
+     inside the card, closed by the X in its head. -->
+<div class="modal" id="announcementModal" onclick="if(event.target===this)closeAnnouncement()">
+  <div class="modal-box wide" role="dialog" aria-modal="true" aria-labelledby="announcementTitle">
+    <div class="modal-head">
+      <div>
+        <div class="eyebrow" id="announcementEyebrow">Announcement</div>
+        <h2 id="announcementTitle"></h2>
+      </div>
+      <button class="modal-close" type="button" onclick="closeAnnouncement()" aria-label="Close">&times;</button>
+    </div>
+
+    <div class="modal-body">
       <article class="detail" id="announcementPanel">
         <div class="detail-media" id="announcementMedia"></div>
         <div class="detail-meta">
@@ -398,7 +426,33 @@ document.addEventListener("DOMContentLoaded", function () {
         </div>
       </article>
     </div>
+  </div>
+</div>
 
+<!-- Every other notification opens here rather than navigating: the row is a
+     one-line summary, this is the whole of it, with the jump to whatever the
+     notification is about left as an explicit choice in the footer. -->
+<div class="modal" id="notifModal" onclick="if(event.target===this)closeNotifDetail()">
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="notifDetailTitle">
+    <div class="modal-head">
+      <div>
+        <div class="eyebrow">Notification</div>
+        <h2 id="notifDetailTitle"></h2>
+      </div>
+      <button class="modal-close" type="button" onclick="closeNotifDetail()" aria-label="Close">&times;</button>
+    </div>
+
+    <div class="modal-body">
+      <p class="notif-detail-body" id="notifDetailBody"></p>
+      <div class="notif-detail-meta" id="notifDetailTime"></div>
+    </div>
+
+    <div class="modal-foot" id="notifDetailFoot" hidden>
+      <a class="modal-btn" id="notifDetailLink" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><polyline points="13 6 19 12 13 18"/></svg>
+        Open
+      </a>
+    </div>
   </div>
 </div>
 
@@ -446,6 +500,10 @@ if(adminUser.role === "owner"){
 const PAGE_SIZE = 25;
 let currentPage = 1;
 
+// The rows on screen, kept so a click can open the message it already has
+// rather than fetching the same row back again.
+let pageRows = [];
+
 function esc(value){
   return String(value == null ? "" : value)
     .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
@@ -475,17 +533,18 @@ function rowHtml(item){
   const inner = `
     <span class="notif-dot"></span>
     <div class="notif-text">
-      <strong>${esc(item.title)}</strong>
+      <strong>${esc(item.title)}${item.read ? "" : `<em class="notif-new">New</em>`}</strong>
       ${item.body ? `<p>${esc(item.body)}</p>` : ""}
-      ${isAnnouncement ? `<span class="notif-clip">
+      <span class="notif-clip">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-        Open announcement</span>` : ""}
+        ${isAnnouncement ? "Open announcement" : "View details"}</span>
     </div>
     <time>${esc(timeAgo(item.created_ts))}</time>
   `;
 
-  // An announcement has nowhere to link to: the row opens the panel below
-  // instead. A row with neither still marks itself read.
+  // An announcement has nowhere to link to and opens its own popup. Every
+  // other row opens the detail popup instead of following its link, but keeps
+  // the anchor so the destination is still visible and openable in a new tab.
   if(isAnnouncement){
     return `<div class="${classes}" data-id="${item.id}" data-announcement="${item.announcement_id}">${inner}</div>`;
   }
@@ -522,12 +581,14 @@ async function loadPage(page){
     const data = await res.json();
 
     if(!data.success){
+      pageRows = [];
       list.innerHTML = `<div class="empty">${esc(data.message || "Unable to load notifications.")}</div>`;
       renderPager(0, 0, 0, 0);
       return;
     }
 
     const rows = data.notifications || [];
+    pageRows = rows;
 
     // The server clamps the page to what exists, so this is the page actually
     // being shown, not the one that was asked for.
@@ -552,6 +613,7 @@ async function loadPage(page){
     paintUnread(data.unread);
 
   }catch(err){
+    pageRows = [];
     list.innerHTML = `<div class="empty">Connection error.</div>`;
     renderPager(0, 0, 0, 0);
   }
@@ -561,8 +623,9 @@ async function loadPage(page){
    server-side here, so a page change is a fetch rather than a slice of
    something already in memory. */
 function goToPage(page){
-  // The open announcement belongs to a row that is about to be replaced.
+  // Whatever is open belongs to a row that is about to be replaced.
   closeAnnouncement();
+  closeNotifDetail();
   loadPage(page);
   document.getElementById("notifList").scrollIntoView({ behavior:"smooth", block:"start" });
 }
@@ -592,13 +655,46 @@ function renderPager(total, totalPages, start, shown){
   `;
 }
 
-/* The announcement panel. The row carries only an id; the message itself -
+/* ── The detail popup for everything that is not an announcement ──
+   The row already holds the whole notification, so this opens what is in
+   `pageRows` rather than asking the server for it again. */
+function openNotifDetail(id){
+  const item = pageRows.find(row => Number(row.id) === Number(id));
+  if(!item) return;
+
+  document.getElementById("notifDetailTitle").innerText = item.title || "Notification";
+  document.getElementById("notifDetailBody").innerText =
+    item.body || "No further details for this notification.";
+  document.getElementById("notifDetailTime").innerText = item.created_at
+    ? timeAgo(item.created_ts) + " · " + item.created_at
+    : timeAgo(item.created_ts);
+
+  // Only a notification that points somewhere gets the jump.
+  const foot = document.getElementById("notifDetailFoot");
+  const link = document.getElementById("notifDetailLink");
+
+  if(item.link){
+    link.setAttribute("href", item.link);
+    foot.hidden = false;
+  }else{
+    link.removeAttribute("href");
+    foot.hidden = true;
+  }
+
+  document.getElementById("notifModal").classList.add("show");
+}
+
+function closeNotifDetail(){
+  document.getElementById("notifModal").classList.remove("show");
+}
+
+/* The announcement popup. The row carries only an id; the message itself -
    description, date, image - comes from api/announcements.php, which checks
    the caller was actually sent it. */
 let openAnnouncementId = null;
 
 async function openAnnouncement(id){
-  const wrap = document.getElementById("announcementWrap");
+  const modal = document.getElementById("announcementModal");
 
   openAnnouncementId = id;
 
@@ -613,7 +709,7 @@ async function openAnnouncement(id){
     if(openAnnouncementId !== id) return;
 
     if(!data.success || !data.announcement){
-      wrap.hidden = true;
+      modal.classList.remove("show");
       return;
     }
 
@@ -631,18 +727,24 @@ async function openAnnouncement(id){
     document.getElementById("announcementMedia").style.backgroundImage =
       item.image_path ? `url('${encodeURI(item.image_path)}')` : "";
 
-    wrap.hidden = false;
-    wrap.scrollIntoView({ behavior:"smooth", block:"nearest" });
+    modal.classList.add("show");
 
   }catch(err){
-    wrap.hidden = true;
+    modal.classList.remove("show");
   }
 }
 
 function closeAnnouncement(){
   openAnnouncementId = null;
-  document.getElementById("announcementWrap").hidden = true;
+  document.getElementById("announcementModal").classList.remove("show");
 }
+
+// Escape closes whichever popup is open.
+document.addEventListener("keydown", event => {
+  if(event.key !== "Escape") return;
+  closeAnnouncement();
+  closeNotifDetail();
+});
 
 /* event_date is a bare Y-m-d with no time, so it is split by hand rather than
    passed to Date(), which would read it as UTC midnight and slip a day. */
@@ -691,6 +793,9 @@ async function markAllRead(){
     if(data.success){
       document.querySelectorAll("#notifList .notif.unread")
         .forEach(row => row.classList.remove("unread"));
+      document.querySelectorAll("#notifList .notif-new")
+        .forEach(pill => pill.remove());
+      pageRows.forEach(row => { row.read = true; });
       paintUnread(0);
     }
 
@@ -699,41 +804,44 @@ async function markAllRead(){
   }
 }
 
-/* One delegated handler, so the rows a page change redraws are covered too. */
-document.getElementById("notifList").addEventListener("click", async event => {
+/* One delegated handler, so the rows a page change redraws are covered too.
+   Nothing navigates from here any more: every row opens a popup, and the
+   "New" pill goes with the unread state the click clears. */
+document.getElementById("notifList").addEventListener("click", event => {
   const row = event.target.closest(".notif");
   if(!row) return;
 
+  // The row may be an <a>; the popup replaces following it.
+  event.preventDefault();
+
   const id = Number(row.dataset.id);
-  const wasUnread = row.classList.contains("unread");
-  row.classList.remove("unread");
+
+  if(row.classList.contains("unread")){
+    row.classList.remove("unread");
+    const pill = row.querySelector(".notif-new");
+    if(pill) pill.remove();
+
+    const item = pageRows.find(entry => Number(entry.id) === id);
+    if(item) item.read = true;
+
+    if(id) markRead(id);
+  }
 
   const announcementId = Number(row.dataset.announcement);
 
   if(announcementId){
-    if(wasUnread && id) markRead(id);
     openAnnouncement(announcementId);
     return;
   }
 
-  const href = row.tagName === "A" ? row.getAttribute("href") : "";
-
-  if(!href){
-    if(wasUnread && id) markRead(id);
-    return;
-  }
-
-  // Mark first so the count is right on the page being opened, but never let
-  // a failed request strand the click.
-  event.preventDefault();
-  if(wasUnread && id) await markRead(id);
-  window.location.href = href;
+  openNotifDetail(id);
 });
 
 loadPage(1);
 </script>
 
 <script src="assets/notifications.js?v=1"></script>
+<script src="assets/sources-lock.js?v=1"></script>
 <script src="assets/role-nav.js?v=1"></script>
 <script>
 /* The calendar belongs to the roles that deal with clients. A plain seo_admin

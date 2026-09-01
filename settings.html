@@ -503,6 +503,30 @@ body{padding:0}
     border: 1px solid #e6e9f0;
 }
 
+/* The logo already in use, on the same field as the upload preview so the
+   two read as before-and-after rather than as two different controls. */
+.current-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 5/2;
+    max-width: 320px;
+    padding: 16px;
+    margin-bottom: 22px;
+    background: #fff;
+    border: 1px solid #e6e9f0;
+    border-radius: 12px;
+}
+
+.current-logo img {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    display: block;
+    object-fit: contain;
+}
+
 .media-preview .remove {
     position: absolute;
     top: 8px;
@@ -601,7 +625,7 @@ select.client-filter{
   padding-right:38px;
 }
 
-/* Reset-by-email block inside the Sources & Files password panel. */
+/* Reset-by-email block inside the Files password panel. */
 .reset-lead{margin:0 0 18px;font-size:13.5px;line-height:1.65;color:#667085}
 
 /* Role dropdown inside an Available Admins row. Sized to sit where the plain
@@ -696,9 +720,9 @@ document.addEventListener("DOMContentLoaded", function () {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span>Clients Management</span>
       </a>
-      <a href="sources-files.html" title="Sources &amp; Files">
+      <a href="sources-files.html" title="Files">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-        <span>Sources &amp; Files</span>
+        <span>Files</span>
       </a>
       <a href="admin-calendar.html" title="Calendar">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -736,30 +760,9 @@ document.addEventListener("DOMContentLoaded", function () {
       </div>
     </div>
 
-<!-- Password Panel. The id is the anchor the Sources & Files password box
-     links to, so "Reset it from Settings" lands here rather than at the top
-     of the page. -->
-<div class="panel" id="sources-password">
-  <div class="panel-head">
-    <h1>Sources &amp; Files Password</h1>
-    <p>The password that opens your Sources &amp; Files page. It is yours alone — other admins have their own.</p>
-  </div>
-  <div class="panel-body">
-
-    <!-- Email is the only way to change this password. There is no form to
-         type a new one into here: the link goes to the address on this admin's
-         own row, so a borrowed screen cannot be used to take the page over. -->
-    <p class="reset-lead">
-      We will email a reset link to <strong id="sourcesEmail">your sign-in address</strong>.
-      Open it to choose a new password. The link expires after 30 minutes.
-    </p>
-
-    <button class="primary" type="button" onclick="sendSourcesReset()">Email me a reset link</button>
-
-    <div id="sourcesResetStatus" class="status"></div>
-
-  </div>
-</div>
+<!-- Branding comes first: the logo and the login slideshow are what anybody
+     visiting the site can actually see. The password and the account panels
+     below are administration. -->
 
 <!-- Logo Panel -->
 <div id="logoSection" style="display:none;">
@@ -769,7 +772,15 @@ document.addEventListener("DOMContentLoaded", function () {
     <p>Current logo used across the admin panel.</p>
   </div>
   <div class="panel-body">
-    <img id="currentLogo" src="logo.png" alt="Logo" style="width:180px; display:block; margin:0 0 20px 0;">
+    <label style="margin-top:0;">Current logo</label>
+
+    <!-- A logo is usually white-on-transparent, so it needs a field to sit on
+         rather than the panel's own white. The fallback covers a site that has
+         never had one uploaded, where logo.png does not exist yet. -->
+    <div class="current-logo">
+      <img id="currentLogo" src="logo.png" alt="Current logo"
+           onerror="this.onerror=null;this.src='assets/WZONE%20source.png'">
+    </div>
 
     <label for="logoFile">Logo</label>
 
@@ -843,6 +854,31 @@ document.addEventListener("DOMContentLoaded", function () {
     <div id="slideStatus" class="status"></div>
   </div>
 </div>
+</div>
+
+<!-- Password Panel. The id is the anchor the Files password box
+     links to, so "Reset it from Settings" lands here rather than at the top
+     of the page. -->
+<div class="panel" id="sources-password">
+  <div class="panel-head">
+    <h1>Files Password</h1>
+    <p>The password that opens your Files page. It is yours alone — other admins have their own.</p>
+  </div>
+  <div class="panel-body">
+
+    <!-- Email is the only way to change this password. There is no form to
+         type a new one into here: the link goes to the address on this admin's
+         own row, so a borrowed screen cannot be used to take the page over. -->
+    <p class="reset-lead">
+      We will email a reset link to <strong id="sourcesEmail">your sign-in address</strong>.
+      Open it to choose a new password. The link expires after 30 minutes.
+    </p>
+
+    <button class="primary" type="button" onclick="sendSourcesReset()">Email me a reset link</button>
+
+    <div id="sourcesResetStatus" class="status"></div>
+
+  </div>
 </div>
 
 <div id="addAdminSection">
@@ -978,9 +1014,24 @@ if (adminUser.role === "owner") {
     if (logoSection) logoSection.style.display = "block";
     if (slideshowSection) slideshowSection.style.display = "block";
 
-    // ✅ تحديث اللوجو (كاش)
-    document.getElementById("currentLogo").src = "logo.png?" + Date.now();
+    paintCurrentLogo();
     loadSlides();
+}
+
+/* Cache-busts the preview of the logo in use. The onerror is reinstalled on
+   every paint because the handler clears itself once it has swapped in the
+   fallback - without that, the first upload after a miss would leave the
+   placeholder showing instead of the new logo. */
+function paintCurrentLogo() {
+    const img = document.getElementById("currentLogo");
+    if (!img) return;
+
+    img.onerror = function () {
+        this.onerror = null;
+        this.src = "assets/WZONE%20source.png";
+    };
+
+    img.src = "logo.png?" + Date.now();
 }
 
 // ✅ تسجيل الخروج
@@ -991,7 +1042,7 @@ function logoutAdmin() {
 }
 
 // ✅ تغيير الباسورد
-/* ── Sources & Files: reset by email ──────────────────────────────────────
+/* ── Files: reset by email ──────────────────────────────────────
    For the admin who cannot type the current password. There is no address
    field on purpose: the link goes to the one on their own admin row, so
    someone at a borrowed screen can send the mail but not receive it. */
@@ -1148,8 +1199,9 @@ async function uploadLogo() {
     status.innerText = data.message;
 
     if (data.success) {
+      paintCurrentLogo();
+
       const bust = "logo.png?" + new Date().getTime();
-      document.getElementById("currentLogo").src = bust;
       document.querySelectorAll(".side-logo img").forEach(img => {
         img.src = bust;
       });
@@ -2179,6 +2231,7 @@ window.onload = loadSettings;
 
 
 <script src="assets/notifications.js?v=1"></script>
+<script src="assets/sources-lock.js?v=1"></script>
 <script src="assets/role-nav.js?v=1"></script>
 <script>
 /* The calendar belongs to the roles that deal with clients. A plain seo_admin

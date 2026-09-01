@@ -19,7 +19,7 @@ if (!$admin || !in_array($admin['role'], ['owner', 'super_admin', 'account_manag
     
 if($_SERVER["REQUEST_METHOD"]=="GET"){
 
-    // Sources & Files password management is owner-only - everything else
+    // Files password management is owner-only - everything else
     // in this file (toggle/distribute) is shared with super_admin/account_manager.
     if ($admin['role'] !== 'owner') {
         echo json_encode([

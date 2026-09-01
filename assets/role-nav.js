@@ -93,7 +93,7 @@
     localStorage.removeItem("admin_token");
     localStorage.removeItem("admin_user");
 
-    // The Sources & Files unlock belongs to the old session too.
+    // The Files unlock belongs to the old session too.
     sessionStorage.removeItem("sources_token");
 
     alert("Please sign in again.");
