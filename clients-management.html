@@ -353,7 +353,8 @@ const isOwner = myRole === "owner";
 const USERS_COPY = {
   owner:       { title: "Clients Management", sub: "Approve or reject newly registered clients." },
   super_admin: { title: "Clients Management", sub: "Clients the owner assigned to you." },
-  seo_admin:   { title: "Clients Management", sub: "Clients your super admin assigned to you." }
+  seo_admin:   { title: "Clients Management", sub: "Clients your super admin assigned to you." },
+  account_manager: { title: "Clients Management", sub: "Clients the owner assigned to you." }
 };
 
 // The assignment panel is the same UI for two different handoffs:
@@ -381,10 +382,19 @@ document.addEventListener("DOMContentLoaded", function(){
 
   const assignPanel = document.getElementById("assignPanel");
 
-  if(myRole === "seo_admin"){
+  /* Only the roles with somebody beneath them distribute: the owner hands
+     clients out, and a super admin passes their share down. An account
+     manager receives clients but does not redistribute, and a plain admin is
+     the bottom of the chain - both get the list and no panel.
+
+     Keyed off ASSIGN_COPY rather than naming roles, so a role added later
+     without an entry loses the panel instead of throwing on load, which is
+     what left the dropdown stuck on "Loading...". */
+  const aCopy = ASSIGN_COPY[myRole];
+
+  if(!aCopy){
     assignPanel.remove();
   } else {
-    const aCopy = ASSIGN_COPY[myRole];
     document.getElementById("assignPanelTitle").textContent = aCopy.title;
     document.getElementById("assignPanelSub").textContent = aCopy.sub;
     document.getElementById("assignSelectLabel").textContent = aCopy.label;

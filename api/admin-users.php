@@ -16,8 +16,8 @@ if (!$token) {
     exit;
 }
 
-// The token has to resolve to a real admin, and this page is only ever shown
-// to owner / super_admin / seo_admin - anything else has no business here.
+// The token has to resolve to a real admin. Every admin role reaches this
+// page; what differs is the scope of the list, decided further down.
 $adminStmt = $pdo->prepare("SELECT id, role FROM admins WHERE session_token = ? LIMIT 1");
 $adminStmt->execute([$token]);
 $currentAdmin = $adminStmt->fetch();
@@ -33,7 +33,7 @@ if (!$currentAdmin) {
 $role = $currentAdmin["role"];
 $myId = (int)$currentAdmin["id"];
 
-if (!in_array($role, ["owner", "super_admin", "seo_admin"], true)) {
+if (!in_array($role, ["owner", "super_admin", "seo_admin", "account_manager"], true)) {
     echo json_encode([
         "success" => false,
         "message" => "Unauthorized"
@@ -106,7 +106,11 @@ ensureUserProfileColumns($pdo);
 // GET - scoped by role:
 // - owner sees every registered user (pending + approved)
 // - super_admin sees only the users the owner assigned to them
+// - account_manager likewise: the owner assigns clients to them directly
 // - seo_admin sees only the users their super_admin assigned to them
+//
+// Everyone except the owner reads from the same assignment table, so the one
+// query below covers all three.
 if ($role === "owner") {
 
     $stmt = $pdo->query("
