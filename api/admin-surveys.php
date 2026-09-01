@@ -38,6 +38,17 @@ if (!$currentAdmin) {
     ]);
     exit;
 }
+/*
+| The review gate exists so an account manager (or the owner) checks a form
+| before a client ever sees it. When one of them is the author, that check has
+| already happened - asking them to approve their own work would be a queue
+| with one person on both ends of it. Their forms go straight to the client.
+|
+| Everyone else still goes through the gate, and an edit by anyone still
+| re-opens it further down.
+*/
+$isReviewer = in_array($currentAdmin["role"], ["account_manager", "owner"], true);
+
 $method = $_SERVER["REQUEST_METHOD"];
 
 function prepareChips($chips) {
@@ -235,20 +246,29 @@ if ($method === "POST" || $method === "PUT") {
 
         if ($method === "POST") {
 
-            // New surveys always start life awaiting the account manager's
-            // sign-off - they are NOT visible to the assigned user yet.
-            // See admin-survey-review.php for the approve/reject step that
-            // flips this to 'pending' (which is when it actually reaches the user).
+            /*
+            | 'pending_review' means waiting on a reviewer and invisible to the
+            | client; 'pending' means released and waiting on the client. See
+            | admin-survey-review.php, which is what moves one to the other for
+            | everybody else. A reviewer writing their own form lands on
+            | 'pending' directly, stamped as reviewed by themselves so the
+            | record still says who released it.
+            */
             $stmt = $pdo->prepare("
-                INSERT INTO surveys (title, description, assigned_user_id, status, created_by_admin_id)
-                VALUES (?, ?, ?, 'pending_review', ?)
+                INSERT INTO surveys
+                    (title, description, assigned_user_id, status, created_by_admin_id,
+                     reviewed_by_admin_id, reviewed_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             ");
 
             $stmt->execute([
                 $title,
                 $description,
                 $assignedUserId,
-                $currentAdmin["id"]
+                $isReviewer ? "pending" : "pending_review",
+                $currentAdmin["id"],
+                $isReviewer ? $currentAdmin["id"] : null,
+                $isReviewer ? date("Y-m-d H:i:s") : null
             ]);
 
             $surveyId = $pdo->lastInsertId();
@@ -281,16 +301,21 @@ if ($method === "POST" || $method === "PUT") {
 
             // Any edit re-opens the review gate: content changed, so it goes
             // back to the account manager before it can reach the user again.
+            // Unless the editor is a reviewer, in which case the check has
+            // just happened by definition.
             $updateStmt = $pdo->prepare("
                 UPDATE surveys
-                SET title = ?, description = ?, assigned_user_id = ?, status = 'pending_review',
-                    reviewed_by_admin_id = NULL, review_note = NULL, reviewed_at = NULL
+                SET title = ?, description = ?, assigned_user_id = ?, status = ?,
+                    reviewed_by_admin_id = ?, review_note = NULL, reviewed_at = ?
                 WHERE id = ?
             ");
             $updateStmt->execute([
                 $title,
                 $description,
                 $assignedUserId,
+                $isReviewer ? "pending" : "pending_review",
+                $isReviewer ? $currentAdmin["id"] : null,
+                $isReviewer ? date("Y-m-d H:i:s") : null,
                 $surveyId
             ]);
 
@@ -340,24 +365,52 @@ if ($method === "POST" || $method === "PUT") {
         $pdo->commit();
 
         // After the commit, never inside it - see the rules at the top of
-        // notify.php. Both branches leave the form awaiting sign-off, so the
-        // reviewers hear about an edit the same way they hear about a new one.
-        notifyReviewers(
-            $pdo,
-            NOTIFY_FORM_AWAITING_REVIEW,
-            $method === "POST"
-                ? "New form awaiting approval"
-                : "Updated form awaiting approval",
-            $title . " needs a review before it reaches the user.",
-            "admin.html",
-            (int) $currentAdmin["id"]
-        );
+        // notify.php.
+        if ($isReviewer) {
+
+            // Released already, so the client is the one who needs telling -
+            // there is no reviewer left waiting to hear about it.
+            notify(
+                $pdo,
+                "user",
+                $assignedUserId,
+                NOTIFY_FORM_APPROVED,
+                "A new form is ready for you",
+                $title . " is waiting to be filled in.",
+                "dashboard.html",
+                "admin",
+                (int) $currentAdmin["id"]
+            );
+
+        } else {
+
+            // Both branches leave the form awaiting sign-off, so the reviewers
+            // hear about an edit the same way they hear about a new one.
+            notifyReviewers(
+                $pdo,
+                NOTIFY_FORM_AWAITING_REVIEW,
+                $method === "POST"
+                    ? "New form awaiting approval"
+                    : "Updated form awaiting approval",
+                $title . " needs a review before it reaches the user.",
+                "admin.html",
+                (int) $currentAdmin["id"]
+            );
+        }
+
+        if ($isReviewer) {
+            $message = $method === "POST"
+                ? "Form created and sent to the client"
+                : "Form updated and sent to the client";
+        } else {
+            $message = $method === "POST"
+                ? "Survey created successfully - awaiting account manager approval before it's sent to the user"
+                : "Survey updated successfully - sent back for account manager approval";
+        }
 
         echo json_encode([
             "success" => true,
-            "message" => $method === "POST"
-                ? "Survey created successfully - awaiting account manager approval before it's sent to the user"
-                : "Survey updated successfully - sent back for account manager approval"
+            "message" => $message
         ]);
         exit;
 

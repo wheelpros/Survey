@@ -85,9 +85,11 @@ select{
 
   <div id="body" style="display:none">
 
-    <!-- Stated up front rather than as a surprise after sending: a copy is a
-         new submission and goes through the same approval as any other. -->
-    <div class="note">
+    <!-- Stated up front rather than as a surprise after sending: for an admin
+         who cannot approve, a copy is a new submission and queues like any
+         other. A reviewer sending their own copy has nothing to wait for, so
+         the notice is not shown to them at all. -->
+    <div class="note" id="reviewNote" style="display:none">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
       </svg>
@@ -148,6 +150,10 @@ if(!adminToken || !adminUser.role){
 
 // Which form to copy: admin-form-duplicate.html?id=52
 const sourceId = new URLSearchParams(location.search).get("id");
+
+/* An account manager or the owner is the approval step, so their own forms go
+   straight to the client - matching what api/admin-surveys.php does on save. */
+const canReview = adminUser.role === "account_manager" || adminUser.role === "owner";
 
 let sourceQuestions = [];
 
@@ -213,6 +219,13 @@ async function load(){
 
     document.getElementById("state").style.display = "none";
     document.getElementById("body").style.display = "block";
+
+    if(!canReview){
+      document.getElementById("reviewNote").style.display = "flex";
+    }
+
+    document.getElementById("sendBtn").innerText =
+      canReview ? "Send to client" : "Send for approval";
 
     document.getElementById("title").value = one.survey.title || "";
 

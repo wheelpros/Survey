@@ -342,12 +342,6 @@ body{padding:0}
 /* Edit is a link to the builder now, so it has to look like the buttons it
    sits beside rather than inheriting anchor styling. */
 .actions .action-btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
-/* Send Again is an anchor too, and secondary to View - outlined rather than filled. */
-.actions .duplicate-btn{
-  display:inline-flex;align-items:center;justify-content:center;text-decoration:none;
-  background:#fff;border:1px solid #dfe3ea;color:var(--nav-active);white-space:nowrap;
-}
-.actions .duplicate-btn:hover{background:#f6f7f9}
 /* ── Unread badge on the Notifications nav item ──
    Collapsed, the sidebar hides labels, so the count degrades to a dot on
    the icon - the same affordance the old topbar bell had. */
@@ -438,8 +432,15 @@ body{padding:0}
 
 .review-footer{
   padding:18px 24px 30px;border-top:1px solid #eef1f5;
-  display:flex;justify-content:flex-end;gap:12px;
+  display:flex;justify-content:flex-end;gap:12px;align-items:center;
 }
+/* Send Again is not a decision on this form, so it sits away from Approve
+   and Reject rather than in the same cluster. */
+.review-footer .duplicate-btn{
+  margin-right:auto;display:inline-flex;align-items:center;text-decoration:none;
+  background:#fff;border:1px solid #dfe3ea;color:var(--nav-active);padding:8px 14px;
+}
+.review-footer .duplicate-btn:hover{background:#f6f7f9}
 
 @media(max-width:800px){
   .review-meta{grid-template-columns:1fr}
@@ -693,6 +694,9 @@ document.addEventListener("DOMContentLoaded", function () {
     </div>
 
     <div class="review-footer" id="reviewFooter">
+      <!-- Send the same form to another client without rebuilding it. Opens in
+           its own tab, so the queue behind this modal keeps its place. -->
+      <a class="btn duplicate-btn" id="reviewDuplicate" target="_blank" rel="noopener" href="#">Send Again</a>
       <button class="secondary-btn" type="button" onclick="closeReview()">Cancel</button>
       <button class="btn reject-btn" type="button" onclick="startReject()">Reject</button>
       <button class="btn approve-btn" type="button" onclick="approveSurvey()">Approve</button>
@@ -859,10 +863,6 @@ function renderSurveysTable(){
         <div class="actions">
           <button class="btn action-btn" type="button" onclick="openReview(${Number(survey.id)})">View</button>
 
-          <!-- Send the same form to another client without rebuilding it.
-               Opens in its own tab so the list stays where it was. -->
-          <a class="btn duplicate-btn" target="_blank" rel="noopener"
-             href="admin-form-duplicate.html?id=${Number(survey.id)}">Send Again</a>
 
           ${
             survey.status === "completed"
@@ -1093,6 +1093,9 @@ async function openReview(surveyId){
 
     // Approve/Reject only make sense on a form still waiting for an answer,
     // and only for the admins allowed to give one.
+    document.getElementById("reviewDuplicate").href =
+      "admin-form-duplicate.html?id=" + encodeURIComponent(surveyId);
+
     const footer = document.getElementById("reviewFooter");
     const decidable = canReview && survey.status === "pending_review";
     footer.querySelector(".approve-btn").style.display = decidable ? "" : "none";
