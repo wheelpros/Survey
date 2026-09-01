@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Send Again — Admin</title>
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+:root{--brand:#c9000b;--nav-active:#1b1e3a;--text:#101828;--muted:#667085;--line:#eaecf0}
+
+body{background:#f6f7fb;color:var(--text);padding:35px 20px}
+
+.wrap{max-width:820px;margin:0 auto}
+
+.page-head{margin-bottom:26px}
+.page-head h1{font-size:28px;margin-bottom:8px}
+.page-head p{font-size:14px;color:var(--muted);line-height:1.6}
+
+.panel{background:#fff;border-radius:20px;box-shadow:0 14px 35px rgba(0,0,0,.06);overflow:hidden;margin-bottom:22px}
+.panel-head{padding:20px 24px;border-bottom:1px solid #eef1f5}
+.panel-head h2{font-size:16px}
+.panel-head span{font-size:12.5px;color:var(--muted)}
+.panel-body{padding:24px}
+
+label{display:block;font-size:13px;font-weight:800;margin-bottom:8px}
+
+input,select,textarea{
+  width:100%;border:1px solid #dfe3ea;background:#f8fafc;border-radius:12px;
+  padding:13px 14px;outline:none;font-size:14px;
+}
+input:focus,select:focus{border-color:var(--nav-active);box-shadow:0 0 0 3px rgba(27,30,58,.10)}
+.field{margin-bottom:20px}
+
+select{
+  -webkit-appearance:none;-moz-appearance:none;appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 14px center;background-size:12px;padding-right:38px;
+}
+
+/* The questions are shown to confirm this is the right form, not to edit -
+   editing belongs in the builder. */
+.q{border:1px solid #dfe3ea;border-radius:14px;padding:14px 16px;margin-bottom:10px}
+.q .q-index{font-size:11px;color:#98a2b3;font-weight:800;margin-bottom:4px}
+.q .q-text{font-size:14px;font-weight:700;margin-bottom:6px}
+.q .q-type{display:inline-block;font-size:11px;padding:3px 10px;border-radius:10px;
+  background:#eef0f6;color:var(--nav-active);font-weight:800;text-transform:capitalize}
+.q .q-chips{margin-top:8px;font-size:12px;color:var(--muted)}
+
+.note{
+  display:flex;gap:10px;background:#fff8ec;border:1px solid #f5e0bd;
+  border-radius:12px;padding:14px 16px;margin-bottom:22px;font-size:13px;
+  line-height:1.6;color:#7a5a1e;
+}
+.note svg{width:17px;height:17px;flex:none;margin-top:2px}
+
+.actions{display:flex;gap:12px;align-items:center}
+.btn{border:none;padding:14px 22px;border-radius:12px;font-weight:800;font-size:14px;cursor:pointer}
+.btn.primary{background:var(--nav-active);color:#fff}
+.btn.primary:hover{background:#282c52}
+.btn.primary:disabled{opacity:.5;cursor:default}
+.btn.ghost{background:#eef1f5;color:var(--text)}
+
+.status{margin-top:16px;font-size:13.5px;color:var(--muted);min-height:20px}
+.status.ok{color:#067647;font-weight:700}
+.status.bad{color:var(--brand)}
+
+.empty{padding:26px;text-align:center;color:var(--muted)}
+</style>
+</head>
+
+<body>
+
+<div class="wrap">
+
+  <div class="page-head">
+    <h1>Send this form again</h1>
+    <p>
+      Sends a copy of an existing form to another client, without rebuilding it.
+      The original is untouched.
+    </p>
+  </div>
+
+  <div id="state" class="panel"><div class="empty">Loading form...</div></div>
+
+  <div id="body" style="display:none">
+
+    <!-- Stated up front rather than as a surprise after sending: a copy is a
+         new submission and goes through the same approval as any other. -->
+    <div class="note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <span>
+        The copy is a new form, so it waits for an account manager or the owner
+        to approve it before it reaches the client — even though the original
+        was already approved.
+      </span>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Send to</h2>
+        <span>Only clients assigned to you are listed.</span>
+      </div>
+      <div class="panel-body">
+
+        <div class="field">
+          <label for="title">Form title</label>
+          <input type="text" id="title" placeholder="Form title">
+        </div>
+
+        <div class="field">
+          <label for="userSelect">Client</label>
+          <select id="userSelect">
+            <option value="">Loading clients...</option>
+          </select>
+        </div>
+
+        <div class="actions">
+          <button class="btn primary" type="button" id="sendBtn" onclick="sendCopy()">Send copy</button>
+          <button class="btn ghost" type="button" onclick="window.close()">Close tab</button>
+        </div>
+
+        <div class="status" id="status"></div>
+
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2 id="questionsHead">Questions</h2>
+        <span>Copied exactly as they are. To change them, edit the form in the builder instead.</span>
+      </div>
+      <div class="panel-body" id="questions"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const adminToken = localStorage.getItem("admin_token");
+const adminUser = JSON.parse(localStorage.getItem("admin_user") || "{}");
+
+if(!adminToken || !adminUser.role){
+  window.location.href = "admin-login.html";
+}
+
+// Which form to copy: admin-form-duplicate.html?id=52
+const sourceId = new URLSearchParams(location.search).get("id");
+
+let sourceQuestions = [];
+
+function esc(value){
+  return String(value == null ? "" : value)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+/* The builder calls the free-text type "Text"; the database stores "input". */
+function questionTypeLabel(type){
+  if(type === "input" || type === "textarea") return "Text";
+  if(type === "file") return "File Upload";
+  if(type === "checkbox" || type === "checklist") return "Checklist";
+  return type;
+}
+
+/* Chips come back as a JSON array but are posted as a comma-separated string,
+   which is the shape the create endpoint parses. */
+function chipsToText(chips){
+  try{
+    const parsed = chips ? JSON.parse(chips) : [];
+    return Array.isArray(parsed) ? parsed.join(", ") : "";
+  }catch(error){
+    return "";
+  }
+}
+
+function fail(message){
+  document.getElementById("body").style.display = "none";
+  document.getElementById("state").innerHTML = `<div class="empty">${esc(message)}</div>`;
+}
+
+async function load(){
+
+  if(!sourceId){
+    fail("No form selected.");
+    return;
+  }
+
+  try{
+    // One call carries the source form and its questions; a second brings the
+    // client list, already scoped to this admin by the same endpoint that
+    // scopes the forms list.
+    const [oneRes, listRes] = await Promise.all([
+      fetch("api/admin-surveys.php?survey_id=" + encodeURIComponent(sourceId), {
+        headers:{ Authorization:"Bearer " + adminToken }
+      }),
+      fetch("api/admin-surveys.php", {
+        headers:{ Authorization:"Bearer " + adminToken }
+      })
+    ]);
+
+    const one = await oneRes.json();
+    const list = await listRes.json();
+
+    if(!one.success){
+      fail(one.message || "Could not load this form.");
+      return;
+    }
+
+    sourceQuestions = one.questions || [];
+
+    document.getElementById("state").style.display = "none";
+    document.getElementById("body").style.display = "block";
+
+    document.getElementById("title").value = one.survey.title || "";
+
+    const select = document.getElementById("userSelect");
+    const users = (list.success && list.users) ? list.users : [];
+
+    select.innerHTML = users.length
+      ? `<option value="">Select a client</option>` + users.map(user =>
+          `<option value="${esc(user.id)}">${esc(user.name)} - ${esc(user.email)}</option>`
+        ).join("")
+      : `<option value="">No clients are assigned to you</option>`;
+
+    // The original's client is preselected only as a starting point - the
+    // usual reason for being here is to pick a different one.
+    if(one.survey.assigned_user_id){
+      select.value = String(one.survey.assigned_user_id);
+    }
+
+    renderQuestions();
+
+  }catch(error){
+    fail("Connection error.");
+  }
+}
+
+function renderQuestions(){
+  const box = document.getElementById("questions");
+
+  document.getElementById("questionsHead").innerText =
+    `Questions (${sourceQuestions.length})`;
+
+  if(!sourceQuestions.length){
+    box.innerHTML = `<div class="empty">This form has no questions.</div>`;
+    return;
+  }
+
+  box.innerHTML = sourceQuestions.map((q, index) => {
+    const chips = chipsToText(q.chips);
+
+    return `
+      <div class="q">
+        <div class="q-index">Question ${index + 1}</div>
+        <div class="q-text">${esc(q.question_text)}</div>
+        <span class="q-type">${esc(questionTypeLabel(q.question_type))}</span>
+        ${chips ? `<div class="q-chips">Options: ${esc(chips)}</div>` : ``}
+        ${
+          q.question_type === "file" && q.max_file_size_mb
+          ? `<div class="q-chips">Max file size: ${esc(q.max_file_size_mb)} MB</div>`
+          : ``
+        }
+      </div>
+    `;
+  }).join("");
+}
+
+async function sendCopy(){
+  const status = document.getElementById("status");
+  const button = document.getElementById("sendBtn");
+
+  const title = document.getElementById("title").value.trim();
+  const userId = document.getElementById("userSelect").value;
+
+  status.className = "status";
+
+  if(!title){
+    status.className = "status bad";
+    status.innerText = "Give the copy a title.";
+    return;
+  }
+
+  if(!userId){
+    status.className = "status bad";
+    status.innerText = "Pick the client to send it to.";
+    return;
+  }
+
+  if(!sourceQuestions.length){
+    status.className = "status bad";
+    status.innerText = "This form has no questions to copy.";
+    return;
+  }
+
+  button.disabled = true;
+  status.innerText = "Sending...";
+
+  try{
+    /* Posted through the ordinary create endpoint rather than a copy-specific
+       one. That is deliberate: the copy then gets the same validation, the
+       same pending_review status and the same reviewer notification as a form
+       built by hand, with no second code path to keep in step. */
+    const res = await fetch("api/admin-surveys.php", {
+      method: "POST",
+      headers:{
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + adminToken
+      },
+      body: JSON.stringify({
+        title: title,
+        description: "",
+        assignedUserId: Number(userId),
+        questions: sourceQuestions.map(q => ({
+          text: q.question_text,
+          type: q.question_type,
+          chips: chipsToText(q.chips),
+          maxFileSizeMb: q.max_file_size_mb || ""
+        }))
+      })
+    });
+
+    const data = await res.json();
+
+    if(!data.success){
+      status.className = "status bad";
+      status.innerText = data.message || "Could not send the copy.";
+      button.disabled = false;
+      return;
+    }
+
+    status.className = "status ok";
+    status.innerText = data.message;
+
+    // Sent. Leave the tab open but stop it being sent twice by accident.
+    button.innerText = "Sent";
+
+  }catch(error){
+    status.className = "status bad";
+    status.innerText = "Connection error.";
+    button.disabled = false;
+  }
+}
+
+load();
+</script>
+
+</body>
+</html>

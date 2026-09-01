@@ -342,6 +342,12 @@ body{padding:0}
 /* Edit is a link to the builder now, so it has to look like the buttons it
    sits beside rather than inheriting anchor styling. */
 .actions .action-btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+/* Send Again is an anchor too, and secondary to View - outlined rather than filled. */
+.actions .duplicate-btn{
+  display:inline-flex;align-items:center;justify-content:center;text-decoration:none;
+  background:#fff;border:1px solid #dfe3ea;color:var(--nav-active);white-space:nowrap;
+}
+.actions .duplicate-btn:hover{background:#f6f7f9}
 /* ── Unread badge on the Notifications nav item ──
    Collapsed, the sidebar hides labels, so the count degrades to a dot on
    the icon - the same affordance the old topbar bell had. */
@@ -852,6 +858,11 @@ function renderSurveysTable(){
       <td>
         <div class="actions">
           <button class="btn action-btn" type="button" onclick="openReview(${Number(survey.id)})">View</button>
+
+          <!-- Send the same form to another client without rebuilding it.
+               Opens in its own tab so the list stays where it was. -->
+          <a class="btn duplicate-btn" target="_blank" rel="noopener"
+             href="admin-form-duplicate.html?id=${Number(survey.id)}">Send Again</a>
 
           ${
             survey.status === "completed"
