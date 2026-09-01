@@ -404,7 +404,7 @@ if(!adminToken || !adminUser.role){
 }
 
 document.body.style.display="none";
-checkPassword();
+initSourcesLock();
 
 // Clients Management is open to every admin, so the sidebar no longer hides it.
 
@@ -894,7 +894,7 @@ initSourcesLock();
       <input type="password" id="lockPassword" placeholder="Password"
              onkeydown="if(event.key==='Enter') submitLock()">
 
-      <div id="lockConfirmRow" style="display:none">
+      <div id="lockConfirmRow">
         <label for="lockConfirm">Confirm password</label>
         <input type="password" id="lockConfirm" placeholder="Repeat the password"
                onkeydown="if(event.key==='Enter') submitLock()">
