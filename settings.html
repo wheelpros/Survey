@@ -602,12 +602,7 @@ select.client-filter{
 }
 
 /* Reset-by-email block inside the Sources & Files password panel. */
-.forgot-block{margin-top:26px;padding-top:20px;border-top:1px solid #eef1f5}
-.forgot-block h4{margin:0 0 6px;font-size:14px;color:#101828}
-.forgot-block p{margin:0 0 14px;font-size:13px;line-height:1.6;color:#667085}
-.forgot-block .ghost{height:46px;padding:0 20px;border:1px solid #dfe3ea;background:#fff;
-  color:#1b1e3a;border-radius:12px;font-weight:700;font-size:13.5px;cursor:pointer}
-.forgot-block .ghost:hover{background:#f6f7fb}
+.reset-lead{margin:0 0 18px;font-size:13.5px;line-height:1.65;color:#667085}
 </style>
 
 <script>
@@ -734,30 +729,17 @@ document.addEventListener("DOMContentLoaded", function () {
   </div>
   <div class="panel-body">
 
-    <label style="margin-top:0;">Current Password</label>
-    <input type="password" id="currentPassword" placeholder="Enter current password">
+    <!-- Email is the only way to change this password. There is no form to
+         type a new one into here: the link goes to the address on this admin's
+         own row, so a borrowed screen cannot be used to take the page over. -->
+    <p class="reset-lead">
+      We will email a reset link to <strong id="sourcesEmail">your sign-in address</strong>.
+      Open it to choose a new password. The link expires after 30 minutes.
+    </p>
 
-    <label>New Password</label>
-    <input type="password" id="newPassword" placeholder="Enter new password">
+    <button class="primary" type="button" onclick="sendSourcesReset()">Email me a reset link</button>
 
-    <label>Confirm New Password</label>
-    <input type="password" id="confirmPassword" placeholder="Confirm new password">
-
-    <button class="primary" onclick="savePassword()" style="margin-top:15px;">Save Password</button>
-
-    <div id="status" class="status"></div>
-
-    <!-- Forgotten it: no current password to type, so the link goes by email
-         to the address this admin signs in with and nowhere else. -->
-    <div class="forgot-block">
-      <h4>Forgotten your password?</h4>
-      <p>
-        We will email a reset link to <strong id="sourcesEmail">your sign-in address</strong>.
-        The link expires after 30 minutes.
-      </p>
-      <button class="ghost" type="button" onclick="sendSourcesReset()">Email me a reset link</button>
-      <div id="sourcesResetStatus" class="status"></div>
-    </div>
+    <div id="sourcesResetStatus" class="status"></div>
 
   </div>
 </div>
@@ -992,47 +974,6 @@ function logoutAdmin() {
 }
 
 // ✅ تغيير الباسورد
-async function savePassword() {
-  const status = document.getElementById("status");
-  const current = document.getElementById("currentPassword").value.trim();
-  const pass = document.getElementById("newPassword").value.trim();
-  const confirm = document.getElementById("confirmPassword").value.trim();
-
-  if (!current || !pass || !confirm) {
-    status.innerText = "Please fill in all fields.";
-    return;
-  }
-
-  status.innerText = "Saving...";
-
-  try {
-    const res = await fetch("api/sources-lock.php", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer " + adminToken
-      },
-      body: JSON.stringify({
-        action: "change_password",
-        current_password: current,
-        new_password: pass,
-        confirm_password: confirm
-      })
-    });
-
-    const data = await res.json();
-    status.innerText = data.message;
-
-    if (data.success) {
-      document.getElementById("currentPassword").value = "";
-      document.getElementById("newPassword").value = "";
-      document.getElementById("confirmPassword").value = "";
-    }
-  } catch (err) {
-    status.innerText = "An error occurred while saving.";
-  }
-}
-
 /* ── Sources & Files: reset by email ──────────────────────────────────────
    For the admin who cannot type the current password. There is no address
    field on purpose: the link goes to the one on their own admin row, so

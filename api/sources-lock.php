@@ -5,6 +5,10 @@
 | Sources & Files: the second password
 |--------------------------------------------------------------------------
 |
+| Changing it is by emailed link only - there is no form that takes the current
+| password and sets a new one, so a signed-in screen left unattended cannot be
+| used to change the password and lock the real admin out.
+|
 | Signing in as an admin is not enough to reach Sources & Files. The page asks
 | for a second password, set by that admin the first time they open it, and
 | private to them - it is stored per admin row, so two admins never share it
@@ -20,7 +24,6 @@
 |   (GET)            has this admin set a password yet, and are they unlocked
 |   set_password     first run only - choose the password, returns a token
 |   unlock           check the password, returns a token
-|   change_password  from Settings; needs the current one
 |   forgot           mail a reset link to the admin's own sign-in address
 |   reset            finish that link, sets a new password
 |
@@ -346,48 +349,6 @@ if ($action === "unlock") {
     lockReply(true, "Unlocked.", [
         "token" => issueUnlockToken($pdo, $admin["id"])
     ]);
-}
-
-/*
-|--------------------------------------------------------------------------
-| Change, from Settings
-|--------------------------------------------------------------------------
-*/
-
-if ($action === "change_password") {
-
-    $current = (string) ($input["current_password"] ?? "");
-    $password = (string) ($input["new_password"] ?? "");
-    $confirm = (string) ($input["confirm_password"] ?? "");
-
-    if (!$hasPassword) {
-        lockReply(false, "Open Sources & Files first to choose your password.");
-    }
-
-    if (!password_verify($current, $admin["sources_password"])) {
-        usleep(400000);
-        lockReply(false, "Current password is wrong.");
-    }
-
-    if (strlen($password) < 8) {
-        lockReply(false, "New password must be at least 8 characters.");
-    }
-
-    if ($password !== $confirm) {
-        lockReply(false, "The two new passwords do not match.");
-    }
-
-    $stmt = $pdo->prepare("
-        UPDATE admins
-        SET sources_password = ?,
-            sources_unlock_token = NULL,
-            sources_unlock_expires = NULL
-        WHERE id = ?
-    ");
-
-    $stmt->execute([password_hash($password, PASSWORD_DEFAULT), $admin["id"]]);
-
-    lockReply(true, "Password changed.");
 }
 
 /*
