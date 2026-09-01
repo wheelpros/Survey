@@ -217,6 +217,33 @@ select.client-filter{
   background-size:12px;
   padding-right:38px;
 }
+
+/* ── Sources & Files password gate ───────────────────────────────────────
+   Opaque and covering everything, including the sidebar: nothing on this
+   page should be readable over the top of the password box. */
+.lock-shield{position:fixed;inset:0;background:#f6f7fb;display:none;
+  align-items:center;justify-content:center;z-index:100000;padding:20px}
+.lock-box{width:100%;max-width:430px;background:#fff;border-radius:24px;
+  padding:34px;box-shadow:0 14px 35px rgba(0,0,0,.08)}
+.lock-icon{width:52px;height:52px;border-radius:16px;background:#eef0f6;
+  color:#1b1e3a;display:flex;align-items:center;justify-content:center;margin-bottom:18px}
+.lock-icon svg{width:24px;height:24px}
+.lock-box h2{font-size:21px;color:#101828;margin:0 0 10px}
+.lock-box p.intro{font-size:13px;line-height:1.6;color:#667085;margin:0 0 22px}
+.lock-box label{display:block;font-size:13px;font-weight:600;margin-bottom:8px;color:#101828}
+.lock-box input{width:100%;height:52px;border:1px solid #dfe3ea;background:#f1f3f6;
+  border-radius:12px;padding:0 15px;margin-bottom:16px;outline:none;font-size:14px}
+.lock-box input:focus{border-color:#1b1e3a;background:#fff}
+.lock-submit{width:100%;height:54px;border:none;background:#1b1e3a;color:#fff;
+  border-radius:12px;font-weight:800;font-size:14px;cursor:pointer}
+.lock-submit:hover{background:#282c52}
+.lock-status{margin-top:14px;text-align:center;font-size:13px;color:#c9000b;min-height:18px}
+.lock-forgot{margin-top:20px;padding-top:18px;border-top:1px solid #eef1f5;
+  font-size:12.5px;line-height:1.6;color:#667085;text-align:center}
+.lock-forgot a{color:#1b1e3a;font-weight:700}
+.lock-back{display:block;margin-top:14px;text-align:center;font-size:12px;
+  color:#98a2b3;text-decoration:none}
+.lock-back:hover{color:#101828}
 </style>
 
 <script>
@@ -397,7 +424,8 @@ async function loadFolders(){
   try{
     const res = await fetch("api/source-folders.php",{
       headers:{
-        Authorization:"Bearer " + adminToken
+        Authorization:"Bearer " + adminToken,
+        "X-Sources-Token": sourcesToken
       }
     });
 
@@ -444,7 +472,8 @@ async function createFolder(){
       method:"POST",
       headers:{
         "Content-Type":"application/json",
-        Authorization:"Bearer " + adminToken
+        Authorization:"Bearer " + adminToken,
+        "X-Sources-Token": sourcesToken
       },
       body:JSON.stringify({title})
     });
@@ -494,7 +523,8 @@ async function loadFiles(){
   try{
     const res = await fetch("api/source-files.php?folder_id=" + currentFolderId,{
       headers:{
-        Authorization:"Bearer " + adminToken
+        Authorization:"Bearer " + adminToken,
+        "X-Sources-Token": sourcesToken
       }
     });
 
@@ -587,7 +617,8 @@ if(selectedUser){
     const res = await fetch("api/source-files.php",{
       method:"POST",
       headers:{
-        Authorization:"Bearer " + adminToken
+        Authorization:"Bearer " + adminToken,
+        "X-Sources-Token": sourcesToken
       },
       body:formData
     });
@@ -619,7 +650,8 @@ async function deleteFile(fileId){
     const res = await fetch("api/source-files.php?id=" + fileId,{
       method:"DELETE",
       headers:{
-        Authorization:"Bearer " + adminToken
+        Authorization:"Bearer " + adminToken,
+        "X-Sources-Token": sourcesToken
       }
     });
 
@@ -642,7 +674,8 @@ async function loadUsers(){
 
     const res = await fetch("api/admin-users.php",{
       headers:{
-        Authorization:"Bearer " + adminToken
+        Authorization:"Bearer " + adminToken,
+        "X-Sources-Token": sourcesToken
       }
     });
 
@@ -669,60 +702,134 @@ async function loadUsers(){
   }
 
 }
-async function checkPassword(){
+/* ── The Sources & Files password ─────────────────────────────────────────
+   A second password on top of the admin sign-in, chosen by this admin the
+   first time they open the page and private to them. It is held in
+   sessionStorage, so closing the tab means being asked again next visit.
 
-    const res = await fetch("api/settings.php",{
-        headers:{
-            Authorization:"Bearer "+adminToken
-        }
+   The overlay is not the protection. api/source-folders.php and
+   api/source-files.php both require the unlock token this returns, so the
+   files stay unreachable whatever the browser is showing. */
+
+let sourcesToken = sessionStorage.getItem("sources_token") || "";
+
+function lockEl(id){ return document.getElementById(id); }
+
+function showLock(mode, email){
+  // "set" on first run, "unlock" every time after.
+  const first = mode === "set";
+
+  lockEl("lockTitle").innerText = first
+    ? "Choose a password"
+    : "Enter your password";
+
+  lockEl("lockIntro").innerText = first
+    ? "Sources & Files is protected by its own password, separate from your admin login. Choose one now — you will be asked for it each time you open this page."
+    : "This page has its own password, separate from your admin login.";
+
+  lockEl("lockConfirmRow").style.display = first ? "block" : "none";
+  lockEl("lockForgot").style.display = first ? "none" : "block";
+  lockEl("lockSubmit").innerText = first ? "Set password and continue" : "Unlock";
+  lockEl("lockForm").dataset.mode = first ? "set_password" : "unlock";
+
+  if(email) lockEl("lockEmail").innerText = email;
+
+  lockEl("lockShield").style.display = "flex";
+  lockEl("lockPassword").focus();
+}
+
+function hideLock(){
+  lockEl("lockShield").style.display = "none";
+}
+
+async function submitLock(){
+  const status = lockEl("lockStatus");
+  const mode = lockEl("lockForm").dataset.mode;
+  const password = lockEl("lockPassword").value;
+  const confirm = lockEl("lockConfirm").value;
+
+  if(!password){
+    status.innerText = "Enter your password.";
+    return;
+  }
+
+  status.innerText = "Please wait...";
+
+  try{
+    const res = await fetch("api/sources-lock.php",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        Authorization:"Bearer " + adminToken
+      },
+      body:JSON.stringify({ action:mode, password, confirm })
     });
 
     const data = await res.json();
 
-    if(!data.hasPassword){
-        document.body.style.display="block";
-        return;
+    if(!data.success){
+      status.innerText = data.message;
+      return;
     }
 
-    while(true){
+    sourcesToken = data.token || "";
+    sessionStorage.setItem("sources_token", sourcesToken);
 
-        const pass = prompt("Enter Sources & Files Password");
+    lockEl("lockPassword").value = "";
+    lockEl("lockConfirm").value = "";
+    status.innerText = "";
 
-        if(pass===null){
-            location.href="admin.html";
-            return;
-        }
+    hideLock();
+    startPage();
 
-        const verify = await fetch("api/settings.php",{
-
-            method:"POST",
-
-            headers:{
-                Authorization:"Bearer "+adminToken,
-                "Content-Type":"application/json"
-            },
-
-            body:JSON.stringify({
-                action:"verify",
-                password:pass
-            })
-
-        });
-
-        const result = await verify.json();
-
-        if(result.success){
-            document.body.style.display="block";
-            break;
-        }
-
-        alert("Wrong Password");
-
-    }
-
+  }catch(err){
+    status.innerText = "Connection error.";
+  }
 }
-loadUsers();
-loadFolders();
+
+function startPage(){
+  loadUsers();
+  loadFolders();
+}
+
+async function initSourcesLock(){
+  try{
+    const res = await fetch("api/sources-lock.php",{
+      headers:{ Authorization:"Bearer " + adminToken }
+    });
+
+    const data = await res.json();
+
+    if(!data.success){
+      lockEl("lockStatus").innerText = data.message || "Could not check the password.";
+      showLock("unlock");
+      return;
+    }
+
+    // Already unlocked in this tab: straight in, no second prompt.
+    if(data.unlocked && sourcesToken){
+      hideLock();
+      startPage();
+      return;
+    }
+
+    showLock(data.has_password ? "unlock" : "set", data.email);
+
+  }catch(err){
+    lockEl("lockStatus").innerText = "Connection error.";
+    showLock("unlock");
+  }
+}
+
+/* A token can expire while the tab sits open. The endpoints answer 423 for
+   that, so any call can hand control back to the password box. */
+function handleLocked(){
+  sourcesToken = "";
+  sessionStorage.removeItem("sources_token");
+  showLock("unlock");
+}
+
+initSourcesLock();
 </script>
 
   </div>
@@ -765,5 +872,50 @@ loadFolders();
     .forEach(function (link) { link.remove(); });
 })();
 </script>
+
+<!-- Sources & Files password. Shown by initSourcesLock() before anything on
+     the page loads; the endpoints refuse without the token it produces. -->
+<div class="lock-shield" id="lockShield">
+  <div class="lock-box">
+
+    <div class="lock-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <rect x="4" y="11" width="16" height="10" rx="2"/>
+        <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
+      </svg>
+    </div>
+
+    <h2 id="lockTitle">Enter your password</h2>
+    <p class="intro" id="lockIntro"></p>
+
+    <div id="lockForm" data-mode="unlock">
+      <label for="lockPassword">Password</label>
+      <input type="password" id="lockPassword" placeholder="Password"
+             onkeydown="if(event.key==='Enter') submitLock()">
+
+      <div id="lockConfirmRow" style="display:none">
+        <label for="lockConfirm">Confirm password</label>
+        <input type="password" id="lockConfirm" placeholder="Repeat the password"
+               onkeydown="if(event.key==='Enter') submitLock()">
+      </div>
+
+      <button class="lock-submit" type="button" id="lockSubmit" onclick="submitLock()">Unlock</button>
+
+      <div class="lock-status" id="lockStatus"></div>
+    </div>
+
+    <!-- Reset lives in Settings, and mails the link to the address this admin
+         signs in with. Hidden on first run, where there is nothing to reset. -->
+    <div class="lock-forgot" id="lockForgot">
+      Forgotten it?
+      <a href="settings.html#sources-password">Reset it from Settings</a> —
+      a link is emailed to <span id="lockEmail">your sign-in address</span>.
+    </div>
+
+    <a class="lock-back" href="admin.html">Back to the dashboard</a>
+  </div>
+</div>
+
 </body>
 </html>

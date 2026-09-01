@@ -1,5 +1,6 @@
 <?php
 require_once "db.php";
+require_once "sources-lock.php";
 header("Content-Type: application/json");
 
 $headers = getallheaders();
@@ -13,6 +14,13 @@ if(!$admin){
   echo json_encode(["success"=>false,"message"=>"Unauthorized"]);
   exit;
 }
+
+/*
+ An admin session gets you this far; the Sources & Files password gets you the
+ rest. Without this the password would only be hiding the page - the folders
+ would still come back to anyone holding a session token.
+*/
+requireSourcesUnlock($pdo, $admin["id"]);
 
 $method = $_SERVER["REQUEST_METHOD"];
 

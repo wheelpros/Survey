@@ -1,5 +1,6 @@
 <?php
 require_once "db.php";
+require_once "sources-lock.php";
 header("Content-Type: application/json");
 
 $headers = getallheaders();
@@ -13,6 +14,13 @@ if(!$admin){
   echo json_encode(["success"=>false,"message"=>"Unauthorized"]);
   exit;
 }
+
+/*
+ Same gate as source-folders.php: the admin session is only half of it. The
+ files themselves are what the password is protecting, so the check belongs
+ here rather than only on the page that lists them.
+*/
+requireSourcesUnlock($pdo, $admin["id"]);
 
 $uploadRoot = __DIR__ . "/../uploads/sources";
 

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reset Sources &amp; Files Password</title>
+
+<style>
+*{box-sizing:border-box;font-family:Arial,sans-serif}
+
+body{margin:0;min-height:100vh;background:#f6f7fb;display:flex;
+  align-items:center;justify-content:center;padding:20px}
+
+.card{width:100%;max-width:430px;background:#fff;border-radius:24px;
+  padding:34px;box-shadow:0 14px 35px rgba(0,0,0,.08)}
+
+.brand{text-align:center;margin-bottom:26px}
+.brand img{width:132px;max-width:100%;height:auto;display:inline-block}
+
+h1{font-size:21px;color:#101828;margin:0 0 10px}
+p.intro{font-size:13px;line-height:1.6;color:#667085;margin:0 0 22px}
+
+label{display:block;font-size:13px;font-weight:600;margin-bottom:8px;color:#101828}
+
+input{width:100%;height:52px;border:1px solid #dfe3ea;background:#f1f3f6;
+  border-radius:12px;padding:0 15px;margin-bottom:16px;outline:none;font-size:14px}
+input:focus{border-color:#1b1e3a;background:#fff}
+
+button{width:100%;height:54px;border:none;background:#1b1e3a;color:#fff;
+  border-radius:12px;font-weight:800;font-size:14px;cursor:pointer}
+button:hover{background:#282c52}
+button:disabled{opacity:.5;cursor:default}
+
+.status{margin-top:14px;text-align:center;font-size:13px;min-height:18px;color:#c9000b}
+.status.ok{color:#067647}
+
+.foot{margin:26px 0 0;text-align:center;font-size:11px;font-weight:700;
+  letter-spacing:.4px;text-transform:uppercase;color:#98a1ad}
+.foot a{color:#1b1e3a;text-decoration:none}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+  <div class="brand">
+    <img src="logo.png" alt="W|ZONE London"
+         onerror="this.onerror=null;this.src='assets/WZONE%20source.png'">
+  </div>
+
+  <h1>New Sources &amp; Files password</h1>
+  <p class="intro">
+    This is the password that opens your Sources &amp; Files page. It is separate
+    from your admin login, which is unchanged.
+  </p>
+
+  <div id="form">
+    <label for="password">New password</label>
+    <input type="password" id="password" placeholder="At least 8 characters"
+           onkeydown="if(event.key==='Enter') submitReset()">
+
+    <label for="confirm">Confirm password</label>
+    <input type="password" id="confirm" placeholder="Repeat the password"
+           onkeydown="if(event.key==='Enter') submitReset()">
+
+    <button type="button" id="submitBtn" onclick="submitReset()">Set password</button>
+  </div>
+
+  <div class="status" id="status"></div>
+
+  <p class="foot"><a href="admin-login.html">Back to admin login</a></p>
+</div>
+
+<script>
+// The token from the emailed link is the only credential here - this page is
+// reached without being signed in.
+const resetToken = new URLSearchParams(location.search).get("token") || "";
+
+const statusEl = document.getElementById("status");
+
+if(!resetToken){
+  document.getElementById("form").style.display = "none";
+  statusEl.innerText = "This link is missing its token. Request a new one from Settings.";
+}
+
+async function submitReset(){
+  const password = document.getElementById("password").value;
+  const confirm  = document.getElementById("confirm").value;
+  const button   = document.getElementById("submitBtn");
+
+  statusEl.className = "status";
+
+  if(password.length < 8){
+    statusEl.innerText = "Password must be at least 8 characters.";
+    return;
+  }
+
+  if(password !== confirm){
+    statusEl.innerText = "The two passwords do not match.";
+    return;
+  }
+
+  button.disabled = true;
+  statusEl.innerText = "Saving...";
+
+  try{
+    const res = await fetch("api/sources-lock.php",{
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify({
+        action:"reset",
+        token:resetToken,
+        password,
+        confirm
+      })
+    });
+
+    const data = await res.json();
+
+    if(!data.success){
+      statusEl.innerText = data.message;
+      button.disabled = false;
+      return;
+    }
+
+    // The old unlock token is dead server-side; drop the local copy too so
+    // the page asks for the new password rather than failing on the first call.
+    sessionStorage.removeItem("sources_token");
+
+    document.getElementById("form").style.display = "none";
+    statusEl.className = "status ok";
+    statusEl.innerText = data.message + " Taking you there...";
+
+    setTimeout(() => { location.href = "sources-files.html"; }, 1600);
+
+  }catch(err){
+    statusEl.innerText = "Connection error.";
+    button.disabled = false;
+  }
+}
+</script>
+
+</body>
+</html>

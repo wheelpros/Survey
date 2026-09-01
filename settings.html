@@ -600,6 +600,14 @@ select.client-filter{
   background-size:12px;
   padding-right:38px;
 }
+
+/* Reset-by-email block inside the Sources & Files password panel. */
+.forgot-block{margin-top:26px;padding-top:20px;border-top:1px solid #eef1f5}
+.forgot-block h4{margin:0 0 6px;font-size:14px;color:#101828}
+.forgot-block p{margin:0 0 14px;font-size:13px;line-height:1.6;color:#667085}
+.forgot-block .ghost{height:46px;padding:0 20px;border:1px solid #dfe3ea;background:#fff;
+  color:#1b1e3a;border-radius:12px;font-weight:700;font-size:13.5px;cursor:pointer}
+.forgot-block .ghost:hover{background:#f6f7fb}
 </style>
 
 <script>
@@ -716,13 +724,16 @@ document.addEventListener("DOMContentLoaded", function () {
       </div>
     </div>
 
-<!-- Password Panel -->
-<div class="panel">
+<!-- Password Panel. The id is the anchor the Sources & Files password box
+     links to, so "Reset it from Settings" lands here rather than at the top
+     of the page. -->
+<div class="panel" id="sources-password">
   <div class="panel-head">
-    <h1>Sources & Files Password</h1>
-    <p>Manage security and protection passwords for source files.</p>
+    <h1>Sources &amp; Files Password</h1>
+    <p>The password that opens your Sources &amp; Files page. It is yours alone — other admins have their own.</p>
   </div>
   <div class="panel-body">
+
     <label style="margin-top:0;">Current Password</label>
     <input type="password" id="currentPassword" placeholder="Enter current password">
 
@@ -735,6 +746,19 @@ document.addEventListener("DOMContentLoaded", function () {
     <button class="primary" onclick="savePassword()" style="margin-top:15px;">Save Password</button>
 
     <div id="status" class="status"></div>
+
+    <!-- Forgotten it: no current password to type, so the link goes by email
+         to the address this admin signs in with and nowhere else. -->
+    <div class="forgot-block">
+      <h4>Forgotten your password?</h4>
+      <p>
+        We will email a reset link to <strong id="sourcesEmail">your sign-in address</strong>.
+        The link expires after 30 minutes.
+      </p>
+      <button class="ghost" type="button" onclick="sendSourcesReset()">Email me a reset link</button>
+      <div id="sourcesResetStatus" class="status"></div>
+    </div>
+
   </div>
 </div>
 
@@ -982,13 +1006,14 @@ async function savePassword() {
   status.innerText = "Saving...";
 
   try {
-    const res = await fetch("api/settings.php", {
+    const res = await fetch("api/sources-lock.php", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": "Bearer " + adminToken
       },
       body: JSON.stringify({
+        action: "change_password",
         current_password: current,
         new_password: pass,
         confirm_password: confirm
@@ -1007,6 +1032,49 @@ async function savePassword() {
     status.innerText = "An error occurred while saving.";
   }
 }
+
+/* ── Sources & Files: reset by email ──────────────────────────────────────
+   For the admin who cannot type the current password. There is no address
+   field on purpose: the link goes to the one on their own admin row, so
+   someone at a borrowed screen can send the mail but not receive it. */
+
+async function sendSourcesReset(){
+  const status = document.getElementById("sourcesResetStatus");
+
+  status.innerText = "Sending...";
+
+  try{
+    const res = await fetch("api/sources-lock.php",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "Authorization":"Bearer " + adminToken
+      },
+      body:JSON.stringify({ action:"forgot" })
+    });
+
+    const data = await res.json();
+    status.innerText = data.message;
+
+  }catch(err){
+    status.innerText = "Connection error.";
+  }
+}
+
+/* Shows the admin which address the link would go to. */
+(async function showSourcesEmail(){
+  try{
+    const res = await fetch("api/sources-lock.php",{
+      headers:{ "Authorization":"Bearer " + adminToken }
+    });
+
+    const data = await res.json();
+
+    if(data.success && data.email){
+      document.getElementById("sourcesEmail").innerText = data.email;
+    }
+  }catch(err){}
+})();
 
 /* ── The logo upload box ──────────────────────────────────────────────────
    Same control as the slideshow dropzone below: click or drop, then a
