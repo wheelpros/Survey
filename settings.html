@@ -603,6 +603,23 @@ select.client-filter{
 
 /* Reset-by-email block inside the Sources & Files password panel. */
 .reset-lead{margin:0 0 18px;font-size:13.5px;line-height:1.65;color:#667085}
+
+/* Role dropdown inside an Available Admins row. Sized to sit where the plain
+   role label used to, so the row height does not jump. */
+.admin-role-select{
+  display:inline-block;
+  margin:4px 0;
+  padding:5px 28px 5px 10px;
+  border:1px solid #dfe3ea;
+  border-radius:8px;
+  background:#fff;
+  font-size:12px;
+  font-weight:700;
+  color:#101828;
+  cursor:pointer;
+}
+.admin-role-select:focus{outline:none;border-color:#1b1e3a}
+.admin-role-select:disabled{opacity:.55;cursor:default}
 </style>
 
 <script>
@@ -1733,6 +1750,84 @@ async function loadAdmins() {
     }
 }
 
+/* The role cell.
+
+   For the owner it is a dropdown - promoting and demoting between Admin,
+   Super Admin and Account Manager happens here, and api/admin-role.php writes
+   it to the admins table, which is what every other page and endpoint reads.
+   For anyone else, and for the owner's own row, it stays a plain label. */
+
+const ASSIGNABLE_ROLES = ["seo_admin", "super_admin", "account_manager"];
+
+function adminRoleControl(admin){
+    const isOwnerRow = admin.role === "owner";
+    const canEdit = adminUser.role === "owner" && !isOwnerRow;
+
+    if(!canEdit){
+        return `<span class="admin-role">${adminRoleLabel(admin.role)}</span>`;
+    }
+
+    return `
+        <select class="admin-role-select" data-current="${escapeHtml(admin.role)}"
+                onchange="changeAdminRole(${admin.id}, this)">
+            ${ASSIGNABLE_ROLES.map(role => `
+                <option value="${role}" ${role === admin.role ? "selected" : ""}>
+                    ${adminRoleLabel(role)}
+                </option>
+            `).join("")}
+        </select>
+    `;
+}
+
+async function changeAdminRole(adminId, select){
+    const newRole = select.value;
+    const previous = select.dataset.current;
+
+    if(newRole === previous) return;
+
+    const label = adminRoleLabel(newRole);
+
+    if(!confirm(`Change this person to ${label}? They will be signed out and pick up the new role next time they log in.`)){
+        select.value = previous;
+        return;
+    }
+
+    select.disabled = true;
+
+    try{
+        const res = await fetch("api/admin-role.php", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: "Bearer " + adminToken
+            },
+            body: JSON.stringify({ admin_id: adminId, role: newRole })
+        });
+
+        const data = await res.json();
+
+        if(!data.success){
+            alert(data.message);
+            select.value = previous;
+            select.disabled = false;
+            return;
+        }
+
+        select.dataset.current = newRole;
+        select.disabled = false;
+
+        // The dropdown above depends on who holds which role, so both lists
+        // are rebuilt rather than only the row that changed.
+        loadAdmins();
+        loadDistribution();
+
+    }catch(error){
+        alert("Connection error.");
+        select.value = previous;
+        select.disabled = false;
+    }
+}
+
 function renderAdmins() {
     const list = document.getElementById("adminsList");
 
@@ -1765,9 +1860,7 @@ function renderAdmins() {
             <div class="admin-info">
                 <strong>${escapeHtml(admin.name)}</strong>
                 <span>${escapeHtml(admin.email)}</span>
-                <span class="admin-role">
-                    ${adminRoleLabel(admin.role)}
-                </span>
+                ${adminRoleControl(admin)}
                 <span class="admin-status ${isActive ? "is-active" : "is-inactive"}">
                     ${isActive ? "Active" : "Inactive"}
                 </span>
@@ -1921,6 +2014,35 @@ async function loadDistribution(){
     }
 }
 
+/* Who can be handed to whom.
+
+   An account manager sits above the super admins, so their list is both:
+   the super admins and the plain admins. A super admin only ever gets plain
+   admins - they cannot be given another super admin, or each other.
+
+   The super admins are already on the page inside distributeManagers (it is
+   the same dropdown list), so no extra request is needed to build this. */
+
+function distributeRoleOf(adminId){
+    const match = distributeManagers.find(mgr => String(mgr.id) === String(adminId));
+    return match ? match.role : "";
+}
+
+function distributePoolFor(managerId){
+    const role = distributeRoleOf(managerId);
+
+    if(role !== "account_manager"){
+        return distributePool;
+    }
+
+    // Super admins first, then the plain admins beneath them.
+    const superAdmins = distributeManagers.filter(mgr =>
+        mgr.role === "super_admin" && String(mgr.id) !== String(managerId)
+    );
+
+    return superAdmins.concat(distributePool);
+}
+
 function renderDistribution(){
     const managerId = document.getElementById("distributeManagerSelect").value;
     const box = document.getElementById("distributeList");
@@ -1930,14 +2052,16 @@ function renderDistribution(){
         return;
     }
 
-    if(!distributePool.length){
-        box.innerHTML = `<div class="empty">No Admin accounts available to assign yet.</div>`;
+    const pool = distributePoolFor(managerId);
+
+    if(!pool.length){
+        box.innerHTML = `<div class="empty">No accounts available to assign to this person.</div>`;
         return;
     }
 
     const assigned = distributeAssignments[managerId] || [];
 
-    box.innerHTML = distributePool.map(adm => `
+    box.innerHTML = pool.map(adm => `
         <label style="
             display:flex;
             justify-content:space-between;
@@ -1950,7 +2074,7 @@ function renderDistribution(){
         ">
             <div>
                 <strong>${escapeHtml(adm.name)}</strong><br>
-                <span style="color:#667085;font-size:12px;">${escapeHtml(adm.email)}</span>
+                <span style="color:#667085;font-size:12px;">${escapeHtml(adm.email)} &middot; ${escapeHtml(adminRoleLabel(adm.role))}</span>
             </div>
 
             <input
