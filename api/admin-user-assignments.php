@@ -44,19 +44,33 @@ if (!in_array($role, ["owner", "super_admin"], true)) {
     exit;
 }
 
-$targetRole = $role === "owner" ? "super_admin" : "seo_admin";
+/*
+| Who the caller hands users to.
+|
+| The owner distributes to both super admins and account managers - an account
+| manager gets clients the same way a super admin does. A super admin passes
+| their own share further down to the plain admins.
+|
+| An array either way, so the queries below read the same in both cases.
+*/
+
+$targetRoles = $role === "owner"
+    ? ["super_admin", "account_manager"]
+    : ["seo_admin"];
+
+$targetPlaceholders = implode(",", array_fill(0, count($targetRoles), "?"));
 
 $method = $_SERVER["REQUEST_METHOD"];
 
 if ($method === "GET") {
 
     $targetStmt = $pdo->prepare("
-        SELECT id, name, email
+        SELECT id, name, email, role
         FROM admins
-        WHERE role = ? AND active = 1
+        WHERE role IN ($targetPlaceholders) AND active = 1
         ORDER BY name ASC
     ");
-    $targetStmt->execute([$targetRole]);
+    $targetStmt->execute($targetRoles);
     $targetAdmins = $targetStmt->fetchAll();
 
     if ($role === "owner") {
@@ -115,7 +129,8 @@ if ($method === "GET") {
     echo json_encode([
         "success" => true,
         "role" => $role,
-        "targetRole" => $targetRole,
+        "targetRole" => $targetRoles[0],
+        "targetRoles" => $targetRoles,
         "targetAdmins" => $targetAdmins,
         "users" => $users,
         "assignments" => $assignments
@@ -145,13 +160,13 @@ if ($method === "POST") {
     $checkStmt = $pdo->prepare("
         SELECT id
         FROM admins
-        WHERE id = ? AND role = ? AND active = 1
+        WHERE id = ? AND role IN ($targetPlaceholders) AND active = 1
         LIMIT 1
     ");
-    $checkStmt->execute([$adminId, $targetRole]);
+    $checkStmt->execute(array_merge([$adminId], $targetRoles));
 
     if (!$checkStmt->fetch()) {
-        $label = $targetRole === "super_admin" ? "Super admin" : "SEO admin";
+        $label = $role === "owner" ? "That admin" : "Admin";
         echo json_encode([
             "success" => false,
             "message" => "$label not found"

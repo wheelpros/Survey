@@ -96,7 +96,7 @@
     // The Sources & Files unlock belongs to the old session too.
     sessionStorage.removeItem("sources_token");
 
-    alert("Your access level was changed. Please sign in again.");
+    alert("Please sign in again.");
     location.replace(LOGIN);
   }
 

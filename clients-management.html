@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Admin - Clients Management</title><style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}body{background:#f6f7fb;color:#101828;padding:35px}.panel{background:#fff;border-radius:20px;box-shadow:0 14px 35px rgba(0,0,0,.06);overflow:hidden}.panel-head{padding:24px 28px;border-bottom:1px solid #eef1f5}.panel-head h1{font-size:24px;margin-bottom:6px}.panel-head p{color:#667085;font-size:14px}table{width:100%;border-collapse:collapse}th{text-align:left;background:#f8fafc;padding:14px 24px;color:#667085;font-size:12px}td{padding:15px 24px;border-top:1px solid #eef1f5;font-size:13px}.badge{padding:6px 12px;border-radius:20px;font-size:11px;font-weight:800}.approved{background:#e8faef;color:#20a95a}.pending{background:#fff3e5;color:#d97706}.actions{display:flex;gap:8px}.btn{border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:800;font-size:12px}.approve-btn{background:#20a95a;color:#fff}.reject-btn{background:#c9000b;color:#fff}.action-btn{background:var(--nav-active);color:#fff}
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}body{background:#f6f7fb;color:#101828;padding:35px}.panel{background:#fff;border-radius:20px;box-shadow:0 14px 35px rgba(0,0,0,.06);overflow:hidden}.panel-head{padding:24px 28px;border-bottom:1px solid #eef1f5}.panel-head h1{font-size:24px;margin-bottom:6px}.panel-head p{color:#667085;font-size:14px}table{width:100%;border-collapse:collapse}th{text-align:left;background:#f8fafc;padding:14px 24px;color:#667085;font-size:12px}td{padding:15px 24px;border-top:1px solid #eef1f5;font-size:13px}.badge{padding:6px 12px;border-radius:20px;font-size:11px;font-weight:800}.approved{background:#e8faef;color:#20a95a}.pending{background:#fff3e5;color:#d97706}.actions{display:flex;gap:8px}.btn{border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:800;font-size:12px}.approve-btn{background:#20a95a;color:#fff}.reject-btn{background:#c9000b;color:#fff}.delete-btn{background:#fff;color:#c9000b;border:1px solid #f0d2d4}.delete-btn:hover{background:#fff5f5}.action-btn{background:var(--nav-active);color:#fff}
 /* View is an anchor, so it needs what the button styling assumes. */
 a.btn{display:inline-flex;align-items:center;text-decoration:none}
 a.action-btn:hover{background:#282c52}.empty{padding:30px;text-align:center;color:#667085}@media(max-width:800px){body{padding:18px}table{min-width:760px}.panel{overflow-x:auto}}
@@ -362,9 +362,9 @@ const USERS_COPY = {
 const ASSIGN_COPY = {
   owner: {
     title: "Owner Assignments",
-    sub: "Choose which clients each super admin can manage.",
-    label: "Select Super Admin",
-    empty: "No super admins found."
+    sub: "Choose which clients each super admin or account manager can manage.",
+    label: "Select Super Admin / Account Manager",
+    empty: "No super admins or account managers found."
   },
   super_admin: {
     title: "Super Admin Assignments",
@@ -494,6 +494,15 @@ function renderUsers(){
                  <button class="btn reject-btn" onclick="updateUser(${esc(user.id)}, 'reject')">Reject</button>`
               : ""
             }
+            ${
+              // Delete is the approved-account counterpart to Reject, and the
+              // owner's call alone. It erases the account everywhere rather
+              // than deactivating it, so it is deliberately not offered to
+              // anyone else and asks twice before going ahead.
+              (isOwner && approved)
+              ? `<button class="btn delete-btn" onclick="deleteClient(${esc(user.id)}, '${esc(user.name)}', '${esc(user.email)}')">Delete</button>`
+              : ""
+            }
           </div>
         </td>
       </tr>
@@ -501,6 +510,57 @@ function renderUsers(){
   }).join("");
 
   renderUsersPager(allUsers.length, totalPages, start, pageUsers.length);
+}
+
+/* Permanent deletion, for privacy requests.
+
+   Two confirmations, the second naming the account, because there is nothing
+   to undo afterwards: the client row and every row pointing at it are gone,
+   including their submissions, appointments and file assignments. */
+
+async function deleteClient(userId, name, email){
+
+  const first = confirm(
+    `Delete ${name} permanently?\n\n` +
+    `This erases the account and everything tied to it - responses, ` +
+    `appointments, assigned files and notifications. It cannot be undone.`
+  );
+
+  if(!first) return;
+
+  const typed = prompt(`To confirm, type the client's email:\n\n${email}`);
+
+  if(typed === null) return;
+
+  if(typed.trim().toLowerCase() !== email.trim().toLowerCase()){
+    alert("That did not match. Nothing was deleted.");
+    return;
+  }
+
+  try{
+    const res = await fetch("api/delete-client.php",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        Authorization:"Bearer " + adminToken
+      },
+      // The email goes with the request: if the list on screen is stale, the
+      // server refuses rather than deleting whoever now holds that id.
+      body:JSON.stringify({ user_id:userId, confirm_email:email })
+    });
+
+    const data = await res.json();
+
+    alert(data.message);
+
+    if(data.success){
+      loadUsers();
+      if(typeof loadAssignments === "function") loadAssignments();
+    }
+
+  }catch(error){
+    alert("Connection error.");
+  }
 }
 
 function renderUsersPager(total, totalPages, start, shown){
@@ -573,6 +633,14 @@ let targetAdmins = [];
 let poolUsers = [];
 let assignments = {};
 
+/* The owner's list holds two roles at once, so each option names which. */
+function assignRoleLabel(role){
+  if(role === "super_admin") return "Super Admin";
+  if(role === "account_manager") return "Account Manager";
+  if(role === "seo_admin") return "Admin";
+  return role;
+}
+
 async function loadAssignments(){
   const select = document.getElementById("assignSelect");
 
@@ -602,7 +670,7 @@ async function loadAssignments(){
     select.innerHTML = `
       <option value="">${esc(ASSIGN_COPY[myRole].label)}</option>
       ${targetAdmins.map(admin => `
-        <option value="${admin.id}">${esc(admin.name)} - ${esc(admin.email)}</option>
+        <option value="${admin.id}">${esc(admin.name)} - ${esc(admin.email)}${admin.role ? " (" + esc(assignRoleLabel(admin.role)) + ")" : ""}</option>
       `).join("")}
     `;
 
