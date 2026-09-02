@@ -1,0 +1,206 @@
+/*
+|------------------------------------------------------------------------------
+| Shared app shell: the sidebar becomes a menu on phones
+|------------------------------------------------------------------------------
+|
+| Every page styles its own sidebar inline, in one of two families that differ
+| only in class names - .sidebar/.main on the client pages, .admin-sidebar/
+| .admin-main on the admin ones. Both size themselves from --sidebar-w and both
+| are position:fixed, so this file can reshape either by moving that one
+| variable. Selectors below always name both.
+|
+| Three tiers:
+|
+|   > 950px    full 260px sidebar, collapsible to a 78px rail by the user
+|   769-950px  forced 78px rail - unchanged, the pages do this themselves
+|   <= 768px   off-canvas drawer behind a hamburger, which is all of the below
+|
+| Load it AFTER the page's own </style>. Several rules here deliberately undo an
+| inline rule of the same specificity and rely on source order to win.
+|
+|   <link rel="stylesheet" href="assets/shell.css?v=1" />
+|
+*/
+
+/* Injected by shell.js on every page; inert until the drawer breakpoint. */
+.wz-topbar,
+.wz-scrim,
+.wz-close {
+  display: none;
+}
+
+@media (max-width: 768px) {
+
+  /* .main and .admin-main already derive their offset and width from this
+     variable, so zeroing it hands the page its full width back. No page's own
+     layout rule is touched. */
+  :root {
+    --sidebar-w: 0px;
+  }
+
+  /* ── The bar that replaces the sidebar ─────────────────────────────────── */
+
+  .wz-topbar {
+    display: flex;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 56px;
+    align-items: center;
+    gap: 10px;
+    padding: 0 12px;
+    background: #fff;
+    border-bottom: 1px solid var(--line, #eaecf0);
+    z-index: 900;
+  }
+
+  body {
+    padding-top: 56px;
+  }
+
+  .wz-burger {
+    width: 40px;
+    height: 40px;
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--text, #101828);
+    cursor: pointer;
+  }
+
+  .wz-burger:active {
+    background: #f2f4f8;
+  }
+
+  .wz-burger svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .wz-mark {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+  }
+
+  .wz-mark img {
+    height: 26px;
+    width: auto;
+    max-width: 62vw;
+    display: block;
+  }
+
+  /* ── The sidebar, as a drawer ──────────────────────────────────────────── */
+
+  /* Overrides width:var(--sidebar-w), which the rule above just set to 0. */
+  .sidebar,
+  .admin-sidebar {
+    width: min(86vw, 300px);
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+    z-index: 1000;
+    overflow-y: auto;
+    box-shadow: 0 0 40px rgba(16, 24, 40, 0.18);
+  }
+
+  :root.nav-open .sidebar,
+  :root.nav-open .admin-sidebar {
+    transform: none;
+  }
+
+  .wz-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(16, 24, 40, 0.5);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.22s ease;
+    z-index: 999;
+  }
+
+  :root.nav-open .wz-scrim {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  :root.nav-open body {
+    overflow: hidden;
+  }
+
+  /* Each page hides the sidebar head below 950px because a 78px rail has no
+     room for a wordmark. The drawer does, and it is where the close sits. */
+  .side-head {
+    display: flex;
+  }
+
+  /* Collapsing to a rail is meaningless inside a drawer; the close button
+     shell.js adds takes this one's place in the head. */
+  .sidebar-toggle,
+  .side-toggle {
+    display: none;
+  }
+
+  .wz-close {
+    display: flex;
+    width: 34px;
+    height: 34px;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--muted, #667085);
+    cursor: pointer;
+  }
+
+  .wz-close:active {
+    background: #f2f4f8;
+  }
+
+  .wz-close svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar,
+  .admin-sidebar,
+  .wz-scrim {
+    transition: none;
+  }
+}
+
+/*
+| ── Wide tables ──────────────────────────────────────────────────────────────
+|
+| shell.js puts every table in one of these. Above the drawer breakpoint it is
+| an ordinary block and changes nothing; below it, the table keeps its natural
+| column widths and the box scrolls instead of the page. Cells stop wrapping so
+| a narrow column is never crushed to one character per line - a table only
+| becomes scrollable when its content genuinely does not fit.
+*/
+
+@media (max-width: 768px) {
+
+  .wz-tablewrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .wz-tablewrap > table {
+    min-width: 100%;
+  }
+
+  .wz-tablewrap th,
+  .wz-tablewrap td {
+    white-space: nowrap;
+  }
+}

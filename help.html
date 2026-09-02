@@ -509,13 +509,14 @@
         var root = document.documentElement;
         var KEY = "wz_sidebar_collapsed";
         var MOBILE = 950;
+        var DRAWER = 768;   // below this the sidebar is a drawer, never a rail
         function prefersCollapsed() {
           return localStorage.getItem(KEY) === "1";
         }
         function apply() {
           root.classList.toggle(
             "sidebar-collapsed",
-            window.innerWidth <= MOBILE || prefersCollapsed()
+            (window.innerWidth <= MOBILE && window.innerWidth > DRAWER) || prefersCollapsed()
           );
         }
         window.toggleSidebar = function () {
@@ -550,6 +551,7 @@
   });
 })();
 </script>
+  <link rel="stylesheet" href="assets/shell.css?v=1" />
   </head>
 
   <body>
@@ -800,5 +802,6 @@
       }
     </script>
   <script src="assets/notifications.js?v=1"></script>
+  <script src="assets/shell.js?v=1"></script>
 </body>
 </html>

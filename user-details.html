@@ -169,6 +169,55 @@ td a{color:var(--nav-active);font-weight:700}
   width:8px;height:8px;min-width:0;padding:0;border-radius:50%;
   font-size:0;border:2px solid #fff;
 }
+/* ── Phone layout ─────────────────────────────────────────────────────────
+   The month grid keeps all seven columns - a calendar that scrolls sideways
+   stops reading as a month - but a 50px cell has no room for event cards, so
+   each collapses to a coloured dot. Tapping a day fills the schedule list
+   below, which is the detail view. */
+
+@media (max-width: 768px) {
+
+  .day-header {
+    padding: 8px 2px;
+    font-size: 10px;
+  }
+
+  /* Row rather than column so the dots flow beside each other under the
+     date, which keeps a full line of its own. */
+  .day-cell {
+    min-height: 56px;
+    padding: 5px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: 3px;
+  }
+
+  .day-cell > span {
+    width: 100%;
+  }
+
+  /* The status classes carry the colour, so the dot still reads as
+     approved, pending or rejected. */
+  .day-cell .event-card {
+    width: 7px;
+    height: 7px;
+    padding: 0;
+    border-radius: 50%;
+    font-size: 0;
+    line-height: 0;
+    overflow: hidden;
+  }
+
+  .day-cell .event-card * {
+    display: none;
+  }
+
+  .calendar-grid {
+    margin-left: 18px;
+    margin-right: 18px;
+  }
+}
 </style>
 
 <script>
@@ -177,8 +226,9 @@ td a{color:var(--nav-active);font-weight:700}
   var root = document.documentElement;
   var KEY = "wz_sidebar_collapsed";
   var MOBILE = 950;
+  var DRAWER = 768;   // below this the sidebar is a drawer, never a rail
   function prefersCollapsed(){ return localStorage.getItem(KEY) === "1"; }
-  function apply(){ root.classList.toggle("sidebar-collapsed", window.innerWidth <= MOBILE || prefersCollapsed()); }
+  function apply(){ root.classList.toggle("sidebar-collapsed", (window.innerWidth <= MOBILE && window.innerWidth > DRAWER) || prefersCollapsed()); }
   window.toggleSidebar = function(){
     if (window.innerWidth <= MOBILE) return; // forced collapsed, nothing to toggle
     localStorage.setItem(KEY, prefersCollapsed() ? "0" : "1");
@@ -191,6 +241,7 @@ td a{color:var(--nav-active);font-weight:700}
 function openAccount(){ document.getElementById("acctModal").classList.add("show"); }
 function closeAccount(){ document.getElementById("acctModal").classList.remove("show"); }
 </script>
+<link rel="stylesheet" href="assets/shell.css?v=1" />
 </head>
 
 <body>
@@ -716,6 +767,7 @@ loadUser();
 </script>
 
 <script src="assets/notifications.js?v=1"></script>
+<script src="assets/shell.js?v=1"></script>
 <script src="assets/sources-lock.js?v=1"></script>
 </body>
 </html>

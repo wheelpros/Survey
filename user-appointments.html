@@ -789,7 +789,71 @@ th {
   width:8px;height:8px;min-width:0;padding:0;border-radius:50%;
   font-size:0;border:2px solid #fff;
 }
+/* ── Phone layout ─────────────────────────────────────────────────────────
+   Phone: the month grid keeps all seven columns - a calendar that scrolls
+   sideways stops reading as a month - but a 53px cell has no room for event
+   cards, so each one collapses to a coloured dot and the day is opened by
+   tapping it. The Daily Schedule panel below already renders the selected
+   day in full, which is the detail view. */
+
+@media (max-width: 768px) {
+
+  /* The month title, its arrows and Today do not fit on one line. */
+  .card-header {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .month-title {
+    min-width: 0;
+  }
+
+  .calendar-controls {
+    gap: 8px;
+  }
+
+  .day-header {
+    padding: 8px 2px;
+    font-size: 10px;
+  }
+
+  /* Row rather than column so the dots flow beside each other under the
+     date, which is given a full line of its own. */
+  .day-cell {
+    min-height: 58px;
+    padding: 5px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: 3px;
+  }
+
+  .day-cell > span {
+    width: 100%;
+  }
+
+  /* The status classes carry the colour, so the dot stays readable as
+     approved, pending or rejected. */
+  .day-cell .event-card {
+    width: 7px;
+    height: 7px;
+    padding: 0;
+    border-radius: 50%;
+    font-size: 0;
+    line-height: 0;
+    overflow: hidden;
+  }
+
+  .day-cell .event-card * {
+    display: none;
+  }
+
+  .view-toggle {
+    flex-wrap: wrap;
+  }
+}
 </style>
+
 
 <script>
 // Runs before paint so the collapsed state never flashes open on load.
@@ -797,9 +861,10 @@ th {
   var root = document.documentElement;
   var KEY = "wz_sidebar_collapsed";
   var MOBILE = 950;
+  var DRAWER = 768;   // below this the sidebar is a drawer, never a rail
   function prefersCollapsed(){ return localStorage.getItem(KEY) === "1"; }
   function apply(){
-    root.classList.toggle("sidebar-collapsed", window.innerWidth <= MOBILE || prefersCollapsed());
+    root.classList.toggle("sidebar-collapsed", (window.innerWidth <= MOBILE && window.innerWidth > DRAWER) || prefersCollapsed());
   }
   window.toggleSidebar = function(){
     if (window.innerWidth <= MOBILE) return; // forced collapsed, nothing to toggle
@@ -833,6 +898,7 @@ th {
   });
 })();
 </script>
+<link rel="stylesheet" href="assets/shell.css?v=1" />
 </head>
 
 <body>
@@ -1711,5 +1777,6 @@ document.addEventListener("DOMContentLoaded", () => {
   </div>
 </div>
 <script src="assets/notifications.js?v=1"></script>
+<script src="assets/shell.js?v=1"></script>
 </body>
 </html>

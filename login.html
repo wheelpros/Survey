@@ -449,6 +449,46 @@
         }
       }
 
+      /* ── Phone controls ─────────────────────────────────────────────────
+         On a phone the slideshow is not decoration beside the form: it is
+         the first thing shown, full bleed, with the form waiting behind a
+         Login button. Both controls are fixed rather than nested in the
+         aside, which is aria-hidden. They stay display:none until the media
+         query below turns them on, so nothing changes on a desktop. */
+
+      .mobile-cta,
+      .mobile-back {
+        display: none;
+        position: fixed;
+        z-index: 5;
+        border: none;
+        cursor: pointer;
+      }
+
+      .mobile-cta {
+        left: 24px;
+        right: 24px;
+        bottom: 34px;
+        height: 56px;
+        border-radius: 8px;
+        background: #fff;
+        color: #111827;
+        font-size: 16px;
+        font-weight: 700;
+      }
+
+      .mobile-back {
+        top: 14px;
+        left: 14px;
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        background: transparent;
+        color: #1b1e3a;
+        font-size: 20px;
+        line-height: 1;
+      }
+
       /* Kept last on purpose: the rules it overrides are all above it. */
       @media (max-width: 900px) {
         .auth-wrapper {
@@ -461,13 +501,14 @@
           margin-top: 0;
         }
 
-        .auth-slideshow {
+        /* No slides: the form is the whole page, exactly as before. */
+        body:not(.has-slides) .auth-slideshow {
           display: none;
         }
 
         body.has-slides {
-          padding: 40px 20px;
-          align-items: center;
+          padding: 0;
+          align-items: stretch;
         }
 
         body.has-slides .auth-layout {
@@ -476,7 +517,64 @@
         }
 
         body.has-slides .auth-pane {
-          padding: 0;
+          padding: 40px 20px;
+        }
+
+        /* Intro state: the image fills the screen and the form is hidden
+           behind the Login button. */
+        body.has-slides:not(.auth-open) {
+          overflow: hidden;
+        }
+
+        body.has-slides:not(.auth-open) .auth-pane {
+          display: none;
+        }
+
+        body.has-slides:not(.auth-open) .auth-slideshow {
+          position: relative;
+        }
+
+        /* Flex rather than block: a block button loses the centring the
+           browser gives its label by default. */
+        body.has-slides:not(.auth-open) .mobile-cta {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        /* Caption and dots are lifted to leave the button its own band. */
+        body.has-slides:not(.auth-open) .slide figcaption {
+          left: 24px;
+          right: 24px;
+          bottom: 158px;
+        }
+
+        body.has-slides:not(.auth-open) .slide figcaption h2 {
+          font-size: 26px;
+          font-weight: 700;
+          line-height: 1.2;
+          max-width: 15ch;
+        }
+
+        body.has-slides:not(.auth-open) .slide figcaption p {
+          font-size: 14px;
+          margin-top: 10px;
+        }
+
+        body.has-slides:not(.auth-open) .slide-dots {
+          left: 24px;
+          bottom: 124px;
+        }
+
+        /* Form state: the image steps aside, a way back takes its place. */
+        body.has-slides.auth-open .auth-slideshow {
+          display: none;
+        }
+
+        body.has-slides.auth-open .mobile-back {
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
       }
     </style>
@@ -490,6 +588,19 @@
         <div class="slide-stack" id="slideStack"></div>
         <div class="slide-dots" id="slideDots"></div>
       </aside>
+
+      <button class="mobile-cta" type="button" onclick="openMobileAuth()">
+        Login
+      </button>
+
+      <button
+        class="mobile-back"
+        type="button"
+        aria-label="Back"
+        onclick="closeMobileAuth()"
+      >
+        &#8592;
+      </button>
 
       <div class="auth-pane">
     <div class="auth-wrapper">
@@ -687,12 +798,6 @@
         window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
       async function loadLoginSlides() {
-        // Below 900px the column is hidden by CSS anyway, so a phone should
-        // not spend a single byte downloading the images.
-        if (window.matchMedia && !window.matchMedia("(min-width: 901px)").matches) {
-          return;
-        }
-
         try {
           const res = await fetch(`${API_BASE}/login-slides.php`, {
             cache: "no-store",
@@ -861,10 +966,30 @@
       document.addEventListener("visibilitychange", () => {
         if (document.hidden) {
           stopSlideshow();
-        } else if (document.body.classList.contains("has-slides")) {
+        } else if (
+          document.body.classList.contains("has-slides") &&
+          !document.body.classList.contains("auth-open")
+        ) {
           startSlideshow();
         }
       });
+
+      /* Both classes are inert above 900px, so a phone rotated into the
+         desktop layout needs no clean-up. */
+
+      function openMobileAuth() {
+        document.body.classList.add("auth-open");
+        // The button says Login, so it opens on the Log In card whichever
+        // card the page happened to start on.
+        showLogin();
+        window.scrollTo(0, 0);
+        stopSlideshow();
+      }
+
+      function closeMobileAuth() {
+        document.body.classList.remove("auth-open");
+        startSlideshow();
+      }
 
       async function loginUser() {
         const email = document.getElementById("loginEmail").value.trim();

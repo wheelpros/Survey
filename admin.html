@@ -470,8 +470,9 @@ select.client-filter{
   var root = document.documentElement;
   var KEY = "wz_sidebar_collapsed";
   var MOBILE = 950;
+  var DRAWER = 768;   // below this the sidebar is a drawer, never a rail
   function prefersCollapsed(){ return localStorage.getItem(KEY) === "1"; }
-  function apply(){ root.classList.toggle("sidebar-collapsed", window.innerWidth <= MOBILE || prefersCollapsed()); }
+  function apply(){ root.classList.toggle("sidebar-collapsed", (window.innerWidth <= MOBILE && window.innerWidth > DRAWER) || prefersCollapsed()); }
   window.toggleSidebar = function(){
     if (window.innerWidth <= MOBILE) return; // forced collapsed, nothing to toggle
     localStorage.setItem(KEY, prefersCollapsed() ? "0" : "1");
@@ -496,6 +497,7 @@ document.addEventListener("DOMContentLoaded", function () {
   set("acctName", name);   set("acctRole", label);   set("acctAvatar", initial);
 });
 </script>
+<link rel="stylesheet" href="assets/shell.css?v=1" />
 </head>
 
 <body>
@@ -1170,6 +1172,7 @@ loadSurveyData();
 </script>
 
 <script src="assets/notifications.js?v=1"></script>
+<script src="assets/shell.js?v=1"></script>
 <script src="assets/sources-lock.js?v=1"></script>
 <script src="assets/role-nav.js?v=1"></script>
 <script>

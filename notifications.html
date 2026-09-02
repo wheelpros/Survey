@@ -230,9 +230,10 @@ body{background:#f7f8fc;color:var(--text)}
   var root = document.documentElement;
   var KEY = "wz_sidebar_collapsed";
   var MOBILE = 950;
+  var DRAWER = 768;   // below this the sidebar is a drawer, never a rail
   function prefersCollapsed(){ return localStorage.getItem(KEY) === "1"; }
   function apply(){
-    root.classList.toggle("sidebar-collapsed", window.innerWidth <= MOBILE || prefersCollapsed());
+    root.classList.toggle("sidebar-collapsed", (window.innerWidth <= MOBILE && window.innerWidth > DRAWER) || prefersCollapsed());
   }
   window.toggleSidebar = function(){
     if (window.innerWidth <= MOBILE) return; // forced collapsed, nothing to toggle
@@ -266,6 +267,7 @@ body{background:#f7f8fc;color:var(--text)}
   });
 })();
 </script>
+<link rel="stylesheet" href="assets/shell.css?v=1" />
 </head>
 
 <body>
@@ -797,6 +799,7 @@ loadPage(1);
 </script>
 
 <script src="assets/notifications.js?v=1"></script>
+<script src="assets/shell.js?v=1"></script>
 
 </body>
 </html>
