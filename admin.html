@@ -895,12 +895,24 @@ async function viewSurveyResponses(surveyId){
 
     const data = await res.json();
 
-    if(!data.success || !data.responses || !data.responses.length){
-      alert("No responses found for this survey.");
+    if(!data.success){
+      alert(data.message || "Could not load the responses.");
       return;
     }
 
-    window.location.href = "response-details.html?id=" + data.responses[0].id;
+    if(!data.responses || !data.responses.length){
+      alert("No responses found for this form.");
+      return;
+    }
+
+    // Newest first from the endpoint, so [0] is the latest submission rather
+    // than an arbitrary one. Opened in its own tab: the modal behind it keeps
+    // its place, the same as Send Again.
+    window.open(
+      "response-details.html?id=" + encodeURIComponent(data.responses[0].id),
+      "_blank",
+      "noopener"
+    );
 
   }catch(error){
     alert("Connection error.");
