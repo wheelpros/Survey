@@ -868,14 +868,9 @@ function renderSurveysTable(){
       <td>${esc(survey.created_at)}</td>
       <td>
         <div class="actions">
+          <!-- View is the only row action: Send Again and View Responses both
+               live inside the modal it opens, so the column stays narrow. -->
           <button class="btn action-btn" type="button" onclick="openReview(${Number(survey.id)})">View</button>
-
-
-          ${
-            survey.status === "completed"
-            ? `<button class="btn action-btn" onclick="viewSurveyResponses(${Number(survey.id)})">View Responses</button>`
-            : ``
-          }
         </div>
       </td>
     </tr>
