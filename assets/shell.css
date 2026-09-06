@@ -33,8 +33,15 @@
 
   /* .main and .admin-main already derive their offset and width from this
      variable, so zeroing it hands the page its full width back. No page's own
-     layout rule is touched. */
-  :root {
+     layout rule is touched.
+
+     The second selector is not redundant: every page force-collapses itself
+     below 950px through :root.sidebar-collapsed { --sidebar-w: 78px }, and a
+     bare :root here loses to it on specificity no matter what a media query
+     wraps it in. Without the match, the drawer pages keep a 78px gutter down
+     the left of a phone with nothing in it. */
+  :root,
+  :root.sidebar-collapsed {
     --sidebar-w: 0px;
   }
 

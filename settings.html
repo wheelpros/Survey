@@ -443,6 +443,7 @@ body{padding:0}
 }
 
 .slide-move {
+    flex: none;
     width: 34px;
     height: 34px;
     padding: 0;
@@ -459,6 +460,129 @@ body{padding:0}
 .slide-move:disabled {
     opacity: .4;
     cursor: not-allowed;
+}
+
+/* The control that opens the Add dialog, and the count beside it that says
+   why it is disabled once five slides exist. */
+.slide-add-bar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-top: 18px;
+}
+
+.slide-add-bar .primary:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+}
+
+.slide-add-bar .small {
+    color: #667085;
+}
+
+/* ── The Add-a-slide dialog ──
+   Reuses the account popup's shell (.acct-modal / .acct-box / .acct-head) so
+   there is one dialog look on the page, with a taller box and a scrolling
+   body because this one holds a form rather than three lines. */
+.slide-box {
+    max-width: 520px;
+    max-height: 88vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.slide-modal-body {
+    padding: 22px 24px;
+    overflow-y: auto;
+}
+
+/* The fields moved out of .panel-body, which is where they were getting their
+   size and border from, so that rule is repeated here for the dialog. */
+.slide-modal-body input {
+    width: 100%;
+    padding: 14px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    font-size: 15px;
+    background: #fff;
+    box-sizing: border-box;
+    margin-bottom: 15px;
+}
+
+/* The first label sits directly under the dialog header, which already
+   provides the gap. */
+.slide-modal-body label:first-child {
+    margin-top: 0;
+}
+
+.slide-modal-foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 16px 24px 20px;
+    border-top: 1px solid #eef1f5;
+}
+
+.slide-cancel {
+    border: 1px solid #dfe3ea;
+    background: #fff;
+    color: #101828;
+    padding: 12px 18px;
+    border-radius: 10px;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.slide-cancel:hover {
+    background: #f6f7f9;
+}
+
+/* Save text was carrying its sizing in a style attribute, which the phone
+   rules below could not override without !important. */
+.slide-save {
+    width: auto;
+    padding: 0 12px;
+}
+
+/* ── A saved slide on a phone ──
+   The desktop row is thumbnail | two inputs | four buttons across one line,
+   which at 390px leaves every part of it too narrow to use. Stacked, it reads
+   in the order it is edited: the picture, its two lines of text, then what can
+   be done to it - the same shape as the Add dialog. */
+@media (max-width: 768px) {
+
+    #slidesList .admin-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    /* Wide enough to judge the crop, which is the whole point of the
+       thumbnail; the pencil that swaps the image sits over it as before. */
+    #slidesList .slide-thumb-wrap {
+        width: 100%;
+        height: 160px;
+    }
+
+    #slidesList .admin-info {
+        width: 100%;
+    }
+
+    #slidesList .slide-actions {
+        flex-wrap: wrap;
+    }
+
+    /* The arrows stay square; Save text and Remove share whatever is left, so
+       both keep a tappable width instead of shrinking to their labels. */
+    #slidesList .slide-save,
+    #slidesList .remove-admin-btn {
+        flex: 1 1 0;
+        min-width: 104px;
+        height: 34px;
+        padding: 0 12px;
+    }
 }
 
 /* The upload control matches the one on the content creation page, so an
@@ -690,7 +814,7 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 </script>
-<link rel="stylesheet" href="assets/shell.css?v=1" />
+<link rel="stylesheet" href="assets/shell.css?v=2" />
 </head>
 
 <body>
@@ -824,36 +948,68 @@ document.addEventListener("DOMContentLoaded", function () {
       <div class="no-admins">Loading slides...</div>
     </div>
 
-    <label for="slideFile">Image</label>
-
-    <div class="dropzone" id="slideDropzone" role="button" tabindex="0"
-         onclick="document.getElementById('slideFile').click()"
-         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('slideFile').click();}">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-      <strong>Upload image</strong>
-      <span>Max size 3 MB &middot; 1200 &times; 1600 px recommended</span>
+    <!-- Adding a slide is four fields and a dropzone, which was more of the
+         panel than the list it sits under. It lives in a dialog now, so this
+         is only ever the list plus the one control that opens it. -->
+    <div class="slide-add-bar">
+      <button class="primary" type="button" id="openAddSlideBtn"
+              onclick="openAddSlide()" style="margin-top:0;">Add Slide</button>
+      <span class="small" id="slideCount"></span>
     </div>
 
-    <div class="media-preview" id="slidePreview">
-      <div class="thumb" id="slideThumb"></div>
-      <button class="remove" type="button" onclick="clearSlideMedia()" title="Remove image">&times;</button>
-    </div>
-
-    <input type="file" id="slideFile" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
-
-    <div class="media-error" id="slideMediaError"></div>
-
-    <label for="slideTitle">Title</label>
-    <input type="text" id="slideTitle" placeholder="Headline shown over the image" maxlength="120">
-
-    <label for="slideSubtitle">Subtitle</label>
-    <input type="text" id="slideSubtitle" placeholder="One supporting line" maxlength="255">
-
-    <div class="small" id="slideHint">JPG, PNG, WEBP or GIF. Max 3 MB. The login panel is a tall half-screen column, so portrait images fill it best &mdash; 1200 &times; 1600 px recommended, 600 &times; 800 px minimum.</div>
-
-    <button class="primary" id="addSlideBtn" onclick="uploadSlide()" style="margin-top:0;">Add Slide</button>
-
+    <!-- Removing, reordering and saving text all report here; the dialog has
+         its own line for the upload it owns. -->
     <div id="slideStatus" class="status"></div>
+  </div>
+</div>
+
+<!-- Add-a-slide dialog. Sits inside #slideshowSection so a non-owner never
+     has it, and above the page script so the dropzone wiring finds it. -->
+<div class="acct-modal" id="slideModal">
+  <div class="acct-box slide-box">
+
+    <div class="acct-head">
+      <h2>Add Slide</h2>
+      <button type="button" onclick="closeAddSlide()" aria-label="Close">&times;</button>
+    </div>
+
+    <div class="slide-modal-body">
+
+      <label for="slideFile">Image</label>
+
+      <div class="dropzone" id="slideDropzone" role="button" tabindex="0"
+           onclick="document.getElementById('slideFile').click()"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('slideFile').click();}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <strong>Upload image</strong>
+        <span>Max size 3 MB &middot; 1200 &times; 1600 px recommended</span>
+      </div>
+
+      <div class="media-preview" id="slidePreview">
+        <div class="thumb" id="slideThumb"></div>
+        <button class="remove" type="button" onclick="clearSlideMedia()" title="Remove image">&times;</button>
+      </div>
+
+      <input type="file" id="slideFile" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
+
+      <div class="media-error" id="slideMediaError"></div>
+
+      <label for="slideTitle">Title</label>
+      <input type="text" id="slideTitle" placeholder="Headline shown over the image" maxlength="120">
+
+      <label for="slideSubtitle">Subtitle</label>
+      <input type="text" id="slideSubtitle" placeholder="One supporting line" maxlength="255">
+
+      <div class="small" id="slideHint">JPG, PNG, WEBP or GIF. Max 3 MB. The login panel is a tall half-screen column, so portrait images fill it best &mdash; 1200 &times; 1600 px recommended, 600 &times; 800 px minimum.</div>
+
+      <div id="slideAddStatus" class="status"></div>
+    </div>
+
+    <div class="slide-modal-foot">
+      <button class="slide-cancel" type="button" onclick="closeAddSlide()">Cancel</button>
+      <button class="primary" id="addSlideBtn" onclick="uploadSlide()" style="margin-top:0;">Add Slide</button>
+    </div>
+
   </div>
 </div>
 </div>
@@ -1322,7 +1478,7 @@ function renderSlidesList() {
                     <button type="button" class="slide-move" title="Move down" aria-label="Move down"
                             onclick="moveSlide(${index}, 1)" ${index === allSlides.length - 1 ? "disabled" : ""}>↓</button>
 
-                    <button type="button" class="slide-move" style="width:auto;padding:0 12px;"
+                    <button type="button" class="slide-move slide-save"
                             onclick="saveSlideText(${slide.id})">Save text</button>
 
                     <button type="button" class="remove-admin-btn"
@@ -1341,15 +1497,27 @@ function updateSlideControls() {
     const file = document.getElementById("slideFile");
     const dropzone = document.getElementById("slideDropzone");
     const addBtn = document.getElementById("addSlideBtn");
+    const openBtn = document.getElementById("openAddSlideBtn");
+    const count = document.getElementById("slideCount");
 
     const full = allSlides.length >= MAX_SLIDES;
 
     if (file) file.disabled = full;
     if (addBtn) addBtn.disabled = full;
 
+    // The dialog is the only way in now, so the cap has to be visible on the
+    // button that opens it - not just on the controls inside.
+    if (openBtn) openBtn.disabled = full;
+
     // The input is hidden now, so disabling it alone would still leave the
     // dropzone looking clickable.
     if (dropzone) dropzone.classList.toggle("is-disabled", full);
+
+    if (count) {
+        count.innerText = full
+            ? `Maximum of ${MAX_SLIDES} slides reached. Remove one to add another.`
+            : `${allSlides.length} of ${MAX_SLIDES} slides.`;
+    }
 
     if (hint) {
         hint.innerText = full
@@ -1360,6 +1528,34 @@ function updateSlideControls() {
                 + `${MIN_SLIDE_WIDTH} × ${MIN_SLIDE_HEIGHT} px minimum.`;
     }
 }
+
+/* ── Opening and closing the Add dialog ────────────────────────────────────
+   Every field in it belongs to one upload, so it opens empty rather than
+   holding whatever was typed and abandoned last time. */
+
+function openAddSlide() {
+    if (allSlides.length >= MAX_SLIDES) return;
+
+    clearSlideMedia();
+    document.getElementById("slideTitle").value = "";
+    document.getElementById("slideSubtitle").value = "";
+    document.getElementById("slideAddStatus").innerText = "";
+
+    document.getElementById("slideModal").classList.add("show");
+    document.getElementById("slideDropzone").focus();
+}
+
+function closeAddSlide() {
+    document.getElementById("slideModal").classList.remove("show");
+}
+
+// Escape closes it, the same as the × in the header.
+document.addEventListener("keydown", function (event) {
+    if (event.key !== "Escape") return;
+
+    const modal = document.getElementById("slideModal");
+    if (modal && modal.classList.contains("show")) closeAddSlide();
+});
 
 /* ── The Add-a-slide dropzone ─────────────────────────────────────────────
    Same control as the Media Assets box on admin-content-form.html: a click
@@ -1542,14 +1738,19 @@ async function replaceSlideImage(id, input) {
 }
 
 async function uploadSlide() {
-    const status = document.getElementById("slideStatus");
+
+    /* Two status lines now. Progress and anything that went wrong belong in
+       the dialog, where the fields that caused it still are; the result of a
+       finished upload belongs in the panel, because the dialog closes. */
+    const status = document.getElementById("slideAddStatus");
+    const panelStatus = document.getElementById("slideStatus");
     const addBtn = document.getElementById("addSlideBtn");
 
     // Held by handleSlideMedia() - a dropped file never reaches the input.
     const file = pendingSlideFile;
 
     if (!file) {
-        alert("Please choose an image first.");
+        status.innerText = "Choose an image first.";
         return;
     }
 
@@ -1571,14 +1772,20 @@ async function uploadSlide() {
         });
 
         const data = await res.json();
-        status.innerText = data.message;
 
         if (data.success) {
             clearSlideMedia();
             document.getElementById("slideTitle").value = "";
             document.getElementById("slideSubtitle").value = "";
+
+            closeAddSlide();
+            panelStatus.innerText = data.message;
+        } else {
+            status.innerText = data.message;
         }
 
+        // Re-enables or re-disables the buttons off the new count, so a failed
+        // upload leaves Add usable and a fifth slide leaves it disabled.
         await loadSlides();
 
     } catch (err) {

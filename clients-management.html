@@ -236,7 +236,78 @@ document.addEventListener("DOMContentLoaded", function () {
   set("adminName", name);  set("adminRole", label);  set("adminAvatar", initial);
   set("acctName", name);   set("acctRole", label);   set("acctAvatar", initial);
 });
-</script><link rel="stylesheet" href="assets/shell.css?v=1" /></head><body>
+</script><link rel="stylesheet" href="assets/shell.css?v=2" />
+<style>
+/*
+| -- Clients on a phone -------------------------------------------------------
+|
+| The same shape the Forms list uses, and loaded after shell.css for the same
+| reason: a few rules here undo one of its .wz-tablewrap rules and win on the
+| id selector rather than on !important.
+|
+| Six columns do not fit at 390px. The two that say which client the row is -
+| the name and whether the account is approved - stay, and the row's buttons
+| move into a kebab. The id, the email and the signup date are all on the
+| client's own page, which the first item in that menu opens.
+*/
+
+.row-kebab{display:none}
+
+.row-menu{
+  position:fixed;z-index:100000;min-width:190px;padding:6px;
+  background:#fff;border:1px solid var(--line, #eaecf0);border-radius:12px;
+  box-shadow:0 18px 40px rgba(16,24,40,.18);
+}
+.row-menu[hidden]{display:none}
+.row-menu button,
+.row-menu a{
+  display:block;width:100%;padding:11px 12px;border:none;border-radius:9px;
+  background:transparent;text-align:left;text-decoration:none;
+  font:inherit;font-size:14px;font-weight:700;color:#101828;cursor:pointer;
+}
+.row-menu button:hover,
+.row-menu a:hover{background:#f6f7f9}
+
+/* Reject and Delete end an account, so they read as the destructive pair they
+   are rather than sitting in the list looking like View. */
+.row-menu .danger{color:#c9000b}
+.row-menu .danger:hover{background:#fff5f5}
+
+@media(max-width:768px){
+
+  /* Id, email and signup date. The .empty guard keeps the "Loading clients..."
+     and "No clients found." rows, which are a single colspan cell sitting in
+     first position. */
+  #clientsTable th:nth-child(1),#clientsTable td:nth-child(1):not(.empty),
+  #clientsTable th:nth-child(3),#clientsTable td:nth-child(3),
+  #clientsTable th:nth-child(5),#clientsTable td:nth-child(5){
+    display:none;
+  }
+
+  /* Two columns fit, so let a long client name wrap instead of handing the
+     panel a horizontal scrollbar. The min-width undoes the 760px this page
+     puts on every table below 800px; the wrapping beats shell.css. Both win
+     on the id rather than on !important. */
+  #clientsTable{min-width:0}
+  #clientsTable th,#clientsTable td{
+    white-space:normal;
+    padding-left:12px;padding-right:12px;
+  }
+
+  #clientsTable td:last-child{width:44px}
+
+  #clientsTable .actions .btn{display:none}
+
+  #clientsTable .row-kebab{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:36px;height:36px;padding:0;flex:none;
+    border:1px solid #dfe3ea;border-radius:9px;
+    background:#fff;color:#667085;cursor:pointer;
+  }
+  .row-kebab svg{width:18px;height:18px}
+}
+</style>
+</head><body>
 <aside class="admin-sidebar">
   <div>
     <div class="side-head">
@@ -304,7 +375,7 @@ document.addEventListener("DOMContentLoaded", function () {
       </div>
     </div>
 
-<div class="panel"><table><thead><tr><th>ID</th><th>Client</th><th>Email</th><th>Status</th><th>Created At</th><th>Actions</th></tr></thead><tbody id="usersTable"><tr><td colspan="6" class="empty">Loading clients...</td></tr></tbody></table>
+<div class="panel"><table id="clientsTable"><thead><tr><th>ID</th><th>Client</th><th>Email</th><th>Status</th><th>Created At</th><th>Actions</th></tr></thead><tbody id="usersTable"><tr><td colspan="6" class="empty">Loading clients...</td></tr></tbody></table>
 <div class="pager" id="usersPager" hidden>
   <span class="pager-info" id="usersPagerInfo"></span>
   <div class="pager-pages" id="usersPagerPages"></div>
@@ -457,6 +528,143 @@ async function loadUsers(){
   }
 }
 
+/* ── The row kebab ──────────────────────────────────────────────────────────
+   A phone has room for the client name, the status and one control, so below
+   768px the row's buttons are swapped for this and they move into a menu. The
+   button is in the markup on every screen; shell.css's breakpoint decides
+   which of the two is on show, so nothing re-renders when the window resizes.
+
+   The menu is one element reused by every row, positioned under whichever
+   button was pressed - a menu per row would be hundreds of hidden nodes. */
+
+function kebabButton(userId){
+  return `
+    <button class="row-kebab" type="button" aria-haspopup="true" aria-expanded="false"
+            aria-label="Actions" onclick="openRowMenu(event, ${Number(userId)})">
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/>
+      </svg>
+    </button>
+  `;
+}
+
+let rowMenuButton = null;
+
+function rowMenuEl(){
+  let menu = document.getElementById("rowMenu");
+
+  if(!menu){
+    menu = document.createElement("div");
+    menu.id = "rowMenu";
+    menu.className = "row-menu";
+    menu.hidden = true;
+    document.body.appendChild(menu);
+  }
+
+  return menu;
+}
+
+function openRowMenu(event, userId){
+  event.stopPropagation();
+
+  const button = event.currentTarget;
+
+  // Second press on the same row closes it, the way the button's own toggle
+  // state suggests it should.
+  if(rowMenuButton === button){
+    closeRowMenu();
+    return;
+  }
+
+  closeRowMenu();
+
+  const user = allUsers.find(item => Number(item.id) === Number(userId));
+
+  if(!user) return;
+
+  const approved = Number(user.approved) === 1;
+
+  // The same actions the row offers on a desktop, decided the same way: the
+  // owner alone approves, rejects or deletes, and which pair they get depends
+  // on whether the account has been approved yet.
+  const items = [
+    `<a href="user-details.html?id=${encodeURIComponent(user.id)}"
+        onclick="closeRowMenu()">View client</a>`
+  ];
+
+  if(isOwner && !approved){
+    items.push(
+      `<button type="button" onclick="runRowAction(() => updateUser(${Number(user.id)}, 'approve'))">Approve</button>`,
+      `<button type="button" class="danger" onclick="runRowAction(() => updateUser(${Number(user.id)}, 'reject'))">Reject</button>`
+    );
+  }
+
+  if(isOwner && approved){
+    items.push(
+      `<button type="button" class="danger" onclick="runRowAction(() => deleteClient(${Number(user.id)}, ${JSON.stringify(user.name)}, ${JSON.stringify(user.email)}))">Delete</button>`
+    );
+  }
+
+  const menu = rowMenuEl();
+  menu.innerHTML = items.join("");
+  menu.hidden = false;
+
+  placeRowMenu(menu, button);
+
+  button.setAttribute("aria-expanded", "true");
+  rowMenuButton = button;
+
+  // preventScroll: the menu is fixed and already on screen, and a scroll here
+  // would trip the listener below and close what was just opened.
+  const first = menu.querySelector("button, a");
+  if(first) first.focus({ preventScroll: true });
+}
+
+/* position:fixed, so the box is measured against the viewport and never
+   clipped by the panel's own overflow. Right-aligned under the button, and
+   flipped above it when the row is near the bottom of the screen. */
+function placeRowMenu(menu, button){
+  const rect = button.getBoundingClientRect();
+  const box = menu.getBoundingClientRect();
+  const gap = 6;
+
+  let left = rect.right - box.width;
+  left = Math.min(Math.max(8, left), window.innerWidth - box.width - 8);
+
+  const below = rect.bottom + gap;
+  const top = below + box.height > window.innerHeight - 8
+    ? Math.max(8, rect.top - gap - box.height)
+    : below;
+
+  menu.style.left = left + "px";
+  menu.style.top = top + "px";
+}
+
+function closeRowMenu(){
+  const menu = document.getElementById("rowMenu");
+  if(menu) menu.hidden = true;
+
+  if(rowMenuButton) rowMenuButton.setAttribute("aria-expanded", "false");
+  rowMenuButton = null;
+}
+
+/* Every menu item closes the menu before it does anything, so the box is never
+   left floating over the confirm dialog it just opened. */
+function runRowAction(action){
+  closeRowMenu();
+  action();
+}
+
+document.addEventListener("click", closeRowMenu);
+document.addEventListener("keydown", function(event){
+  if(event.key === "Escape") closeRowMenu();
+});
+window.addEventListener("resize", closeRowMenu);
+
+// The menu is position:fixed and the page scrolls behind it, so it would
+// otherwise drift away from its row.
+window.addEventListener("scroll", closeRowMenu, true);
+
 function renderUsers(){
   const table = document.getElementById("usersTable");
 
@@ -514,6 +722,10 @@ function renderUsers(){
               ? `<button class="btn delete-btn" onclick="deleteClient(${esc(user.id)}, '${esc(user.name)}', '${esc(user.email)}')">Delete</button>`
               : ""
             }
+
+            <!-- Phone only, and the whole column there: up to three buttons do
+                 not fit beside the client name. Offers the same actions. -->
+            ${kebabButton(user.id)}
           </div>
         </td>
       </tr>

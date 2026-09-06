@@ -490,6 +490,32 @@ body{padding:0}
 
 .icon-btn:disabled { opacity: .45; cursor: not-allowed; }
 
+/* The eye that opens a row in full, in the Daily Schedule and Your requests.
+   Same 32px square as the approve/decline circles beside it in the hub, so
+   the three read as one family of row controls.
+
+   display:none is here rather than in a rule of its own further up: this one
+   would come later and win the tie, and the row would keep its eye on a
+   desktop that is already showing everything the eye opens. The phone block
+   turns it back on. */
+.eye-btn {
+  display: none;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #475467;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.eye-btn:hover { background: #f6f7f9; }
+.eye-btn svg { width: 16px; height: 16px; }
+
 /* ── "Your requests" cards ── */
 .request-list { display: flex; flex-direction: column; gap: 12px; }
 
@@ -652,10 +678,13 @@ select.client-filter{
     padding: 8px 2px;
     font-size: 10px;
   }
-
   /* Row rather than column so the dots flow beside each other under the
-     date, which is given a full line of its own. */
-  .day-cell {
+     date, which is given a full line of its own.
+
+     :not(.one-day) throughout: the dot treatment exists because a 53px cell
+     in a seven-column grid has no room for a card. Day view is one column
+     wide, so there it would be throwing away the space it just gained. */
+  .calendar-grid:not(.one-day) .day-cell {
     min-height: 58px;
     padding: 5px;
     flex-direction: row;
@@ -664,13 +693,13 @@ select.client-filter{
     gap: 3px;
   }
 
-  .day-cell > span {
+  .calendar-grid:not(.one-day) .day-cell > span {
     width: 100%;
   }
 
   /* The status classes carry the colour, so the dot stays readable as
      approved, pending or rejected. */
-  .day-cell .event-card {
+  .calendar-grid:not(.one-day) .day-cell .event-card {
     width: 7px;
     height: 7px;
     padding: 0;
@@ -680,12 +709,279 @@ select.client-filter{
     overflow: hidden;
   }
 
-  .day-cell .event-card * {
+  .calendar-grid:not(.one-day) .day-cell .event-card * {
     display: none;
   }
 
   .view-toggle {
     flex-wrap: wrap;
+  }
+}
+
+/* ── Day view ──
+   One day, so one column. Seven columns left six of them empty and dropped
+   the day under "Mon" whatever weekday it was; renderCalendar() writes the
+   real weekday into the single header instead. */
+.calendar-grid.one-day {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.calendar-grid.one-day .day-cell {
+  min-height: 220px;
+}
+
+/* ── The request detail dialog ──
+   The phone cannot show a four-column row, and the notes were never in the
+   table at all beyond a truncated sub-line, so the whole request opens here
+   instead - and the decision is taken here too, in front of the notes that
+   inform it. Built on the account popup's shell so the page has one dialog
+   look. Reachable at every width; the kebab that opens it is phone-only. */
+.req-box {
+  max-width: 520px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.req-body {
+  padding: 22px 24px;
+  overflow-y: auto;
+}
+
+.req-topic {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+
+.req-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 18px 0;
+  padding: 18px 0;
+  border-top: 1px solid #eef1f5;
+  border-bottom: 1px solid #eef1f5;
+}
+
+.req-meta span {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.req-meta strong {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.req-notes-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.req-notes {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #475467;
+  white-space: pre-wrap;
+}
+
+.req-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 24px 20px;
+  border-top: 1px solid #eef1f5;
+}
+
+.req-foot button {
+  padding: 11px 18px;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.req-decline {
+  border: 1px solid #f0d2d4;
+  background: #fff;
+  color: var(--brand);
+}
+
+.req-decline:hover { background: #fff5f5; }
+
+.req-approve {
+  border: none;
+  background: var(--nav-active);
+  color: #fff;
+}
+
+.req-approve:hover { background: #2a2f5c; }
+
+.req-foot[hidden] { display: none; }
+
+/* The kebab that opens it. In the markup on every screen; the phone rules
+   below decide which of it and the inline buttons is on show. */
+.row-kebab { display: none; }
+
+/* The topic and the date line have to be allowed to wrap, or a long one
+   pushes the status badge off the side of the card. */
+.request-item > div {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── The panels below the grid, on a phone ────────────────────────────────
+   The Approvals Hub is a four-column table that cannot survive 390px. It
+   keeps the two columns that identify the request - the meeting and who
+   asked for it - and the rest moves behind a kebab, which is the same shape
+   the Forms list uses. Everything dropped here is in the dialog.
+
+   Several rules name .card to outrank a .wz-tablewrap rule in shell.css,
+   which is loaded after this stylesheet and would otherwise win the tie. */
+
+@media (max-width: 768px) {
+
+  /* 24px of card padding either side is 48px the seven-column month grid
+     could be using. */
+  .card {
+    padding: 16px;
+    margin-bottom: 22px;
+  }
+
+  /* ── Approvals Hub: meeting, requester, kebab ── */
+
+  /* Date and time. Both are in the dialog, and neither tells you which
+     request the row is. */
+  .card .data-table th:nth-child(3),
+  .card .data-table td:nth-child(3):not(.empty-cell) {
+    display: none;
+  }
+
+  /* "Only the name and the client": the notes under the topic and the
+     company under the requester are the full data, not the label. */
+  .card .data-table td:nth-child(1) .sub-cell,
+  .card .data-table td:nth-child(2) .sub-cell,
+  .card .data-table .who-avatar {
+    display: none;
+  }
+
+  /* Fixed layout, so the columns are the widths set here rather than whatever
+     the longest meeting name asks for. Without it a long name takes the space
+     it wants and the kebab ends up pushed against the requester instead of at
+     the edge of the card - and text-overflow has nothing to overflow. */
+  .card .data-table {
+    table-layout: fixed;
+  }
+
+  .card .data-table th:nth-child(1) { width: 54%; }
+  .card .data-table th:nth-child(2) { width: auto; }
+
+  .card .data-table th,
+  .card .data-table td {
+    white-space: nowrap;
+    padding-right: 10px;
+  }
+
+  /* Cut rather than wrap, for the same reason as the two lists below: the
+     whole name is in the dialog the kebab opens. */
+  .card .data-table .primary-cell,
+  .card .data-table .who strong {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* .who is a flex row, so the block holding the name needs this before it
+     will shrink far enough to overflow. */
+  .card .data-table .who > div {
+    min-width: 0;
+  }
+
+  /* Hard against the right edge of the card. The cell is only as wide as the
+     button, but a table can still hand it a few spare pixels. */
+  .card .data-table td:last-child,
+  .card .data-table th:last-child {
+    width: 44px;
+    padding-right: 0;
+    text-align: right;
+  }
+
+  /* The inline circles are replaced by the kebab: two 30px targets and a
+     status badge do not fit beside two columns of text. */
+  .card .data-table .row-actions,
+  .card .data-table td:last-child .badge {
+    display: none;
+  }
+
+  .card .data-table .row-kebab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 1px solid #dfe3ea;
+    border-radius: 9px;
+    background: #fff;
+    color: var(--muted);
+    cursor: pointer;
+  }
+
+  .row-kebab svg { width: 18px; height: 18px; }
+
+  .req-meta { grid-template-columns: minmax(0, 1fr); }
+
+  .req-foot { flex-wrap: wrap; }
+
+  .req-foot button { flex: 1; min-width: 120px; }
+
+  /* ── Daily Schedule and Your requests ──
+     Down to the meeting and the client. Everything the desktop row also
+     carries - the time, the status badge, the second name, the date it was
+     requested for - is marked .wide-only in the markup and comes off here,
+     and the eye that opens the whole record takes its place. */
+  .wide-only {
+    display: none;
+  }
+
+  .eye-btn {
+    display: flex;
+  }
+
+  /* A meeting name can be a sentence, and wrapping it to three lines would
+     push the eye out of line with the row above. Cut it instead - the whole
+     title is in the dialog the eye opens. min-width:0 on .schedule-info and
+     on .request-item > div is what lets the overflow happen at all. */
+  .schedule-info h4,
+  .schedule-info p,
+  .request-item h4,
+  .request-item p {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* One line of text and a button, so no stacking is needed - it only was
+     while the row also carried a date, a time and a status badge. */
+  .request-item {
+    padding: 14px;
+  }
+
+  .schedule-row {
+    gap: 12px;
   }
 }
 </style>
@@ -723,7 +1019,7 @@ document.addEventListener("DOMContentLoaded", function () {
   set("acctName", name);   set("acctRole", label);   set("acctAvatar", initial);
 });
 </script>
-<link rel="stylesheet" href="assets/shell.css?v=1" />
+<link rel="stylesheet" href="assets/shell.css?v=2" />
 </head>
 
 <body>
@@ -823,12 +1119,11 @@ document.addEventListener("DOMContentLoaded", function () {
       <div class="schedule-list" id="dailySchedule"></div>
     </div>
 
-    <!-- Requests waiting on an admin's answer -->
+    <!-- Requests waiting on an admin's answer, and only those: a decided one
+         has nothing left to do here and shows up in the calendar above. -->
     <div class="card">
       <div class="section-head">
         <h3>Approvals Hub</h3>
-        <button type="button" class="section-link" onclick="toggleApprovals()"
-                id="approvalsToggle">View All Requests</button>
       </div>
 
       <table class="data-table">
@@ -844,6 +1139,11 @@ document.addEventListener("DOMContentLoaded", function () {
           <tr><td colspan="4" class="empty-cell">Loading...</td></tr>
         </tbody>
       </table>
+
+      <div class="pager" id="approvalsPager" hidden>
+        <span class="pager-info" id="approvalsPagerInfo"></span>
+        <div class="pager-pages" id="approvalsPagerPages"></div>
+      </div>
     </div>
 
     <!-- Requests this admin team has sent out -->
@@ -927,7 +1227,6 @@ let currentDate = new Date();
 let selectedDate = toDateStr(new Date());
 
 let currentView = "month";
-let showAllApprovals = false;
 
 let calendarEvents = { appointments: [] };
 let myAdminId = 0;
@@ -1168,11 +1467,27 @@ function renderCalendar() {
 
   monthTitle.innerText = `${MONTHS[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
 
-  const headers = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  grid.innerHTML = headers.map(day => `<div class="day-header">${day}</div>`).join("");
-
   const days = visibleDays();
   const todayStr = toDateStr(new Date());
+
+  const headers = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+  /* Day view is one day, so seven columns are six columns of nothing - and
+     the day landed under "Mon" whatever weekday it actually was. One column,
+     headed with the real weekday and date. */
+  const oneDay = currentView === "day";
+
+  grid.classList.toggle("one-day", oneDay);
+
+  if (oneDay) {
+    const day = days[0];
+    const name = headers[(day.getDay() + 6) % 7];
+
+    grid.innerHTML =
+      `<div class="day-header">${name} ${day.getDate()} ${MONTHS[day.getMonth()]}</div>`;
+  } else {
+    grid.innerHTML = headers.map(day => `<div class="day-header">${day}</div>`).join("");
+  }
 
   // Month view pads to whole weeks so the columns line up with the headers.
   // These go in as nodes, never through innerHTML: assigning innerHTML on the
@@ -1226,6 +1541,23 @@ function renderCalendar() {
   }
 }
 
+/* The eye that opens a row in full. Phone only - shell.css's breakpoint
+   hides it above 768px, where the row already shows everything the dialog
+   would. It is in the markup either way, so a resize needs no re-render. */
+function eyeButton(id) {
+  return `
+    <button type="button" class="eye-btn" aria-haspopup="dialog"
+            title="View details" aria-label="View details"
+            onclick="openRequestModal(${Number(id)})">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/>
+        <circle cx="12" cy="12" r="3"/>
+      </svg>
+    </button>
+  `;
+}
+
 /* ── Daily schedule ────────────────────────────────────────────────────── */
 
 function renderDailySchedule() {
@@ -1247,8 +1579,11 @@ function renderDailySchedule() {
 
   list.innerHTML = rows.map(row => {
     const date = parseDateStr(row.date);
-    const who = row.client || row.company_name || row.user_name || "Client";
+    const who = row.company_name || row.client || row.user_name || "Client";
 
+    /* A wide screen gets the whole row, as it always did. A phone keeps the
+       meeting and the client and reaches the rest through the eye - see the
+       .wide-only rules in the phone block. */
     return `
       <div class="schedule-row">
         <div class="schedule-date">
@@ -1258,11 +1593,13 @@ function renderDailySchedule() {
 
         <div class="schedule-info">
           <h4>${esc(row.topic || row.title || "Meeting")}</h4>
-          <p>${esc(who)} · ${esc(row.user_name || "")}</p>
+          <p>${esc(who)}<span class="wide-only"> &middot; ${esc(row.user_name || "")}</span></p>
         </div>
 
-        <span class="schedule-time">${esc(prettyTime(row.time))}</span>
-        <span class="badge ${esc(row.status || "pending")}">${statusLabel(row.status)}</span>
+        <span class="schedule-time wide-only">${esc(prettyTime(row.time))}</span>
+        <span class="badge wide-only ${esc(row.status || "pending")}">${statusLabel(row.status)}</span>
+
+        ${eyeButton(row.id)}
       </div>
     `;
   }).join("");
@@ -1270,13 +1607,46 @@ function renderDailySchedule() {
 
 /* ── Approvals Hub ─────────────────────────────────────────────────────── */
 
-function toggleApprovals() {
-  showAllApprovals = !showAllApprovals;
+/* Five to a page, the same as "Your requests" below. Deciding a request drops
+   it out of the queue, so the page you are on can empty under you - hence the
+   clamp in renderApprovals(). */
+const APPROVALS_PAGE_SIZE = 5;
+let approvalsPage = 1;
 
-  document.getElementById("approvalsToggle").innerText =
-    showAllApprovals ? "Show pending only" : "View All Requests";
-
+function goToApprovalsPage(page) {
+  approvalsPage = page;
   renderApprovals();
+
+  // The table is above the pager, so jump back to the top of the new page.
+  document.getElementById("approvalsTable")
+    .scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function renderApprovalsPager(total, totalPages, start, shown) {
+  const pager = document.getElementById("approvalsPager");
+
+  if (!pager) return;
+
+  if (total <= APPROVALS_PAGE_SIZE) {
+    pager.hidden = true;
+    return;
+  }
+
+  pager.hidden = false;
+
+  document.getElementById("approvalsPagerInfo").innerText =
+    `Showing ${start + 1}–${start + shown} of ${total}`;
+
+  const pages = Array.from({ length: totalPages }, (unused, index) => index + 1);
+
+  document.getElementById("approvalsPagerPages").innerHTML = `
+    <button type="button" onclick="goToApprovalsPage(${approvalsPage - 1})" ${approvalsPage === 1 ? "disabled" : ""}>Prev</button>
+    ${pages.map(page => `
+      <button type="button" class="${page === approvalsPage ? "current" : ""}"
+              onclick="goToApprovalsPage(${page})">${page}</button>
+    `).join("")}
+    <button type="button" onclick="goToApprovalsPage(${approvalsPage + 1})" ${approvalsPage === totalPages ? "disabled" : ""}>Next</button>
+  `;
 }
 
 function renderApprovals() {
@@ -1284,27 +1654,35 @@ function renderApprovals() {
 
   if (!table) return;
 
-  // Only client-raised rows are the admin's to answer; the ones this team
-  // sent out wait on the client and live in "Your requests" instead.
+  /* Two filters, both of them the point of the panel. Only client-raised rows
+     are the admin's to answer - the ones this team sent out wait on the client
+     and live in "Your requests" instead - and only the ones still waiting for
+     a decision, because a decided request has no action left on it. */
   const rows = clientRequests()
-    .filter(a => showAllApprovals || (a.status || "pending") === "pending")
+    .filter(a => (a.status || "pending") === "pending")
     .sort((a, b) => String(a.date).localeCompare(String(b.date)));
 
   if (!rows.length) {
     table.innerHTML = `
-      <tr><td colspan="4" class="empty-cell">
-        ${showAllApprovals ? "No client requests yet." : "Nothing waiting on you."}
-      </td></tr>
+      <tr><td colspan="4" class="empty-cell">Nothing waiting on you.</td></tr>
     `;
+    renderApprovalsPager(0, 0, 0, 0);
     return;
   }
 
-  table.innerHTML = rows.map(row => {
-    const pending = (row.status || "pending") === "pending";
+  // Answering the last request on a page leaves that page empty.
+  const totalPages = Math.max(1, Math.ceil(rows.length / APPROVALS_PAGE_SIZE));
+  approvalsPage = Math.min(Math.max(1, approvalsPage), totalPages);
+
+  const start = (approvalsPage - 1) * APPROVALS_PAGE_SIZE;
+  const pageRows = rows.slice(start, start + APPROVALS_PAGE_SIZE);
+
+  renderApprovalsPager(rows.length, totalPages, start, pageRows.length);
+
+  table.innerHTML = pageRows.map(row => {
     const requester = row.user_name || "Client";
 
-    const actions = pending
-      ? `
+    const actions = `
         <div class="row-actions">
           <button class="icon-btn" title="Decline" aria-label="Decline"
                   onclick="respondRequest(${row.id}, 'rejected')">
@@ -1315,8 +1693,7 @@ function renderApprovals() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
           </button>
         </div>
-      `
-      : `<span class="badge ${esc(row.status)}">${statusLabel(row.status)}</span>`;
+    `;
 
     return `
       <tr>
@@ -1337,11 +1714,95 @@ function renderApprovals() {
           <div class="primary-cell" style="font-size:13px;">${esc(prettyDate(row.date))}</div>
           <div class="sub-cell">${esc(prettyTime(row.time))}</div>
         </td>
-        <td>${actions}</td>
+        <td>
+          ${actions}
+
+          <!-- Phone only, and the whole action column there: two 30px circles
+               do not fit beside the meeting and the requester. Opens the
+               request in full, decision buttons included. -->
+          <button type="button" class="row-kebab" aria-haspopup="dialog"
+                  aria-label="View request"
+                  onclick="openRequestModal(${Number(row.id)})">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/>
+            </svg>
+          </button>
+        </td>
       </tr>
     `;
   }).join("");
 }
+
+/* ── One request, in full ──────────────────────────────────────────────────
+   The Approvals Hub row is four columns on a desktop and two on a phone, and
+   the notes never fitted in either. This is the whole record, and the place
+   the decision is taken from a phone - approving with the notes on screen
+   rather than from a truncated line of them. */
+
+let openRequestId = null;
+
+/* Any appointment, not just a client request: the Daily Schedule and Your
+   requests open this too, and both of those list meetings this team raised
+   as well as ones the client did. */
+function openRequestModal(id) {
+  const row = calendarEvents.appointments.find(a => Number(a.id) === Number(id));
+
+  if (!row) return;
+
+  openRequestId = Number(id);
+
+  const set = (elementId, value) => {
+    const element = document.getElementById(elementId);
+    if (element) element.innerText = value;
+  };
+
+  // Who asked is the admin on our own requests and the client on theirs.
+  const fromUs = row.requested_by === "admin";
+
+  set("reqModalTopic", row.topic || row.title || "Meeting");
+  set("reqModalWho", (fromUs ? row.admin_name : row.user_name) || "-");
+  set("reqModalClient",
+    [row.user_name, row.company_name || row.client].filter(Boolean).join(" · ") || "-");
+  set("reqModalDate", prettyDate(row.date));
+  set("reqModalTime", prettyTime(row.time));
+  set("reqModalNotes", (row.notes || "").trim() || "No notes.");
+
+  const status = document.getElementById("reqModalStatus");
+  status.className = "badge " + esc(row.status || "pending");
+  status.innerText = statusLabel(row.status);
+
+  /* Approve and Decline belong to a request the client raised and nobody has
+     answered. One this team sent out waits on them, not on us, and the hub
+     only ever lists pending rows anyway - so this is normally true there and
+     false everywhere else. */
+  const decidable = !fromUs && (row.status || "pending") === "pending";
+  document.getElementById("reqModalFoot").hidden = !decidable;
+
+  document.getElementById("requestModal").classList.add("show");
+}
+
+function closeRequestModal() {
+  openRequestId = null;
+  document.getElementById("requestModal").classList.remove("show");
+}
+
+/* Same call the inline circles make. Closing first means the list underneath
+   repaints without the dialog sitting over a row that has just changed. */
+function decideFromModal(status) {
+  if (!openRequestId) return;
+
+  const id = openRequestId;
+
+  closeRequestModal();
+  respondRequest(id, status);
+}
+
+document.addEventListener("keydown", event => {
+  if (event.key !== "Escape") return;
+
+  const modal = document.getElementById("requestModal");
+  if (modal && modal.classList.contains("show")) closeRequestModal();
+});
 
 /* ── Your requests ─────────────────────────────────────────────────────── */
 
@@ -1390,6 +1851,7 @@ function renderYourRequests() {
 
   if (!list) return;
 
+  // Every request this team has sent, whatever the client has done with it.
   const rows = ourRequests()
     .sort((a, b) => String(b.date).localeCompare(String(a.date)));
 
@@ -1408,17 +1870,19 @@ function renderYourRequests() {
 
   renderRequestsPager(rows.length, totalPages, start, pageRows.length);
 
+  /* A wide screen gets the whole line, as it always did. A phone keeps the
+     meeting and the client and reaches the rest through the eye. */
   list.innerHTML = pageRows.map(row => `
     <div class="request-item">
       <div>
         <h4>${esc(row.topic || row.title || "Meeting")}</h4>
-        <p>
-          ${esc(row.client || row.company_name || "Client")} ·
-          ${esc(row.user_name || "")} ·
-          Requested for ${esc(prettyDate(row.date))} · ${esc(prettyTime(row.time))}
-        </p>
+        <p>${esc(row.company_name || row.client || "Client")}<span class="wide-only">
+          &middot; ${esc(row.user_name || "")}
+          &middot; Requested for ${esc(prettyDate(row.date))} &middot; ${esc(prettyTime(row.time))}
+        </span></p>
       </div>
-      <span class="badge ${esc(row.status || "pending")}">${statusLabel(row.status)}</span>
+      <span class="badge wide-only ${esc(row.status || "pending")}">${statusLabel(row.status)}</span>
+      ${eyeButton(row.id)}
     </div>
   `).join("");
 }
@@ -1588,6 +2052,56 @@ document.addEventListener("DOMContentLoaded", () => {
   fetchCalendarData();
 });
 </script>
+
+  </div>
+</div>
+
+<!-- One meeting request in full, opened from the kebab in the Approvals Hub.
+     The decision buttons live here rather than only in the row, so approving
+     happens with the notes on screen instead of a truncated line of them. -->
+<div class="acct-modal" id="requestModal">
+  <div class="acct-box req-box">
+
+    <div class="acct-head">
+      <h2>Meeting request</h2>
+      <button type="button" onclick="closeRequestModal()" aria-label="Close">&times;</button>
+    </div>
+
+    <div class="req-body">
+      <div class="req-topic" id="reqModalTopic">-</div>
+      <span class="badge pending" id="reqModalStatus">Pending</span>
+
+      <div class="req-meta">
+        <div>
+          <span>Requested by</span>
+          <strong id="reqModalWho">-</strong>
+        </div>
+        <div>
+          <span>Client</span>
+          <strong id="reqModalClient">-</strong>
+        </div>
+        <div>
+          <span>Date</span>
+          <strong id="reqModalDate">-</strong>
+        </div>
+        <div>
+          <span>Time</span>
+          <strong id="reqModalTime">-</strong>
+        </div>
+      </div>
+
+      <div class="req-notes-label">Notes</div>
+      <div class="req-notes" id="reqModalNotes">-</div>
+    </div>
+
+    <!-- Hidden on a request that has already been decided, so the bar is
+         never an empty strip. The x in the header is how it closes. -->
+    <div class="req-foot" id="reqModalFoot">
+      <button type="button" class="req-decline" id="reqModalDecline"
+              onclick="decideFromModal('rejected')">Decline</button>
+      <button type="button" class="req-approve" id="reqModalApprove"
+              onclick="decideFromModal('approved')">Approve</button>
+    </div>
 
   </div>
 </div>

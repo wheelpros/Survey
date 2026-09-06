@@ -365,7 +365,6 @@ body{padding:0}
 
 .approve-btn{background:#20a95a;color:#fff}
 .reject-btn{background:#c9000b;color:#fff}
-.secondary-btn{border:none;background:#eef1f5;color:#101828;padding:12px 16px;border-radius:10px;font:inherit;font-weight:800;cursor:pointer}
 .status-text{margin-top:15px;font-size:13px;color:#667085}
 
 /* ── Pagination, same control as the content and clients lists ── */
@@ -498,6 +497,86 @@ document.addEventListener("DOMContentLoaded", function () {
   set("acctName", name);   set("acctRole", label);   set("acctAvatar", initial);
 });
 </script>
+
+<link rel="stylesheet" href="assets/shell.css?v=2" />
+
+<style>
+/*
+| -- Forms on a phone --------------------------------------------------------
+|
+| Loaded after shell.css on purpose: a few rules here undo one of its
+| .wz-tablewrap rules and win on the id selector rather than on !important.
+|
+| Both tables are too wide to read on a phone, and every column that makes them
+| wide - the id, the email, the status pill, the timestamp - is repeated inside
+| the review modal the row opens. So the phone keeps the two columns that
+| identify the row, Form and Client, and swaps the action button for a kebab
+| that opens the same actions in a menu.
+*/
+
+.row-kebab{display:none}
+
+.row-menu{
+  position:fixed;z-index:100000;min-width:190px;padding:6px;
+  background:#fff;border:1px solid var(--line);border-radius:12px;
+  box-shadow:0 18px 40px rgba(16,24,40,.18);
+}
+.row-menu[hidden]{display:none}
+.row-menu button,
+.row-menu a{
+  display:block;width:100%;padding:11px 12px;border:none;border-radius:9px;
+  background:transparent;text-align:left;text-decoration:none;
+  font:inherit;font-size:14px;font-weight:700;color:var(--text);cursor:pointer;
+}
+.row-menu button:hover,
+.row-menu a:hover{background:#f6f7f9}
+
+@media(max-width:768px){
+
+  /* Everything except Form, Client and Actions. The .empty guard keeps the
+     "Loading forms..." and "No forms found." rows, which are a single colspan
+     cell sitting in first position. */
+  #reviewListTable th:nth-child(1),#reviewListTable td:nth-child(1):not(.empty),
+  #reviewListTable th:nth-child(4),#reviewListTable td:nth-child(4),
+  #reviewListTable th:nth-child(5),#reviewListTable td:nth-child(5),
+  #formsListTable th:nth-child(1),#formsListTable td:nth-child(1):not(.empty),
+  #formsListTable th:nth-child(4),#formsListTable td:nth-child(4),
+  #formsListTable th:nth-child(5),#formsListTable td:nth-child(5),
+  #formsListTable th:nth-child(6),#formsListTable td:nth-child(6){
+    display:none;
+  }
+
+  /* The review queue's client cell stacks the name over the email. The email
+     column is gone from this table, so the name is all that stays. */
+  #reviewListTable .from-to span{display:none}
+
+  /* Three columns fit, so let a long form title wrap instead of handing the
+     panel a horizontal scrollbar. The min-width undoes the 760px this page
+     puts on every table below 800px; the wrapping beats shell.css. Both win
+     on the id rather than on !important. */
+  #reviewListTable,#formsListTable{min-width:0}
+  #reviewListTable th,#reviewListTable td,
+  #formsListTable th,#formsListTable td{
+    white-space:normal;
+    padding-left:12px;padding-right:12px;
+  }
+
+  #reviewListTable td:last-child,
+  #formsListTable td:last-child{width:44px}
+
+  #reviewListTable .actions .action-btn,
+  #formsListTable .actions .action-btn{display:none}
+
+  #reviewListTable .row-kebab,
+  #formsListTable .row-kebab{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:36px;height:36px;padding:0;flex:none;
+    border:1px solid #dfe3ea;border-radius:9px;
+    background:#fff;color:var(--muted);cursor:pointer;
+  }
+  .row-kebab svg{width:18px;height:18px}
+}
+</style>
 </head>
 
 <body>
@@ -567,7 +646,7 @@ document.addEventListener("DOMContentLoaded", function () {
     <div class="page-head">
       <div class="page-title">
         <h1>Forms</h1>
-        <p>All forms and checklists assigned to approved users. Submissions go to the account manager for approval before the user sees them.</p>
+        <p>All forms assigned to approved users. An account manager approves each one first.</p>
       </div>
       <a class="create-btn" href="admin-form-builder.html">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -587,7 +666,7 @@ document.addEventListener("DOMContentLoaded", function () {
           <p id="reviewIntro">Forms waiting on approval or rejection.</p>
         </div>
 
-        <table>
+        <table id="reviewListTable">
           <thead>
             <tr>
               <th>ID</th>
@@ -636,7 +715,7 @@ document.addEventListener("DOMContentLoaded", function () {
           </div>
         </div>
 
-        <table>
+        <table id="formsListTable">
           <thead>
             <tr>
               <th>ID</th>
@@ -704,7 +783,8 @@ document.addEventListener("DOMContentLoaded", function () {
       <button class="btn action-btn" type="button" id="reviewResponses"
               style="display:none" onclick="openReviewResponses()">View Responses</button>
 
-      <button class="secondary-btn" type="button" onclick="closeReview()">Cancel</button>
+      <!-- No Cancel: the X in the header closes this, and duplicating it here
+           only crowded the row the decision buttons live in. -->
       <button class="btn reject-btn" type="button" onclick="startReject()">Reject</button>
       <button class="btn approve-btn" type="button" onclick="approveSurvey()">Approve</button>
     </div>
@@ -763,6 +843,126 @@ const statusMeta = {
   rejected:  { label: "Rejected",  cls: "rejected" },
   completed: { label: "Completed", cls: "approved" }
 };
+
+/* ── The row kebab ──────────────────────────────────────────────────────────
+   A phone has room for Form, Client and one control, so below 768px the row's
+   View button is swapped for this and the actions move into a menu. The button
+   is in the markup on every screen; shell.css's breakpoint decides which of the
+   two is on show, so nothing has to re-render when the window is resized.
+
+   The menu is one element reused by every row, positioned under whichever
+   button was pressed - a menu per row would be hundreds of hidden nodes. */
+
+function kebabButton(surveyId, kind){
+  return `
+    <button class="row-kebab" type="button" aria-haspopup="true" aria-expanded="false"
+            aria-label="Actions" onclick="openRowMenu(event, ${Number(surveyId)}, '${kind}')">
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/>
+      </svg>
+    </button>
+  `;
+}
+
+let rowMenuButton = null;
+
+function rowMenuEl(){
+  let menu = document.getElementById("rowMenu");
+
+  if(!menu){
+    menu = document.createElement("div");
+    menu.id = "rowMenu";
+    menu.className = "row-menu";
+    menu.hidden = true;
+    document.body.appendChild(menu);
+  }
+
+  return menu;
+}
+
+function openRowMenu(event, surveyId, kind){
+  event.stopPropagation();
+
+  const button = event.currentTarget;
+
+  // Second press on the same row closes it, the way the button's own toggle
+  // state suggests it should.
+  if(rowMenuButton === button){
+    closeRowMenu();
+    return;
+  }
+
+  closeRowMenu();
+
+  /* Exactly what the row offers on a desktop, which is one action. Send Again,
+     View Responses, Approve and Reject all live inside the modal this opens -
+     the phone is the same page in a narrower column, not a different set of
+     rules about where a form is acted on. */
+  const label = kind === "review" && canReview ? "Review form" : "View form";
+
+  const items = [
+    `<button type="button" onclick="runRowAction(() => openReview(${Number(surveyId)}))">${label}</button>`
+  ];
+
+  const menu = rowMenuEl();
+  menu.innerHTML = items.join("");
+  menu.hidden = false;
+
+  placeRowMenu(menu, button);
+
+  button.setAttribute("aria-expanded", "true");
+  rowMenuButton = button;
+
+  // preventScroll: the menu is fixed and already on screen, and a scroll here
+  // would trip the listener below and close what was just opened.
+  const first = menu.querySelector("button, a");
+  if(first) first.focus({ preventScroll: true });
+}
+
+/* position:fixed, so the box is measured against the viewport and never
+   clipped by the panel's own overflow:hidden. Right-aligned under the button,
+   and flipped above it when the row is near the bottom of the screen. */
+function placeRowMenu(menu, button){
+  const rect = button.getBoundingClientRect();
+  const box = menu.getBoundingClientRect();
+  const gap = 6;
+
+  let left = rect.right - box.width;
+  left = Math.min(Math.max(8, left), window.innerWidth - box.width - 8);
+
+  const below = rect.bottom + gap;
+  const top = below + box.height > window.innerHeight - 8
+    ? Math.max(8, rect.top - gap - box.height)
+    : below;
+
+  menu.style.left = left + "px";
+  menu.style.top = top + "px";
+}
+
+function closeRowMenu(){
+  const menu = document.getElementById("rowMenu");
+  if(menu) menu.hidden = true;
+
+  if(rowMenuButton) rowMenuButton.setAttribute("aria-expanded", "false");
+  rowMenuButton = null;
+}
+
+/* Every menu item closes the menu before it does anything, so the box is never
+   left floating over the modal it just opened. */
+function runRowAction(action){
+  closeRowMenu();
+  action();
+}
+
+document.addEventListener("click", closeRowMenu);
+document.addEventListener("keydown", function(event){
+  if(event.key === "Escape") closeRowMenu();
+});
+window.addEventListener("resize", closeRowMenu);
+
+// The menu is position:fixed and the page scrolls behind it, so it would
+// otherwise drift away from its row.
+window.addEventListener("scroll", closeRowMenu, true);
 
 /* ── The forms list ─────────────────────────────────────────────────────────
    Building and editing both live on admin-form-builder.html, the same split
@@ -868,9 +1068,13 @@ function renderSurveysTable(){
       <td>${esc(survey.created_at)}</td>
       <td>
         <div class="actions">
-          <!-- View is the only row action: Send Again and View Responses both
-               live inside the modal it opens, so the column stays narrow. -->
+          <!-- View is the whole column. Send Again and View Responses live
+               inside the modal it opens, so the column stays narrow. On a
+               phone the button is swapped for the kebab, which offers the same
+               one action - a full-width button does not fit beside the form
+               title and the client name. -->
           <button class="btn action-btn" type="button" onclick="openReview(${Number(survey.id)})">View</button>
+          ${kebabButton(survey.id, "list")}
         </div>
       </td>
     </tr>
@@ -1017,6 +1221,7 @@ function renderReviewTable(){
           <button class="btn action-btn" type="button" onclick="openReview(${Number(survey.id)})">
             ${canReview ? "Review" : "View"}
           </button>
+          ${kebabButton(survey.id, "review")}
         </div>
       </td>
     </tr>
@@ -1222,6 +1427,7 @@ loadSurveyData();
 </script>
 
 <script src="assets/notifications.js?v=1"></script>
+<script src="assets/shell.js?v=1"></script>
 <script src="assets/role-nav.js?v=1"></script>
 <script>
 /* The calendar belongs to the roles that deal with clients. A plain seo_admin
