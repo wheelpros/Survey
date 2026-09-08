@@ -147,12 +147,8 @@ if ($method === "POST") {
         exit;
     }
 
-    // Creating a brand-new inquiry is owner-only.
-    if (!$isOwner) {
-        echo json_encode(["success" => false, "message" => "Only the owner can create inquiries"]);
-        exit;
-    }
-
+    // Creating a new inquiry is open to the owner and any access-granted
+    // account_manager - editing and deleting stay owner-only.
     $title = trim($input["title"] ?? "");
     $introText = trim($input["introText"] ?? "");
     $fields = $input["fields"] ?? [];
