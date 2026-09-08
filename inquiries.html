@@ -24,7 +24,7 @@ td{padding:15px 24px;border-top:1px solid #eef1f5;font-size:13px}
 .approved{background:#e8faef;color:#20a95a}
 .pending{background:#f2f4f7;color:#667085}
 
-.actions{display:flex;gap:8px;flex-wrap:wrap}
+.actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 .btn{border:none;padding:9px 14px;border-radius:8px;cursor:pointer;font-weight:800;font-size:12px}
 .action-btn{background:var(--nav-active);color:#fff}
 .action-btn:hover{background:#282c52}
@@ -318,17 +318,6 @@ document.addEventListener("DOMContentLoaded", function () {
   </div>
 </div>
 
-<!-- VIEW ANSWER MODAL -->
-<div class="builder-modal" id="answerModal">
-  <div class="builder-box" style="max-width:600px;">
-    <div class="builder-head">
-      <h2 id="answerTitle">Answer</h2>
-      <button onclick="closeAnswer()">&times;</button>
-    </div>
-    <div class="builder-body" id="answerBody"></div>
-  </div>
-</div>
-
 <!-- BUILDER MODAL -->
 <div class="builder-modal" id="builderModal">
   <div class="builder-box">
@@ -541,7 +530,7 @@ function renderInquiries(inquiries){
       <td>
         <div class="actions">
           <button class="btn copy-btn" onclick="generateAndCopyLink(${inq.id})">Copy Link</button>
-          ${Number(inq.lead_count) > 0 ? `<button class="btn action-btn" onclick="openAnswer(${inq.id})">View Leads</button>` : ``}
+          ${Number(inq.lead_count) > 0 ? `<a class="btn action-btn" href="inquiry-responses.html?inquiry_id=${inq.id}">View Answers</a>` : ``}
           ${canEdit ? `<button class="btn action-btn" onclick="openBuilder(${inq.id})">Edit</button>` : ``}
           ${isOwner ? `<button class="btn copy-btn" style="background:#fde8e8;color:#c9000b;" onclick="deleteInquiry(${inq.id})">Delete</button>` : ``}
         </div>
@@ -603,55 +592,6 @@ async function deleteInquiry(inquiryId){
     alert("Network or server error.");
     loadInquiries();
   }
-}
-
-async function openAnswer(inquiryId){
-  const body = document.getElementById("answerBody");
-  body.innerHTML = `<p>Loading...</p>`;
-  document.getElementById("answerModal").classList.add("show");
-
-  try{
-    const res = await fetch("api/admin-inquiry-responses.php?inquiry_id=" + inquiryId, {
-      headers: { Authorization: "Bearer " + adminToken }
-    });
-
-    const data = await res.json();
-
-    if(!data.success){
-      body.innerHTML = `<p>${escapeHtml(data.message || "Unable to load leads.")}</p>`;
-      return;
-    }
-
-    document.getElementById("answerTitle").innerText = data.title;
-
-    const responses = data.responses || [];
-
-    if(!responses.length){
-      body.innerHTML = `<p>No leads recorded yet.</p>`;
-      return;
-    }
-
-    body.innerHTML = responses.map((r, i) => `
-      <div style="${i > 0 ? "margin-top:24px;padding-top:20px;border-top:1px solid #eef1f5;" : ""}">
-        <p style="color:#667085;font-size:12px;margin-bottom:16px;">Lead ${i + 1} - submitted ${escapeHtml(r.submitted_at)}</p>
-        ${data.fields.map(f => `
-          <div class="field-group">
-            <label>${escapeHtml(f.field_label)}</label>
-            <div style="border:1px solid #eef1f5;border-radius:12px;padding:12px 14px;background:#fafbfc;font-size:14px;">
-              ${escapeHtml(r.answers[f.id] || "-")}
-            </div>
-          </div>
-        `).join("")}
-      </div>
-    `).join("");
-
-  }catch(err){
-    body.innerHTML = `<p>Connection error.</p>`;
-  }
-}
-
-function closeAnswer(){
-  document.getElementById("answerModal").classList.remove("show");
 }
 
 function escapeHtml(value){
