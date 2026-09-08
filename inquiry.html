@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inquiry</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+body{background:#f6f7fb;color:#101828;padding:40px 20px;}
+.wrap{max-width:640px;margin:0 auto;}
+.logo{margin-bottom:30px;}
+.logo img{height:34px;}
+
+.card{background:#fff;border-radius:20px;box-shadow:0 14px 35px rgba(0,0,0,.06);padding:34px;}
+h1{font-size:26px;margin-bottom:12px;}
+.intro{color:#667085;font-size:15px;line-height:1.6;margin-bottom:28px;}
+
+.field-group{margin-bottom:20px;}
+.field-group label{display:block;font-size:14px;font-weight:800;margin-bottom:8px;}
+.field-group label .req{color:#c9000b;}
+.field-group input,.field-group textarea{
+  width:100%;border:1px solid #dfe3ea;background:#f8fafc;border-radius:12px;
+  padding:14px 16px;font-size:15px;outline:none;
+}
+.field-group textarea{min-height:110px;resize:vertical;}
+.field-group input:focus,.field-group textarea:focus{
+  border-color:#1b1e3a;box-shadow:0 0 0 4px rgba(27,30,58,.10);
+}
+
+.submit-btn{
+  width:100%;background:#101828;color:#fff;border:none;padding:16px;
+  border-radius:12px;font-weight:800;font-size:15px;cursor:pointer;margin-top:8px;
+}
+.submit-btn:hover{background:#1f2937;}
+.submit-btn:disabled{opacity:.6;cursor:not-allowed;}
+
+.status{margin-top:16px;font-size:14px;color:#667085;text-align:center;}
+.status.error{color:#c9000b;}
+
+.thankyou{text-align:center;padding:20px 0;}
+.thankyou h2{font-size:22px;margin-bottom:10px;}
+.thankyou p{color:#667085;}
+
+.loading,.notfound{text-align:center;color:#667085;padding:60px 0;}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="logo">
+    <img src="logo.png" alt="W|ZONE London" onerror="this.style.display='none'">
+  </div>
+
+  <div class="card" id="card">
+    <div class="loading">Loading...</div>
+  </div>
+</div>
+
+<script>
+const params = new URLSearchParams(window.location.search);
+const slug = params.get("ref") || "";
+
+let inquiryFields = [];
+
+async function loadInquiry(){
+  const card = document.getElementById("card");
+
+  if(!slug){
+    card.innerHTML = `<div class="notfound">This link is missing or invalid.</div>`;
+    return;
+  }
+
+  try{
+    const res = await fetch("api/public-inquiry.php?slug=" + encodeURIComponent(slug));
+    const data = await res.json();
+
+    if(!data.success){
+      card.innerHTML = `<div class="notfound">${escapeHtml(data.message || "This link is no longer available.")}</div>`;
+      return;
+    }
+
+    inquiryFields = data.fields || [];
+    renderForm(data.inquiry, inquiryFields);
+
+  }catch(err){
+    card.innerHTML = `<div class="notfound">Connection error. Please try again.</div>`;
+  }
+}
+
+function renderForm(inquiry, fields){
+  const card = document.getElementById("card");
+
+  card.innerHTML = `
+    <h1>${escapeHtml(inquiry.title)}</h1>
+    ${inquiry.intro_text ? `<p class="intro">${escapeHtml(inquiry.intro_text)}</p>` : ``}
+
+    <form id="inquiryForm">
+      ${fields.map(f => `
+        <div class="field-group">
+          <label>${escapeHtml(f.field_label)} ${Number(f.required) === 1 ? `<span class="req">*</span>` : ``}</label>
+          ${
+            f.field_type === "textarea"
+            ? `<textarea data-field-id="${f.id}" ${Number(f.required) === 1 ? "required" : ""}></textarea>`
+            : `<input type="text" data-field-id="${f.id}" ${Number(f.required) === 1 ? "required" : ""}>`
+          }
+        </div>
+      `).join("")}
+
+      <button type="submit" class="submit-btn" id="submitBtn">Submit</button>
+      <div class="status" id="formStatus"></div>
+    </form>
+  `;
+
+  document.getElementById("inquiryForm").addEventListener("submit", submitInquiry);
+}
+
+async function submitInquiry(e){
+  e.preventDefault();
+
+  const btn = document.getElementById("submitBtn");
+  const statusEl = document.getElementById("formStatus");
+
+  const answers = inquiryFields.map(f => {
+    const input = document.querySelector(`[data-field-id="${f.id}"]`);
+    return { fieldId: f.id, value: input ? input.value.trim() : "" };
+  });
+
+  const missing = inquiryFields.find((f, i) => Number(f.required) === 1 && !answers[i].value);
+  if(missing){
+    statusEl.innerText = `Please fill in "${missing.field_label}"`;
+    statusEl.className = "status error";
+    return;
+  }
+
+  btn.disabled = true;
+  statusEl.innerText = "Sending...";
+  statusEl.className = "status";
+
+  try{
+    const res = await fetch("api/public-inquiry.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ slug, answers })
+    });
+
+    const data = await res.json();
+
+    if(!data.success){
+      statusEl.innerText = data.message || "Something went wrong. Please try again.";
+      statusEl.className = "status error";
+      btn.disabled = false;
+      return;
+    }
+
+    document.getElementById("card").innerHTML = `
+      <div class="thankyou">
+        <h2>Thank you!</h2>
+        <p>${escapeHtml(data.message)}</p>
+      </div>
+    `;
+
+  }catch(err){
+    statusEl.innerText = "Connection error. Please try again.";
+    statusEl.className = "status error";
+    btn.disabled = false;
+  }
+}
+
+function escapeHtml(value){
+  return String(value ?? "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+
+loadInquiry();
+</script>
+
+</body>
+</html>
