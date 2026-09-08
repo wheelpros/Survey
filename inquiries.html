@@ -65,12 +65,15 @@ td{padding:15px 24px;border-top:1px solid #eef1f5;font-size:13px}
 @media(max-width:760px){.builder-grid{grid-template-columns:1fr}}
 
 .custom-field-row{
-  display:flex;gap:10px;align-items:flex-end;margin-bottom:12px;
-  border:1px solid #eef1f5;border-radius:12px;padding:14px;background:#fafbfc;
+  display:flex;flex-direction:column;gap:12px;margin-bottom:12px;
+  border:1px solid #eef1f5;border-radius:12px;padding:16px;background:#fafbfc;
 }
-.custom-field-row .field-group{flex:1;margin-bottom:0}
-.custom-field-row .type-group{flex:none;width:120px}
-.custom-field-row .required-group{flex:none;display:flex;align-items:center;gap:6px;padding-bottom:12px}
+.field-row-top{display:flex;gap:10px;align-items:flex-end}
+.field-row-top .field-group{flex:1;margin-bottom:0}
+.field-row-bottom{display:flex;gap:16px;align-items:center}
+.field-row-bottom .type-group{flex:1;margin-bottom:0}
+.field-row-bottom .type-group select{width:100%}
+.custom-field-row .required-group{flex:none;display:flex;align-items:center;gap:6px}
 .remove-field-btn{
   flex:none;border:none;background:#fde8e8;color:#c9000b;
   width:40px;height:40px;border-radius:10px;cursor:pointer;font-size:16px;
@@ -246,11 +249,11 @@ document.addEventListener("DOMContentLoaded", function () {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
         <span>Inquiries</span>
       </a>
-      <a href="settings.html" class="active" title="Settings">
+      <a href="settings.html" title="Settings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         <span>Settings</span>
       </a>
-    </nav>     
+    </nav>
   </div>
 
   <button class="side-user" type="button" onclick="openAccount()" title="Account">
@@ -276,7 +279,7 @@ document.addEventListener("DOMContentLoaded", function () {
       <div class="panel-head">
         <div>
           <h1 id="inquiriesTitle">Inquiries</h1>
-          <p id="inquiriesSub">Single-use inquiry links - each one expires after being answered or after 1 hour.</p>
+          <p id="inquiriesSub">Single-use inquiry links - each one expires after being answered or after 24 hours.</p>
         </div>
         <div class="actions">
           <button class="btn action-btn" id="newInquiryBtn" onclick="openBuilder()" style="display:none;">+ New Inquiry</button>
@@ -288,13 +291,14 @@ document.addEventListener("DOMContentLoaded", function () {
           <tr>
             <th>Title</th>
             <th>Status</th>
+            <th>Leads</th>
             <th>Expires</th>
             <th>Created</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody id="inquiriesTable">
-          <tr><td colspan="5" class="empty">Loading...</td></tr>
+          <tr><td colspan="6" class="empty">Loading...</td></tr>
         </tbody>
       </table>
     </div>
@@ -368,7 +372,7 @@ document.addEventListener("DOMContentLoaded", function () {
         <input type="text" id="builderLinkInput" readonly>
         <button type="button" onclick="copyBuilderLink()">Copy</button>
       </div>
-      <div class="builder-status" id="builderLinkNote" style="display:none;">This link works once and expires in 1 hour.</div>
+      <div class="builder-status" id="builderLinkNote" style="display:none;">This link works once and expires in 24 hours.</div>
     </div>
   </div>
 </div>
@@ -499,7 +503,7 @@ async function saveInquiriesAccess(){
 
 async function loadInquiries(){
   const table = document.getElementById("inquiriesTable");
-  table.innerHTML = `<tr><td colspan="5" class="empty">Loading...</td></tr>`;
+  table.innerHTML = `<tr><td colspan="6" class="empty">Loading...</td></tr>`;
 
   try{
     const res = await fetch("api/admin-inquiries.php", {
@@ -509,23 +513,25 @@ async function loadInquiries(){
     const data = await res.json();
 
     if(!data.success){
-      table.innerHTML = `<tr><td colspan="5" class="empty">${data.message || "Unable to load inquiries."}</td></tr>`;
+      table.innerHTML = `<tr><td colspan="6" class="empty">${data.message || "Unable to load inquiries."}</td></tr>`;
       return;
     }
 
     renderInquiries(data.inquiries || []);
 
   }catch(err){
-    table.innerHTML = `<tr><td colspan="5" class="empty">Connection error.</td></tr>`;
+    table.innerHTML = `<tr><td colspan="6" class="empty">Connection error.</td></tr>`;
   }
 }
 
 function inquiryStatusMeta(inq){
+  // The server already flips 'pending' -> 'expired' once the 24-hour
+  // window passes (lazily, on each load), so this just reads it straight.
   if(inq.status === "answered"){
     return { label: "Answered", cls: "approved" };
   }
-  if(inq.expires_at && new Date(inq.expires_at).getTime() < Date.now()){
-    return { label: "Expired", cls: "pending" };
+  if(inq.status === "expired"){
+    return { label: "Not Answered", cls: "pending" };
   }
   return { label: "Pending", cls: "pending" };
 }
@@ -534,7 +540,7 @@ function renderInquiries(inquiries){
   const table = document.getElementById("inquiriesTable");
 
   if(!inquiries.length){
-    table.innerHTML = `<tr><td colspan="5" class="empty">No inquiries yet.</td></tr>`;
+    table.innerHTML = `<tr><td colspan="6" class="empty">No inquiries yet.</td></tr>`;
     return;
   }
 
@@ -542,14 +548,14 @@ function renderInquiries(inquiries){
 
   table.innerHTML = inquiries.map(inq => {
     const meta = inquiryStatusMeta(inq);
-    const isExpired = meta.label === "Expired";
-    const canCopyLink = inq.status === "pending" && !isExpired;
+    const canCopyLink = inq.status === "pending";
     const canEdit = isOwner && inq.status !== "answered";
 
     return `
     <tr>
       <td>${escapeHtml(inq.title)}</td>
       <td><span class="badge ${meta.cls}">${meta.label}</span></td>
+      <td>${inq.lead_count}</td>
       <td>${inq.expires_at || "-"}</td>
       <td>${inq.created_at}</td>
       <td>
@@ -557,11 +563,35 @@ function renderInquiries(inquiries){
           ${canCopyLink ? `<button class="btn copy-btn" onclick="copyLink('${publicBase}?ref=${inq.slug}')">Copy Link</button>` : ``}
           ${inq.status === "answered" ? `<button class="btn action-btn" onclick="openAnswer(${inq.id})">View Answer</button>` : ``}
           ${canEdit ? `<button class="btn action-btn" onclick="openBuilder(${inq.id})">Edit</button>` : ``}
+          ${isOwner ? `<button class="btn copy-btn" style="background:#fde8e8;color:#c9000b;" onclick="deleteInquiry(${inq.id})">Delete</button>` : ``}
         </div>
       </td>
     </tr>
     `;
   }).join("");
+}
+
+async function deleteInquiry(inquiryId){
+  if(!confirm("Delete this inquiry? This can't be undone.")) return;
+
+  try{
+    const res = await fetch("api/admin-inquiries.php?id=" + inquiryId, {
+      method: "DELETE",
+      headers: { Authorization: "Bearer " + adminToken }
+    });
+
+    const data = await res.json();
+
+    if(!data.success){
+      alert(data.message || "Failed to delete inquiry.");
+    }
+
+    loadInquiries();
+
+  }catch(err){
+    alert("Network or server error.");
+    loadInquiries();
+  }
 }
 
 function copyLink(url){
@@ -630,22 +660,26 @@ function addBuilderField(label = "", type = "input", required = true){
   row.className = "custom-field-row";
   row.id = rowId;
   row.innerHTML = `
-    <div class="field-group">
-      <label>Label</label>
-      <input type="text" class="field-label-input" value="${escapeHtml(label)}" placeholder="e.g. Phone Number">
+    <div class="field-row-top">
+      <div class="field-group">
+        <label>Label</label>
+        <input type="text" class="field-label-input" value="${escapeHtml(label)}" placeholder="e.g. Phone Number">
+      </div>
+      <button type="button" class="remove-field-btn" onclick="document.getElementById('${rowId}').remove()">&times;</button>
     </div>
-    <div class="type-group field-group">
-      <label>Type</label>
-      <select class="field-type-input">
-        <option value="input" ${type === "input" ? "selected" : ""}>Short answer</option>
-        <option value="textarea" ${type === "textarea" ? "selected" : ""}>Long answer</option>
-      </select>
+    <div class="field-row-bottom">
+      <div class="type-group field-group">
+        <label>Type</label>
+        <select class="field-type-input">
+          <option value="input" ${type === "input" ? "selected" : ""}>Short answer</option>
+          <option value="textarea" ${type === "textarea" ? "selected" : ""}>Long answer</option>
+        </select>
+      </div>
+      <div class="required-group">
+        <input type="checkbox" class="field-required-input" ${required ? "checked" : ""} style="width:16px;height:16px;">
+        <label style="margin:0;font-size:12px;font-weight:700;">Required</label>
+      </div>
     </div>
-    <div class="required-group">
-      <input type="checkbox" class="field-required-input" ${required ? "checked" : ""} style="width:16px;height:16px;">
-      <label style="margin:0;font-size:12px;font-weight:700;">Required</label>
-    </div>
-    <button type="button" class="remove-field-btn" onclick="document.getElementById('${rowId}').remove()">&times;</button>
   `;
   container.appendChild(row);
 }

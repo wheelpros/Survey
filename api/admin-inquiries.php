@@ -17,8 +17,7 @@ if (!$currentAdmin) {
 }
 
 // The owner always has access. An account_manager only gets in if the
-// owner switched on their global inquiries_access flag - this isn't
-// per-inquiry anymore, it's all-or-nothing for the whole page.
+// owner switched on their global inquiries_access flag.
 $hasAccess = $currentAdmin["role"] === "owner"
     || ($currentAdmin["role"] === "account_manager" && (int)$currentAdmin["inquiries_access"] === 1);
 
@@ -39,6 +38,20 @@ function generateSlug($pdo) {
 
     return $slug;
 }
+
+// Lazily flips any inquiry whose 24-hour window passed without an answer
+// over to 'expired'. There's no background cron in this app, so this runs
+// on every load instead - the status is only ever stale between admin
+// page views, which self-corrects the moment anyone opens the list again.
+function expireOverdueInquiries($pdo) {
+    $pdo->prepare("
+        UPDATE inquiries
+        SET status = 'expired'
+        WHERE status = 'pending' AND expires_at IS NOT NULL AND expires_at < NOW()
+    ")->execute();
+}
+
+expireOverdueInquiries($pdo);
 
 if ($method === "GET") {
 
@@ -76,12 +89,16 @@ if ($method === "GET") {
         exit;
     }
 
-    // Access is global now - owner and any access-granted account_manager
-    // both see every inquiry, not a filtered slice.
+    // Access is global - owner and any access-granted account_manager both
+    // see every inquiry. Leads is 0 or 1 (single-use link), shown as a count
+    // for a quick at-a-glance read of the list.
     $stmt = $pdo->query("
-        SELECT id, title, slug, status, expires_at, created_at
+        SELECT
+            inquiries.id, inquiries.title, inquiries.slug, inquiries.status,
+            inquiries.expires_at, inquiries.created_at,
+            (SELECT COUNT(*) FROM inquiry_responses WHERE inquiry_responses.inquiry_id = inquiries.id) AS lead_count
         FROM inquiries
-        ORDER BY created_at DESC
+        ORDER BY inquiries.created_at DESC
     ");
 
     echo json_encode([
@@ -93,8 +110,7 @@ if ($method === "GET") {
 
 if ($method === "POST" || $method === "PUT") {
 
-    // Building/editing an inquiry page is owner-only - an account manager
-    // only ever views and follows up on the single answer once it's in.
+    // Building/editing an inquiry page is owner-only.
     if (!$isOwner) {
         echo json_encode(["success" => false, "message" => "Only the owner can create or edit inquiries"]);
         exit;
@@ -121,10 +137,10 @@ if ($method === "POST" || $method === "PUT") {
             $slug = generateSlug($pdo);
 
             // Single-use link: pending until answered once, or until the
-            // 1-hour window passes, whichever comes first.
+            // 24-hour window passes, whichever comes first.
             $stmt = $pdo->prepare("
                 INSERT INTO inquiries (title, intro_text, slug, created_by_admin_id, status, expires_at)
-                VALUES (?, ?, ?, ?, 'pending', DATE_ADD(NOW(), INTERVAL 1 HOUR))
+                VALUES (?, ?, ?, ?, 'pending', DATE_ADD(NOW(), INTERVAL 24 HOUR))
             ");
             $stmt->execute([$title, $introText, $slug, $currentAdmin["id"]]);
 
@@ -144,8 +160,6 @@ if ($method === "POST" || $method === "PUT") {
                 throw new Exception("Inquiry not found");
             }
 
-            // Once it's been answered, the page is done - editing it after
-            // the fact would rewrite the record of what was actually asked.
             if ($existing["status"] === "answered") {
                 throw new Exception("This inquiry has already been answered and can't be edited");
             }
@@ -194,6 +208,34 @@ if ($method === "POST" || $method === "PUT") {
         echo json_encode(["success" => false, "message" => $e->getMessage() ?: "Failed to save inquiry"]);
         exit;
     }
+}
+
+if ($method === "DELETE") {
+
+    // Deleting an inquiry is owner-only. Cascades to its fields, any
+    // response, and that response's answers via the existing foreign keys.
+    if (!$isOwner) {
+        echo json_encode(["success" => false, "message" => "Only the owner can delete inquiries"]);
+        exit;
+    }
+
+    $inquiryId = (int)($_GET["id"] ?? 0);
+
+    if (!$inquiryId) {
+        echo json_encode(["success" => false, "message" => "Inquiry id is required"]);
+        exit;
+    }
+
+    $stmt = $pdo->prepare("DELETE FROM inquiries WHERE id = ?");
+    $stmt->execute([$inquiryId]);
+
+    if ($stmt->rowCount() === 0) {
+        echo json_encode(["success" => false, "message" => "Inquiry not found"]);
+        exit;
+    }
+
+    echo json_encode(["success" => true, "message" => "Inquiry deleted"]);
+    exit;
 }
 
 echo json_encode(["success" => false, "message" => "Invalid request"]);
