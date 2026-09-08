@@ -49,36 +49,42 @@ $fieldsStmt = $pdo->prepare("
 $fieldsStmt->execute([$inquiryId]);
 $fields = $fieldsStmt->fetchAll();
 
-// Single-use link - at most one response will ever exist for this inquiry.
-$responseStmt = $pdo->prepare("
+// One row per answered invite - could be several now that every Copy Link
+// click generates its own independent link.
+$responsesStmt = $pdo->prepare("
     SELECT id, submitted_at
     FROM inquiry_responses
     WHERE inquiry_id = ?
     ORDER BY submitted_at DESC
-    LIMIT 1
 ");
-$responseStmt->execute([$inquiryId]);
-$response = $responseStmt->fetch();
+$responsesStmt->execute([$inquiryId]);
+$responses = $responsesStmt->fetchAll();
 
-$answers = [];
+$responseIds = array_map(fn($r) => (int)$r["id"], $responses);
+$answersByResponse = [];
 
-if ($response) {
+if (!empty($responseIds)) {
+    $placeholders = implode(",", array_fill(0, count($responseIds), "?"));
     $answersStmt = $pdo->prepare("
-        SELECT field_id, answer_text
+        SELECT response_id, field_id, answer_text
         FROM inquiry_response_answers
-        WHERE response_id = ?
+        WHERE response_id IN ($placeholders)
     ");
-    $answersStmt->execute([$response["id"]]);
+    $answersStmt->execute($responseIds);
 
     foreach ($answersStmt->fetchAll() as $row) {
-        $answers[$row["field_id"]] = $row["answer_text"];
+        $answersByResponse[$row["response_id"]][$row["field_id"]] = $row["answer_text"];
     }
 }
+
+$responses = array_map(function ($r) use ($answersByResponse) {
+    $r["answers"] = $answersByResponse[$r["id"]] ?? [];
+    return $r;
+}, $responses);
 
 echo json_encode([
     "success" => true,
     "title" => $inquiry["title"],
     "fields" => $fields,
-    "submitted_at" => $response["submitted_at"] ?? null,
-    "answers" => $answers
+    "responses" => $responses
 ]);

@@ -274,7 +274,7 @@ document.addEventListener("DOMContentLoaded", function () {
       <div class="panel-head">
         <div>
           <h1 id="inquiriesTitle">Inquiries</h1>
-          <p id="inquiriesSub">Single-use inquiry links - each one expires after being answered or after 24 hours.</p>
+          <p id="inquiriesSub">Each Copy Link click makes a brand-new single-use link that expires after being answered or after 24 hours.</p>
         </div>
         <div class="actions">
           <button class="btn action-btn" id="newInquiryBtn" onclick="openBuilder()" style="display:none;">+ New Inquiry</button>
@@ -285,15 +285,14 @@ document.addEventListener("DOMContentLoaded", function () {
         <thead>
           <tr>
             <th>Title</th>
-            <th>Status</th>
             <th>Leads</th>
-            <th>Expires</th>
+            <th>Links Sent</th>
             <th>Created</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody id="inquiriesTable">
-          <tr><td colspan="6" class="empty">Loading...</td></tr>
+          <tr><td colspan="5" class="empty">Loading...</td></tr>
         </tbody>
       </table>
     </div>
@@ -498,7 +497,7 @@ async function saveInquiriesAccess(){
 
 async function loadInquiries(){
   const table = document.getElementById("inquiriesTable");
-  table.innerHTML = `<tr><td colspan="6" class="empty">Loading...</td></tr>`;
+  table.innerHTML = `<tr><td colspan="5" class="empty">Loading...</td></tr>`;
 
   try{
     const res = await fetch("api/admin-inquiries.php", {
@@ -508,58 +507,41 @@ async function loadInquiries(){
     const data = await res.json();
 
     if(!data.success){
-      table.innerHTML = `<tr><td colspan="6" class="empty">${data.message || "Unable to load inquiries."}</td></tr>`;
+      table.innerHTML = `<tr><td colspan="5" class="empty">${data.message || "Unable to load inquiries."}</td></tr>`;
       return;
     }
 
     renderInquiries(data.inquiries || []);
 
   }catch(err){
-    table.innerHTML = `<tr><td colspan="6" class="empty">Connection error.</td></tr>`;
+    table.innerHTML = `<tr><td colspan="5" class="empty">Connection error.</td></tr>`;
   }
-}
-
-function inquiryStatusMeta(inq){
-  // The server already flips 'pending' -> 'expired' once the 24-hour
-  // window passes (lazily, on each load), so this just reads it straight.
-  if(inq.status === "answered"){
-    return { label: "Answered", cls: "approved" };
-  }
-  if(inq.status === "expired"){
-    return { label: "Not Answered", cls: "pending" };
-  }
-  return { label: "Pending", cls: "pending" };
 }
 
 function renderInquiries(inquiries){
   const table = document.getElementById("inquiriesTable");
 
   if(!inquiries.length){
-    table.innerHTML = `<tr><td colspan="6" class="empty">No inquiries yet.</td></tr>`;
+    table.innerHTML = `<tr><td colspan="5" class="empty">No inquiries yet.</td></tr>`;
     return;
   }
 
-  const publicBase = window.location.origin + window.location.pathname.replace(/inquiries\.html$/, "inquiry.html");
-
   table.innerHTML = inquiries.map(inq => {
-    const meta = inquiryStatusMeta(inq);
-    // Copy Link stays available through the full 24-hour window even after
-    // it's been answered - only actually expiring (by time, not status)
-    // removes it, since an answered row's status never flips to 'expired'.
-    const canCopyLink = !!inq.expires_at && new Date(inq.expires_at).getTime() > Date.now();
-    const canEdit = isOwner && inq.status !== "answered";
+    // An inquiry is a template now - it has no single status/link of its
+    // own. Editing locks once at least one of its links has been answered,
+    // to protect that lead's recorded answers.
+    const canEdit = isOwner && Number(inq.lead_count) === 0;
 
     return `
     <tr>
       <td>${escapeHtml(inq.title)}</td>
-      <td><span class="badge ${meta.cls}">${meta.label}</span></td>
       <td>${inq.lead_count}</td>
-      <td>${inq.expires_at || "-"}</td>
+      <td>${inq.invite_count}</td>
       <td>${inq.created_at}</td>
       <td>
         <div class="actions">
-          ${canCopyLink ? `<button class="btn copy-btn" onclick="copyLink('${publicBase}?ref=${inq.slug}')">Copy Link</button>` : ``}
-          ${inq.status === "answered" ? `<button class="btn action-btn" onclick="openAnswer(${inq.id})">View Answer</button>` : ``}
+          <button class="btn copy-btn" onclick="generateAndCopyLink(${inq.id})">Copy Link</button>
+          ${Number(inq.lead_count) > 0 ? `<button class="btn action-btn" onclick="openAnswer(${inq.id})">View Leads</button>` : ``}
           ${canEdit ? `<button class="btn action-btn" onclick="openBuilder(${inq.id})">Edit</button>` : ``}
           ${isOwner ? `<button class="btn copy-btn" style="background:#fde8e8;color:#c9000b;" onclick="deleteInquiry(${inq.id})">Delete</button>` : ``}
         </div>
@@ -567,6 +549,37 @@ function renderInquiries(inquiries){
     </tr>
     `;
   }).join("");
+}
+
+async function generateAndCopyLink(inquiryId){
+  try{
+    const res = await fetch("api/admin-inquiries.php", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + adminToken
+      },
+      body: JSON.stringify({ action: "new_invite", inquiryId })
+    });
+
+    const data = await res.json();
+
+    if(!data.success){
+      alert(data.message || "Failed to generate a link.");
+      return;
+    }
+
+    const publicBase = window.location.origin + window.location.pathname.replace(/inquiries\.html$/, "inquiry.html");
+    const url = `${publicBase}?ref=${data.slug}`;
+
+    await navigator.clipboard.writeText(url);
+    alert("A new link was created and copied - it's only good for this one person.");
+
+    loadInquiries();
+
+  }catch(err){
+    alert("Network or server error.");
+  }
 }
 
 async function deleteInquiry(inquiryId){
@@ -592,10 +605,6 @@ async function deleteInquiry(inquiryId){
   }
 }
 
-function copyLink(url){
-  navigator.clipboard.writeText(url).then(() => alert("Link copied!"));
-}
-
 async function openAnswer(inquiryId){
   const body = document.getElementById("answerBody");
   body.innerHTML = `<p>Loading...</p>`;
@@ -609,28 +618,32 @@ async function openAnswer(inquiryId){
     const data = await res.json();
 
     if(!data.success){
-      body.innerHTML = `<p>${escapeHtml(data.message || "Unable to load this answer.")}</p>`;
+      body.innerHTML = `<p>${escapeHtml(data.message || "Unable to load leads.")}</p>`;
       return;
     }
 
     document.getElementById("answerTitle").innerText = data.title;
 
-    if(!data.submitted_at){
-      body.innerHTML = `<p>No answer recorded yet.</p>`;
+    const responses = data.responses || [];
+
+    if(!responses.length){
+      body.innerHTML = `<p>No leads recorded yet.</p>`;
       return;
     }
 
-    body.innerHTML = `
-      <p style="color:#667085;font-size:12px;margin-bottom:16px;">Submitted ${escapeHtml(data.submitted_at)}</p>
-      ${data.fields.map(f => `
-        <div class="field-group">
-          <label>${escapeHtml(f.field_label)}</label>
-          <div style="border:1px solid #eef1f5;border-radius:12px;padding:12px 14px;background:#fafbfc;font-size:14px;">
-            ${escapeHtml(data.answers[f.id] || "-")}
+    body.innerHTML = responses.map((r, i) => `
+      <div style="${i > 0 ? "margin-top:24px;padding-top:20px;border-top:1px solid #eef1f5;" : ""}">
+        <p style="color:#667085;font-size:12px;margin-bottom:16px;">Lead ${i + 1} - submitted ${escapeHtml(r.submitted_at)}</p>
+        ${data.fields.map(f => `
+          <div class="field-group">
+            <label>${escapeHtml(f.field_label)}</label>
+            <div style="border:1px solid #eef1f5;border-radius:12px;padding:12px 14px;background:#fafbfc;font-size:14px;">
+              ${escapeHtml(r.answers[f.id] || "-")}
+            </div>
           </div>
-        </div>
-      `).join("")}
-    `;
+        `).join("")}
+      </div>
+    `).join("");
 
   }catch(err){
     body.innerHTML = `<p>Connection error.</p>`;
@@ -765,12 +778,14 @@ async function saveInquiry(){
     statusEl.innerText = data.message;
 
     if(data.success){
-      const publicBase = window.location.origin + window.location.pathname.replace(/inquiries\.html$/, "inquiry.html");
-      const url = `${publicBase}?ref=${data.slug}`;
+      if(data.slug){
+        const publicBase = window.location.origin + window.location.pathname.replace(/inquiries\.html$/, "inquiry.html");
+        const url = `${publicBase}?ref=${data.slug}`;
 
-      document.getElementById("builderLinkInput").value = url;
-      document.getElementById("builderLinkBox").style.display = "flex";
-      document.getElementById("builderLinkNote").style.display = "block";
+        document.getElementById("builderLinkInput").value = url;
+        document.getElementById("builderLinkBox").style.display = "flex";
+        document.getElementById("builderLinkNote").style.display = "block";
+      }
 
       loadInquiries();
     }

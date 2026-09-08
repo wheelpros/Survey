@@ -6,6 +6,17 @@ header("Content-Type: application/json");
 
 $method = $_SERVER["REQUEST_METHOD"];
 
+function getValidInvite($pdo, $slug) {
+    $stmt = $pdo->prepare("
+        SELECT id, inquiry_id, status, expires_at
+        FROM inquiry_invites
+        WHERE slug = ?
+        LIMIT 1
+    ");
+    $stmt->execute([$slug]);
+    return $stmt->fetch();
+}
+
 if ($method === "GET") {
 
     $slug = trim($_GET["slug"] ?? "");
@@ -15,27 +26,29 @@ if ($method === "GET") {
         exit;
     }
 
-    $stmt = $pdo->prepare("
-        SELECT id, title, intro_text, status, expires_at
-        FROM inquiries
-        WHERE slug = ?
-        LIMIT 1
-    ");
-    $stmt->execute([$slug]);
-    $inquiry = $stmt->fetch();
+    $invite = getValidInvite($pdo, $slug);
 
-    if (!$inquiry) {
+    if (!$invite) {
         echo json_encode(["success" => false, "message" => "This link is not valid"]);
         exit;
     }
 
-    if ($inquiry["status"] === "answered") {
+    if ($invite["status"] === "answered") {
         echo json_encode(["success" => false, "message" => "This link has already been used"]);
         exit;
     }
 
-    if ($inquiry["expires_at"] && strtotime($inquiry["expires_at"]) < time()) {
+    if ($invite["expires_at"] && strtotime($invite["expires_at"]) < time()) {
         echo json_encode(["success" => false, "message" => "This link has expired"]);
+        exit;
+    }
+
+    $inquiryStmt = $pdo->prepare("SELECT title, intro_text FROM inquiries WHERE id = ? LIMIT 1");
+    $inquiryStmt->execute([$invite["inquiry_id"]]);
+    $inquiry = $inquiryStmt->fetch();
+
+    if (!$inquiry) {
+        echo json_encode(["success" => false, "message" => "This link is not valid"]);
         exit;
     }
 
@@ -45,7 +58,7 @@ if ($method === "GET") {
         WHERE inquiry_id = ?
         ORDER BY sort_order ASC, id ASC
     ");
-    $fieldsStmt->execute([$inquiry["id"]]);
+    $fieldsStmt->execute([$invite["inquiry_id"]]);
 
     echo json_encode([
         "success" => true,
@@ -70,27 +83,25 @@ if ($method === "POST") {
         exit;
     }
 
-    $stmt = $pdo->prepare("SELECT id, status, expires_at FROM inquiries WHERE slug = ? LIMIT 1");
-    $stmt->execute([$slug]);
-    $inquiry = $stmt->fetch();
+    $invite = getValidInvite($pdo, $slug);
 
-    if (!$inquiry) {
+    if (!$invite) {
         echo json_encode(["success" => false, "message" => "This link is not valid"]);
         exit;
     }
 
-    if ($inquiry["status"] === "answered") {
+    if ($invite["status"] === "answered") {
         echo json_encode(["success" => false, "message" => "This link has already been used"]);
         exit;
     }
 
-    if ($inquiry["expires_at"] && strtotime($inquiry["expires_at"]) < time()) {
+    if ($invite["expires_at"] && strtotime($invite["expires_at"]) < time()) {
         echo json_encode(["success" => false, "message" => "This link has expired"]);
         exit;
     }
 
     $fieldsStmt = $pdo->prepare("SELECT id, field_label, required FROM inquiry_fields WHERE inquiry_id = ?");
-    $fieldsStmt->execute([$inquiry["id"]]);
+    $fieldsStmt->execute([$invite["inquiry_id"]]);
     $fields = $fieldsStmt->fetchAll();
 
     $answersByFieldId = [];
@@ -113,14 +124,14 @@ if ($method === "POST") {
 
     try {
 
-        // Atomic single-use guard: only flips to 'answered' if it's still
-        // 'pending' right now. If two submissions race, only one wins here.
+        // Atomic single-use guard on this specific invite - two people
+        // racing on the same link will only ever let one of them through.
         $claimStmt = $pdo->prepare("
-            UPDATE inquiries
+            UPDATE inquiry_invites
             SET status = 'answered'
             WHERE id = ? AND status = 'pending'
         ");
-        $claimStmt->execute([$inquiry["id"]]);
+        $claimStmt->execute([$invite["id"]]);
 
         if ($claimStmt->rowCount() === 0) {
             $pdo->rollBack();
@@ -128,8 +139,11 @@ if ($method === "POST") {
             exit;
         }
 
-        $responseStmt = $pdo->prepare("INSERT INTO inquiry_responses (inquiry_id) VALUES (?)");
-        $responseStmt->execute([$inquiry["id"]]);
+        $responseStmt = $pdo->prepare("
+            INSERT INTO inquiry_responses (inquiry_id, invite_id)
+            VALUES (?, ?)
+        ");
+        $responseStmt->execute([$invite["inquiry_id"], $invite["id"]]);
         $responseId = $pdo->lastInsertId();
 
         $answerStmt = $pdo->prepare("
