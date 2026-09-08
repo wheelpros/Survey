@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project</title>
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+:root{--brand:#c9000b;--nav-active:#1b1e3a;--text:#101828;--muted:#667085;--line:#eaecf0;--sidebar-w:260px}
+body{background:#f7f8fc;color:var(--text)}
+.app{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar-w);background:#fff;border-right:1px solid var(--line);position:fixed;top:0;left:0;bottom:0;padding:26px 12px 18px;display:flex;flex-direction:column;justify-content:space-between}
+.nav a{display:flex;gap:10px;align-items:center;text-decoration:none;color:var(--muted);padding:8px 10px;border-radius:9px;margin-bottom:2px;font-size:14px;font-weight:600;transition:background .15s,color .15s}
+.nav a svg{width:17px;height:17px;flex:none}
+.nav a:hover{background:#f6f7f9;color:var(--text)}
+.nav a.active{background:var(--nav-active);color:#fff}
+.user-card{width:100%;font:inherit;text-align:left;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;gap:10px;align-items:center;cursor:pointer;transition:background .15s,border-color .15s}
+.user-card:hover{background:#fafbfc;border-color:#d7dae0}
+.avatar{width:36px;height:36px;border-radius:50%;background:#dce3ff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#3745a4;background-size:cover;background-position:center;flex:none}
+.user-meta{flex:1;min-width:0}
+.user-meta h4{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-meta p{font-size:11px;color:#98a2b3}
+.user-dots{color:#98a2b3;flex:none}
+.main{margin-left:var(--sidebar-w);width:calc(100% - var(--sidebar-w))}
+
+.content{padding:34px 44px}
+
+/* ── Head: back arrow, title, subtitle ── */
+.head{display:flex;align-items:flex-start;gap:16px;margin-bottom:26px}
+.head .page-title{flex:1;min-width:0}
+.head h1{font-size:26px;margin-bottom:6px;word-break:break-word}
+.head p{font-size:13px;color:var(--muted)}
+.back-link{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;flex:none;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--text);text-decoration:none;transition:background .15s}
+.back-link:hover{background:#f2f4f8}
+.back-link svg{width:17px;height:17px}
+
+.empty{background:#fff;border-radius:18px;padding:30px;color:var(--muted);text-align:center}
+
+/* ── Buttons ── */
+.btn{border:none;padding:9px 14px;border-radius:9px;cursor:pointer;font:inherit;font-weight:800;font-size:12px;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none}
+.btn-ghost{background:#fff;color:var(--text);border:1px solid #dfe3ea}
+.btn-ghost:hover{background:#f6f7f9}
+
+/* ── Summary tiles ── */
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:24px}
+.tile{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px 22px;box-shadow:0 10px 24px rgba(0,0,0,.04)}
+.tile span{display:block;font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.tile strong{display:block;font-size:22px;font-weight:800;line-height:1}
+.tile .bar{height:6px;border-radius:4px;background:#eef1f5;margin-top:12px;overflow:hidden}
+.tile .bar i{display:block;height:100%;background:var(--nav-active);border-radius:4px}
+
+/* ── Month grid, the same one the admin detail page carries ── */
+.cal-card{background:#fff;border-radius:18px;box-shadow:0 14px 30px rgba(0,0,0,.05);padding:22px;margin-bottom:26px}
+.cal-head{display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+.cal-head h2{font-size:17px;flex:none}
+.cal-nav{display:flex;gap:4px}
+.cal-nav button{width:30px;height:30px;border:1px solid var(--line);background:#fff;border-radius:8px;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center}
+.cal-nav button:hover{background:#f6f7f9;color:var(--text)}
+.cal-nav svg{width:14px;height:14px}
+.cal-today{margin-left:auto;border:1px solid var(--line);background:#fff;border-radius:9px;height:32px;padding:0 14px;font:inherit;font-size:12px;font-weight:800;color:var(--text);cursor:pointer}
+.cal-today:hover{background:#f6f7f9}
+/* Seven columns at every width: a weekday grid cannot reflow, so the cells
+   shrink rather than the month sliding sideways in a scroll box. */
+.cal-scroll{overflow:visible}
+.cal-grid{min-width:0}
+.cal-week{display:grid;grid-template-columns:repeat(7,1fr)}
+.cal-week.names div{padding:0 0 10px;font-size:11px;font-weight:700;color:var(--muted)}
+.cal-day{border-top:1px solid var(--line);border-left:1px solid var(--line);min-height:82px;padding:8px 10px;position:relative;cursor:pointer;transition:background .12s}
+.cal-week .cal-day:last-child{border-right:1px solid var(--line)}
+.cal-week:last-child .cal-day{border-bottom:1px solid var(--line)}
+.cal-day.muted{background:#fbfcfd}
+.cal-day.muted b{color:#c3c9d4}
+.cal-day b{font-size:12px;font-weight:600;color:var(--text)}
+.cal-day.today{background:#f5f6fa}
+.cal-day.today b{color:var(--nav-active);font-weight:800}
+.cal-day:hover{background:#f4f6fa}
+.cal-day:focus-visible{outline:none;box-shadow:inset 0 0 0 2px var(--nav-active)}
+.cal-day.selected{box-shadow:inset 0 0 0 2px var(--nav-active);background:#f5f6fa}
+.cal-day.in-range{background:#fcfcff}
+/* One dot per update scheduled that day - the grid marks the month, the cards
+   below carry the detail. */
+.cal-dots{display:flex;flex-wrap:wrap;gap:3px;margin-top:6px}
+.cal-dot{width:6px;height:6px;border-radius:50%;background:var(--nav-active)}
+.cal-dot.done{background:#20a95a}
+
+/* ── Update cards ── */
+.section-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px}
+.section-head h2{font-size:18px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.card{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 12px 26px rgba(0,0,0,.05);display:flex;flex-direction:column;border:2px solid transparent;transition:border-color .15s}
+.card.selected{border-color:var(--nav-active)}
+/* One fixed size for every card image, whatever the orientation: a taller
+   image on one card would push its title and button out of line with the
+   rest of the row. */
+.card-img{position:relative;width:100%;height:170px;background:#eef1f5 center/cover no-repeat}
+.card-img .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#aeb6c4}
+.card-img .ph svg{width:30px;height:30px}
+/* No image is the ordinary case, not a failure: a calm tint rather than a bare
+   grey slab, and the box keeps its size so the card grid stays uniform. */
+.card-img.empty{background:linear-gradient(135deg,#f5f7fa 0%,#e8edf4 100%)}
+.card-img.empty .ph{color:#c3cad7}
+/* Two states, not the admin's four. Drafts and future-dated updates never
+   reach this page, so DRAFT and SCHEDULED have nothing left to describe. */
+.badge{position:absolute;top:10px;right:10px;padding:5px 10px;border-radius:20px;font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase}
+.badge.active{background:#e8faef;color:#20a95a}
+.badge.completed{background:var(--nav-active);color:#fff}
+.card-body{padding:14px 16px;flex:1;display:flex;flex-direction:column;gap:4px}
+.card-body h3{font-size:14px;font-weight:700;word-break:break-word}
+.card-when{font-size:11px;color:var(--muted);margin-top:2px}
+.card-actions{padding:0 16px 16px;margin-top:auto}
+.card-actions .btn{width:100%}
+
+/* ── The View panel: content.html's inline detail block, not a modal ─────────
+   The established client pattern, and the one thing that gives an update's
+   orientation a job. */
+.detail-wrap{margin-top:34px}
+.detail-head{margin-bottom:18px}
+.detail-head .eyebrow{font-size:11px;font-weight:800;letter-spacing:.6px;color:var(--muted);text-transform:uppercase;margin-bottom:6px}
+.detail-head h2{font-size:26px;text-align:left}
+
+.detail{display:grid;gap:28px;background:#fff;border-radius:18px;padding:26px;box-shadow:0 14px 30px rgba(0,0,0,.04)}
+.detail-media{background:#f1f3f7 center/cover no-repeat;border-radius:12px;overflow:hidden}
+/* Most updates carry no image, and an empty tinted strip where a picture
+   would be reads as a broken one. Same rule the project panel below applies
+   to its own. */
+.detail-media[hidden]{display:none}
+.detail-meta{display:grid;gap:22px 40px;align-content:start}
+.detail .field h5{font-size:10px;font-weight:800;letter-spacing:.7px;color:#98a2b3;text-transform:uppercase;margin-bottom:8px}
+.detail .field p,.detail .field .caption{font-size:15px;line-height:1.55;color:var(--text)}
+.detail .field .caption ul,.detail .field .caption ol{padding-left:20px;margin:6px 0}
+.detail .field .caption a{color:var(--nav-active)}
+.detail .field.wide{grid-column:1/-1}
+
+/* Portrait media sits beside the copy. */
+.detail.is-vertical{grid-template-columns:300px 1fr}
+.detail.is-vertical .detail-media{aspect-ratio:9/16}
+.detail.is-vertical .detail-meta{grid-template-columns:repeat(3,1fr)}
+
+/* Landscape media banners across the top. A full-width 16/9 banner runs
+   enormous on a wide screen, so it is a shorter strip, capped and centred
+   rather than stretched edge to edge. */
+.detail.is-horizontal{grid-template-columns:1fr}
+.detail.is-horizontal .detail-media{aspect-ratio:2.4/1;width:100%;max-width:672px;max-height:280px;margin:0 auto}
+.detail.is-horizontal .detail-meta{grid-template-columns:repeat(3,1fr)}
+
+/* Timing and the link share one line under the copy. */
+.detail-footer{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:flex-start;gap:22px 40px}
+.detail-footer .field{min-width:0}
+.link-slot:empty{display:none}
+/* A plain blue link, not a button: no frame, no icon. */
+.view-link{display:inline-block;font-size:13px;font-weight:800;color:#1d6fe0;text-decoration:none;white-space:nowrap}
+.view-link:hover{text-decoration:underline}
+
+/* ── The project's own panel, under the updates ── */
+.project-panel{background:#fff;border-radius:18px;padding:26px;box-shadow:0 14px 30px rgba(0,0,0,.04);margin-top:12px}
+.project-panel-img{width:100%;max-height:320px;border-radius:14px;background:#eef1f5 center/cover no-repeat;aspect-ratio:16/7;margin-bottom:22px}
+/* A project with no image hides the block outright rather than showing a
+   320px empty rectangle above the title. */
+.project-panel-img[hidden]{display:none}
+.project-panel h3{font-size:18px;margin-bottom:12px}
+.project-panel .desc-label,.project-meta .field span{display:block;font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+/* Plain text out of a textarea, so textContent and pre-wrap - never innerHTML. */
+.project-panel .desc{font-size:13px;line-height:1.7;color:#475467;margin-bottom:24px;white-space:pre-wrap}
+.project-meta{display:grid;grid-template-columns:repeat(3,1fr);gap:22px 30px}
+.project-meta .field strong{display:block;font-size:13px;font-weight:700;word-break:break-word}
+.project-meta .field .link{color:var(--brand)}
+
+/* ── Empty states ── */
+.empty-state{background:#fff;border-radius:18px;padding:52px 30px;text-align:center;box-shadow:0 14px 30px rgba(0,0,0,.05)}
+.empty-state[hidden]{display:none}
+.empty-state .icon{width:56px;height:56px;margin:0 auto 18px;border-radius:16px;background:#f2f4f8;color:#98a2b3;display:flex;align-items:center;justify-content:center}
+.empty-state .icon svg{width:26px;height:26px}
+.empty-state h3{font-size:16px;font-weight:800;margin-bottom:8px}
+.empty-state p{font-size:13px;color:var(--muted);max-width:420px;margin:0 auto 20px;line-height:1.7}
+.empty-state .btn{display:inline-flex}
+
+/* ── Pagination ── */
+.pager{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:16px 0}
+.pager[hidden]{display:none}
+.pager-info{font-size:13px;font-weight:600;color:var(--muted)}
+.pager-pages{display:flex;gap:6px;flex-wrap:wrap}
+.pager button{min-width:36px;height:36px;padding:0 12px;border:1px solid #dfe3ea;background:#fff;border-radius:9px;font:inherit;font-size:13px;font-weight:700;color:var(--text);cursor:pointer}
+.pager button:hover:not(:disabled){background:#f6f7f9}
+.pager button.current{background:var(--nav-active);border-color:var(--nav-active);color:#fff}
+.pager button:disabled{opacity:.45;cursor:not-allowed}
+
+/* ── Collapsible sidebar ── */
+:root.sidebar-collapsed{--sidebar-w:78px}
+.sidebar,.main{transition:width .18s ease,margin-left .18s ease}
+:root.sidebar-collapsed .sidebar{padding:26px 4px 18px}
+:root.sidebar-collapsed .nav a{width:38px;height:38px;padding:0;margin:0 auto 4px;border-radius:10px;justify-content:center}
+:root.sidebar-collapsed .nav a span{display:none}
+/* The account card is the only route to profile and logout — collapse it, never hide it. */
+:root.sidebar-collapsed .user-card{justify-content:center;padding:8px}
+:root.sidebar-collapsed .user-meta,:root.sidebar-collapsed .user-dots{display:none}
+
+/* ── The collapse control lives in the sidebar head ── */
+.side-head{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:36px;margin-bottom:26px;padding:0 2px}
+.logo{padding:0;margin:0;flex:1;min-width:0}
+.logo img{width:132px;max-width:100%;height:auto;display:block}
+.sidebar-toggle{width:34px;height:34px;flex:none;border-radius:9px;border:none;background:transparent;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s}
+.sidebar-toggle:hover{background:#f2f4f8;color:var(--text)}
+.sidebar-toggle svg{width:18px;height:18px}
+/* Collapsed to 78px the wordmark is illegible, so the head keeps only the toggle. */
+:root.sidebar-collapsed .side-head{justify-content:center;margin-bottom:22px}
+:root.sidebar-collapsed .logo{display:none}
+
+/* The account card opens a dropup; it is the only route to profile and logout. */
+.account{position:relative}
+.account-menu{position:absolute;bottom:calc(100% + 8px);left:0;min-width:200px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 16px 40px rgba(16,24,40,.14);padding:6px;display:none;z-index:200}
+.account.open .account-menu{display:block}
+.account-menu a,.account-menu button{width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;border:none;background:transparent;border-radius:9px;font:inherit;font-size:13px;font-weight:700;color:var(--text);text-align:left;text-decoration:none;cursor:pointer}
+.account-menu a:hover,.account-menu button:hover{background:#f6f7f9}
+.account-menu svg{width:16px;height:16px;flex:none;color:var(--muted)}
+.account-menu .danger,.account-menu .danger svg{color:var(--brand)}
+.account-menu .danger:hover{background:#fff5f5}
+
+@media(max-width:1100px){
+  .grid{grid-template-columns:repeat(2,1fr)}
+  .project-meta{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:950px){
+  /* Force-collapsed below this width, so the head has nothing left to show. */
+  .side-head{display:none}
+  .content{padding:24px 18px}
+}
+@media(max-width:768px){
+  .tiles{grid-template-columns:1fr}
+  .grid{grid-template-columns:1fr}
+  .project-meta{grid-template-columns:1fr}
+  .detail.is-vertical,.detail.is-horizontal{grid-template-columns:1fr}
+  .detail-meta{grid-template-columns:1fr !important}
+  /* The cells shrink and the weekday names abbreviate, so seven columns still
+     fit a phone. */
+  .cal-card{padding:14px 10px}
+  .cal-day{min-height:52px;padding:5px 4px}
+  .cal-day b{font-size:11px}
+  .cal-week.names div{font-size:10px;padding-bottom:8px;text-align:center}
+  .cal-dots{gap:2px;margin-top:4px;justify-content:center}
+  .cal-dot{width:5px;height:5px}
+  .cal-head h2{font-size:15px}
+  .project-panel,.detail{padding:20px}
+}
+/* ── Unread badge on the Notifications nav item ──
+   Collapsed, the sidebar hides labels, so the count degrades to a dot on
+   the icon - the same affordance the old topbar bell had. */
+.nav a{position:relative}
+.nav-badge{
+  margin-left:auto;font-style:normal;font-size:11px;font-weight:800;line-height:1;
+  min-width:18px;padding:3px 6px;border-radius:9px;
+  background:var(--brand);color:#fff;text-align:center;
+}
+.nav-badge[hidden]{display:none}
+.nav a.active .nav-badge{background:#fff;color:var(--nav-active)}
+:root.sidebar-collapsed .nav-badge{
+  position:absolute;top:4px;right:8px;margin:0;
+  width:8px;height:8px;min-width:0;padding:0;border-radius:50%;
+  font-size:0;border:2px solid #fff;
+}
+</style>
+
+<script>
+// Runs before paint so the collapsed state never flashes open on load.
+(function () {
+  var root = document.documentElement;
+  var KEY = "wz_sidebar_collapsed";
+  var MOBILE = 950;
+  var DRAWER = 768;   // below this the sidebar is a drawer, never a rail
+  function prefersCollapsed(){ return localStorage.getItem(KEY) === "1"; }
+  function apply(){
+    root.classList.toggle("sidebar-collapsed", (window.innerWidth <= MOBILE && window.innerWidth > DRAWER) || prefersCollapsed());
+  }
+  window.toggleSidebar = function(){
+    if (window.innerWidth <= MOBILE) return; // forced collapsed, nothing to toggle
+    localStorage.setItem(KEY, prefersCollapsed() ? "0" : "1");
+    apply();
+  };
+  apply();
+  window.addEventListener("resize", apply);
+})();
+
+// Sidebar account card -> dropup with Profile / Logout.
+(function () {
+  function menu() { return document.getElementById("account"); }
+  function close() {
+    var el = menu();
+    if (!el || !el.classList.contains("open")) return;
+    el.classList.remove("open");
+    el.querySelector(".user-card").setAttribute("aria-expanded", "false");
+  }
+  window.toggleAccountMenu = function () {
+    var el = menu();
+    var open = el.classList.toggle("open");
+    el.querySelector(".user-card").setAttribute("aria-expanded", open ? "true" : "false");
+  };
+  document.addEventListener("click", function (e) {
+    var el = menu();
+    if (el && !el.contains(e.target)) close();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") close();
+  });
+})();
+</script>
+<link rel="stylesheet" href="assets/shell.css?v=2" />
+</head>
+
+<body>
+
+<div class="app">
+
+<aside class="sidebar">
+  <div>
+    <div class="side-head">
+      <div class="logo">
+        <img src="logo.png" alt="W|ZONE London" onerror="this.onerror=null;this.src='assets/WZONE%20source.png'">
+      </div>
+      <button class="sidebar-toggle" type="button" onclick="toggleSidebar()" title="Toggle sidebar" aria-label="Toggle sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9.5 4v16"/></svg>
+      </button>
+    </div>
+    <nav class="nav">
+      <a href="dashboard.html" title="Dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        <span>Dashboard</span>
+      </a>
+      <a href="user-appointments.html" title="Appointments">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>
+        <span>Appointments</span>
+      </a>
+      <a href="user-projects.html" class="active" title="Projects">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+        <span>Projects</span>
+      </a>
+      <a href="content.html" title="Content">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+        <span>Content</span>
+      </a>
+      <a href="notifications.html" title="Notifications">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 6-3 7-3 7h18s-3-1-3-7"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+        <span>Notifications</span>
+        <em class="nav-badge" id="notifBadge" hidden></em>
+      </a>
+      <a href="help.html" title="Help Center">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M9.5 9.5a2.6 2.6 0 1 1 3.4 2.5c-.6.2-.9.8-.9 1.4v.4"/><path d="M12 17h.01"/></svg>
+        <span>Help Center</span>
+      </a>
+    </nav>
+  </div>
+
+  <div class="account" id="account">
+    <button class="user-card" type="button" onclick="toggleAccountMenu()" aria-haspopup="true" aria-expanded="false" title="Account">
+      <div class="avatar" id="sideAvatar">U</div>
+      <div class="user-meta">
+        <h4 id="sideName">User</h4>
+        <p>Pro Member</p>
+      </div>
+      <svg class="user-dots" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
+    </button>
+    <div class="account-menu" role="menu">
+      <a role="menuitem" href="profile.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Profile</span></a>
+      <button role="menuitem" type="button" class="danger" onclick="logout()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>Logout</span></button>
+    </div>
+  </div>
+</aside>
+
+<main class="main">
+
+  <section class="content">
+
+    <div class="head">
+      <a class="back-link" href="user-projects.html" title="Back to projects" aria-label="Back to projects">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M11 6l-6 6 6 6"/></svg>
+      </a>
+      <div class="page-title">
+        <h1 id="projectTitle">Loading...</h1>
+        <p id="projectSubtitle">&nbsp;</p>
+      </div>
+    </div>
+
+    <div id="notFound" class="empty" hidden>This project does not exist, or is not one of yours.</div>
+
+    <div id="projectBody" hidden>
+
+      <div class="tiles">
+        <div class="tile"><span>Start</span><strong id="tileStart">—</strong></div>
+        <div class="tile"><span>End</span><strong id="tileEnd">—</strong></div>
+        <div class="tile">
+          <span>Progress</span>
+          <strong id="tileProgress">0%</strong>
+          <div class="bar"><i id="tileBar" style="width:0%"></i></div>
+        </div>
+      </div>
+
+      <!-- The month the updates are dated in. Opens on the month the project
+           starts in rather than on today: a client will not think to page back
+           six months to find where the work began. Paging it is pure client
+           state - every update came down with the project. -->
+      <div class="cal-card">
+        <div class="cal-head">
+          <h2 id="calLabel">—</h2>
+          <div class="cal-nav">
+            <button type="button" id="calPrev" aria-label="Previous month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+            <button type="button" id="calNext" aria-label="Next month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+          </div>
+          <button class="cal-today" type="button" id="calToday">Today</button>
+        </div>
+        <div class="cal-scroll">
+          <div class="cal-grid">
+            <div class="cal-week names">
+              <div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div><div>Sun</div>
+            </div>
+            <div id="calBody"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-head">
+        <h2 id="tasksHeading">Updates</h2>
+        <button class="btn btn-ghost" type="button" id="clearDayBtn" onclick="clearDay()" hidden>Show all updates</button>
+      </div>
+      <div class="grid" id="taskGrid"></div>
+
+      <div class="pager" id="pager" hidden>
+        <div class="pager-info" id="pagerInfo"></div>
+        <div class="pager-pages" id="pagerPages"></div>
+      </div>
+
+      <!-- Opened by the View button on a card. Inline rather than a modal:
+           it is the pattern content.html already established, and the one
+           thing that gives an update's orientation a job. -->
+      <div class="detail-wrap" id="detailWrap" style="display:none">
+        <div class="detail-head">
+          <div class="eyebrow" id="detailEyebrow"></div>
+          <h2 id="detailTitle"></h2>
+        </div>
+
+        <article class="detail is-horizontal" id="detailPanel">
+          <div class="detail-media" id="detailMedia"></div>
+          <div class="detail-meta">
+            <div class="field wide">
+              <h5>Update</h5>
+              <div class="caption" id="detailDescription"></div>
+            </div>
+
+            <div class="detail-footer">
+              <div class="field">
+                <h5>Date</h5>
+                <p id="detailScheduled">No date set</p>
+              </div>
+              <div class="field link-slot" id="linkSlot"></div>
+              <div class="field">
+                <h5>Status</h5>
+                <p id="detailStatus">—</p>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <div class="section-head" style="margin-top:26px"><h2>Project Details</h2></div>
+      <div class="project-panel">
+        <div class="project-panel-img" id="projectImg" hidden></div>
+        <h3 id="panelTitle">—</h3>
+        <span class="desc-label">Description</span>
+        <p class="desc" id="panelDesc">—</p>
+        <div class="project-meta">
+          <div class="field"><span>Type</span><strong id="panelType">—</strong></div>
+          <div class="field"><span>Timeline</span><strong id="panelTimeline">—</strong></div>
+          <div class="field"><span>Status</span><strong class="link" id="panelStatus">—</strong></div>
+        </div>
+      </div>
+
+    </div>
+
+  </section>
+</main>
+
+</div>
+
+<script>
+/*
+|------------------------------------------------------------------------------
+| Shared by the two client Project pages
+|------------------------------------------------------------------------------
+*/
+
+const token = localStorage.getItem("portal_token");
+
+if (!token) {
+  window.location.href = "login.html";
+}
+
+const user = JSON.parse(localStorage.getItem("portal_user") || "{}");
+
+function esc(value){
+  return String(value == null ? "" : value).replace(/[&<>"']/g, function (ch) {
+    return { "&":"&amp;", "<":"&lt;", ">":"&gt;", "'":"&#39;", '"':"&quot;" }[ch];
+  });
+}
+
+/* One place that knows the token goes on every request, that a stale session
+   is a redirect rather than an error, and that a non-JSON body (a PHP fatal,
+   an HTML error page) is a failure and not a crash. */
+async function api(url){
+  const res = await fetch(url, { headers: { Authorization: "Bearer " + token } });
+
+  if (res.status === 401) {
+    localStorage.removeItem("portal_token");
+    localStorage.removeItem("portal_user");
+    window.location.href = "login.html";
+    return { success:false, message:"Session expired." };
+  }
+
+  let data = null;
+
+  try { data = await res.json(); } catch (e) {}
+
+  if (!data) {
+    return { success:false, message:"The server sent an unreadable response." };
+  }
+
+  return data;
+}
+
+/* "Jul 1, 2026" - the format the rest of the portal prints a date in. */
+const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTHS_LONG  = ["January","February","March","April","May","June",
+                      "July","August","September","October","November","December"];
+
+function fmtDate(value){
+  if (!value) return "—";
+  const parts = String(value).slice(0, 10).split("-");
+  if (parts.length !== 3) return "—";
+  return MONTHS_SHORT[Number(parts[1]) - 1] + " " + Number(parts[2]) + ", " + parts[0];
+}
+
+/* Short form for the summary tiles. */
+function fmtDateShort(value){
+  if (!value) return "—";
+  const parts = String(value).slice(0, 10).split("-");
+  if (parts.length !== 3) return "—";
+  return MONTHS_SHORT[Number(parts[1]) - 1] + " " + Number(parts[2]);
+}
+
+function todayISO(){
+  const now = new Date();
+  return now.getFullYear() + "-"
+    + String(now.getMonth() + 1).padStart(2, "0") + "-"
+    + String(now.getDate()).padStart(2, "0");
+}
+
+function setAvatarImage(user){
+  const avatar = document.getElementById("sideAvatar");
+  if(!avatar) return;
+
+  if(user.profile_image){
+    avatar.innerText = "";
+    avatar.style.backgroundImage = `url('${user.profile_image}')`;
+  }else{
+    avatar.innerText = (user.name || "User").charAt(0).toUpperCase();
+    avatar.style.backgroundImage = "";
+  }
+}
+
+function logout(){
+  localStorage.clear();
+  window.location.href = "login.html";
+}
+
+document.getElementById("sideName").innerText = user.name || "User";
+setAvatarImage(user);
+
+/*
+|------------------------------------------------------------------------------
+| The View panel's two borrowed helpers
+|------------------------------------------------------------------------------
+|
+| sanitizeCaption() and renderLink() from content.html, unchanged apart from
+| the first one's name.
+|
+| This matters more here than it does there: api/project-tasks.php stores the
+| update's description exactly as the editor wrote it and only strip_tags()es
+| a copy to measure its length. No endpoint in this codebase sanitises rich
+| text, so this function is the only thing standing between a pasted <script>
+| and a client session - and portal_token lives in localStorage.
+|
+| Text alignment is the one piece of styling the editor's toolbar can set, so
+| it is read off the node and put back after every other attribute is dropped.
+*/
+
+const ALIGNMENTS = ["left","center","right","justify"];
+
+function sanitizeRichText(html){
+  /* Parsed into a <template>, not a <div>: a template's content lives in an
+     inert document, so an <img src=x onerror=...> in here never loads and
+     never fires. A live element would run the handler while this function was
+     still busy stripping it - the returned markup was clean either way, but
+     the payload had already gone off. */
+  const frame = document.createElement("template");
+  frame.innerHTML = html || "";
+  const box = frame.content;
+
+  const allowed = ["B","STRONG","I","EM","U","UL","OL","LI","A","BR","P","DIV"];
+
+  box.querySelectorAll("*").forEach(node => {
+    // Unwrapping a script or style would leave its source behind as text.
+    if(node.tagName === "SCRIPT" || node.tagName === "STYLE"){
+      node.remove();
+      return;
+    }
+
+    if(!allowed.includes(node.tagName)){
+      node.replaceWith(...node.childNodes);
+      return;
+    }
+
+    // Browsers write alignment as either inline style or an align attribute.
+    const align = ((node.style && node.style.textAlign) || node.getAttribute("align") || "")
+      .toLowerCase();
+
+    [...node.attributes].forEach(attr => {
+      const keep = node.tagName === "A" && attr.name === "href"
+        && !/^\s*(javascript|data|vbscript):/i.test(attr.value);
+      if(!keep) node.removeAttribute(attr.name);
+    });
+
+    if(ALIGNMENTS.includes(align)) node.style.textAlign = align;
+
+    if(node.tagName === "A"){
+      node.setAttribute("target","_blank");
+      node.setAttribute("rel","noopener noreferrer");
+    }
+  });
+
+  return frame.innerHTML;
+}
+
+/** The link shows as a "View link" action on the footer line, never a URL. */
+function renderLink(item){
+  const slot = document.getElementById("linkSlot");
+
+  slot.textContent = "";
+
+  // Only http(s) reaches an href — the API normalises, but this page is the one
+  // building the anchor.
+  if(!item.link || !/^https?:\/\//i.test(item.link)) return;
+
+  // A heading like the field beside it, so the button lines up with its value
+  // rather than floating against its label.
+  const heading = document.createElement("h5");
+  heading.textContent = "Link";
+  slot.appendChild(heading);
+
+  const anchor = document.createElement("a");
+  anchor.className = "view-link";
+  anchor.href = item.link;
+  anchor.target = "_blank";
+  anchor.rel = "noopener noreferrer";
+  anchor.title = item.link;
+  anchor.textContent = "View link";
+
+  slot.appendChild(anchor);
+}
+
+/*
+|------------------------------------------------------------------------------
+| The page
+|------------------------------------------------------------------------------
+*/
+
+const projectId = new URLSearchParams(location.search).get("id");
+
+const TASK_PAGE_SIZE = 3;
+
+let project = null;
+let tasks   = [];
+let page    = 1;
+
+/* The day the update grid below is scoped to, or null for the whole project. */
+let selectedDate = null;
+
+/* The update the View panel is showing, or null for none. */
+let selectedTaskId = null;
+
+/* The month on screen. Opens on the month the project starts in, not on the
+   real today - a project that ran last quarter should not open on an empty
+   grid, and a client will not think to page backwards to find it. */
+let calYear  = 0;
+let calMonth = 0;
+
+if (!projectId) {
+  location.replace("user-projects.html");
+}
+
+async function load(){
+  const data = await api("api/user-projects.php?id=" + encodeURIComponent(projectId));
+
+  if (!data.success) {
+    document.getElementById("projectTitle").textContent = "Project not found";
+    document.getElementById("projectSubtitle").textContent = data.message || "";
+    document.getElementById("notFound").hidden = false;
+    return;
+  }
+
+  project = data.project;
+  tasks   = data.tasks || [];
+
+  document.getElementById("projectBody").hidden = false;
+
+  paintHead();
+  paintTiles();
+
+  const start = new Date(project.start_date + "T00:00:00");
+  calYear  = start.getFullYear();
+  calMonth = start.getMonth();
+
+  paintCalendar();
+  renderTasks();
+  paintPanel();
+}
+
+function paintHead(){
+  document.title = project.title + " - Projects";
+  document.getElementById("projectTitle").textContent = project.title;
+  document.getElementById("projectSubtitle").textContent =
+    project.type_label + " · " + project.status_label;
+}
+
+function paintTiles(){
+  document.getElementById("tileStart").textContent = fmtDateShort(project.start_date);
+  document.getElementById("tileEnd").textContent   = fmtDateShort(project.end_date);
+
+  const progress = Number(project.progress || 0);
+  document.getElementById("tileProgress").textContent = progress + "%";
+  document.getElementById("tileBar").style.width = progress + "%";
+}
+
+/*
+| The month grid. Monday-first, six rows, with the days that fall inside the
+| project's own dates tinted so the timeline is visible at a glance.
+*/
+function paintCalendar(){
+  document.getElementById("calLabel").textContent = MONTHS_LONG[calMonth] + " " + calYear;
+
+  const first = new Date(calYear, calMonth, 1);
+
+  // getDay() is Sunday-first; the grid is Monday-first.
+  const lead = (first.getDay() + 6) % 7;
+
+  const cursor = new Date(calYear, calMonth, 1 - lead);
+  const today  = todayISO();
+
+  // Every dated update bucketed by day, so painting a cell is one lookup.
+  const byDay = {};
+
+  tasks.forEach(task => {
+    if (!task.scheduled_date) return;
+    const key = String(task.scheduled_date).slice(0, 10);
+    (byDay[key] = byDay[key] || []).push(task);
+  });
+
+  let html = "";
+
+  for (let week = 0; week < 6; week++) {
+
+    html += '<div class="cal-week">';
+
+    for (let day = 0; day < 7; day++) {
+
+      const iso =
+        cursor.getFullYear() + "-"
+        + String(cursor.getMonth() + 1).padStart(2, "0") + "-"
+        + String(cursor.getDate()).padStart(2, "0");
+
+      const classes = ["cal-day"];
+
+      if (cursor.getMonth() !== calMonth) classes.push("muted");
+      if (iso === today) classes.push("today");
+      if (iso >= project.start_date && iso <= project.end_date) classes.push("in-range");
+      if (iso === selectedDate) classes.push("selected");
+
+      const dots = (byDay[iso] || []).map(task =>
+        '<i class="cal-dot ' + (Number(task.is_complete) ? "done" : "") +
+        '" title="' + esc(task.title) + '"></i>'
+      ).join("");
+
+      const count = (byDay[iso] || []).length;
+
+      /* Every day is selectable, not only the ones carrying an update -
+         picking an empty day is how you confirm nothing landed on it. */
+      html += '<div class="' + classes.join(" ") + '" role="button" tabindex="0"'
+            + ' data-date="' + iso + '"'
+            + ' aria-pressed="' + (iso === selectedDate) + '"'
+            + ' aria-label="' + esc(fmtDate(iso)) + ", "
+            +   (count ? count + (count === 1 ? " update" : " updates") : "no updates") + '">'
+            + "<b>" + cursor.getDate() + "</b>"
+            + (dots ? '<div class="cal-dots">' + dots + "</div>" : "")
+            + "</div>";
+
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    html += "</div>";
+  }
+
+  document.getElementById("calBody").innerHTML = html;
+
+  document.querySelectorAll(".cal-day[data-date]").forEach(cell => {
+    cell.addEventListener("click", () => pickDay(cell.dataset.date));
+    cell.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        pickDay(cell.dataset.date);
+      }
+    });
+  });
+}
+
+/*
+| Selecting a day scopes the update grid below it to that date - the dots on
+| the calendar and the cards under it are the same updates, so the calendar
+| acts as a filter over them rather than opening a separate view.
+|
+| Clicking the selected day again clears it, which is the only affordance that
+| does not need a second control explaining itself.
+*/
+function pickDay(iso){
+  selectedDate = (selectedDate === iso) ? null : iso;
+  page = 1;
+  paintCalendar();
+  renderTasks();
+}
+
+function clearDay(){
+  selectedDate = null;
+  page = 1;
+  paintCalendar();
+  renderTasks();
+}
+
+/* What the grid below is currently showing. */
+function visibleTasks(){
+  if (!selectedDate) return tasks;
+  return tasks.filter(task =>
+    String(task.scheduled_date || "").slice(0, 10) === selectedDate);
+}
+
+document.getElementById("calPrev").addEventListener("click", function(){
+  calMonth--;
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  paintCalendar();
+});
+
+document.getElementById("calNext").addEventListener("click", function(){
+  calMonth++;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  paintCalendar();
+});
+
+document.getElementById("calToday").addEventListener("click", function(){
+  const now = new Date();
+  calYear  = now.getFullYear();
+  calMonth = now.getMonth();
+  paintCalendar();
+});
+
+/*
+| Two states, read off one column. The admin's version reads three, because it
+| also shows drafts and updates whose date has not arrived - neither of which
+| exists in this payload, so the other two arms would be dead code waiting for
+| somebody to re-add the columns behind them.
+*/
+function badgeFor(task){
+  return Number(task.is_complete)
+    ? { cls:"completed", text:"Completed" }
+    : { cls:"active",    text:"Active" };
+}
+
+/* scheduled_time comes back from a TIME column as HH:MM:SS; the seconds are
+   never anything but 00 and are not worth printing. Neither value is put
+   through Date() - fmtDate() splits the string itself, which sidesteps the
+   browsers that will not parse "YYYY-MM-DD HH:MM:SS" without the T in it. */
+function whenFor(task){
+  if (!task.scheduled_date) return "No date set";
+
+  const time = String(task.scheduled_time || "").slice(0, 5);
+
+  return fmtDate(task.scheduled_date) + (time ? " · " + time : "");
+}
+
+function renderTasks(){
+  const grid  = document.getElementById("taskGrid");
+  const shown = visibleTasks();
+  const total = shown.length;
+  const pages = Math.max(1, Math.ceil(total / TASK_PAGE_SIZE));
+
+  if (page > pages) page = pages;
+
+  // The heading says which day is being shown, and carries the way back out.
+  document.getElementById("tasksHeading").textContent =
+    selectedDate ? "Updates on " + fmtDate(selectedDate) : "Updates";
+  document.getElementById("clearDayBtn").hidden = !selectedDate;
+
+  // An update the day filter has just hidden should not stay open below it.
+  if (selectedTaskId != null &&
+      !shown.some(task => String(task.id) === String(selectedTaskId))) {
+    closeTask();
+  }
+
+  if (!total) {
+    /* Neither of these offers an action: a client cannot write an update.
+       The day-scoped one says the updates are still there behind the filter
+       the calendar just applied, and hands back the way out. */
+    grid.innerHTML = selectedDate
+      ? '<div class="empty-state" style="grid-column:1/-1">'
+        +   '<div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>'
+        +   "<h3>Nothing on this day</h3>"
+        +   "<p>No update on this project is dated " + esc(fmtDate(selectedDate)) + ".</p>"
+        +   '<button class="btn btn-ghost" type="button" onclick="clearDay()">Show all updates</button>'
+        + "</div>"
+      : '<div class="empty-state" style="grid-column:1/-1">'
+        +   '<div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15h6"/></svg></div>'
+        +   "<h3>No updates yet</h3>"
+        +   "<p>Updates are published against this project as the work happens. When the first one lands, it appears here.</p>"
+        + "</div>";
+
+    document.getElementById("pager").hidden = true;
+    return;
+  }
+
+  const start = (page - 1) * TASK_PAGE_SIZE;
+  const slice = shown.slice(start, start + TASK_PAGE_SIZE);
+
+  grid.innerHTML = slice.map(task => {
+
+    const badge = badgeFor(task);
+
+    const image = task.image_path
+      ? "style=\"background-image:url('" + esc(task.image_path) + "')\""
+      : "";
+
+    const placeholder = task.image_path ? "" :
+      '<span class="ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></span>';
+
+    return ''
+      + '<div class="card ' + (String(task.id) === String(selectedTaskId) ? "selected" : "") + '"'
+      +      ' data-id="' + esc(task.id) + '">'
+      +   '<div class="card-img ' + (task.image_path ? "" : "empty") + '" ' + image + '>'
+      +     placeholder
+      +     '<span class="badge ' + badge.cls + '">' + badge.text + '</span>'
+      +   '</div>'
+      +   '<div class="card-body">'
+      +     '<h3>' + esc(task.title) + '</h3>'
+      +     '<span class="card-when">' + esc(whenFor(task)) + '</span>'
+      +   '</div>'
+      +   '<div class="card-actions">'
+      +     '<button class="btn btn-ghost" type="button" onclick="openTask(\'' + esc(task.id) + '\')">View</button>'
+      +   '</div>'
+      + '</div>';
+  }).join("");
+
+  renderPager(total, pages, start, slice.length);
+}
+
+function renderPager(total, pages, start, shown){
+  document.getElementById("pagerInfo").textContent =
+    "Showing " + (start + 1) + " to " + (start + shown) + " of " + total +
+    " update" + (total === 1 ? "" : "s");
+
+  const buttons = [];
+
+  buttons.push('<button type="button" onclick="goTo(' + (page - 1) + ')" ' +
+    (page === 1 ? "disabled" : "") + ">Prev</button>");
+
+  for (let n = 1; n <= pages; n++) {
+    buttons.push('<button type="button" class="' + (n === page ? "current" : "") +
+      '" onclick="goTo(' + n + ')">' + n + "</button>");
+  }
+
+  buttons.push('<button type="button" onclick="goTo(' + (page + 1) + ')" ' +
+    (page === pages ? "disabled" : "") + ">Next</button>");
+
+  document.getElementById("pagerPages").innerHTML = buttons.join("");
+  document.getElementById("pager").hidden = false;
+}
+
+function goTo(n){
+  page = n;
+  renderTasks();
+}
+
+/*
+| The View panel. One markup block - the orientation class is what swaps the
+| layout, the same way content.html does it.
+*/
+function openTask(id){
+  const task = tasks.find(entry => String(entry.id) === String(id));
+  if (!task) return;
+
+  selectedTaskId = task.id;
+
+  document.querySelectorAll("#taskGrid .card").forEach(card => {
+    card.classList.toggle("selected", card.dataset.id === String(selectedTaskId));
+  });
+
+  document.getElementById("detailWrap").style.display = "block";
+
+  document.getElementById("detailEyebrow").textContent = project.title;
+  document.getElementById("detailTitle").textContent   = task.title || "";
+
+  const panel = document.getElementById("detailPanel");
+  panel.className = "detail " + (task.orientation === "vertical" ? "is-vertical" : "is-horizontal");
+
+  const media = document.getElementById("detailMedia");
+  media.style.backgroundImage = task.image_path ? `url('${task.image_path}')` : "";
+  media.hidden = !task.image_path;
+
+  /* The description is rich text written for the client, and it is the reason
+     this panel exists - so it is rendered as markup, through the scrubber
+     above, never flattened by esc(). */
+  document.getElementById("detailDescription").innerHTML =
+    sanitizeRichText(task.description) || "—";
+
+  renderLink(task);
+
+  document.getElementById("detailScheduled").textContent = whenFor(task);
+  document.getElementById("detailStatus").textContent    = badgeFor(task).text;
+
+  document.getElementById("detailWrap").scrollIntoView({ behavior:"smooth", block:"start" });
+}
+
+function closeTask(){
+  selectedTaskId = null;
+  document.getElementById("detailWrap").style.display = "none";
+}
+
+function paintPanel(){
+  const image = document.getElementById("projectImg");
+
+  /* The image is optional, so its absence is not something to draw. A
+     placeholder here would be a 320px empty rectangle above the title on
+     every project that has not had one uploaded. */
+  if (project.image_path) {
+    image.style.backgroundImage = "url('" + project.image_path + "')";
+    image.hidden = false;
+  } else {
+    image.hidden = true;
+  }
+
+  document.getElementById("panelTitle").textContent = project.title;
+
+  // Plain text out of a textarea, per the schema - textContent, not innerHTML.
+  document.getElementById("panelDesc").textContent =
+    project.description || "No description was added.";
+
+  document.getElementById("panelType").textContent = project.type_label;
+  document.getElementById("panelTimeline").textContent =
+    fmtDate(project.start_date) + " – " + fmtDate(project.end_date);
+  document.getElementById("panelStatus").textContent = project.status_label;
+}
+
+load();
+</script>
+
+<script src="assets/notifications.js?v=1"></script>
+<script src="assets/shell.js?v=1"></script>
+</body>
+</html>

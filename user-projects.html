@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Projects</title>
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+:root{--brand:#c9000b;--nav-active:#1b1e3a;--text:#101828;--muted:#667085;--line:#eaecf0;--sidebar-w:260px}
+body{background:#f7f8fc;color:var(--text)}
+.app{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar-w);background:#fff;border-right:1px solid var(--line);position:fixed;top:0;left:0;bottom:0;padding:26px 12px 18px;display:flex;flex-direction:column;justify-content:space-between}
+.nav a{display:flex;gap:10px;align-items:center;text-decoration:none;color:var(--muted);padding:8px 10px;border-radius:9px;margin-bottom:2px;font-size:14px;font-weight:600;transition:background .15s,color .15s}
+.nav a svg{width:17px;height:17px;flex:none}
+.nav a:hover{background:#f6f7f9;color:var(--text)}
+.nav a.active{background:var(--nav-active);color:#fff}
+.user-card{width:100%;font:inherit;text-align:left;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;gap:10px;align-items:center;cursor:pointer;transition:background .15s,border-color .15s}
+.user-card:hover{background:#fafbfc;border-color:#d7dae0}
+.avatar{width:36px;height:36px;border-radius:50%;background:#dce3ff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#3745a4;background-size:cover;background-position:center;flex:none}
+.user-meta{flex:1;min-width:0}
+.user-meta h4{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-meta p{font-size:11px;color:#98a2b3}
+.user-dots{color:#98a2b3;flex:none}
+.main{margin-left:var(--sidebar-w);width:calc(100% - var(--sidebar-w))}
+
+.content{padding:34px 44px}
+.page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:28px}
+.page-title h1{font-size:30px;margin-bottom:8px}
+.page-title p{font-size:14px;color:#667085;max-width:620px}
+
+/* ── Stat cards ── */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-bottom:24px}
+.stat{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px 22px;box-shadow:0 10px 24px rgba(0,0,0,.04)}
+.stat span{display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:12px}
+.stat strong{display:block;font-size:28px;font-weight:800;line-height:1}
+
+/* ── Filter row ──────────────────────────────────────────────────────────────
+   Search and type, and nothing else. content.html made the same call for the
+   same reason and left the comment on it: a reader only ever sees their own
+   client's work, so there is no client picker to offer. */
+.filters{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:20px}
+.search{position:relative;flex:1 1 260px;min-width:0}
+.search svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--muted)}
+.search input{width:100%;height:44px;border:1px solid var(--line);background:#fff;border-radius:11px;padding:0 14px 0 40px;font:inherit;font-size:13px;outline:none}
+.search input:focus{border-color:var(--nav-active);box-shadow:0 0 0 4px rgba(27,30,58,.08)}
+.filters select{height:44px;flex:0 1 190px;min-width:150px;border:1px solid var(--line);background:#fff;border-radius:11px;padding:0 14px;font:inherit;font-size:13px;color:var(--text);outline:none;cursor:pointer}
+.filters select:focus{border-color:var(--nav-active)}
+
+/* ── Dropdown arrow ──
+   Chrome pins the native select arrow to the right border and ignores
+   padding-right, so it is replaced with one that can be placed. */
+select{
+  -webkit-appearance:none;
+  -moz-appearance:none;
+  appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 14px center;
+  background-size:12px;
+  padding-right:38px;
+}
+
+/* ── Table ──
+   Four columns, not the admin's five: the Client column would be the reader's
+   own company name on every row. */
+.table-card{background:#fff;border-radius:18px;box-shadow:0 14px 30px rgba(0,0,0,.05);padding:6px 4px 4px}
+/* Fixed layout so the table can never be wider than its container - with auto
+   layout a long unbroken name sets a minimum width and the whole thing spills
+   out of the card. Columns therefore need stated widths. */
+table{width:100%;border-collapse:collapse;table-layout:fixed}
+th:nth-child(1),td:nth-child(1){width:36%}
+th:nth-child(2),td:nth-child(2){width:16%}
+th:nth-child(3),td:nth-child(3){width:30%}
+th:nth-child(4),td:nth-child(4){width:18%}
+th{text-align:left;padding:16px 24px;color:var(--muted);font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;border-bottom:1px solid var(--line)}
+td{padding:18px 24px;border-bottom:1px solid #f2f4f7;font-size:13px;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+/* Long names wrap to two lines and then stop with an ellipsis, rather than
+   stretching the column or running down the row. */
+.p-title{
+  display:-webkit-box;-webkit-box-orient:vertical;
+  -webkit-line-clamp:2;line-clamp:2;
+  overflow:hidden;overflow-wrap:anywhere;
+  font-weight:700;color:var(--text);
+}
+.p-type{color:var(--brand);font-weight:700}
+.timeline{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;color:var(--muted);font-size:12px;white-space:nowrap}
+.timeline svg{width:14px;height:14px;flex:none;color:#c3c9d4}
+td.action{text-align:center;white-space:nowrap}
+/* The pager sits inside the card, so it needs the divider the rows have. */
+.table-card .wz-tablewrap{overflow:visible}
+.table-card .pager{padding:16px 24px;border-top:1px solid var(--line)}
+
+/* ── Buttons ── */
+.btn{border:none;padding:9px 14px;border-radius:9px;cursor:pointer;font:inherit;font-weight:800;font-size:12px;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none}
+.btn-ghost{background:#fff;color:var(--text);border:1px solid #dfe3ea}
+.btn-ghost:hover{background:#f6f7f9}
+
+/* ── Empty states ──
+   A table header sitting above nothing tells a first-time reader nothing.
+   Neither of these carries an action a client could take - projects are
+   created for them, not by them - except the way back out of a filter. */
+.empty-state{background:#fff;border-radius:18px;padding:52px 30px;text-align:center;box-shadow:0 14px 30px rgba(0,0,0,.05)}
+.empty-state[hidden]{display:none}
+.empty-state .icon{width:56px;height:56px;margin:0 auto 18px;border-radius:16px;background:#f2f4f8;color:#98a2b3;display:flex;align-items:center;justify-content:center}
+.empty-state .icon svg{width:26px;height:26px}
+.empty-state h3{font-size:16px;font-weight:800;margin-bottom:8px}
+.empty-state p{font-size:13px;color:var(--muted);max-width:420px;margin:0 auto 20px;line-height:1.7}
+.empty-state .btn{display:inline-flex}
+
+/* ── Pagination ── */
+.pager{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:16px 0}
+.pager[hidden]{display:none}
+.pager-info{font-size:13px;font-weight:600;color:var(--muted)}
+.pager-pages{display:flex;gap:6px;flex-wrap:wrap}
+.pager button{min-width:36px;height:36px;padding:0 12px;border:1px solid #dfe3ea;background:#fff;border-radius:9px;font:inherit;font-size:13px;font-weight:700;color:var(--text);cursor:pointer}
+.pager button:hover:not(:disabled){background:#f6f7f9}
+.pager button.current{background:var(--nav-active);border-color:var(--nav-active);color:#fff}
+.pager button:disabled{opacity:.45;cursor:not-allowed}
+
+/* ── Collapsible sidebar ── */
+:root.sidebar-collapsed{--sidebar-w:78px}
+.sidebar,.main{transition:width .18s ease,margin-left .18s ease}
+:root.sidebar-collapsed .sidebar{padding:26px 4px 18px}
+:root.sidebar-collapsed .nav a{width:38px;height:38px;padding:0;margin:0 auto 4px;border-radius:10px;justify-content:center}
+:root.sidebar-collapsed .nav a span{display:none}
+/* The account card is the only route to profile and logout — collapse it, never hide it. */
+:root.sidebar-collapsed .user-card{justify-content:center;padding:8px}
+:root.sidebar-collapsed .user-meta,:root.sidebar-collapsed .user-dots{display:none}
+
+/* ── The collapse control lives in the sidebar head ── */
+.side-head{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:36px;margin-bottom:26px;padding:0 2px}
+.logo{padding:0;margin:0;flex:1;min-width:0}
+.logo img{width:132px;max-width:100%;height:auto;display:block}
+.sidebar-toggle{width:34px;height:34px;flex:none;border-radius:9px;border:none;background:transparent;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s}
+.sidebar-toggle:hover{background:#f2f4f8;color:var(--text)}
+.sidebar-toggle svg{width:18px;height:18px}
+/* Collapsed to 78px the wordmark is illegible, so the head keeps only the toggle. */
+:root.sidebar-collapsed .side-head{justify-content:center;margin-bottom:22px}
+:root.sidebar-collapsed .logo{display:none}
+
+/* The account card opens a dropup; it is the only route to profile and logout. */
+.account{position:relative}
+.account-menu{position:absolute;bottom:calc(100% + 8px);left:0;min-width:200px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 16px 40px rgba(16,24,40,.14);padding:6px;display:none;z-index:200}
+.account.open .account-menu{display:block}
+.account-menu a,.account-menu button{width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;border:none;background:transparent;border-radius:9px;font:inherit;font-size:13px;font-weight:700;color:var(--text);text-align:left;text-decoration:none;cursor:pointer}
+.account-menu a:hover,.account-menu button:hover{background:#f6f7f9}
+.account-menu svg{width:16px;height:16px;flex:none;color:var(--muted)}
+.account-menu .danger,.account-menu .danger svg{color:var(--brand)}
+.account-menu .danger:hover{background:#fff5f5}
+
+@media(max-width:1100px){.stats{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:950px){
+  /* Force-collapsed below this width, so the head has nothing left to show. */
+  .side-head{display:none}
+  .content{padding:24px 18px}
+}
+@media(max-width:768px){
+  /* shell.css pins nowrap on every cell in a .wz-tablewrap, which a long
+     project name needs released now that it has a narrow column to itself.
+     Two-class selectors because shell.css loads after this block and an
+     equally specific rule would lose on source order. */
+  .table-card .wz-tablewrap td,
+  .table-card .wz-tablewrap th{white-space:normal}
+  td.action,th:last-child{white-space:nowrap}
+  /* Type and timeline are context rather than identity, so they come out
+     first. The View Details button stays: it is the only way through to the
+     project, and there is no kebab here to fall back on. */
+  .col-type,.col-timeline{display:none}
+  th,td{padding:20px 12px}
+  th:first-child,td:first-child{padding-left:12px;width:58%}
+  th:last-child,td:last-child{padding-right:12px;width:42%}
+}
+@media(max-width:700px){
+  .stats{grid-template-columns:repeat(2,1fr);gap:12px}
+  .stat{padding:16px 14px}
+  .stat span{font-size:12px;margin-bottom:8px}
+  .stat strong{font-size:22px}
+  .filters select{flex:1 1 100%;width:auto}
+  .search{flex:1 1 100%}
+}
+/* ── Unread badge on the Notifications nav item ──
+   Collapsed, the sidebar hides labels, so the count degrades to a dot on
+   the icon - the same affordance the old topbar bell had. */
+.nav a{position:relative}
+.nav-badge{
+  margin-left:auto;font-style:normal;font-size:11px;font-weight:800;line-height:1;
+  min-width:18px;padding:3px 6px;border-radius:9px;
+  background:var(--brand);color:#fff;text-align:center;
+}
+.nav-badge[hidden]{display:none}
+.nav a.active .nav-badge{background:#fff;color:var(--nav-active)}
+:root.sidebar-collapsed .nav-badge{
+  position:absolute;top:4px;right:8px;margin:0;
+  width:8px;height:8px;min-width:0;padding:0;border-radius:50%;
+  font-size:0;border:2px solid #fff;
+}
+</style>
+
+<script>
+// Runs before paint so the collapsed state never flashes open on load.
+(function () {
+  var root = document.documentElement;
+  var KEY = "wz_sidebar_collapsed";
+  var MOBILE = 950;
+  var DRAWER = 768;   // below this the sidebar is a drawer, never a rail
+  function prefersCollapsed(){ return localStorage.getItem(KEY) === "1"; }
+  function apply(){
+    root.classList.toggle("sidebar-collapsed", (window.innerWidth <= MOBILE && window.innerWidth > DRAWER) || prefersCollapsed());
+  }
+  window.toggleSidebar = function(){
+    if (window.innerWidth <= MOBILE) return; // forced collapsed, nothing to toggle
+    localStorage.setItem(KEY, prefersCollapsed() ? "0" : "1");
+    apply();
+  };
+  apply();
+  window.addEventListener("resize", apply);
+})();
+
+// Sidebar account card -> dropup with Profile / Logout.
+(function () {
+  function menu() { return document.getElementById("account"); }
+  function close() {
+    var el = menu();
+    if (!el || !el.classList.contains("open")) return;
+    el.classList.remove("open");
+    el.querySelector(".user-card").setAttribute("aria-expanded", "false");
+  }
+  window.toggleAccountMenu = function () {
+    var el = menu();
+    var open = el.classList.toggle("open");
+    el.querySelector(".user-card").setAttribute("aria-expanded", open ? "true" : "false");
+  };
+  document.addEventListener("click", function (e) {
+    var el = menu();
+    if (el && !el.contains(e.target)) close();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") close();
+  });
+})();
+</script>
+<link rel="stylesheet" href="assets/shell.css?v=2" />
+</head>
+
+<body>
+
+<div class="app">
+
+<aside class="sidebar">
+  <div>
+    <div class="side-head">
+      <div class="logo">
+        <img src="logo.png" alt="W|ZONE London" onerror="this.onerror=null;this.src='assets/WZONE%20source.png'">
+      </div>
+      <button class="sidebar-toggle" type="button" onclick="toggleSidebar()" title="Toggle sidebar" aria-label="Toggle sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9.5 4v16"/></svg>
+      </button>
+    </div>
+    <nav class="nav">
+      <a href="dashboard.html" title="Dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        <span>Dashboard</span>
+      </a>
+      <a href="user-appointments.html" title="Appointments">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>
+        <span>Appointments</span>
+      </a>
+      <a href="user-projects.html" class="active" title="Projects">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+        <span>Projects</span>
+      </a>
+      <a href="content.html" title="Content">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+        <span>Content</span>
+      </a>
+      <a href="notifications.html" title="Notifications">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 6-3 7-3 7h18s-3-1-3-7"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+        <span>Notifications</span>
+        <em class="nav-badge" id="notifBadge" hidden></em>
+      </a>
+      <a href="help.html" title="Help Center">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M9.5 9.5a2.6 2.6 0 1 1 3.4 2.5c-.6.2-.9.8-.9 1.4v.4"/><path d="M12 17h.01"/></svg>
+        <span>Help Center</span>
+      </a>
+    </nav>
+  </div>
+
+  <div class="account" id="account">
+    <button class="user-card" type="button" onclick="toggleAccountMenu()" aria-haspopup="true" aria-expanded="false" title="Account">
+      <div class="avatar" id="sideAvatar">U</div>
+      <div class="user-meta">
+        <h4 id="sideName">User</h4>
+        <p>Pro Member</p>
+      </div>
+      <svg class="user-dots" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
+    </button>
+    <div class="account-menu" role="menu">
+      <a role="menuitem" href="profile.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Profile</span></a>
+      <button role="menuitem" type="button" class="danger" onclick="logout()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>Logout</span></button>
+    </div>
+  </div>
+</aside>
+
+<main class="main">
+
+  <section class="content">
+
+    <div class="page-head">
+      <div class="page-title">
+        <h1>Projects</h1>
+        <p>The work being done for you — timelines, progress, and the updates published against each one.</p>
+      </div>
+    </div>
+
+    <!-- Counted over everything of yours, deliberately ignoring the filters
+         below: these summarise the whole book of work, the footer under the
+         table describes what the table is currently showing. -->
+    <div class="stats">
+      <div class="stat"><span>Total Projects</span><strong id="statTotal">—</strong></div>
+      <div class="stat"><span>Active Projects</span><strong id="statActive">—</strong></div>
+      <div class="stat"><span>Completed</span><strong id="statCompleted">—</strong></div>
+      <div class="stat"><span>Upcoming</span><strong id="statUpcoming">—</strong></div>
+    </div>
+
+    <div class="filters">
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input type="search" id="filterSearch" placeholder="Find project..." aria-label="Find project">
+      </div>
+      <select id="filterType" aria-label="Filter by project type"><option value="">All project types</option></select>
+    </div>
+
+    <div class="table-card">
+      <table>
+        <thead>
+          <tr>
+            <th>Project</th>
+            <th class="col-type">Type</th>
+            <th class="col-timeline">Timeline</th>
+            <th style="text-align:right">Action</th>
+          </tr>
+        </thead>
+        <tbody id="rows">
+          <tr><td colspan="4" style="text-align:center;color:var(--muted);padding:30px">Loading projects...</td></tr>
+        </tbody>
+      </table>
+
+      <div class="pager" id="pager" hidden>
+        <div class="pager-info" id="pagerInfo"></div>
+        <div class="pager-pages" id="pagerPages"></div>
+      </div>
+    </div>
+
+    <!-- Replaces the table entirely when there is nothing to put in it: column
+         headings above no rows are just furniture. Filled in by render(). -->
+    <div class="empty-state" id="emptyState" hidden></div>
+
+  </section>
+</main>
+
+</div>
+
+<script>
+/*
+|------------------------------------------------------------------------------
+| Shared by the two client Project pages
+|------------------------------------------------------------------------------
+|
+| The portal guard, the fetch wrapper and the date helpers. Kept inline per
+| page, the way the rest of the portal does it.
+|
+*/
+
+const token = localStorage.getItem("portal_token");
+
+if (!token) {
+  window.location.href = "login.html";
+}
+
+const user = JSON.parse(localStorage.getItem("portal_user") || "{}");
+
+function esc(value){
+  return String(value == null ? "" : value).replace(/[&<>"']/g, function (ch) {
+    return { "&":"&amp;", "<":"&lt;", ">":"&gt;", "'":"&#39;", '"':"&quot;" }[ch];
+  });
+}
+
+/* One place that knows the token goes on every request, that a stale session
+   is a redirect rather than an error, and that a non-JSON body (a PHP fatal,
+   an HTML error page) is a failure and not a crash. The other client pages
+   inline this handling around a bare fetch; these two are the first with two
+   fetch-driven views, so it is worth a wrapper. */
+async function api(url){
+  const res = await fetch(url, { headers: { Authorization: "Bearer " + token } });
+
+  if (res.status === 401) {
+    localStorage.removeItem("portal_token");
+    localStorage.removeItem("portal_user");
+    window.location.href = "login.html";
+    return { success:false, message:"Session expired." };
+  }
+
+  let data = null;
+
+  try { data = await res.json(); } catch (e) {}
+
+  if (!data) {
+    return { success:false, message:"The server sent an unreadable response." };
+  }
+
+  return data;
+}
+
+/* "Jul 1, 2026" - the format the rest of the portal prints a date in. */
+const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function fmtDate(value){
+  if (!value) return "—";
+  const parts = String(value).slice(0, 10).split("-");
+  if (parts.length !== 3) return "—";
+  return MONTHS_SHORT[Number(parts[1]) - 1] + " " + Number(parts[2]) + ", " + parts[0];
+}
+
+function setAvatarImage(user){
+  const avatar = document.getElementById("sideAvatar");
+  if(!avatar) return;
+
+  if(user.profile_image){
+    avatar.innerText = "";
+    avatar.style.backgroundImage = `url('${user.profile_image}')`;
+  }else{
+    avatar.innerText = (user.name || "User").charAt(0).toUpperCase();
+    avatar.style.backgroundImage = "";
+  }
+}
+
+function logout(){
+  localStorage.clear();
+  window.location.href = "login.html";
+}
+
+document.getElementById("sideName").innerText = user.name || "User";
+setAvatarImage(user);
+
+/*
+| The list is paged in the browser, the way content.html and the admin's own
+| project list page theirs. The endpoint returns everything in scope and
+| accepts the same filters server-side, so moving to a LIMIT later is an
+| additive change rather than a rewrite.
+*/
+
+const PAGE_SIZE = 4;
+
+let projects = [];
+let filtered = [];
+let page = 1;
+
+function money(n){ return Number(n || 0).toLocaleString(); }
+
+async function load(){
+  const data = await api("api/user-projects.php");
+
+  if (!data.success) {
+    document.getElementById("rows").innerHTML =
+      `<tr><td colspan="4" style="text-align:center;color:var(--brand);padding:30px">${esc(data.message)}</td></tr>`;
+    return;
+  }
+
+  projects = data.projects || [];
+
+  document.getElementById("statTotal").textContent     = money(data.stats.total);
+  document.getElementById("statActive").textContent    = money(data.stats.active);
+  document.getElementById("statCompleted").textContent = money(data.stats.completed);
+  document.getElementById("statUpcoming").textContent  = money(data.stats.upcoming);
+
+  const typeSelect = document.getElementById("filterType");
+  (data.types || []).forEach(type => {
+    const option = document.createElement("option");
+    option.value = type.id;
+    option.textContent = type.label;
+    typeSelect.appendChild(option);
+  });
+
+  applyFilters();
+}
+
+function applyFilters(){
+  const search = document.getElementById("filterSearch").value.trim().toLowerCase();
+  const type   = document.getElementById("filterType").value;
+
+  filtered = projects.filter(project => {
+
+    if (type && project.project_type !== type) return false;
+
+    if (search && project.title.toLowerCase().indexOf(search) === -1) return false;
+
+    return true;
+  });
+
+  page = 1;
+  render();
+}
+
+/*
+| Two different empty states, because they need two different things from the
+| reader. Nothing here at all is a first-run screen with no action attached -
+| projects are created for a client, never by one. Nothing matching is a dead
+| end the filters caused, and wants a way back out of them.
+*/
+function showEmptyState(){
+  const box = document.getElementById("emptyState");
+
+  const filtering = projects.length > 0;
+
+  const icon = filtering
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>'
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>';
+
+  box.innerHTML =
+      '<div class="icon">' + icon + '</div>'
+    + "<h3>" + (filtering ? "Nothing matches those filters" : "No projects yet") + "</h3>"
+    + "<p>" + (filtering
+        ? "Nothing here matches the type or the search you picked. Try widening it."
+        : "When work starts for you, it appears here with its timeline, its progress and the updates published against it.")
+      + "</p>"
+    + (filtering
+        ? '<button class="btn btn-ghost" type="button" onclick="clearFilters()">Clear filters</button>'
+        : "");
+
+  box.hidden = false;
+  document.querySelector(".table-card").hidden = true;
+  document.getElementById("pager").hidden = true;
+}
+
+function clearFilters(){
+  document.getElementById("filterSearch").value = "";
+  document.getElementById("filterType").value = "";
+  applyFilters();
+}
+
+function render(){
+  const rows  = document.getElementById("rows");
+  const total = filtered.length;
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  if (page > pages) page = pages;
+
+  if (!total) {
+    showEmptyState();
+    return;
+  }
+
+  document.querySelector(".table-card").hidden = false;
+  document.getElementById("emptyState").hidden = true;
+
+  const start = (page - 1) * PAGE_SIZE;
+  const slice = filtered.slice(start, start + PAGE_SIZE);
+
+  rows.innerHTML = slice.map(project => `
+    <tr>
+      <td><span class="p-title">${esc(project.title)}</span></td>
+      <td class="col-type"><span class="p-type">${esc(project.type_label)}</span></td>
+      <td class="col-timeline">
+        <span class="timeline">
+          ${esc(fmtDate(project.start_date))}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
+          ${esc(fmtDate(project.end_date))}
+        </span>
+      </td>
+      <td class="action">
+        <a class="btn btn-ghost" href="user-project-details.html?id=${encodeURIComponent(project.id)}">View Details</a>
+      </td>
+    </tr>
+  `).join("");
+
+  renderPager(total, pages, start, slice.length);
+}
+
+function renderPager(total, pages, start, shown){
+  const pager = document.getElementById("pager");
+
+  document.getElementById("pagerInfo").textContent =
+    `Showing ${start + 1} to ${start + shown} of ${total} project${total === 1 ? "" : "s"}`;
+
+  const buttons = [];
+
+  buttons.push(`<button type="button" onclick="goTo(${page - 1})" ${page === 1 ? "disabled" : ""} aria-label="Previous page">&lsaquo;</button>`);
+
+  for (let n = 1; n <= pages; n++) {
+    buttons.push(`<button type="button" class="${n === page ? "current" : ""}" onclick="goTo(${n})">${n}</button>`);
+  }
+
+  buttons.push(`<button type="button" onclick="goTo(${page + 1})" ${page === pages ? "disabled" : ""} aria-label="Next page">&rsaquo;</button>`);
+
+  document.getElementById("pagerPages").innerHTML = buttons.join("");
+  pager.hidden = false;
+}
+
+function goTo(n){
+  page = n;
+  render();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+document.getElementById("filterSearch").addEventListener("input", applyFilters);
+document.getElementById("filterType").addEventListener("change", applyFilters);
+
+load();
+</script>
+
+<script src="assets/notifications.js?v=1"></script>
+<script src="assets/shell.js?v=1"></script>
+</body>
+</html>

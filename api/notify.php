@@ -38,6 +38,8 @@ const NOTIFY_APPOINTMENT_REQUEST  = "appointment_request";
 const NOTIFY_APPOINTMENT_ANSWERED = "appointment_answered";
 const NOTIFY_CONTENT_PUBLISHED    = "content_published";
 const NOTIFY_ANNOUNCEMENT         = "announcement";
+const NOTIFY_PROJECT_ASSIGNED     = "project_assigned";
+const NOTIFY_PROJECT_UPDATE       = "project_update";
 
 /**
  * One row for one recipient. $kind is 'user' or 'admin', naming the table

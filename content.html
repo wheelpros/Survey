@@ -226,6 +226,10 @@ body{background:#f7f8fc;color:var(--text)}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>
         <span>Appointments</span>
       </a>
+      <a href="user-projects.html" title="Projects">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+        <span>Projects</span>
+      </a>
       <a href="content.html" class="active" title="Content">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
         <span>Content</span>
@@ -355,8 +359,14 @@ function esc(value){
 const ALIGNMENTS = ["left","center","right","justify"];
 
 function sanitizeCaption(html){
-  const box = document.createElement("div");
-  box.innerHTML = html || "";
+  /* Parsed into a <template>, not a <div>: a template's content lives in an
+     inert document, so an <img src=x onerror=...> in here never loads and
+     never fires. A live element would run the handler while this function was
+     still busy stripping it - the returned markup was clean either way, but
+     the payload had already gone off. */
+  const frame = document.createElement("template");
+  frame.innerHTML = html || "";
+  const box = frame.content;
 
   const allowed = ["B","STRONG","I","EM","U","UL","OL","LI","A","BR","P","DIV"];
 
@@ -390,7 +400,7 @@ function sanitizeCaption(html){
     }
   });
 
-  return box.innerHTML;
+  return frame.innerHTML;
 }
 
 /** The link shows as a "View link" action on the footer line, never a URL. */

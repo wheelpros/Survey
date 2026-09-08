@@ -391,3 +391,183 @@ function ensureAnnouncementsTable(PDO $pdo)
         // below treats every row as an ordinary notification.
     }
 }
+
+/**
+ * Project Management: projects, the task updates published against them, and
+ * the admins working on them. sql/projects.sql is the same three tables to run
+ * by hand, and carries the long explanation of why `status` and the stat-card
+ * buckets are separate things.
+ *
+ * All three ship together because none is useful alone, so one ensure covers
+ * the lot - unlike the appointment/notification pair, which arrived separately.
+ */
+
+const PROJECT_EXTRA_COLUMNS = [
+    "image_path" => "VARCHAR(255) NULL",
+];
+
+const PROJECT_TASK_EXTRA_COLUMNS = [
+    "scheduled_time"     => "TIME NULL",
+
+    /* Stamped the first time a task is announced to the client, by the hook at
+       the end of api/project-tasks.php's POST branch. It is what makes that
+       notification fire exactly once - comparing the old status with the new
+       one would re-announce the task on every later edit. */
+    "client_notified_at" => "DATETIME NULL",
+];
+
+/*
+|--------------------------------------------------------------------------
+| The vocabularies, and when a task is live
+|--------------------------------------------------------------------------
+|
+| These three live beside ensureProjectTables() rather than in the endpoint
+| that first needed them, because api/projects.php, api/project-tasks.php and
+| api/user-projects.php all read them and none can require_once another -
+| each runs its own auth block at top level and exits.
+|
+| A drifted copy of PROJECT_TYPES would be a cosmetic bug. A drifted copy of
+| TASK_IS_LIVE_SQL would be a silent disclosure: the client page would start
+| showing drafts, with nothing failing.
+|
+| Both vocabularies are stored as VARCHAR and validated in PHP rather than as
+| an ENUM, so adding a type or a phase never needs an ALTER the database user
+| may not have. The same precedent as content.content_type. The pages render
+| their selects from what the endpoints return, so a new entry here appears
+| everywhere at once.
+|
+*/
+
+const PROJECT_TYPES = [
+    "survey"     => "Survey",
+    "research"   => "Research",
+    "campaign"   => "Campaign",
+    "audit"      => "Audit",
+    "consulting" => "Consulting",
+    "other"      => "Other",
+];
+
+/* Only 'completed' changes any arithmetic - the rest are labels. There is
+   deliberately no 'on_hold' or 'cancelled': every project must land in exactly
+   one of the three stat-card buckets or the four numbers stop adding up. */
+const PROJECT_STATUSES = [
+    "planning"  => "Planning Phase",
+    "active"    => "In Progress",
+    "review"    => "In Review",
+    "completed" => "Completed",
+];
+
+/*
+| Nothing runs on a schedule in this codebase, so a future-dated task is not
+| moved from scheduled to live by a cron - the read is filtered instead, and
+| this is the one predicate that does it.
+|
+| The admin grid shows every task and needs the answer as a column, so
+| api/projects.php and api/project-tasks.php select it AS is_live. The client
+| endpoint puts the same expression in its WHERE and never returns it: there,
+| a task that is not live simply does not exist.
+|
+| Assumes the project_tasks table is aliased `t`.
+*/
+
+const TASK_IS_LIVE_SQL = "
+    (
+        t.status = 'published'
+        AND (t.scheduled_date IS NULL OR t.scheduled_date <= CURDATE())
+    )
+";
+
+function ensureProjectTables(PDO $pdo)
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    try {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS projects (
+              id                       INT AUTO_INCREMENT PRIMARY KEY,
+              client_id                INT              NOT NULL,
+              title                    VARCHAR(200)     NOT NULL,
+              description              TEXT                 NULL,
+              project_type             VARCHAR(60)      NOT NULL DEFAULT 'survey',
+              start_date               DATE             NOT NULL,
+              end_date                 DATE             NOT NULL,
+              progress                 TINYINT UNSIGNED NOT NULL DEFAULT 0,
+              status                   VARCHAR(20)      NOT NULL DEFAULT 'planning',
+              image_path               VARCHAR(255)         NULL,
+              account_manager_admin_id INT                  NULL,
+              created_by_admin_id      INT                  NULL,
+              created_at               TIMESTAMP        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              updated_at               TIMESTAMP        NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                                             ON UPDATE CURRENT_TIMESTAMP,
+              KEY idx_client       (client_id),
+              KEY idx_manager      (account_manager_admin_id),
+              KEY idx_status_dates (status, start_date),
+              KEY idx_type         (project_type)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS project_tasks (
+              id                  INT AUTO_INCREMENT PRIMARY KEY,
+              project_id          INT          NOT NULL,
+              title               VARCHAR(200) NOT NULL,
+              link                VARCHAR(500)     NULL,
+              description         TEXT             NULL,
+              orientation         ENUM('horizontal','vertical') NOT NULL DEFAULT 'horizontal',
+              image_path          VARCHAR(255)     NULL,
+              scheduled_date      DATE             NULL,
+              scheduled_time      TIME             NULL,
+              is_complete         TINYINT(1)   NOT NULL DEFAULT 0,
+              status              VARCHAR(20)  NOT NULL DEFAULT 'draft',
+              created_by_admin_id INT              NULL,
+              created_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              updated_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                                    ON UPDATE CURRENT_TIMESTAMP,
+              KEY idx_project          (project_id, id),
+              KEY idx_project_schedule (project_id, scheduled_date),
+              KEY idx_author           (created_by_admin_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS project_members (
+              id         INT AUTO_INCREMENT PRIMARY KEY,
+              project_id INT       NOT NULL,
+              admin_id   INT       NOT NULL,
+              created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              UNIQUE KEY uniq_member (project_id, admin_id),
+              KEY idx_admin (admin_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+
+        // Columns added after a database was first built from an early draft.
+        $tables = [
+            "projects"      => PROJECT_EXTRA_COLUMNS,
+            "project_tasks" => PROJECT_TASK_EXTRA_COLUMNS,
+        ];
+
+        foreach ($tables as $table => $columns) {
+
+            $stmt = $pdo->prepare("
+                SELECT COLUMN_NAME
+                FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
+            ");
+            $stmt->execute([$table]);
+            $existing = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+            foreach ($columns as $column => $type) {
+                if (!in_array($column, $existing, true)) {
+                    $pdo->exec("ALTER TABLE `$table` ADD COLUMN `$column` $type");
+                }
+            }
+        }
+    } catch (PDOException $e) {
+        // Read-only DB user: the endpoints below fail on the first query with
+        // their own message rather than dying here.
+    }
+}
