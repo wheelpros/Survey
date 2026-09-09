@@ -132,6 +132,14 @@ async function submitInquiry(e){
     return;
   }
 
+  const linkPattern = /(https?:\/\/|www\.[a-z0-9-]+\.[a-z]{2,}|\b[a-z0-9-]+\.(com|net|org|io|co|uk|info|biz|me|ly|gl|to|xyz|site|online|dev|app|shop)\b)/i;
+  const withLink = inquiryFields.find((f, i) => answers[i].value && linkPattern.test(answers[i].value));
+  if(withLink){
+    statusEl.innerText = `Links aren't allowed in "${withLink.field_label}" - please use text or numbers only`;
+    statusEl.className = "status error";
+    return;
+  }
+
   btn.disabled = true;
   statusEl.innerText = "Sending...";
   statusEl.className = "status";

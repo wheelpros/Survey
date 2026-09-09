@@ -29,12 +29,32 @@ if (!$isOwner && !$isAccountManager) {
 
 $method = $_SERVER["REQUEST_METHOD"];
 
-function generateSlug($pdo) {
-    do {
-        $slug = bin2hex(random_bytes(8));
+function generateSlug($pdo, $title) {
+    // Turn the title into a readable slug (lowercase, dashes) instead of a
+    // random string, e.g. "free-30-minute-business-growth-consultation".
+    $base = strtolower(trim($title));
+    $base = preg_replace('/[^a-z0-9]+/', '-', $base);
+    $base = trim($base, '-');
+    $base = substr($base, 0, 60);
+
+    if ($base === '') {
+        $base = 'inquiry';
+    }
+
+    $slug = $base;
+    $suffix = 2;
+
+    // If that exact slug is already taken (same title used before, or a
+    // title that slugifies to the same thing), append -2, -3, etc.
+    while (true) {
         $check = $pdo->prepare("SELECT id FROM inquiries WHERE slug = ? LIMIT 1");
         $check->execute([$slug]);
-    } while ($check->fetch());
+        if (!$check->fetch()) {
+            break;
+        }
+        $slug = $base . '-' . $suffix;
+        $suffix++;
+    }
 
     return $slug;
 }
@@ -166,7 +186,7 @@ if ($method === "POST" || $method === "PUT") {
 
         if ($method === "POST") {
 
-            $slug = generateSlug($pdo);
+            $slug = generateSlug($pdo, $title);
 
             $stmt = $pdo->prepare("
                 INSERT INTO inquiries (title, intro_text, slug, created_by_admin_id, assigned_account_manager_id, active)

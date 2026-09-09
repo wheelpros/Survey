@@ -6,6 +6,15 @@ header("Content-Type: application/json");
 
 $method = $_SERVER["REQUEST_METHOD"];
 
+function containsLink($value) {
+    // Blocks http(s):// URLs, www. addresses, and bare domain-like text
+    // (e.g. "example.com") - answers should be plain text or numbers only.
+    return (bool)preg_match(
+        '/(https?:\/\/|www\.[a-z0-9-]+\.[a-z]{2,}|\b[a-z0-9-]+\.(com|net|org|io|co|uk|info|biz|me|ly|gl|to|xyz|site|online|dev|app|shop)\b)/i',
+        $value
+    );
+}
+
 if ($method === "GET") {
 
     $slug = trim($_GET["slug"] ?? "");
@@ -89,6 +98,14 @@ if ($method === "POST") {
             echo json_encode([
                 "success" => false,
                 "message" => "Please fill in \"" . $field["field_label"] . "\""
+            ]);
+            exit;
+        }
+
+        if ($value !== "" && containsLink($value)) {
+            echo json_encode([
+                "success" => false,
+                "message" => "Links aren't allowed in \"" . $field["field_label"] . "\" - please use text or numbers only"
             ]);
             exit;
         }
