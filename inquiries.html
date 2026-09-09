@@ -9,90 +9,52 @@
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
 body{background:#f6f7fb;color:#101828;padding:0}
 
-.panel{background:#fff;border-radius:20px;box-shadow:0 14px 35px rgba(0,0,0,.06);margin-bottom:28px;overflow:hidden}
-.panel-head{padding:24px 28px;border-bottom:1px solid #eef1f5;display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
-.panel-head h1{font-size:24px;margin-bottom:6px}
-.panel-head p{color:#667085;font-size:14px}
-.panel-body{padding:28px}
+.page-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;flex-wrap:wrap;gap:16px}
+.page-head h1{font-size:26px;margin-bottom:6px}
+.page-head p{color:#667085;font-size:14px}
+
+.stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:28px}
+.stat-card{background:#fff;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.05);padding:20px 22px}
+.stat-card .stat-label{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#98a2b3;margin-bottom:10px}
+.stat-card .stat-value{font-size:28px;font-weight:800;color:#101828}
+.stat-card .stat-value.dot::before{content:"";display:inline-block;width:9px;height:9px;border-radius:50%;background:#20a95a;margin-right:8px;vertical-align:middle}
+@media(max-width:800px){.stat-row{grid-template-columns:1fr}}
+
+.panel{background:#fff;border-radius:20px;box-shadow:0 14px 35px rgba(0,0,0,.06);overflow:hidden}
 
 table{width:100%;border-collapse:collapse;table-layout:fixed}
-th{text-align:left;background:#f8fafc;padding:14px 24px;color:#667085;font-size:12px}
-td{padding:15px 24px;border-top:1px solid #eef1f5;font-size:13px}
-.empty{padding:30px;text-align:center;color:#667085}
+th{text-align:left;background:#f8fafc;padding:14px 24px;color:#98a2b3;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px}
+td{padding:16px 24px;border-top:1px solid #eef1f5;font-size:14px;vertical-align:middle}
+.empty{padding:40px;text-align:center;color:#667085}
+
+.inquiry-name{font-weight:700;color:#101828}
+.people-count{display:inline-flex;align-items:center;gap:6px;color:#667085;font-size:13px}
+.people-count svg{width:15px;height:15px;flex:none}
 
 .badge{padding:6px 12px;border-radius:20px;font-size:11px;font-weight:800;display:inline-block}
 .approved{background:#e8faef;color:#20a95a}
 .pending{background:#f2f4f7;color:#667085}
 
-.actions{display:flex;gap:8px;flex-wrap:wrap}
-.btn{border:none;padding:9px 14px;border-radius:8px;cursor:pointer;font-weight:800;font-size:12px}
+.btn{border:none;padding:9px 14px;border-radius:8px;cursor:pointer;font-weight:800;font-size:12px;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
 .action-btn{background:var(--nav-active);color:#fff}
 .action-btn:hover{background:#282c52}
-.copy-btn{background:#eef0f6;color:#1b1e3a}
-.copy-btn:hover{background:#e3e6ef}
+.outline-btn{background:#fff;border:1px solid #dfe3ea;color:#1b1e3a}
+.outline-btn:hover{background:#f8fafc}
+.danger-btn{background:#fff;border:1px solid #f0d2d4;color:#c9000b}
+.danger-btn:hover{background:#fff5f5}
 
-.primary-btn{background:#1b1e3a;color:#fff;border:none;padding:14px 22px;border-radius:12px;font-weight:800;font-size:14px;cursor:pointer}
-.primary-btn:hover{background:#282c52}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
 
-.assignment-box{padding:24px}
-.no-admins{padding:20px;text-align:center;color:#667085;border:1px dashed #d0d5dd;border-radius:12px}
+.pagination{display:flex;justify-content:space-between;align-items:center;padding:18px 24px;border-top:1px solid #eef1f5;font-size:13px;color:#667085}
+.page-btns{display:flex;gap:6px;align-items:center}
+.page-btns button{
+  border:1px solid #dfe3ea;background:#fff;color:#1b1e3a;width:32px;height:32px;border-radius:8px;
+  cursor:pointer;font-weight:700;font-size:13px;
+}
+.page-btns button.active{background:var(--nav-active);color:#fff;border-color:var(--nav-active)}
+.page-btns button:disabled{opacity:.4;cursor:not-allowed}
 
 @media(max-width:800px){table{min-width:760px}.panel{overflow-x:auto}}
-
-/* ── Builder modal ── */
-.builder-modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:99999;padding:20px}
-.builder-modal.show{display:flex}
-.builder-box{width:100%;max-width:960px;max-height:90vh;overflow:auto;background:#fff;border-radius:20px}
-.builder-head{padding:22px 24px;border-bottom:1px solid #eef1f5;display:flex;justify-content:space-between;align-items:center}
-.builder-head button{width:34px;height:34px;border-radius:50%;border:none;background:var(--nav-active);color:#fff;font-size:20px;cursor:pointer}
-.builder-body{padding:24px}
-
-.field-group{margin-bottom:22px}
-.field-group label{display:block;font-size:13px;font-weight:800;margin-bottom:8px}
-.field-group input[type="text"],
-.field-group textarea,
-.field-group select{
-  width:100%;border:1px solid #dfe3ea;background:#f8fafc;border-radius:12px;
-  padding:12px 14px;font-size:14px;outline:none;
-}
-.field-group select{height:48px}
-.field-group textarea{min-height:70px;resize:vertical}
-.field-group input:focus,.field-group textarea:focus,.field-group select:focus{
-  border-color:#1b1e3a;box-shadow:0 0 0 4px rgba(27,30,58,.10);
-}
-
-.builder-grid{display:grid;grid-template-columns:1fr 1fr;gap:30px}
-@media(max-width:760px){.builder-grid{grid-template-columns:1fr}}
-
-.custom-field-row{
-  display:flex;flex-direction:column;gap:12px;margin-bottom:12px;
-  border:1px solid #eef1f5;border-radius:12px;padding:16px;background:#fafbfc;
-}
-.field-row-top{display:flex;gap:10px;align-items:flex-end}
-.field-row-top .field-group{flex:1;margin-bottom:0}
-.field-row-bottom{display:flex;gap:16px;align-items:center}
-.field-row-bottom .type-group{flex:1;margin-bottom:0}
-.field-row-bottom .type-group select{width:100%}
-.custom-field-row .required-group{flex:none;display:flex;align-items:center;gap:6px}
-.remove-field-btn{
-  flex:none;border:none;background:#fde8e8;color:#c9000b;
-  width:40px;height:40px;border-radius:10px;cursor:pointer;font-size:16px;
-}
-
-.add-field-btn{
-  background:#eef0f6;color:#1b1e3a;border:none;padding:10px 16px;
-  border-radius:10px;font-weight:800;cursor:pointer;font-size:13px;margin-top:6px;
-}
-
-.builder-footer{padding:18px 24px 30px;border-top:1px solid #eef1f5}
-.builder-status{margin-top:14px;font-size:13px;color:#667085}
-
-.link-box{
-  margin-top:16px;display:none;align-items:center;gap:10px;
-  background:#f2f4f7;border-radius:12px;padding:12px 14px;
-}
-.link-box input{flex:1;border:none;background:transparent;font-size:13px;color:#101828;outline:none}
-.link-box button{border:none;background:var(--nav-active);color:#fff;padding:8px 14px;border-radius:8px;font-weight:800;font-size:12px;cursor:pointer;flex:none}
 
 /* ── Admin shell: sidebar + header (shared across admin pages) ── */
 :root{
@@ -270,98 +232,55 @@ document.addEventListener("DOMContentLoaded", function () {
   </header>
 
   <div class="admin-content">
-    <div class="panel">
-      <div class="panel-head">
-        <div>
-          <h1 id="inquiriesTitle">Inquiries</h1>
-          <p id="inquiriesSub">Each inquiry has one permanent link - share it, and answers come in below as leads.</p>
-        </div>
-        <div class="actions">
-          <button class="btn action-btn" id="newInquiryBtn" onclick="openBuilder()" style="display:none;">+ New Inquiry</button>
-        </div>
+    <div class="page-head">
+      <div>
+        <h1>Inquiries</h1>
+        <p id="inquiriesSub">Each inquiry has one permanent link - share it, and answers come in below as leads.</p>
       </div>
+      <button class="btn action-btn" id="newInquiryBtn" onclick="window.location.href='inquiry-form.html'" style="display:none;">+ New Inquiry</button>
+    </div>
 
+    <div class="stat-row">
+      <div class="stat-card">
+        <div class="stat-label">Total Inquiries</div>
+        <div class="stat-value" id="statTotal">-</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Active</div>
+        <div class="stat-value dot" id="statActive">-</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">User Submitted</div>
+        <div class="stat-value" id="statSubmitted">-</div>
+      </div>
+    </div>
+
+    <div class="panel">
       <table>
         <colgroup>
-          <col style="width:24%">
-          <col style="width:18%">
-          <col style="width:10%">
-          <col style="width:10%">
+          <col style="width:26%">
           <col style="width:16%">
-          <col style="width:22%">
+          <col style="width:16%">
+          <col style="width:14%">
+          <col style="width:28%">
         </colgroup>
         <thead>
           <tr>
-            <th>Title</th>
-            <th>Account Manager</th>
+            <th>Inquiry Name</th>
+            <th>List of People</th>
             <th>Status</th>
-            <th>Leads</th>
             <th>Created</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody id="inquiriesTable">
-          <tr><td colspan="6" class="empty">Loading...</td></tr>
+          <tr><td colspan="5" class="empty">Loading...</td></tr>
         </tbody>
       </table>
-    </div>
-  </div>
-</div>
 
-<!-- BUILDER MODAL -->
-<div class="builder-modal" id="builderModal">
-  <div class="builder-box">
-    <div class="builder-head">
-      <h2 id="builderTitle">New Inquiry</h2>
-      <button onclick="closeBuilder()">&times;</button>
-    </div>
-
-    <div class="builder-body">
-      <div class="field-group">
-        <label>Account Manager</label>
-        <select id="builderManager">
-          <option value="">Unassigned</option>
-        </select>
-      </div>
-
-      <div class="field-group">
-        <label>Status</label>
-        <select id="builderActive">
-          <option value="1">Active (link accepting answers)</option>
-          <option value="0">Inactive (link disabled)</option>
-        </select>
-      </div>
-
-      <div class="builder-grid">
-        <div>
-          <div class="field-group">
-            <label>Title</label>
-            <input type="text" id="builderHeadline" placeholder="e.g. Book a free consultation">
-          </div>
-          <div class="field-group">
-            <label>Description</label>
-            <textarea id="builderIntro" placeholder="A short paragraph explaining what this is about..."></textarea>
-          </div>
-        </div>
-
-        <div>
-          <label style="display:block;font-size:13px;font-weight:800;margin-bottom:8px;">Custom Fields</label>
-          <div id="builderFields"></div>
-          <button class="add-field-btn" type="button" onclick="addBuilderField()">+ Add Field</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="builder-footer">
-      <div class="actions">
-        <button class="primary-btn" id="builderSaveBtn" onclick="saveInquiry()" type="button">Create Inquiry</button>
-        <button class="btn copy-btn" style="background:#fde8e8;color:#c9000b;display:none;" id="builderDeleteBtn" type="button" onclick="deleteFromBuilder()">Delete</button>
-      </div>
-      <div class="builder-status" id="builderStatus"></div>
-
-      <div class="link-box" id="builderLinkBox">
-        <input type="text" id="builderLinkInput" readonly>
-        <button type="button" onclick="copyBuilderLink()">Copy</button>
+      <div class="pagination" id="pagination" style="display:none;">
+        <span id="pageInfo"></span>
+        <div class="page-btns" id="pageBtns"></div>
       </div>
     </div>
   </div>
@@ -402,21 +321,29 @@ function logoutAdmin(){
 }
 
 const isOwner = adminUser.role === "owner";
-let editingInquiryId = null;
-let fieldRowCounter = 0;
-let accountManagers = [];
+const PAGE_SIZE = 8;
+let currentPage = 1;
+let allInquiries = [];
 
-// Creating, editing, and deleting are owner-only now - an account_manager
-// assigned to an inquiry can only view its results.
 if(isOwner){
   document.getElementById("newInquiryBtn").style.display = "inline-flex";
 } else {
   document.getElementById("inquiriesSub").innerText = "Inquiries you've been assigned to - view results as they come in.";
 }
 
+function escapeHtml(value){
+  return String(value ?? "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+
+function copyLink(url){
+  navigator.clipboard.writeText(url).then(() => alert("Link copied!"));
+}
+
 async function loadInquiries(){
   const table = document.getElementById("inquiriesTable");
-  table.innerHTML = `<tr><td colspan="6" class="empty">Loading...</td></tr>`;
+  table.innerHTML = `<tr><td colspan="5" class="empty">Loading...</td></tr>`;
 
   try{
     const res = await fetch("api/admin-inquiries.php", {
@@ -426,53 +353,103 @@ async function loadInquiries(){
     const data = await res.json();
 
     if(!data.success){
-      table.innerHTML = `<tr><td colspan="6" class="empty">${data.message || "Unable to load inquiries."}</td></tr>`;
+      table.innerHTML = `<tr><td colspan="5" class="empty">${escapeHtml(data.message || "Unable to load inquiries.")}</td></tr>`;
       return;
     }
 
-    accountManagers = data.accountManagers || [];
-    renderInquiries(data.inquiries || []);
+    allInquiries = data.inquiries || [];
+    renderStats(allInquiries);
+    currentPage = 1;
+    renderPage();
 
   }catch(err){
-    table.innerHTML = `<tr><td colspan="6" class="empty">Connection error.</td></tr>`;
+    table.innerHTML = `<tr><td colspan="5" class="empty">Connection error.</td></tr>`;
   }
 }
 
-function renderInquiries(inquiries){
+function renderStats(inquiries){
+  const total = inquiries.length;
+  const active = inquiries.filter(i => Number(i.active) === 1).length;
+  const submitted = inquiries.reduce((sum, i) => sum + Number(i.lead_count || 0), 0);
+
+  document.getElementById("statTotal").innerText = total;
+  document.getElementById("statActive").innerText = active;
+  document.getElementById("statSubmitted").innerText = submitted;
+}
+
+function renderPage(){
   const table = document.getElementById("inquiriesTable");
 
-  if(!inquiries.length){
-    table.innerHTML = `<tr><td colspan="6" class="empty">No inquiries yet.</td></tr>`;
+  if(!allInquiries.length){
+    table.innerHTML = `<tr><td colspan="5" class="empty">No inquiries yet.</td></tr>`;
+    document.getElementById("pagination").style.display = "none";
     return;
   }
 
+  const totalPages = Math.max(1, Math.ceil(allInquiries.length / PAGE_SIZE));
+  currentPage = Math.min(currentPage, totalPages);
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const pageItems = allInquiries.slice(start, start + PAGE_SIZE);
+
   const publicBase = window.location.origin + window.location.pathname.replace(/inquiries\.html$/, "inquiry.html");
 
-  table.innerHTML = inquiries.map(inq => {
+  table.innerHTML = pageItems.map(inq => {
     const isActive = Number(inq.active) === 1;
 
     return `
     <tr>
-      <td>${escapeHtml(inq.title)}</td>
-      <td>${escapeHtml(inq.manager_name || "Unassigned")}</td>
+      <td><span class="inquiry-name">${escapeHtml(inq.title)}</span></td>
+      <td>
+        <span class="people-count">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          ${inq.lead_count} ${Number(inq.lead_count) === 1 ? "person" : "people"}
+        </span>
+      </td>
       <td><span class="badge ${isActive ? "approved" : "pending"}">${isActive ? "Active" : "Inactive"}</span></td>
-      <td>${inq.lead_count}</td>
-      <td>${inq.created_at}</td>
+      <td>${escapeHtml(inq.created_at)}</td>
       <td>
         <div class="actions">
-          <button class="btn copy-btn" onclick="copyLink('${publicBase}?ref=${inq.slug}')">Copy Link</button>
-          <a class="btn action-btn" href="inquiry-responses.html?inquiry_id=${inq.id}">View Answers</a>
-          ${isOwner ? `<button class="btn action-btn" onclick="openBuilder(${inq.id})">Edit</button>` : ``}
-          ${isOwner ? `<button class="btn copy-btn" style="background:#fde8e8;color:#c9000b;" onclick="deleteInquiry(${inq.id})">Delete</button>` : ``}
+          <a class="btn action-btn" href="inquiry-responses.html?inquiry_id=${inq.id}">View</a>
+          <button class="btn outline-btn" onclick="copyLink('${publicBase}?ref=${inq.slug}')">Copy Link</button>
+          ${isOwner ? `<button class="btn outline-btn" onclick="window.location.href='inquiry-form.html?id=${inq.id}'">Edit</button>` : ``}
+          ${isOwner ? `<button class="btn danger-btn" onclick="deleteInquiry(${inq.id})">Delete</button>` : ``}
         </div>
       </td>
     </tr>
     `;
   }).join("");
+
+  renderPagination(totalPages);
 }
 
-function copyLink(url){
-  navigator.clipboard.writeText(url).then(() => alert("Link copied!"));
+function renderPagination(totalPages){
+  const pagination = document.getElementById("pagination");
+
+  if(totalPages <= 1){
+    pagination.style.display = "none";
+    return;
+  }
+
+  pagination.style.display = "flex";
+
+  const start = (currentPage - 1) * PAGE_SIZE + 1;
+  const end = Math.min(currentPage * PAGE_SIZE, allInquiries.length);
+  document.getElementById("pageInfo").innerText = `Showing ${start} to ${end} of ${allInquiries.length} inquiries`;
+
+  const btns = document.getElementById("pageBtns");
+  let html = `<button ${currentPage === 1 ? "disabled" : ""} onclick="goToPage(${currentPage - 1})">&lsaquo;</button>`;
+
+  for(let p = 1; p <= totalPages; p++){
+    html += `<button class="${p === currentPage ? "active" : ""}" onclick="goToPage(${p})">${p}</button>`;
+  }
+
+  html += `<button ${currentPage === totalPages ? "disabled" : ""} onclick="goToPage(${currentPage + 1})">&rsaquo;</button>`;
+  btns.innerHTML = html;
+}
+
+function goToPage(p){
+  currentPage = p;
+  renderPage();
 }
 
 async function deleteInquiry(inquiryId){
@@ -498,189 +475,7 @@ async function deleteInquiry(inquiryId){
   }
 }
 
-function deleteFromBuilder(){
-  if(!editingInquiryId) return;
-  deleteInquiry(editingInquiryId);
-  closeBuilder();
-}
-
-function escapeHtml(value){
-  return String(value ?? "")
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-}
-
-// ---- Builder ----
-
-function addBuilderField(label = "", type = "input", required = true){
-  fieldRowCounter++;
-  const rowId = "field-row-" + fieldRowCounter;
-
-  const container = document.getElementById("builderFields");
-  const row = document.createElement("div");
-  row.className = "custom-field-row";
-  row.id = rowId;
-  row.innerHTML = `
-    <div class="field-row-top">
-      <div class="field-group">
-        <label>Label</label>
-        <input type="text" class="field-label-input" value="${escapeHtml(label)}" placeholder="e.g. Phone Number">
-      </div>
-      <button type="button" class="remove-field-btn" onclick="document.getElementById('${rowId}').remove()">&times;</button>
-    </div>
-    <div class="field-row-bottom">
-      <div class="type-group field-group">
-        <label>Type</label>
-        <select class="field-type-input">
-          <option value="input" ${type === "input" ? "selected" : ""}>Short answer</option>
-          <option value="textarea" ${type === "textarea" ? "selected" : ""}>Long answer</option>
-        </select>
-      </div>
-      <div class="required-group">
-        <input type="checkbox" class="field-required-input" ${required ? "checked" : ""} style="width:16px;height:16px;">
-        <label style="margin:0;font-size:12px;font-weight:700;">Required</label>
-      </div>
-    </div>
-  `;
-  container.appendChild(row);
-}
-
-function populateManagerSelect(){
-  const select = document.getElementById("builderManager");
-  select.innerHTML = `<option value="">Unassigned</option>` +
-    accountManagers.map(mgr => `<option value="${mgr.id}">${escapeHtml(mgr.name)} - ${escapeHtml(mgr.email)}</option>`).join("");
-}
-
-function openBuilder(inquiryId){
-  editingInquiryId = inquiryId || null;
-
-  document.getElementById("builderTitle").innerText = inquiryId ? "Edit Inquiry" : "New Inquiry";
-  document.getElementById("builderHeadline").value = "";
-  document.getElementById("builderIntro").value = "";
-  document.getElementById("builderFields").innerHTML = "";
-  document.getElementById("builderStatus").innerText = "";
-  document.getElementById("builderLinkBox").style.display = "none";
-  document.getElementById("builderActive").value = "1";
-  document.getElementById("builderSaveBtn").innerText = inquiryId ? "Save Changes" : "Create Inquiry";
-  document.getElementById("builderDeleteBtn").style.display = inquiryId ? "inline-flex" : "none";
-  populateManagerSelect();
-
-  if(!inquiryId){
-    addBuilderField();
-    document.getElementById("builderModal").classList.add("show");
-    return;
-  }
-
-  fetch("api/admin-inquiries.php?id=" + inquiryId, {
-    headers: { Authorization: "Bearer " + adminToken }
-  })
-    .then(res => res.json())
-    .then(data => {
-      if(!data.success){
-        alert(data.message || "Unable to load this inquiry.");
-        return;
-      }
-
-      document.getElementById("builderHeadline").value = data.inquiry.title;
-      document.getElementById("builderIntro").value = data.inquiry.intro_text || "";
-      document.getElementById("builderManager").value = data.inquiry.assigned_account_manager_id || "";
-      document.getElementById("builderActive").value = Number(data.inquiry.active) === 1 ? "1" : "0";
-
-      const publicBase = window.location.origin + window.location.pathname.replace(/inquiries\.html$/, "inquiry.html");
-      document.getElementById("builderLinkInput").value = `${publicBase}?ref=${data.inquiry.slug}`;
-      document.getElementById("builderLinkBox").style.display = "flex";
-
-      (data.fields || []).forEach(f => addBuilderField(f.field_label, f.field_type, Number(f.required) === 1));
-
-      document.getElementById("builderModal").classList.add("show");
-    });
-}
-
-function closeBuilder(){
-  document.getElementById("builderModal").classList.remove("show");
-}
-
-async function saveInquiry(){
-  const title = document.getElementById("builderHeadline").value.trim();
-  const introText = document.getElementById("builderIntro").value.trim();
-  const assignedAccountManagerId = document.getElementById("builderManager").value;
-  const active = document.getElementById("builderActive").value;
-  const statusEl = document.getElementById("builderStatus");
-
-  const rows = document.querySelectorAll("#builderFields .custom-field-row");
-  const fields = Array.from(rows).map(row => ({
-    label: row.querySelector(".field-label-input").value.trim(),
-    type: row.querySelector(".field-type-input").value,
-    required: row.querySelector(".field-required-input").checked
-  })).filter(f => f.label);
-
-  if(!title){
-    statusEl.innerText = "Please add a title.";
-    return;
-  }
-
-  if(!fields.length){
-    statusEl.innerText = "Add at least one field.";
-    return;
-  }
-
-  statusEl.innerText = "Saving...";
-
-  try{
-    const res = await fetch("api/admin-inquiries.php", {
-      method: editingInquiryId ? "PUT" : "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer " + adminToken
-      },
-      body: JSON.stringify({
-        id: editingInquiryId,
-        title,
-        introText,
-        assignedAccountManagerId,
-        active,
-        fields
-      })
-    });
-
-    const data = await res.json();
-    statusEl.innerText = data.message;
-
-    if(data.success){
-      if(data.slug){
-        const publicBase = window.location.origin + window.location.pathname.replace(/inquiries\.html$/, "inquiry.html");
-        document.getElementById("builderLinkInput").value = `${publicBase}?ref=${data.slug}`;
-        document.getElementById("builderLinkBox").style.display = "flex";
-      }
-
-      if(!editingInquiryId && data.id){
-        editingInquiryId = data.id;
-        document.getElementById("builderTitle").innerText = "Edit Inquiry";
-        document.getElementById("builderSaveBtn").innerText = "Save Changes";
-        document.getElementById("builderDeleteBtn").style.display = "inline-flex";
-      }
-
-      loadInquiries();
-    }
-
-  }catch(err){
-    statusEl.innerText = "Connection error.";
-  }
-}
-
-function copyBuilderLink(){
-  const input = document.getElementById("builderLinkInput");
-  navigator.clipboard.writeText(input.value).then(() => alert("Link copied!"));
-}
-
 loadInquiries();
-
-// Coming from "Edit" on the View Inquiry page (?edit=<id>) opens the
-// builder for that inquiry straight away.
-const editParam = new URLSearchParams(window.location.search).get("edit");
-if(isOwner && editParam){
-  openBuilder(Number(editParam));
-}
 </script>
 
 </body>

@@ -223,6 +223,10 @@ document.addEventListener("DOMContentLoaded", function () {
   </header>
 
   <div class="admin-content">
+    <div class="breadcrumb" style="font-size:13px;color:#98a2b3;margin-bottom:8px;">
+      <a href="inquiries.html" style="color:#98a2b3;text-decoration:none;">Inquiries</a> &rsaquo; <span id="breadcrumbTitle">...</span>
+    </div>
+
     <div class="panel" id="summaryPanel">
       <div class="panel-head">
         <div>
@@ -330,17 +334,14 @@ async function loadResults(){
 }
 
 function renderSummary(inquiry){
-  document.getElementById("resultsTitle").innerText = inquiry.title;
-  document.getElementById("resultsSub").innerText = "Inquiries \u203a " + inquiry.title;
+  document.getElementById("resultsTitle").innerText = "View Inquiry";
+  document.getElementById("resultsSub").innerText = inquiry.title;
+  document.getElementById("breadcrumbTitle").innerText = inquiry.title;
 
   if(adminUser.role === "owner"){
     const editLink = document.getElementById("editLink");
-    editLink.href = "inquiries.html";
+    editLink.href = "inquiry-form.html?id=" + inquiry.id;
     editLink.style.display = "inline-flex";
-    editLink.onclick = function(e){
-      e.preventDefault();
-      window.location.href = "inquiries.html?edit=" + inquiry.id;
-    };
   }
 
   const isActive = Number(inquiry.active) === 1;
