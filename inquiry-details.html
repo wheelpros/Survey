@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Inquiries</title>
+<title>View Inquiry</title>
 
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
@@ -143,31 +143,6 @@ body{padding:0}
   width:8px;height:8px;min-width:0;padding:0;border-radius:50%;
   font-size:0;border:2px solid #fff;
 }
-
-/* ── This table's columns ──
-   Stated widths because .table-card sets table-layout:fixed. Below 768px the
-   two .col-hide columns come out and the three that are left share the room -
-   View details goes with them, because the name itself is the link. */
-.table-card th:nth-child(1),.table-card td:nth-child(1){width:32%}
-.table-card th:nth-child(2),.table-card td:nth-child(2){width:16%}
-.table-card th:nth-child(3),.table-card td:nth-child(3){width:17%}
-.table-card th:nth-child(4),.table-card td:nth-child(4){width:15%}
-.table-card th:nth-child(5),.table-card td:nth-child(5){width:20%}
-@media(max-width:768px){
-  .table-card th:nth-child(1),.table-card td:nth-child(1){width:50%}
-  .table-card th:nth-child(2),.table-card td:nth-child(2){width:28%}
-  .table-card th:nth-child(5),.table-card td:nth-child(5){width:22%}
-}
-
-/* The name is the row's own link, with the chevron the design puts after it. */
-.t-link{display:inline-flex;align-items:flex-start;gap:6px;text-decoration:none;color:inherit;max-width:100%}
-.t-link:hover .t-title{text-decoration:underline}
-.t-link svg{width:14px;height:14px;flex:none;margin-top:2px;color:#98a2b3}
-
-.people-link{display:inline-flex;align-items:center;gap:7px}
-.people-link svg{width:15px;height:15px;flex:none}
-
-.col-view .btn{padding:9px 22px}
 </style>
 
 <!-- Feature styles first, shell.css last: the phone drawer has to win. -->
@@ -280,48 +255,75 @@ document.addEventListener("DOMContentLoaded", function () {
   <div class="admin-content">
 
     <div class="page-head">
-      <div class="page-title">
-        <h1>Inquiries</h1>
-        <p id="pageSub">One link per inquiry. Share it with anyone you want to hear from - it stays open until you set the inquiry inactive.</p>
+      <div class="page-title head-row">
+        <a class="back-link" href="inquiries.html" title="Back to inquiries" aria-label="Back to inquiries">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M11 6l-6 6 6 6"/></svg>
+        </a>
+        <div>
+          <h1>View Inquiry</h1>
+          <p class="head-name" id="headName"></p>
+        </div>
       </div>
-      <a class="create-btn" href="inquiry-form.html" id="newBtn" hidden>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-        New Inquiry
+      <a class="btn btn-ghost btn-lg" id="editBtn" href="#" hidden>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+        Edit
       </a>
     </div>
 
-    <!-- Counted in SQL over everything, deliberately ignoring the page the
-         table happens to be showing. -->
-    <div class="stats">
-      <div class="stat"><span>Total Inquiries</span><strong id="statTotal">—</strong></div>
-      <div class="stat"><span>Active</span><strong id="statActive">—</strong></div>
-      <div class="stat"><span>User Submitted</span><strong id="statPeople">—</strong></div>
-    </div>
+    <div class="empty-state" id="blocked" hidden></div>
 
-    <div class="table-card" id="tableCard">
-      <table>
-        <thead>
-          <tr>
-            <th>Inquiry name</th>
-            <th>Answers</th>
-            <th class="col-hide">Created</th>
-            <th class="col-hide">View details</th>
-            <th style="text-align:right">Actions</th>
-          </tr>
-        </thead>
-        <tbody id="rows">
-          <tr><td colspan="5" class="note">Loading inquiries...</td></tr>
-        </tbody>
-      </table>
+    <div class="card" id="summaryCard" hidden>
+      <div class="f-row f-head">
+        <div>
+          <span class="f-label">Title</span>
+          <div class="f-value big" id="vTitle"></div>
+        </div>
+        <span class="pill" id="vStatus"></span>
+      </div>
 
-      <div class="pager" id="pager" hidden>
-        <div class="pager-info" id="pagerInfo"></div>
-        <div class="pager-pages" id="pagerPages"></div>
+      <div class="f-row" id="descRow">
+        <span class="f-label">Description</span>
+        <div class="f-value pre" id="vDesc"></div>
+      </div>
+
+      <div class="f-grid">
+        <div>
+          <span class="f-label">Account manager</span>
+          <div id="vManager"></div>
+        </div>
+        <div>
+          <span class="f-label">Created</span>
+          <div class="f-value" id="vCreated"></div>
+        </div>
+      </div>
+
+      <div class="f-row">
+        <span class="f-label">URL</span>
+        <div class="link-box">
+          <span class="link-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>
+          </span>
+          <div class="link-url" id="vLink" aria-label="Inquiry link"></div>
+          <button class="btn btn-dark btn-lg" type="button" onclick="copyLink()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            Copy Link
+          </button>
+        </div>
+        <p class="hint" id="linkHint">One link, shared with anyone you like. It stays open until this inquiry is set to inactive.</p>
       </div>
     </div>
 
-    <!-- Replaces the table entirely when there is nothing to put in it. -->
-    <div class="empty-state" id="emptyState" hidden></div>
+    <div class="card" id="responsesCard" hidden>
+      <h2 id="responses">Responses</h2>
+      <p class="card-sub" id="respSub"></p>
+
+      <div id="respList"></div>
+
+      <div class="pager" id="respPager" hidden>
+        <div class="pager-info" id="respPagerInfo"></div>
+        <div class="pager-pages" id="respPagerPages"></div>
+      </div>
+    </div>
 
   </div>
 </div>
@@ -348,16 +350,16 @@ document.addEventListener("DOMContentLoaded", function () {
 <script>
 /*
 |------------------------------------------------------------------------------
-| Inquiries: the list
+| Inquiries: one inquiry, read-only
 |------------------------------------------------------------------------------
 |
-| Every inquiry is a template. A link is minted per person from the Copy link
-| column, and each link is good for exactly one answer - so "list of people"
-| counts the links that came back, not the links sent.
+| Two fetches, no new endpoints: api/admin-inquiries.php?id= for the inquiry
+| itself and api/admin-inquiry-responses.php for what came back.
 |
-| Paged in the browser rather than in SQL, the same way admin-content.html and
-| project-management.html do it: the whole set arrives once and the page slices
-| it. These lists are tens of rows, not thousands.
+| Every response lives here, five to a page and collapsed to one line each. The
+| newest starts open, because that is the one anybody arriving here wants; a
+| link from the list carrying #response-41 opens that one instead, on whatever
+| page it falls.
 |
 */
 
@@ -369,17 +371,22 @@ if (!adminToken || !adminUser.role) {
   window.location.href = "admin-login.html";
 }
 
-// The page itself is owner + account manager; the endpoints check the
-// inquiries_access flag properly, this only saves a wasted load.
 if (adminUser.role !== "owner" && adminUser.role !== "account_manager") {
   window.location.href = "admin.html";
 }
 
 const isOwner = adminUser.role === "owner";
-const PAGE_SIZE = 10;
+const inquiryId = Number(new URLSearchParams(window.location.search).get("id") || 0);
 
-let inquiries = [];
-let page = 1;
+// Responses are paged in the browser, five at a time - the whole set arrives
+// in one fetch and the card slices it.
+const PER_PAGE = 5;
+
+let inquiryName = "";
+let fields = [];
+let responses = [];
+let respPage = 1;
+let openId = null;
 
 function logoutAdmin() {
   localStorage.removeItem("admin_token");
@@ -387,163 +394,267 @@ function logoutAdmin() {
   window.location.href = "admin-login.html";
 }
 
-document.getElementById("newBtn").hidden = false;
-
-if (!isOwner) {
-  document.getElementById("pageSub").textContent =
-    "Share a link, and read what comes back.";
+function block(message) {
+  const box = document.getElementById("blocked");
+  box.innerHTML = `
+    <div class="icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16.5v.01"/></svg>
+    </div>
+    <h3>${WZI.escapeHtml(message)}</h3>
+    <a class="btn btn-ghost" href="inquiries.html">Back to inquiries</a>
+  `;
+  box.hidden = false;
 }
 
-/* ── Loading ─────────────────────────────────────────────────────────────── */
+/* ── The inquiry ─────────────────────────────────────────────────────────── */
 
-async function load() {
-  const rows = document.getElementById("rows");
+async function loadInquiry() {
+  if (!inquiryId) {
+    block("No inquiry was named in the link.");
+    return;
+  }
 
   try {
-    const res = await fetch("api/admin-inquiries.php", {
+    const res = await fetch("api/admin-inquiries.php?id=" + inquiryId, {
       headers: { Authorization: "Bearer " + adminToken }
     });
     const data = await res.json();
 
     if (!data.success) {
-      rows.innerHTML = `<tr><td colspan="5" class="note">${WZI.escapeHtml(data.message || "Unable to load inquiries.")}</td></tr>`;
+      block(data.message || "Unable to load this inquiry.");
       return;
     }
 
-    inquiries = data.inquiries || [];
-    fillStats(data.stats || {});
-    render();
+    fill(data.inquiry);
 
   } catch (error) {
-    rows.innerHTML = `<tr><td colspan="5" class="note">Connection error.</td></tr>`;
+    block("Connection error.");
   }
 }
 
-function fillStats(stats) {
-  document.getElementById("statTotal").textContent = stats.total ?? "—";
-  document.getElementById("statActive").textContent = stats.active ?? "—";
-  document.getElementById("statPeople").textContent = stats.people ?? "—";
+function fill(inq) {
+  inquiryName = inq.slug || "";
+
+  document.title = inq.title + " - Inquiry";
+  /* Carried as a title attribute too: on a phone this line is clipped to one
+     line with an ellipsis, and that is the only way to read the rest. */
+  const headName = document.getElementById("headName");
+  headName.textContent = inq.title;
+  headName.title = inq.title;
+  document.getElementById("vTitle").textContent = inq.title;
+
+  const status = document.getElementById("vStatus");
+  const inactive = inq.status === "inactive";
+  status.textContent = inactive ? "Inactive" : "Active";
+  status.className = "pill " + (inactive ? "pill-inactive" : "pill-active");
+
+  const desc = String(inq.intro_text || "").trim();
+  document.getElementById("descRow").hidden = !desc;
+  document.getElementById("vDesc").textContent = desc;
+
+  document.getElementById("vManager").innerHTML = inq.account_manager_name
+    ? `<div class="who">
+         <div class="who-avatar">${WZI.escapeHtml(WZI.initials(inq.account_manager_name))}</div>
+         <div>
+           <div class="who-name">${WZI.escapeHtml(inq.account_manager_name)}</div>
+           ${inq.account_manager_email ? `<div class="who-sub">${WZI.escapeHtml(inq.account_manager_email)}</div>` : ``}
+         </div>
+       </div>`
+    : `<div class="f-value t-muted">Nobody assigned</div>`;
+
+  document.getElementById("vCreated").textContent = WZI.fmtDateTime(inq.created_at);
+
+  document.getElementById("vLink").textContent = WZI.publicLink(inquiryName);
+
+  if (inactive) {
+    document.getElementById("linkHint").textContent =
+      "This inquiry is inactive, so its link is closed. Set it back to active to reopen it.";
+  }
+
+  if (isOwner) {
+    const edit = document.getElementById("editBtn");
+    edit.href = "inquiry-form.html?id=" + inquiryId;
+    edit.hidden = false;
+  }
+
+  document.getElementById("summaryCard").hidden = false;
 }
 
-/* ── Rendering ───────────────────────────────────────────────────────────── */
+function copyLink() {
+  WZI.copyLink(inquiryName);
+}
 
-function render() {
-  const rows = document.getElementById("rows");
-  const total = inquiries.length;
-  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+/* ── What came back ──────────────────────────────────────────────────────── */
 
-  if (page > pages) page = pages;
+async function loadResponses() {
+  if (!inquiryId) return;
 
-  if (!total) {
-    showEmptyState();
+  try {
+    const res = await fetch("api/admin-inquiry-responses.php?inquiry_id=" + inquiryId, {
+      headers: { Authorization: "Bearer " + adminToken }
+    });
+    const data = await res.json();
+
+    if (!data.success) return;
+
+    renderResponses(data.fields || [], data.responses || []);
+
+  } catch (error) {
+    /* The summary card above is the point of this page; a responses list that
+       could not load is not worth an error banner of its own. */
+  }
+}
+
+function renderResponses(fieldList, list) {
+  fields = fieldList;
+  responses = list;
+
+  const card = document.getElementById("responsesCard");
+  const sub = document.getElementById("respSub");
+
+  card.hidden = false;
+
+  if (!responses.length) {
+    sub.textContent = "Nobody has answered yet.";
+    document.getElementById("respPager").hidden = true;
+    document.getElementById("respList").innerHTML = `
+      <div class="empty-state" style="box-shadow:none;padding:34px 20px">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <h3>No one has answered yet</h3>
+        <p>Copy a link from the box above and send it to the person you want to hear from.</p>
+        <button class="btn btn-ghost" type="button" onclick="copyLink()">Copy a link</button>
+      </div>
+    `;
     return;
   }
 
-  document.getElementById("tableCard").hidden = false;
-  document.getElementById("emptyState").hidden = true;
+  const count = responses.length;
+  sub.textContent = count + (count === 1 ? " person has" : " people have")
+    + " submitted this inquiry so far.";
 
-  const start = (page - 1) * PAGE_SIZE;
-  const slice = inquiries.slice(start, start + PAGE_SIZE);
+  /* Landing on #response-41 from the list has to open that answer, which may
+     be on any page - so the page is worked out from where it sits. */
+  const wanted = window.location.hash.replace("#", "");
+  const at = wanted.indexOf("response-") === 0
+    ? responses.findIndex(r => "response-" + r.id === wanted)
+    : -1;
 
-  rows.innerHTML = slice.map(row).join("");
+  if (at > -1) {
+    respPage = Math.floor(at / PER_PAGE) + 1;
+    openId = responses[at].id;
+  } else {
+    // Otherwise the newest is the one open, because it is the one anybody
+    // arriving here came to read.
+    openId = responses[0].id;
+  }
 
-  WZI.wireKebabs();
-  renderPager(total, pages, start, slice.length);
+  renderPage();
 }
 
-function row(inq) {
-  const leads = Number(inq.lead_count) || 0;
-  const title = WZI.escapeHtml(inq.title);
-  const inactive = inq.status === "inactive";
+function renderPage() {
+  const total = responses.length;
+  const pages = Math.max(1, Math.ceil(total / PER_PAGE));
 
-  // Just the number. The column heading says what it counts, so repeating
-  // "people" in every row only made the column wider.
-  const ANSWER_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`;
+  if (respPage > pages) respPage = pages;
 
-  const answers = leads
-    ? `<a class="answers-link" href="inquiry-details.html?id=${inq.id}#responses"
-          aria-label="${leads} answer${leads === 1 ? "" : "s"} to ${title}">${ANSWER_ICON}${leads}</a>`
-    : `<span class="answers-none">${ANSWER_ICON}0</span>`;
+  const start = (respPage - 1) * PER_PAGE;
+  const slice = responses.slice(start, start + PER_PAGE);
+
+  document.getElementById("respList").innerHTML =
+    slice.map((response, i) => item(response, start + i)).join("");
+
+  renderRespPager(total, pages, start, slice.length);
+
+  if (openId) {
+    const el = document.getElementById("response-" + openId);
+    if (el) el.scrollIntoView({ block: "nearest" });
+  }
+}
+
+function item(response, index) {
+  const who = WZI.identify(fields, response.answers, index);
+  const open = Number(response.id) === Number(openId);
+
+  const cells = fields.map(field => {
+    const answer = String((response.answers || {})[field.id] || "").trim();
+    const wide = field.field_type === "textarea";
+
+    return `
+      <div class="${wide ? "full" : ""}">
+        <span class="f-label">${WZI.escapeHtml(field.field_label)}</span>
+        <div class="f-value${wide ? " pre" : ""}">${WZI.answerHtml(field.field_label, answer)}</div>
+      </div>
+    `;
+  }).join("");
 
   return `
-    <tr>
-      <td>
-        <a class="t-link" href="inquiry-details.html?id=${inq.id}">
-          <span class="clamp2 t-title">${title}</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
-        </a>
-        ${inactive ? `<span class="t-sub"><span class="pill pill-inactive">Inactive</span></span>` : ""}
-      </td>
-      <td>${answers}</td>
-      <td class="col-hide t-when">
-        <b>${WZI.fmtDateISO(inq.created_at)}</b>${WZI.fmtTime(inq.created_at)}
-      </td>
-      <td class="col-hide col-view">
-        <a class="btn btn-dark" href="inquiry-details.html?id=${inq.id}">View</a>
-      </td>
-      <td class="action">
-        <div class="actions">
-          ${isOwner ? `<a class="btn btn-ghost" href="inquiry-form.html?id=${inq.id}">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
-            Edit
-          </a>` : ``}
-        </div>
-        <div class="kebab-wrap">
-          <button class="kebab" type="button" aria-haspopup="menu" aria-expanded="false"
-                  aria-label="Actions for ${title}">
-            <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
-          </button>
-          <div class="kebab-menu" role="menu">
-            <a role="menuitem" href="inquiry-details.html?id=${inq.id}">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg>
-              View details
-            </a>
-            ${isOwner ? `
-            <a role="menuitem" href="inquiry-form.html?id=${inq.id}">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
-              Edit
-            </a>` : ``}
-            <button role="menuitem" type="button" onclick="WZI.copyLink('${inq.slug}')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>
-              Copy link
-            </button>
-            ${isOwner ? `
-            <button role="menuitem" type="button" class="danger" onclick="removeInquiry(${inq.id})">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-              Delete
-            </button>` : ``}
-          </div>
-        </div>
-      </td>
-    </tr>
-  `;
-}
-
-function showEmptyState() {
-  document.getElementById("tableCard").hidden = true;
-
-  const box = document.getElementById("emptyState");
-
-  box.innerHTML = `
-    <div class="icon">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+    <div class="resp${open ? " open" : ""}" id="response-${response.id}">
+      <a class="resp-head" href="inquiry-response.html?id=${response.id}"
+         aria-expanded="${open ? "true" : "false"}" aria-controls="body-${response.id}"
+         onclick="return openResponse(event, this, ${response.id})">
+        <span class="who">
+          <span class="who-avatar lg">${WZI.escapeHtml(who.initials)}</span>
+          <span>
+            <span class="who-name">${WZI.escapeHtml(who.name)}</span>
+            ${who.sub ? `<span class="who-sub">${WZI.escapeHtml(who.sub)}</span>` : ``}
+          </span>
+        </span>
+        <span class="resp-when">${WZI.fmtDateTime(response.submitted_at)}</span>
+        <svg class="resp-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </a>
+      <div class="resp-body" id="body-${response.id}">
+        <div class="f-grid" style="margin-bottom:0">${cells}</div>
+      </div>
     </div>
-    <h3>No inquiries yet</h3>
-    <p>An inquiry is a template. Write the questions once, then share its link with everyone you want to hear from.</p>
-    <a class="create-btn" href="inquiry-form.html">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-      New Inquiry
-    </a>
   `;
-
-  box.hidden = false;
-  document.getElementById("pager").hidden = true;
 }
 
-/* ── Pager ───────────────────────────────────────────────────────────────── */
+/*
+| The head is an <a> pointing at inquiry-response.html, so it works with no
+| script, opens in a new tab and reads as a link. Wide enough to show the
+| answers in place, that navigation is cancelled and the disclosure opens
+| instead - a phone has no room for that, and follows the link.
+|
+| DRAWER matches the breakpoint assets/shell.css uses for the same reason.
+*/
+const DRAWER = 768;
 
-function renderPager(total, pages, start, shown) {
-  const pager = document.getElementById("pager");
+function openResponse(event, link, id) {
+  if (window.innerWidth <= DRAWER) return true;
+
+  event.preventDefault();
+  toggleResponse(link, id);
+  return false;
+}
+
+/* One at a time: two long answers open at once turns the card into a wall,
+   and the point of the list is scanning who answered. */
+function toggleResponse(button, id) {
+  const box = document.getElementById("response-" + id);
+
+  // Paging replaces the list, so an id from a page that is no longer on screen
+  // simply has nothing to toggle.
+  if (!box) return;
+
+  const wasOpen = box.classList.contains("open");
+
+  document.querySelectorAll("#respList .resp.open").forEach(el => {
+    el.classList.remove("open");
+    el.querySelector(".resp-head").setAttribute("aria-expanded", "false");
+  });
+
+  openId = wasOpen ? null : id;
+
+  if (!wasOpen) {
+    box.classList.add("open");
+    button.setAttribute("aria-expanded", "true");
+  }
+}
+
+function renderRespPager(total, pages, start, shown) {
+  const pager = document.getElementById("respPager");
 
   if (pages < 2) {
     pager.hidden = true;
@@ -552,55 +663,29 @@ function renderPager(total, pages, start, shown) {
 
   pager.hidden = false;
 
-  document.getElementById("pagerInfo").textContent =
-    "Showing " + (start + 1) + " to " + (start + shown) + " of " + total + " inquiries";
+  document.getElementById("respPagerInfo").textContent =
+    "Showing " + (start + 1) + " to " + (start + shown) + " of " + total + " responses";
 
-  let html = `<button type="button" ${page === 1 ? "disabled" : ""} onclick="goTo(${page - 1})" aria-label="Previous page">&lsaquo;</button>`;
+  let html = `<button type="button" ${respPage === 1 ? "disabled" : ""} onclick="goToResponses(${respPage - 1})" aria-label="Previous page">&lsaquo;</button>`;
 
   for (let n = 1; n <= pages; n++) {
-    html += `<button type="button" class="${n === page ? "current" : ""}" onclick="goTo(${n})">${n}</button>`;
+    html += `<button type="button" class="${n === respPage ? "current" : ""}" onclick="goToResponses(${n})">${n}</button>`;
   }
 
-  html += `<button type="button" ${page === pages ? "disabled" : ""} onclick="goTo(${page + 1})" aria-label="Next page">&rsaquo;</button>`;
+  html += `<button type="button" ${respPage === pages ? "disabled" : ""} onclick="goToResponses(${respPage + 1})" aria-label="Next page">&rsaquo;</button>`;
 
-  document.getElementById("pagerPages").innerHTML = html;
+  document.getElementById("respPagerPages").innerHTML = html;
 }
 
-function goTo(n) {
-  page = n;
-  render();
-  window.scrollTo({ top: 0, behavior: "smooth" });
+function goToResponses(n) {
+  respPage = n;
+  openId = null;
+  renderPage();
+  document.getElementById("responses").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-/* ── Delete ──────────────────────────────────────────────────────────────── */
-
-async function removeInquiry(id) {
-  const inq = inquiries.find(row => Number(row.id) === Number(id));
-  const leads = inq ? Number(inq.lead_count) || 0 : 0;
-
-  const warning = leads
-    ? `Delete this inquiry? Its ${leads} answer${leads === 1 ? "" : "s"} go with it, and that cannot be undone.`
-    : "Delete this inquiry? This cannot be undone.";
-
-  if (!confirm(warning)) return;
-
-  try {
-    const res = await fetch("api/admin-inquiries.php?id=" + id, {
-      method: "DELETE",
-      headers: { Authorization: "Bearer " + adminToken }
-    });
-    const data = await res.json();
-
-    WZI.toast(data.message || (data.success ? "Inquiry deleted" : "Could not delete."), !data.success);
-
-  } catch (error) {
-    WZI.toast("Network or server error.", true);
-  }
-
-  load();
-}
-
-load();
+loadInquiry();
+loadResponses();
 </script>
 <script src="assets/notifications.js?v=1"></script>
 <script src="assets/shell.js?v=1"></script>

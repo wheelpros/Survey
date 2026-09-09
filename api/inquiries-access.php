@@ -4,6 +4,8 @@ require_once "db.php";
 
 header("Content-Type: application/json");
 
+ensureInquiryTables($pdo);
+
 $headers = getallheaders();
 $token = str_replace("Bearer ", "", $headers["Authorization"] ?? "");
 

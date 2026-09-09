@@ -571,3 +571,146 @@ function ensureProjectTables(PDO $pdo)
         // their own message rather than dying here.
     }
 }
+
+/**
+ * Inquiries: the consultation forms handed out as one-off links, the answers
+ * that come back, and the fields that shape both.
+ *
+ *   inquiries               one consultation template
+ *   inquiry_fields          the questions on it
+ *   inquiry_invites         one row per submission, kept for the audit trail
+ *   inquiry_responses       one submission against one invite
+ *   inquiry_response_answers  the answer to one field of one submission
+ *
+ * The five tables predate this function - they were created by hand - so the
+ * CREATEs below only matter for a fresh install. What does run against the
+ * deployed database is the column check underneath: `slug`, `status` and
+ * `account_manager_admin_id` all arrived with the redesign.
+ *
+ * sql/inquiries.sql is the same thing to run by hand, and carries the note
+ * about links that expired on the old 24-hour timer.
+ */
+
+const INQUIRY_FIELD_EXTRA_COLUMNS = [
+    /* The options offered by a 'choice' or 'select' question, one per line.
+       Newline-separated rather than JSON because that is exactly how they are
+       typed on the form, and nothing else ever reads them apart. */
+    "options" => "TEXT NULL",
+];
+
+const INQUIRY_EXTRA_COLUMNS = [
+    /* The readable half of a public link: inquiry.html?name=<slug>&token=<invite>.
+       Derived from the title in PHP (slugifyInquiryTitle in
+       api/admin-inquiries.php), unique, and re-derived whenever the title
+       changes - so a link copied under an old title stops resolving. */
+    "slug"                     => "VARCHAR(200) NULL",
+
+    /* 'active' | 'inactive'. The only switch that closes a link now that
+       nothing expires on a clock. */
+    "status"                   => "VARCHAR(20) NOT NULL DEFAULT 'active'",
+
+    /* Whose consultation this is. Points at admins.id, role account_manager. */
+    "account_manager_admin_id" => "INT NULL",
+];
+
+function ensureInquiryTables(PDO $pdo)
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    try {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS inquiries (
+              id                       INT AUTO_INCREMENT PRIMARY KEY,
+              title                    VARCHAR(200) NOT NULL,
+              intro_text               TEXT             NULL,
+              slug                     VARCHAR(200)     NULL,
+              status                   VARCHAR(20)  NOT NULL DEFAULT 'active',
+              account_manager_admin_id INT              NULL,
+              created_by_admin_id      INT              NULL,
+              created_at               TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              UNIQUE KEY uniq_slug (slug),
+              KEY idx_manager (account_manager_admin_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS inquiry_fields (
+              id          INT AUTO_INCREMENT PRIMARY KEY,
+              inquiry_id  INT          NOT NULL,
+              field_label VARCHAR(200) NOT NULL,
+              field_type  VARCHAR(20)  NOT NULL DEFAULT 'input',
+              options     TEXT             NULL,
+              required    TINYINT(1)   NOT NULL DEFAULT 1,
+              sort_order  INT          NOT NULL DEFAULT 0,
+              KEY idx_inquiry (inquiry_id, sort_order)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+
+        /* `expires_at` is kept for the rows written before links stopped
+           expiring. Nothing sets it any more - createInvite() inserts NULL. */
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS inquiry_invites (
+              id         INT AUTO_INCREMENT PRIMARY KEY,
+              inquiry_id INT          NOT NULL,
+              slug       VARCHAR(64)  NOT NULL,
+              status     VARCHAR(20)  NOT NULL DEFAULT 'pending',
+              expires_at DATETIME         NULL,
+              created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              UNIQUE KEY uniq_invite_slug (slug),
+              KEY idx_inquiry_status (inquiry_id, status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS inquiry_responses (
+              id           INT AUTO_INCREMENT PRIMARY KEY,
+              inquiry_id   INT       NOT NULL,
+              invite_id    INT       NOT NULL,
+              submitted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              KEY idx_inquiry (inquiry_id, submitted_at),
+              KEY idx_invite (invite_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS inquiry_response_answers (
+              id          INT AUTO_INCREMENT PRIMARY KEY,
+              response_id INT  NOT NULL,
+              field_id    INT  NOT NULL,
+              answer_text TEXT     NULL,
+              KEY idx_response (response_id),
+              KEY idx_field (field_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+
+        // Columns added to tables that already existed.
+        $tables = [
+            "inquiries"      => INQUIRY_EXTRA_COLUMNS,
+            "inquiry_fields" => INQUIRY_FIELD_EXTRA_COLUMNS,
+        ];
+
+        foreach ($tables as $table => $columns) {
+
+            $stmt = $pdo->prepare("
+                SELECT COLUMN_NAME
+                FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
+            ");
+            $stmt->execute([$table]);
+            $existing = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+            foreach ($columns as $column => $type) {
+                if (!in_array($column, $existing, true)) {
+                    $pdo->exec("ALTER TABLE `$table` ADD COLUMN `$column` $type");
+                }
+            }
+        }
+    } catch (PDOException $e) {
+        // Read-only DB user: the endpoints fail on their own first query with
+        // their own message rather than dying here.
+    }
+}

@@ -23,6 +23,19 @@ h1{font-size:26px;margin-bottom:12px;}
   padding:14px 16px;font-size:15px;outline:none;
 }
 .field-group textarea{min-height:110px;resize:vertical;}
+
+/* Tick lists and dropdowns. A choice is a whole row, so the label is as easy
+   to hit as the box - this is a form filled in on a phone. */
+.choices{display:flex;flex-direction:column;gap:8px;}
+.choice{display:flex;align-items:flex-start;gap:10px;border:1px solid #dfe3ea;background:#fff;
+  border-radius:12px;padding:12px 14px;font-size:14px;cursor:pointer;
+  transition:border-color .15s,background .15s;}
+.choice:hover{background:#f8fafc;border-color:#c9ced8;}
+.choice input{width:18px;height:18px;flex:none;margin-top:1px;accent-color:#1b1e3a;cursor:pointer;}
+.choice:has(input:checked){border-color:#1b1e3a;background:#f6f7fb;}
+.field-group select{width:100%;border:1px solid #dfe3ea;background:#f8fafc;border-radius:12px;
+  padding:12px 14px;font-size:14px;outline:none;cursor:pointer;height:48px;}
+.field-group select:focus{border-color:#1b1e3a;box-shadow:0 0 0 4px rgba(27,30,58,.10);}
 .field-group input:focus,.field-group textarea:focus{
   border-color:#1b1e3a;box-shadow:0 0 0 4px rgba(27,30,58,.10);
 }
@@ -58,20 +71,29 @@ h1{font-size:26px;margin-bottom:12px;}
 
 <script>
 const params = new URLSearchParams(window.location.search);
-const slug = params.get("ref") || "";
+
+/* A link is ?name=<inquiry> - one link per inquiry, open while the inquiry
+   is active. Links handed out earlier carried a per-person token instead
+   (?token=, and ?ref= before that); those still resolve, and are still good
+   for exactly one answer. */
+const inquiryName  = params.get("name") || "";
+const inquiryToken = params.get("token") || params.get("ref") || "";
 
 let inquiryFields = [];
 
 async function loadInquiry(){
   const card = document.getElementById("card");
 
-  if(!slug){
+  if(!inquiryName && !inquiryToken){
     card.innerHTML = `<div class="notfound">This link is missing or invalid.</div>`;
     return;
   }
 
   try{
-    const res = await fetch("api/public-inquiry.php?slug=" + encodeURIComponent(slug));
+    const res = await fetch(
+      "api/public-inquiry.php?token=" + encodeURIComponent(inquiryToken)
+      + "&name=" + encodeURIComponent(inquiryName)
+    );
     const data = await res.json();
 
     if(!data.success){
@@ -87,6 +109,45 @@ async function loadInquiry(){
   }
 }
 
+/* One question, one control. A 'choice' takes any number of answers and a
+   'select' exactly one; both read their options from the same list, which the
+   endpoint stores one per line. */
+function control(field){
+  const required = Number(field.required) === 1;
+  const options = String(field.options || "").split(/\r\n|\r|\n/).map(o => o.trim()).filter(Boolean);
+
+  if(field.field_type === "choice" && options.length){
+    return `
+      <div class="choices" data-choice-for="${field.id}">
+        ${options.map(option => `
+          <label class="choice">
+            <input type="checkbox" name="field-${field.id}" value="${escapeHtml(option)}"
+                   data-choice-id="${field.id}">
+            <span>${escapeHtml(option)}</span>
+          </label>
+        `).join("")}
+      </div>
+    `;
+  }
+
+  if(field.field_type === "select" && options.length){
+    return `
+      <select data-field-id="${field.id}" ${required ? "required" : ""}>
+        <option value="">Choose one...</option>
+        ${options.map(option => `
+          <option value="${escapeHtml(option)}">${escapeHtml(option)}</option>
+        `).join("")}
+      </select>
+    `;
+  }
+
+  if(field.field_type === "textarea"){
+    return `<textarea data-field-id="${field.id}" ${required ? "required" : ""}></textarea>`;
+  }
+
+  return `<input type="text" data-field-id="${field.id}" ${required ? "required" : ""}>`;
+}
+
 function renderForm(inquiry, fields){
   const card = document.getElementById("card");
 
@@ -98,11 +159,7 @@ function renderForm(inquiry, fields){
       ${fields.map(f => `
         <div class="field-group">
           <label>${escapeHtml(f.field_label)} ${Number(f.required) === 1 ? `<span class="req">*</span>` : ``}</label>
-          ${
-            f.field_type === "textarea"
-            ? `<textarea data-field-id="${f.id}" ${Number(f.required) === 1 ? "required" : ""}></textarea>`
-            : `<input type="text" data-field-id="${f.id}" ${Number(f.required) === 1 ? "required" : ""}>`
-          }
+          ${control(f)}
         </div>
       `).join("")}
 
@@ -121,6 +178,15 @@ async function submitInquiry(e){
   const statusEl = document.getElementById("formStatus");
 
   const answers = inquiryFields.map(f => {
+
+    if(f.field_type === "choice"){
+      const ticked = Array.from(
+        document.querySelectorAll(`[data-choice-id="${f.id}"]:checked`)
+      ).map(box => box.value);
+
+      return { fieldId: f.id, value: ticked };
+    }
+
     const input = document.querySelector(`[data-field-id="${f.id}"]`);
     return { fieldId: f.id, value: input ? input.value.trim() : "" };
   });
@@ -140,7 +206,7 @@ async function submitInquiry(e){
     const res = await fetch("api/public-inquiry.php", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slug, answers })
+      body: JSON.stringify({ token: inquiryToken, name: inquiryName, answers })
     });
 
     const data = await res.json();
