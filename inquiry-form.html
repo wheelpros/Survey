@@ -47,15 +47,13 @@ body{background:#f6f7fb;color:#101828;padding:0}
 @media(max-width:760px){.builder-grid{grid-template-columns:1fr}}
 
 .custom-field-row{
-  display:flex;flex-direction:column;gap:12px;margin-bottom:12px;
+  display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px;
   border:1px solid #eef1f5;border-radius:12px;padding:16px;background:#fafbfc;
 }
-.field-row-top{display:flex;gap:10px;align-items:flex-end}
-.field-row-top .field-group{flex:1;margin-bottom:0}
-.field-row-bottom{display:flex;gap:16px;align-items:center}
-.field-row-bottom .type-group{flex:1;margin-bottom:0}
-.field-row-bottom .type-group select{width:100%}
-.custom-field-row .required-group{flex:none;display:flex;align-items:center;gap:6px}
+.custom-field-row .field-group{flex:2;min-width:180px;margin-bottom:0}
+.custom-field-row .type-group{flex:1;min-width:150px;margin-bottom:0}
+.custom-field-row .type-group select{width:100%}
+.custom-field-row .required-group{flex:none;display:flex;align-items:center;gap:6px;padding-bottom:12px;white-space:nowrap}
 .remove-field-btn{
   flex:none;border:none;background:#fde8e8;color:#c9000b;
   width:40px;height:40px;border-radius:10px;cursor:pointer;font-size:16px;
@@ -420,26 +418,22 @@ function addFormField(label = "", type = "input", required = true){
   row.className = "custom-field-row";
   row.id = rowId;
   row.innerHTML = `
-    <div class="field-row-top">
-      <div class="field-group">
-        <label>Label</label>
-        <input type="text" class="field-label-input" value="${escapeHtml(label)}" placeholder="e.g. Phone Number">
-      </div>
-      <button type="button" class="remove-field-btn" onclick="document.getElementById('${rowId}').remove()">&times;</button>
+    <div class="field-group">
+      <label>Label</label>
+      <input type="text" class="field-label-input" value="${escapeHtml(label)}" placeholder="e.g. Phone Number">
     </div>
-    <div class="field-row-bottom">
-      <div class="type-group field-group">
-        <label>Type</label>
-        <select class="field-type-input">
-          <option value="input" ${type === "input" ? "selected" : ""}>Short answer</option>
-          <option value="textarea" ${type === "textarea" ? "selected" : ""}>Long answer</option>
-        </select>
-      </div>
-      <div class="required-group">
-        <input type="checkbox" class="field-required-input" ${required ? "checked" : ""} style="width:16px;height:16px;">
-        <label style="margin:0;font-size:12px;font-weight:700;">Required</label>
-      </div>
+    <div class="type-group field-group">
+      <label>Type</label>
+      <select class="field-type-input">
+        <option value="input" ${type === "input" ? "selected" : ""}>Short answer</option>
+        <option value="textarea" ${type === "textarea" ? "selected" : ""}>Long answer</option>
+      </select>
     </div>
+    <div class="required-group">
+      <input type="checkbox" class="field-required-input" ${required ? "checked" : ""} style="width:16px;height:16px;">
+      <label style="margin:0;font-size:12px;font-weight:700;">Required</label>
+    </div>
+    <button type="button" class="remove-field-btn" onclick="document.getElementById('${rowId}').remove()">&times;</button>
   `;
   container.appendChild(row);
 }

@@ -259,17 +259,17 @@ document.addEventListener("DOMContentLoaded", function () {
       <table>
         <colgroup>
           <col style="width:26%">
-          <col style="width:16%">
+          <col style="width:18%">
           <col style="width:16%">
           <col style="width:14%">
-          <col style="width:28%">
+          <col style="width:26%">
         </colgroup>
         <thead>
           <tr>
             <th>Inquiry Name</th>
             <th>List of People</th>
-            <th>Status</th>
             <th>Created</th>
+            <th>View Details</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -398,18 +398,22 @@ function renderPage(){
 
     return `
     <tr>
-      <td><span class="inquiry-name">${escapeHtml(inq.title)}</span></td>
+      <td>
+        <span class="inquiry-name">${escapeHtml(inq.title)}</span>
+        <span class="badge ${isActive ? "approved" : "pending"}" style="margin-left:8px;">${isActive ? "Active" : "Inactive"}</span>
+      </td>
       <td>
         <span class="people-count">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           ${inq.lead_count} ${Number(inq.lead_count) === 1 ? "person" : "people"}
         </span>
       </td>
-      <td><span class="badge ${isActive ? "approved" : "pending"}">${isActive ? "Active" : "Inactive"}</span></td>
       <td>${escapeHtml(inq.created_at)}</td>
       <td>
+        <a class="btn action-btn" href="inquiry-responses.html?inquiry_id=${inq.id}">View</a>
+      </td>
+      <td>
         <div class="actions">
-          <a class="btn action-btn" href="inquiry-responses.html?inquiry_id=${inq.id}">View</a>
           <button class="btn outline-btn" onclick="copyLink('${publicBase}?ref=${inq.slug}')">Copy Link</button>
           ${isOwner ? `<button class="btn outline-btn" onclick="window.location.href='inquiry-form.html?id=${inq.id}'">Edit</button>` : ``}
           ${isOwner ? `<button class="btn danger-btn" onclick="deleteInquiry(${inq.id})">Delete</button>` : ``}
