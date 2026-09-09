@@ -831,10 +831,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         response(false, "That client is not available to you.", [], 403);
     }
 
-    $projectType = trim((string) ($_POST["project_type"] ?? "survey"));
+    /* The forms no longer ask for a type. The column stays because rows and
+       other endpoints still read it, so an edit keeps whatever the project
+       already had and a new project takes the default. */
+    $projectType = trim((string) ($_POST["project_type"] ?? ($existing["project_type"] ?? "survey")));
 
     if (!isset(PROJECT_TYPES[$projectType])) {
-        response(false, "Choose a valid project type.", [], 400);
+        $projectType = "survey";
     }
 
     $status = trim((string) ($_POST["status"] ?? "planning"));
