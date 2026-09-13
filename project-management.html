@@ -24,6 +24,13 @@ body{background:#f6f7fb;color:#101828}
 .pager{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:16px 0}
 .pager[hidden]{display:none}
 .pager-info{font-size:13px;font-weight:600;color:var(--muted)}
+/* On a phone the count wraps onto its own line above the buttons and adds
+   nothing the buttons do not already say, so it comes out and they take the
+   row to themselves. */
+@media(max-width:700px){
+  .pager-info{display:none}
+  .pager{justify-content:center}
+}
 .pager-pages{display:flex;gap:6px;flex-wrap:wrap}
 .pager button{min-width:36px;height:36px;padding:0 12px;border:1px solid #dfe3ea;background:#fff;border-radius:9px;font:inherit;font-size:13px;font-weight:700;color:var(--text);cursor:pointer}
 .pager button:hover:not(:disabled){background:#f6f7f9}
@@ -253,17 +260,19 @@ tr:last-child td{border-bottom:none}
 td.action{text-align:center;white-space:nowrap}
 /* View and Edit sit side by side, right-aligned under the Action heading. */
 .action-btns{display:inline-flex;gap:8px;align-items:center;justify-content:flex-end}
+.kebab-gap{display:inline-block;width:34px}
 /* The pager sits inside the card, so it needs the divider the rows have. */
 .table-card .wz-tablewrap{overflow:visible}
 .table-card .pager{padding:16px 24px;border-top:1px solid var(--line)}
 
 /* ── Row actions ───────────────────────────────────────────────────────────
-   A four-column table does not fit a phone, and side-scrolling a list you are
-   scanning is miserable. Below 768px the column that is context rather than
-   identity - the timeline - comes out, and the actions collapse to the usual
-   three-dot menu. Both controls are always in the markup; the breakpoint
-   decides which one is showing. */
-.kebab-wrap{position:relative;display:none}
+   Two controls at every width: View, the thing you came to the row to do, and
+   a three-dot menu holding the two that change or destroy it. Edit and Delete
+   sitting out in the open gave a destructive action the same weight as the
+   ordinary one, and cost the column width it needed on a narrow screen. Below
+   768px the timeline column - context rather than identity - still comes out,
+   but the actions no longer change shape. */
+.kebab-wrap{position:relative;display:inline-block}
 .kebab{
   width:34px;height:34px;border:1px solid #dfe3ea;background:#fff;border-radius:9px;
   color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;
@@ -281,19 +290,29 @@ td.action{text-align:center;white-space:nowrap}
   display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:8px;
   font-size:13px;font-weight:700;color:var(--text);text-decoration:none;white-space:nowrap;
 }
-.kebab-menu a:hover{background:#f2f4f8}
+/* Delete is a <button> rather than a link, so the menu styles both. */
+.kebab-menu button{
+  width:100%;font:inherit;background:none;border:none;cursor:pointer;
+  display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:8px;
+  font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;
+}
+.kebab-menu a:hover,.kebab-menu button:hover{background:#f2f4f8}
 .kebab-menu svg{width:15px;height:15px;flex:none;color:var(--muted)}
+/* The one item in the menu that destroys something reads as such, and is
+   divided off so it is not the neighbour of Edit by accident. */
+.kebab-menu .danger{color:var(--brand);margin-top:5px;padding-top:12px;border-top:1px solid #eef1f5;border-radius:0}
+.kebab-menu .danger svg{color:var(--brand)}
+.kebab-menu .danger:hover{background:#fff5f5}
 
-/* The action cell has to fit "View Details" and "Edit" side by side - 113px
-   plus the smaller button, the gap and the cell padding. With table-layout:fixed
-   a column that is too narrow lets the buttons spill out rather than widening to
-   hold them, so the split shifts well before the table gets tight. Separate from
-   the stats breakpoint below, which is about something else. */
+/* The action cell now holds "View" and a 34px square, so the column can give
+   its width back to the three that carry text. With table-layout:fixed a column
+   that is too narrow lets the buttons spill out rather than widening to hold
+   them, so the split still shifts before the table gets tight. */
 @media(max-width:1500px){
-  th:nth-child(1),td:nth-child(1){width:24%}
-  th:nth-child(2),td:nth-child(2){width:19%}
-  th:nth-child(3),td:nth-child(3){width:20%}
-  th:nth-child(4),td:nth-child(4){width:37%}
+  th:nth-child(1),td:nth-child(1){width:29%}
+  th:nth-child(2),td:nth-child(2){width:22%}
+  th:nth-child(3),td:nth-child(3){width:25%}
+  th:nth-child(4),td:nth-child(4){width:24%}
   td.action{padding-left:8px}
 }
 @media(max-width:768px){
@@ -303,16 +322,61 @@ td.action{text-align:center;white-space:nowrap}
      equally specific rule would lose on source order. */
   .table-card .wz-tablewrap td,
   .table-card .wz-tablewrap th{white-space:normal}
-  td.action,th:last-child{white-space:nowrap}
+  /* Same two-class weight as the rule above, which would otherwise win on
+     specificity and let the action cell break between View and the kebab. */
+  .table-card .wz-tablewrap td.action,
+  .table-card .wz-tablewrap th:last-child{white-space:nowrap}
   .col-timeline{display:none}
   /* Taller rows, and the two text columns squeezed so a long name uses the
      second line the clamp above allows instead of one wide one. */
   th,td{padding:20px 12px}
-  th:first-child,td:first-child{padding-left:12px;width:46%}
-  th:nth-child(2),td:nth-child(2){width:32%}
+  /* The action column takes the width it needs for both controls first; the
+     two text columns wrap, which is what the clamp above is for. */
+  th:first-child,td:first-child{padding-left:12px;width:40%}
+  th:nth-child(2),td:nth-child(2){width:28%}
   th:last-child,td:last-child{padding-right:12px}
-  .action .action-btns{display:none}
-  .kebab-wrap{display:inline-block}
+}
+
+/* ── Delete confirmation ───────────────────────────────────────────────────
+   window.confirm() gives a destructive action the same one-click dismissal as
+   any other alert, and on a list page the browser chrome never says which row
+   is about to go. This says what is being deleted, and gates the button behind
+   a word that has to be typed out. */
+.confirm-modal{position:fixed;inset:0;background:rgba(16,24,40,.55);display:none;align-items:center;justify-content:center;z-index:99998;padding:20px}
+.confirm-modal.show{display:flex}
+.confirm-box{width:100%;max-width:440px;background:#fff;border-radius:20px;box-shadow:0 24px 70px rgba(16,24,40,.28);padding:28px}
+.confirm-icon{width:52px;height:52px;border-radius:14px;background:#fdecec;color:var(--brand);display:flex;align-items:center;justify-content:center;margin-bottom:18px}
+.confirm-icon svg{width:26px;height:26px}
+.confirm-box h2{font-size:18px;margin-bottom:8px}
+.confirm-box .confirm-text{font-size:13px;line-height:1.7;color:var(--muted);margin-bottom:20px;word-break:break-word}
+.confirm-ack{display:block;margin-bottom:22px}
+.confirm-ack span{display:block;font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+.confirm-ack span b{color:var(--brand);font-weight:800;letter-spacing:.8px}
+.confirm-ack input{width:100%;height:46px;border:1px solid #dfe3ea;border-radius:11px;padding:0 13px;font:inherit;font-size:14px;font-weight:700;letter-spacing:.5px;color:var(--text);background-color:#fff}
+.confirm-ack input::placeholder{font-weight:600;letter-spacing:0;color:#aeb6c4}
+.confirm-ack input:focus{outline:none;border-color:var(--nav-active);box-shadow:0 0 0 3px rgba(27,30,58,.08)}
+/* Green only once it matches, so the button turning on is not the first sign
+   the word was typed correctly. */
+.confirm-ack input.ok{border-color:#20a95a;box-shadow:0 0 0 3px rgba(32,169,90,.10)}
+.confirm-actions{display:flex;gap:10px;justify-content:flex-end}
+.confirm-actions .btn{padding:12px 18px;font-size:13px}
+/* Solid red, unlike the outlined .btn-danger on the cards: this is the button
+   that actually destroys something. */
+.btn-danger-solid{background:var(--brand);color:#fff}
+.btn-danger-solid:hover:not([disabled]){background:#a80009}
+@media(max-width:520px){
+  .confirm-box{padding:22px}
+  .confirm-actions{flex-direction:column-reverse}
+  .confirm-actions .btn{width:100%}
+}
+
+/* Under ~420px the action column's share stops covering View plus the kebab,
+   and the kebab was hanging 4px past the edge of the screen. The two text
+   columns give up the width - they wrap, the buttons cannot. */
+@media(max-width:420px){
+  th:first-child,td:first-child{width:36%}
+  th:nth-child(2),td:nth-child(2){width:26%}
+  td.action,th:last-child{padding-left:4px;padding-right:10px}
 }
 
 @media(max-width:1100px){.stats{grid-template-columns:repeat(2,1fr)}}
@@ -497,6 +561,26 @@ document.addEventListener("DOMContentLoaded", function () {
       <strong id="acctName">Admin</strong>
       <div class="acct-role" id="acctRole">Administrator</div>
       <button class="acct-logout" onclick="logoutAdmin()">&#8617; Logout</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE CONFIRMATION (replaces window.confirm for destructive actions) -->
+<div class="confirm-modal" id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+  <div class="confirm-box">
+    <div class="confirm-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+    </div>
+    <h2 id="confirmTitle">Delete</h2>
+    <p class="confirm-text" id="confirmText"></p>
+    <label class="confirm-ack">
+      <span>Type <b>DELETE</b> to confirm</span>
+      <input type="text" id="confirmAck" placeholder="DELETE"
+             autocomplete="off" autocapitalize="characters" spellcheck="false">
+    </label>
+    <div class="confirm-actions">
+      <button class="btn btn-ghost" type="button" id="confirmCancel">Cancel</button>
+      <button class="btn btn-danger-solid" type="button" id="confirmOk" disabled>Delete</button>
     </div>
   </div>
 </div>
@@ -774,31 +858,105 @@ function render(){
       </td>
       <td class="action">
         <span class="action-btns">
-          <a class="btn btn-ghost" href="project-details.html?id=${encodeURIComponent(project.id)}">View Details</a>
-          <a class="btn btn-dark" href="project-form.html?id=${encodeURIComponent(project.id)}">Edit</a>
+          <a class="btn btn-ghost" href="project-details.html?id=${encodeURIComponent(project.id)}">View</a>
         </span>
-        <div class="kebab-wrap">
-          <button class="kebab" type="button" aria-haspopup="menu" aria-expanded="false"
-                  aria-label="Actions for ${esc(project.title)}">
-            <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
-          </button>
-          <div class="kebab-menu" role="menu">
-            <a role="menuitem" href="project-details.html?id=${encodeURIComponent(project.id)}">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg>
-              View Details
-            </a>
-            <a role="menuitem" href="project-form.html?id=${encodeURIComponent(project.id)}">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
-              Edit
-            </a>
-          </div>
-        </div>
+        ${rowMenu(project)}
       </td>
     </tr>
   `).join("");
 
   wireKebabs();
   renderPager(total, pages, start, slice.length);
+}
+
+/*
+| The three-dot menu beside View. It holds only what this admin may actually do
+| with the row - the API decides that per project, since editing follows the
+| account manager and deleting follows whoever created it - and an admin who may
+| do neither gets no button at all rather than a menu that only says no.
+*/
+function rowMenu(project){
+  const items = [];
+
+  if (project.can_edit) {
+    items.push(`
+      <a role="menuitem" href="project-form.html?id=${encodeURIComponent(project.id)}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+        Edit
+      </a>`);
+  }
+
+  if (project.can_delete) {
+    items.push(`
+      <button class="danger" role="menuitem" type="button" onclick="removeProject(${Number(project.id)})">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        Delete
+      </button>`);
+  }
+
+  /* A row this admin may only look at still has to leave the menu's width
+     behind it, or its View button sits 42px right of every other one. */
+  if (!items.length) return '<span class="kebab-gap"></span>';
+
+  return `
+    <div class="kebab-wrap">
+      <button class="kebab" type="button" aria-haspopup="menu" aria-expanded="false"
+              aria-label="More actions for ${esc(project.title)}">
+        <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
+      </button>
+      <div class="kebab-menu" role="menu">${items.join("")}</div>
+    </div>`;
+}
+
+/*
+| Deleting from the list rather than from the project's own form: the row is the
+| thing being removed, so the confirmation names it and the table drops it in
+| place. api/projects.php takes its tasks and members with it.
+*/
+async function removeProject(id){
+  const project = projects.find(p => Number(p.id) === Number(id));
+
+  if (!project) return;
+
+  closeKebabs();
+
+  const ok = await askConfirm({
+    title : "Delete project",
+    text  : '"' + project.title + '" will be deleted, along with every task on '
+          + "it and everyone assigned to it. This cannot be undone.",
+    action: "Delete project"
+  });
+
+  if (!ok) return;
+
+  const data = await api("api/projects.php?id=" + encodeURIComponent(id), { method:"DELETE" });
+
+  toast(data.message, !data.success);
+
+  if (!data.success) return;
+
+  projects = projects.filter(p => Number(p.id) !== Number(id));
+
+  /* The cards are counted in SQL over the whole scope, so nothing on the page
+     recomputes them. Reloading to refresh four numbers would re-append the
+     client filter's options, so the row that left is subtracted instead - from
+     the total and from whichever bucket the server put it in. */
+  bumpStat("statTotal", -1);
+  bumpStat({ active:"statActive", completed:"statCompleted", upcoming:"statUpcoming" }[project.bucket], -1);
+
+  /* applyFilters re-derives `filtered` and re-renders, which also pulls the
+     page back when the last row on the last page was the one deleted. */
+  applyFilters();
+}
+
+function bumpStat(id, by){
+  const el = id && document.getElementById(id);
+  if (!el) return;
+
+  const now = Number(String(el.textContent).replace(/[^0-9]/g, ""));
+  if (!Number.isFinite(now)) return;
+
+  el.textContent = money(Math.max(0, now + by));
 }
 
 function renderPager(total, pages, start, shown){
@@ -826,6 +984,87 @@ function goTo(n){
   render();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
+
+/*
+|------------------------------------------------------------------------------
+| Delete confirmation
+|------------------------------------------------------------------------------
+|
+| window.confirm() cannot name the row it is about to destroy and takes a single
+| stray Enter as consent. This resolves a promise instead, and keeps the Delete
+| button disabled until DELETE has been typed into the field, so the consent is
+| a deliberate second action rather than a reflex.
+|
+*/
+
+let confirmResolve = null;
+
+function askConfirm(options){
+  const box    = document.getElementById("confirmModal");
+  const ack    = document.getElementById("confirmAck");
+  const okBtn  = document.getElementById("confirmOk");
+
+  document.getElementById("confirmTitle").textContent = options.title || "Delete";
+  document.getElementById("confirmText").textContent  = options.text  || "";
+  okBtn.textContent = options.action || "Delete";
+
+  // Never inherit the previous answer: every deletion is acknowledged on its own.
+  ack.value      = "";
+  ack.classList.remove("ok");
+  okBtn.disabled = true;
+
+  box.classList.add("show");
+  ack.focus();
+
+  return new Promise(function (resolve) { confirmResolve = resolve; });
+}
+
+function closeConfirm(answer){
+  document.getElementById("confirmModal").classList.remove("show");
+
+  const resolve = confirmResolve;
+  confirmResolve = null;
+
+  if (resolve) resolve(!!answer);
+}
+
+/* Case-insensitive and trimmed: the point is a deliberate second action, not a
+   typing test. Enter in the field is the same as pressing the button, but only
+   once the word is there - otherwise Enter would be exactly the reflex
+   dismissal this box exists to prevent. */
+function ackIsGiven(){
+  return document.getElementById("confirmAck").value.trim().toUpperCase() === "DELETE";
+}
+
+document.getElementById("confirmAck").addEventListener("input", function(){
+  const given = ackIsGiven();
+  this.classList.toggle("ok", given);
+  document.getElementById("confirmOk").disabled = !given;
+});
+
+document.getElementById("confirmAck").addEventListener("keydown", function (event) {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    if (ackIsGiven()) closeConfirm(true);
+  }
+});
+
+document.getElementById("confirmOk").addEventListener("click", function(){
+  if (!this.disabled) closeConfirm(true);
+});
+
+document.getElementById("confirmCancel").addEventListener("click", function(){
+  closeConfirm(false);
+});
+
+// Clicking the backdrop cancels; clicking the box itself must not.
+document.getElementById("confirmModal").addEventListener("click", function(event){
+  if (event.target === this) closeConfirm(false);
+});
+
+document.addEventListener("keydown", function (event) {
+  if (event.key === "Escape" && confirmResolve) closeConfirm(false);
+});
 
 document.getElementById("filterSearch").addEventListener("input", applyFilters);
 document.getElementById("filterClient").addEventListener("change", applyFilters);

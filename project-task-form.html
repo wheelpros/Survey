@@ -264,6 +264,7 @@ input:disabled{opacity:.5;cursor:not-allowed}
 .counter.over{color:var(--brand);font-weight:800}
 
 /* ── Media dropzone ── */
+.dropzone[hidden]{display:none}
 .dropzone{border:2px dashed #d5dbe6;border-radius:14px;background:#fbfcfe;padding:26px 16px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
 .dropzone:hover,.dropzone.dragging{border-color:var(--nav-active);background:#f5f6fa}
 .dropzone svg{width:24px;height:24px;color:var(--muted);margin-bottom:10px}
@@ -521,16 +522,20 @@ document.addEventListener("DOMContentLoaded", function () {
           <div class="panel-head"><h2>Media Assets</h2></div>
           <div class="panel-body">
 
+            <!-- One slot, one image: the dropzone is for putting an image
+                 there, so it steps aside once there is one. Removing the image
+                 with the x on the preview brings it back. -->
             <div class="dropzone" id="dropzone" tabindex="0" role="button"
                  aria-label="Upload an image">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
               <strong>Upload image</strong>
               <!-- Written by the API's own cap, so the copy and the server
                    rule cannot drift apart. -->
-              <span id="mediaHint">Optional. Maximum 1 MB</span>
+              <span id="mediaHint">Optional. Maximum 3 MB</span>
             </div>
 
             <input type="file" id="mediaInput" accept="image/*" hidden>
+
 
             <div class="media-preview is-horizontal" id="mediaPreview">
               <div class="thumb" id="mediaThumb"></div>
@@ -713,7 +718,7 @@ let orientation = "horizontal";
 let mediaFile   = null;     // a File chosen this session, or null
 let removeMedia = false;    // the existing image was cleared
 let maxChars    = 2000;
-let maxBytes    = 1024 * 1024;
+let maxBytes    = 3 * 1024 * 1024;
 let saving      = false;
 
 if (!taskId && !projectId) {
@@ -848,6 +853,7 @@ function acceptMedia(file){
 function showMedia(url){
   document.getElementById("mediaThumb").style.backgroundImage = "url('" + url + "')";
   document.getElementById("mediaPreview").classList.add("show");
+  document.getElementById("dropzone").hidden = true;
 }
 
 function clearMedia(){
@@ -856,6 +862,7 @@ function clearMedia(){
   input.value = "";
   mediaError("");
   document.getElementById("mediaPreview").classList.remove("show");
+  document.getElementById("dropzone").hidden = false;
 }
 
 /* ── Load ───────────────────────────────────────────────────────────────── */

@@ -687,9 +687,16 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
 
         $projects = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+        /*
+        | The same two flags the single-project GET returns, because the list
+        | now carries Edit and Delete in the row menu. Both endpoints enforce
+        | the rule again on write; these only decide what is worth offering.
+        */
         foreach ($projects as &$row) {
             $row["type_label"]   = PROJECT_TYPES[$row["project_type"]] ?? $row["project_type"];
             $row["status_label"] = PROJECT_STATUSES[$row["status"]] ?? $row["status"];
+            $row["can_edit"]     = canManageProject($admin, $row);
+            $row["can_delete"]   = canDeleteProject($admin, $row);
         }
         unset($row);
 

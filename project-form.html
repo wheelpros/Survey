@@ -265,6 +265,7 @@ textarea{min-height:96px;resize:vertical;line-height:1.6}
 .multi-panel .none{padding:14px 10px;font-size:13px;color:var(--muted)}
 
 /* ── Media dropzone: the task form's, at this page's 3 MB cap ── */
+.dropzone[hidden]{display:none}
 .dropzone{border:2px dashed #d5dbe6;border-radius:14px;background:#fbfcfe;padding:24px 16px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
 .dropzone:hover,.dropzone.dragging{border-color:var(--nav-active);background:#f5f6fa}
 .dropzone svg{width:24px;height:24px;color:var(--muted);margin-bottom:10px}
@@ -277,13 +278,24 @@ textarea{min-height:96px;resize:vertical;line-height:1.6}
 .media-error{display:none;font-size:12px;color:var(--brand);font-weight:700;margin-top:10px}
 .media-error.show{display:block}
 
-/* ── Actions ── */
-.form-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:26px}
+/* ── Actions ──
+   Cancel on the left, Save on the right: the destination of the form is the
+   button furthest along the reading direction, and the way out of it is where
+   the eye starts. Deleting is not here at all any more - it belongs to the row
+   on the list, which is where you decide a project should stop existing, not
+   halfway through editing it. */
+.form-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:26px}
+.form-actions .primary-btn{margin-left:auto}
+.cancel-btn{
+  height:46px;border:1px solid #dfe3ea;border-radius:12px;background:#fff;
+  color:var(--text);font:inherit;font-size:14px;font-weight:800;
+  cursor:pointer;padding:0 20px;text-decoration:none;
+  display:inline-flex;align-items:center;
+}
+.cancel-btn:hover{background:#f6f7f9}
 .primary-btn{height:46px;border:none;border-radius:12px;background:var(--nav-active);color:#fff;font:inherit;font-size:14px;font-weight:800;cursor:pointer;padding:0 22px;display:inline-flex;align-items:center;gap:8px}
 .primary-btn:hover{background:#282c52}
 .primary-btn:disabled{opacity:.6;cursor:not-allowed}
-.delete-btn{height:46px;border:1px solid #f0d2d4;border-radius:12px;background:#fff;color:var(--brand);font:inherit;font-size:14px;font-weight:800;cursor:pointer;padding:0 20px;margin-left:auto}
-.delete-btn:hover{background:#fff5f5}
 
 @media(max-width:950px){.admin-content{padding:24px 18px 40px}}
 @media(max-width:700px){
@@ -292,8 +304,9 @@ textarea{min-height:96px;resize:vertical;line-height:1.6}
      neither of them usable. */
   .form-grid{grid-template-columns:1fr}
   .panel-body{padding:20px}
-  .form-actions{flex-direction:column}
-  .primary-btn,.delete-btn{width:100%;justify-content:center;margin-left:0}
+  /* Stacked on a phone, and reversed so Save is still the one at the end. */
+  .form-actions{flex-direction:column-reverse}
+  .primary-btn,.cancel-btn{width:100%;justify-content:center;margin-left:0}
 }
 </style>
 
@@ -504,10 +517,10 @@ document.addEventListener("DOMContentLoaded", function () {
         </div><!-- /.form-grid -->
 
         <div class="form-actions">
+          <a class="cancel-btn" id="cancelBtn" href="project-management.html">Cancel</a>
           <button class="primary-btn" type="button" id="saveBtn" onclick="save()">
             <span id="saveLabel">+ Create project</span>
           </button>
-          <button class="delete-btn" type="button" id="deleteBtn" onclick="removeProject()" hidden>Delete project</button>
         </div>
 
       </div>
@@ -707,6 +720,7 @@ function acceptMedia(file){
 function showMedia(url){
   document.getElementById("mediaThumb").style.backgroundImage = "url('" + url + "')";
   document.getElementById("mediaPreview").classList.add("show");
+  document.getElementById("dropzone").hidden = true;
 }
 
 function clearMedia(){
@@ -715,6 +729,7 @@ function clearMedia(){
   input.value = "";
   mediaError("");
   document.getElementById("mediaPreview").classList.remove("show");
+  document.getElementById("dropzone").hidden = false;
 }
 
 /* ── Progress slider ────────────────────────────────────────────────────── */
@@ -806,7 +821,10 @@ async function load(){
 
     document.getElementById("formTitle").textContent = "Edit Project";
     document.getElementById("saveLabel").textContent = "Save changes";
-    document.getElementById("deleteBtn").hidden = !data.can_delete;
+
+    /* Cancel goes back where the edit started rather than to the list. */
+    document.getElementById("cancelBtn").href =
+      "project-details.html?id=" + encodeURIComponent(editId);
     document.title = "Edit Project - " + data.project.title;
   }
 
@@ -954,18 +972,6 @@ function setBusy(busy){
   button.disabled = busy;
   document.getElementById("saveLabel").textContent =
     busy ? "Saving..." : (editId ? "Save changes" : "+ Create project");
-}
-
-async function removeProject(){
-  if (!confirm("Delete this project, along with every task on it? This cannot be undone.")) return;
-
-  const data = await api("api/projects.php?id=" + encodeURIComponent(editId), { method:"DELETE" });
-
-  toast(data.message, !data.success);
-
-  if (!data.success) return;
-
-  setTimeout(function(){ location.href = "project-management.html"; }, 700);
 }
 
 load();
