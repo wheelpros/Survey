@@ -52,10 +52,12 @@ function response($success, $message = "", $extra = [], $code = 200)
     exit;
 }
 
-/* The mockup's stated contract on the dropzone. Kept as a constant so the
-   page can print "Maximum 1 MB" from the API instead of hardcoding the number
-   in two places that can drift apart. */
-const TASK_IMAGE_MAX_BYTES = 1 * 1024 * 1024;
+/* The stated contract on the dropzone. Kept as a constant so the page can print
+   the cap from the API instead of hardcoding the number in two places that can
+   drift apart. Matches PROJECT_IMAGE_MAX_BYTES in projects.php: one number for
+   every image in Project Management, rather than a task cap a third the size of
+   the project cap for no reason anyone using it could guess. */
+const TASK_IMAGE_MAX_BYTES = 3 * 1024 * 1024;
 
 /* The rich-text counter under the editor says 0 / 2000, and it counts text,
    not the markup the editor wraps around it. */

@@ -24,6 +24,13 @@ body{background:#f6f7fb;color:#101828}
 .pager{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:16px 0}
 .pager[hidden]{display:none}
 .pager-info{font-size:13px;font-weight:600;color:var(--muted)}
+/* On a phone the count wraps onto its own line above the buttons and adds
+   nothing the buttons do not already say, so it comes out and they take the
+   row to themselves. */
+@media(max-width:700px){
+  .pager-info{display:none}
+  .pager{justify-content:center}
+}
 .pager-pages{display:flex;gap:6px;flex-wrap:wrap}
 .pager button{min-width:36px;height:36px;padding:0 12px;border:1px solid #dfe3ea;background:#fff;border-radius:9px;font:inherit;font-size:13px;font-weight:700;color:var(--text);cursor:pointer}
 .pager button:hover:not(:disabled){background:#f6f7f9}
@@ -45,8 +52,8 @@ body{background:#f6f7fb;color:#101828}
 .btn-danger:hover{background:#fff5f5}
 .btn[disabled]{opacity:.5;cursor:not-allowed}
 /* display:inline-flex above beats the browser's [hidden]{display:none}, so a
-   .btn set hidden in script stayed on screen. Both #clearDayBtn and
-   #backToProjectBtn depend on this. */
+   .btn set hidden in script stayed on screen. #clearDayBtn and #editProjectBtn
+   both depend on this. */
 .btn[hidden]{display:none}
 
 /* ── Toast: the only feedback channel these pages have ── */
@@ -216,19 +223,18 @@ select.client-filter{
   padding-right:38px;
 }
 
-/* ── Head: back arrow, title, subtitle ── */
+/* ── Head: back arrow, title, subtitle, actions ── */
 .detail-head{display:flex;align-items:flex-start;gap:16px;margin-bottom:26px}
 .detail-head .page-title{flex:1;min-width:0}
 .detail-head h1{font-size:26px;margin-bottom:6px;word-break:break-word}
 .detail-head p{font-size:13px;color:var(--muted)}
-
-/* ── Summary tiles ── */
-.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:24px}
-.tile{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px 22px;box-shadow:0 10px 24px rgba(0,0,0,.04)}
-.tile span{display:block;font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
-.tile strong{display:block;font-size:22px;font-weight:800;line-height:1}
-.tile .bar{height:6px;border-radius:4px;background:#eef1f5;margin-top:12px;overflow:hidden}
-.tile .bar i{display:block;height:100%;background:var(--nav-active);border-radius:4px}
+/* Edit and New Task, in the corner inquiry-details.html puts its Edit in. The
+   summary tiles that used to open the page are gone - the three numbers on them
+   were start, end and progress, all of which the project panel below already
+   prints in full. */
+.head-actions{display:flex;align-items:center;gap:10px;flex:none}
+.btn-lg{padding:13px 20px;font-size:13px}
+.btn-lg svg{width:15px;height:15px}
 
 /* ── Month grid, lifted from admin-calendar.html ── */
 .cal-card{background:#fff;border-radius:18px;box-shadow:0 14px 30px rgba(0,0,0,.05);padding:22px;margin-bottom:26px}
@@ -271,54 +277,134 @@ select.client-filter{
 
 /* ── Task cards, on admin-content.html's grid ── */
 .section-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px}
-.section-head h2{font-size:18px}
+/* display:flex beats the browser's [hidden]{display:none}, so #taskDetailHead
+   sat above an empty slot on every load until a card was clicked. */
+.section-head[hidden]{display:none}
+/* flex:1 with min-width:0 so a long heading ("Tasks on Sep 4, 2026") wraps
+   inside its own column instead of pushing the buttons off the row. */
+.section-head h2{font-size:18px;flex:1;min-width:0}
+/* The buttons never shrink: a squashed "Show all tasks" is unreadable long
+   before the heading beside it runs out of room. */
+.section-head > .btn{flex:none}
+/* "Show all tasks" only appears while the calendar has a day selected, so the
+   pair has to sit together on the right rather than each taking an end. */
+.section-actions{display:flex;align-items:center;gap:10px;flex:none}
+/* The page-header create button is sized to sit beside a 26px h1. Beside an
+   18px section heading it comes down to the size of the ghost button next to
+   it - including a transparent border, because .btn draws one and two boxes
+   built differently do not line up however the padding is tuned. */
+.section-actions .create-btn{padding:9px 16px;font-size:12px;border:1px solid transparent}
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
-.card{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 12px 26px rgba(0,0,0,.05);display:flex;flex-direction:column}
+/* overflow stays visible: the three-dot menu opens downwards out of the card,
+   and clipping it to the card was hiding two of its three items. The image
+   rounds its own top corners instead, which is all the clip was doing here. */
+.card{background:#fff;border-radius:16px;box-shadow:0 12px 26px rgba(0,0,0,.05);display:flex;flex-direction:column}
 /* One fixed size for every task card image, whatever the orientation. The
    orientation still decides how the picture is framed inside the box, but it
    no longer changes the size of the box - a taller image on one card used to
    push its title and buttons out of line with the rest of the row. */
-.card-img{position:relative;width:100%;height:170px;background:#eef1f5 center/cover no-repeat}
+.card-img{position:relative;width:100%;height:170px;border-radius:16px 16px 0 0;overflow:hidden;background:#eef1f5 center/cover no-repeat}
 .card-img .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#aeb6c4}
 .card-img .ph svg{width:30px;height:30px}
 /* No image is the ordinary case, not a failure: a calm tint rather than a bare
    grey slab, and the box keeps its size so the card grid stays uniform. */
 .card-img.empty{background:linear-gradient(135deg,#f5f7fa 0%,#e8edf4 100%)}
 .card-img.empty .ph{color:#c3cad7}
+/* The badge answers one question only - has this been published to the client
+   yet. Whether the work behind it is finished is a different question with a
+   different answer, and it has its own line at the foot of the card. Reading
+   both off one chip meant a completed task stopped saying it was published. */
 .badge{position:absolute;top:10px;right:10px;padding:5px 10px;border-radius:20px;font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase}
-.badge.active{background:#e8faef;color:#20a95a}
-.badge.completed{background:var(--nav-active);color:#fff}
+.badge.published{background:#e8faef;color:#20a95a}
 .badge.draft{background:#eef1f5;color:#667085}
 .badge.scheduled{background:#fff3e5;color:#d97706}
+
 .card-body{padding:14px 16px;flex:1;display:flex;flex-direction:column;gap:4px}
 .card-client{font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
 .card-body h3{font-size:14px;font-weight:700;word-break:break-word}
-.card-when{font-size:11px;color:var(--muted);margin-top:2px}
-.card-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px 16px;margin-top:auto}
-.card-actions .btn{width:100%}
+.card-when{font-size:11px;color:var(--muted);margin-top:6px}
+/* Two lines of the description, so a card says what the task is without having
+   to be opened, and every card in the row still ends at the same height. */
+.card-desc{
+  font-size:12px;line-height:1.6;color:var(--muted);margin-top:4px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+  overflow:hidden;word-break:break-word;
+}
+
+/* The text and the menu share a row, so the three dots sit against the title
+   and description rather than under them. */
+.card-head{display:flex;align-items:flex-start;gap:8px}
+.card-head-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+
+/* ── Progress, at the foot and on its own ──
+   Published is about the client seeing it; this is about the work being done.
+   Keeping them apart is the whole point of the row. */
+.card-foot{
+  display:flex;align-items:center;gap:8px;
+  padding:12px 16px;margin-top:auto;border-top:1px solid #eef1f5;
+}
+.prog{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:800;letter-spacing:.3px}
+.prog i{width:8px;height:8px;border-radius:50%;background:currentColor;flex:none}
+.prog.done{color:#20a95a}
+.prog.doing{color:#d97706}
 
 /* ── Cards open the panel below ────────────────────────────────────────────
-   The image and the body are one hit area that swaps the panel at the foot of
-   the page to that task. The Edit and Delete buttons keep their own jobs, so
-   the trigger is a button wrapping only those two blocks rather than a click
-   handler on the whole card. */
-/* flex column, and flex:1 inside the card, so .card-body still grows and
-   .card-actions stays pinned to the foot the way it did before the wrap. */
+   Clicking a card opens that task in the panel at the foot of the page. The
+   trigger is an empty button stretched over the whole card rather than a
+   wrapper around the content, because the three-dot menu now lives inside that
+   content and a button cannot be nested in a button. The menu is lifted above
+   it on z-index so its own clicks land on it. */
+.card{position:relative}
 .card-open{
-  flex:1;display:flex;flex-direction:column;
+  position:absolute;inset:0;z-index:1;
   width:100%;padding:0;border:none;background:none;
-  font:inherit;color:inherit;text-align:left;cursor:pointer;
+  font:inherit;color:inherit;cursor:pointer;
 }
-.card-open:focus-visible{outline:2px solid var(--nav-active);outline-offset:-2px}
+.card-open:focus-visible{outline:2px solid var(--nav-active);outline-offset:-2px;border-radius:16px}
+.card-menu{position:relative;z-index:2}
 .card:hover .card-img{filter:brightness(.97)}
 .card.selected{box-shadow:0 0 0 2px var(--nav-active),0 12px 26px rgba(0,0,0,.05)}
 
-/* Edit and Delete at the foot of the task panel, matching the card's pair. */
-.task-actions{display:flex;gap:10px;margin-top:26px}
-.task-actions .btn{padding:11px 18px}
+/* ── The three-dot menu, on the task cards and nowhere else on this page ── */
+.kebab-wrap{position:relative;display:inline-block}
+.kebab{
+  width:30px;height:30px;border:1px solid #dfe3ea;background:#fff;border-radius:8px;
+  color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;
+}
+.kebab:hover{background:#f6f7f9;color:var(--text)}
+.kebab svg{width:15px;height:15px}
+.kebab-menu{
+  display:none;position:absolute;right:0;top:calc(100% + 6px);z-index:70;
+  min-width:172px;background:#fff;border:1px solid #dfe3ea;border-radius:12px;
+  box-shadow:0 16px 40px rgba(16,24,40,.16);padding:6px;
+}
+.kebab-wrap.open .kebab-menu{display:block}
+.kebab-wrap.open .kebab{background:#f2f4f8;color:var(--text)}
+.kebab-menu a,.kebab-menu button{
+  width:100%;font:inherit;background:none;border:none;cursor:pointer;
+  display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:8px;
+  font-size:13px;font-weight:700;color:var(--text);text-decoration:none;white-space:nowrap;
+}
+.kebab-menu a:hover,.kebab-menu button:hover{background:#f2f4f8}
+.kebab-menu svg{width:15px;height:15px;flex:none;color:var(--muted)}
+/* The one item that destroys something reads as such, and is divided off so it
+   is not the neighbour of Edit by accident. */
+.kebab-menu .danger{color:var(--brand);margin-top:5px;padding-top:12px;border-top:1px solid #eef1f5;border-radius:0}
+.kebab-menu .danger svg{color:var(--brand)}
+.kebab-menu .danger:hover{background:#fff5f5}
 
-/* ── Project Details panel, on admin-content.html's .detail block ── */
+
+/* ── Project Details panel, on admin-content.html's .detail block ──
+   It no longer shares a slot with the task panel: the project is the fixed
+   header block at the top of the page, and a task opens its own panel at the
+   foot. Two things that describe different subjects should not take turns in
+   one box. */
 .detail{background:#fff;border-radius:18px;padding:26px;box-shadow:0 14px 30px rgba(0,0,0,.04);margin-top:12px}
+#projectPanel{margin-top:0;margin-bottom:26px}
+/* Progress came off the tiles with them, so it lands in the meta grid as a
+   field with the bar underneath its own number. */
+.field .bar{height:6px;border-radius:4px;background:#eef1f5;margin-top:8px;overflow:hidden;max-width:260px}
+.field .bar i{display:block;height:100%;background:var(--nav-active);border-radius:4px}
 .detail-img{width:100%;max-height:320px;border-radius:14px;background:#eef1f5 center/cover no-repeat;aspect-ratio:16/7;margin-bottom:22px;display:flex;align-items:center;justify-content:center;color:#aeb6c4}
 .detail-img svg{width:40px;height:40px}
 /* A project with no image hides the block outright rather than showing a
@@ -333,9 +419,41 @@ select.client-filter{
 .field strong{display:block;font-size:13px;font-weight:700;word-break:break-word}
 .field .link{color:#2563eb}
 
+/* ── Delete confirmation ───────────────────────────────────────────────────
+   window.confirm() gives a destructive action the same one-click dismissal as
+   any other alert, and on a list page the browser chrome never says which row
+   is about to go. This says what is being deleted, and gates the button behind
+   a word that has to be typed out. */
+.confirm-modal{position:fixed;inset:0;background:rgba(16,24,40,.55);display:none;align-items:center;justify-content:center;z-index:99998;padding:20px}
+.confirm-modal.show{display:flex}
+.confirm-box{width:100%;max-width:440px;background:#fff;border-radius:20px;box-shadow:0 24px 70px rgba(16,24,40,.28);padding:28px}
+.confirm-icon{width:52px;height:52px;border-radius:14px;background:#fdecec;color:var(--brand);display:flex;align-items:center;justify-content:center;margin-bottom:18px}
+.confirm-icon svg{width:26px;height:26px}
+.confirm-box h2{font-size:18px;margin-bottom:8px}
+.confirm-box .confirm-text{font-size:13px;line-height:1.7;color:var(--muted);margin-bottom:20px;word-break:break-word}
+.confirm-ack{display:block;margin-bottom:22px}
+.confirm-ack span{display:block;font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+.confirm-ack span b{color:var(--brand);font-weight:800;letter-spacing:.8px}
+.confirm-ack input{width:100%;height:46px;border:1px solid #dfe3ea;border-radius:11px;padding:0 13px;font:inherit;font-size:14px;font-weight:700;letter-spacing:.5px;color:var(--text);background-color:#fff}
+.confirm-ack input::placeholder{font-weight:600;letter-spacing:0;color:#aeb6c4}
+.confirm-ack input:focus{outline:none;border-color:var(--nav-active);box-shadow:0 0 0 3px rgba(27,30,58,.08)}
+/* Green only once it matches, so the button turning on is not the first sign
+   the word was typed correctly. */
+.confirm-ack input.ok{border-color:#20a95a;box-shadow:0 0 0 3px rgba(32,169,90,.10)}
+.confirm-actions{display:flex;gap:10px;justify-content:flex-end}
+.confirm-actions .btn{padding:12px 18px;font-size:13px}
+/* Solid red, unlike the outlined .btn-danger on the cards: this is the button
+   that actually destroys something. */
+.btn-danger-solid{background:var(--brand);color:#fff}
+.btn-danger-solid:hover:not([disabled]){background:#a80009}
+@media(max-width:520px){
+  .confirm-box{padding:22px}
+  .confirm-actions{flex-direction:column-reverse}
+  .confirm-actions .btn{width:100%}
+}
+
 @media(max-width:1100px){.grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:768px){
-  .tiles{grid-template-columns:1fr}
   .grid{grid-template-columns:1fr}
   .detail-meta{grid-template-columns:1fr}
   /* Same treatment as admin-calendar.html at this width: the cells shrink and
@@ -351,7 +469,22 @@ select.client-filter{
 }
 @media(max-width:700px){
   .detail-head{flex-wrap:wrap}
-  .detail-head .create-btn{width:100%;justify-content:center}
+  .head-actions{width:100%}
+  .head-actions .btn{flex:1;justify-content:center}
+  /* Only the gap tightens - the row itself is kept, so the heading and its
+     buttons stay on one line. */
+  .section-head{gap:12px}
+}
+
+/* Narrow enough that the buttons have to give something up too, so they lose
+   padding rather than the row losing its shape. */
+@media(max-width:520px){
+  .section-head{gap:10px;align-items:flex-start}
+  .section-head h2{font-size:16px;padding-top:3px}
+  .section-actions{gap:8px}
+  .section-head > .btn,
+  .section-actions .btn,
+  .section-actions .create-btn{padding:8px 12px;font-size:11px}
 }
 </style>
 
@@ -466,20 +599,42 @@ document.addEventListener("DOMContentLoaded", function () {
         <h1 id="projectTitle">Loading...</h1>
         <p id="projectSubtitle">&nbsp;</p>
       </div>
-      <a class="create-btn" id="newTaskBtn" href="#" hidden>New Task</a>
+      <div class="head-actions">
+        <a class="btn btn-ghost btn-lg" id="editProjectBtn" href="#" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+          Edit
+        </a>
+      </div>
     </div>
 
     <div id="notFound" class="empty" hidden>This project does not exist, or is not one of yours.</div>
 
     <div id="projectBody" hidden>
 
-      <div class="tiles">
-        <div class="tile"><span>Start</span><strong id="tileStart">—</strong></div>
-        <div class="tile"><span>End</span><strong id="tileEnd">—</strong></div>
-        <div class="tile">
-          <span>Progress</span>
-          <strong id="tileProgress">0%</strong>
-          <div class="bar"><i id="tileBar" style="width:0%"></i></div>
+      <!-- The project itself, fixed at the top of the page. It used to sit at
+           the foot sharing a slot with the task panel, which meant opening a
+           task hid the thing the task belongs to. -->
+      <div class="section-head">
+        <h2>Project Details</h2>
+      </div>
+
+      <div class="detail" id="projectPanel">
+        <div class="detail-img" id="detailImg">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+        </div>
+        <h3 id="detailTitle">—</h3>
+        <span class="desc-label">Description</span>
+        <p class="desc" id="detailDesc">—</p>
+        <div class="detail-meta">
+          <div class="field"><span>Client</span><strong id="detailClient">—</strong></div>
+          <div class="field"><span>Timeline</span><strong id="detailTimeline">—</strong></div>
+          <div class="field"><span>Manager</span><strong id="detailManager">—</strong></div>
+          <div class="field"><span>Status</span><strong class="link" id="detailStatus">—</strong></div>
+          <div class="field">
+            <span>Progress</span>
+            <strong id="detailProgress">0%</strong>
+            <div class="bar"><i id="detailBar" style="width:0%"></i></div>
+          </div>
         </div>
       </div>
 
@@ -506,7 +661,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
       <div class="section-head">
         <h2 id="tasksHeading">Tasks</h2>
-        <button class="btn btn-ghost" type="button" id="clearDayBtn" onclick="clearDay()" hidden>Show all tasks</button>
+        <div class="section-actions">
+          <button class="btn btn-ghost" type="button" id="clearDayBtn" onclick="clearDay()" hidden>Show all tasks</button>
+          <a class="create-btn" id="newTaskBtn" href="#" hidden>New Task</a>
+        </div>
       </div>
       <div class="grid" id="taskGrid"></div>
 
@@ -515,27 +673,12 @@ document.addEventListener("DOMContentLoaded", function () {
         <div class="pager-pages" id="pagerPages"></div>
       </div>
 
-      <!-- One panel slot, two things that can sit in it: the project by
-           default, and whichever task was last clicked in the grid above. -->
-      <div class="section-head" style="margin-top:26px">
-        <h2 id="detailHeading">Project Details</h2>
-        <button class="btn btn-ghost" type="button" id="backToProjectBtn"
-                onclick="showProjectPanel()" hidden>Back to project details</button>
-      </div>
-
-      <div class="detail" id="projectPanel">
-        <div class="detail-img" id="detailImg">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-        </div>
-        <h3 id="detailTitle">—</h3>
-        <span class="desc-label">Description</span>
-        <p class="desc" id="detailDesc">—</p>
-        <div class="detail-meta">
-          <div class="field"><span>Client</span><strong id="detailClient">—</strong></div>
-          <div class="field"><span>Timeline</span><strong id="detailTimeline">—</strong></div>
-          <div class="field"><span>Manager</span><strong id="detailManager">—</strong></div>
-          <div class="field"><span>Status</span><strong class="link" id="detailStatus">—</strong></div>
-        </div>
+      <!-- Opened by a card above, and by nothing else: with the project fixed
+           at the top of the page, this slot only ever holds a task. -->
+      <div class="section-head" id="taskDetailHead" style="margin-top:26px" hidden>
+        <h2>Task Details</h2>
+        <button class="btn btn-ghost" type="button" id="closeTaskBtn"
+                onclick="closeTaskPanel()">Close</button>
       </div>
 
       <div class="detail" id="taskPanel" hidden>
@@ -547,13 +690,10 @@ document.addEventListener("DOMContentLoaded", function () {
         <p class="desc" id="taskDesc">—</p>
         <div class="detail-meta">
           <div class="field"><span>Scheduled</span><strong id="taskWhen">—</strong></div>
-          <div class="field"><span>Status</span><strong class="link" id="taskStatus">—</strong></div>
+          <div class="field"><span>Published</span><strong id="taskStatus">—</strong></div>
+          <div class="field"><span>Progress</span><strong id="taskProgress">—</strong></div>
           <div class="field"><span>Added by</span><strong id="taskAuthor">—</strong></div>
           <div class="field"><span>Link</span><strong id="taskLink">—</strong></div>
-        </div>
-        <div class="task-actions">
-          <a class="btn btn-ghost" id="taskEditBtn" href="#">Edit task</a>
-          <button class="btn btn-danger" type="button" id="taskDeleteBtn">Delete task</button>
         </div>
       </div>
 
@@ -574,6 +714,26 @@ document.addEventListener("DOMContentLoaded", function () {
       <strong id="acctName">Admin</strong>
       <div class="acct-role" id="acctRole">Administrator</div>
       <button class="acct-logout" onclick="logoutAdmin()">&#8617; Logout</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE CONFIRMATION (replaces window.confirm for destructive actions) -->
+<div class="confirm-modal" id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+  <div class="confirm-box">
+    <div class="confirm-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+    </div>
+    <h2 id="confirmTitle">Delete</h2>
+    <p class="confirm-text" id="confirmText"></p>
+    <label class="confirm-ack">
+      <span>Type <b>DELETE</b> to confirm</span>
+      <input type="text" id="confirmAck" placeholder="DELETE"
+             autocomplete="off" autocapitalize="characters" spellcheck="false">
+    </label>
+    <div class="confirm-actions">
+      <button class="btn btn-ghost" type="button" id="confirmCancel">Cancel</button>
+      <button class="btn btn-danger-solid" type="button" id="confirmOk" disabled>Delete</button>
     </div>
   </div>
 </div>
@@ -661,15 +821,6 @@ function fmtDate(value){
   return MONTHS_SHORT[Number(parts[1]) - 1] + " " + Number(parts[2]) + ", " + parts[0];
 }
 
-/* Short form for the summary tiles: "1 Jul", "Sep 15" in the mockup are the
-   same date printed two ways, so this keeps one of them. */
-function fmtDateShort(value){
-  if (!value) return "—";
-  const parts = String(value).slice(0, 10).split("-");
-  if (parts.length !== 3) return "—";
-  return MONTHS_SHORT[Number(parts[1]) - 1] + " " + Number(parts[2]);
-}
-
 function todayISO(){
   const now = new Date();
   return now.getFullYear() + "-"
@@ -683,6 +834,7 @@ const TASK_PAGE_SIZE = 3;
 
 let project = null;
 let tasks   = [];
+let canEdit = false;
 let page    = 1;
 /* The day the task grid below is scoped to, or null for the whole project. */
 let selectedDate = null;
@@ -711,11 +863,11 @@ async function load(){
 
   project = data.project;
   tasks   = data.tasks || [];
+  canEdit = !!data.can_edit;
 
   document.getElementById("projectBody").hidden = false;
 
   paintHead();
-  paintTiles();
 
   const start = new Date(project.start_date + "T00:00:00");
   calYear  = start.getFullYear();
@@ -732,18 +884,17 @@ function paintHead(){
   document.getElementById("projectSubtitle").textContent =
     (project.company_name || project.client_name || "No client") + " · " + project.status_label;
 
+  /* Lives in the Tasks section head now, but it is still the project's id it
+     needs, so it is still filled in here. */
   const button = document.getElementById("newTaskBtn");
   button.href = "project-task-form.html?project=" + encodeURIComponent(project.id);
   button.hidden = false;
-}
 
-function paintTiles(){
-  document.getElementById("tileStart").textContent = fmtDateShort(project.start_date);
-  document.getElementById("tileEnd").textContent   = fmtDateShort(project.end_date);
-
-  const progress = Number(project.progress || 0);
-  document.getElementById("tileProgress").textContent = progress + "%";
-  document.getElementById("tileBar").style.width = progress + "%";
+  /* Same corner, and the same rule, as inquiry-details.html: the button is only
+     there for an admin the API says may edit this project. */
+  const edit = document.getElementById("editProjectBtn");
+  edit.href   = "project-form.html?id=" + encodeURIComponent(project.id);
+  edit.hidden = !canEdit;
 }
 
 /*
@@ -852,12 +1003,19 @@ function clearDay(){
 
 /*
 |------------------------------------------------------------------------------
-| The panel at the foot of the page
+| The task panel at the foot of the page
 |------------------------------------------------------------------------------
 |
-| It holds the project by default. Clicking a task card puts that task in the
-| same slot instead, and the button in the section head puts the project back.
-| Only one of the two is ever in the document flow.
+| It holds a task and nothing else. The project has its own panel pinned to the
+| top of the page, so opening a task no longer hides the project it belongs to -
+| the two are read together, which is the point of being on this page.
+|
+| Nothing is open by default: the panel and its heading appear when a card is
+| clicked and go away again when it is closed.
+|
+| The panel carries no buttons. Edit and Delete are on the card's own menu, one
+| click from anywhere in the grid, and repeating them at the foot of the page
+| gave the same task two places to be acted on and two places to keep in sync.
 |
 */
 
@@ -870,25 +1028,21 @@ function showTaskPanel(id){
 
   paintTaskPanel(task);
 
-  document.getElementById("projectPanel").hidden   = true;
+  document.getElementById("taskDetailHead").hidden = false;
   document.getElementById("taskPanel").hidden      = false;
-  document.getElementById("detailHeading").textContent = "Task Details";
-  document.getElementById("backToProjectBtn").hidden   = false;
 
   // Re-render so the card that was clicked picks up the selected outline.
   renderTasks();
 
-  document.getElementById("detailHeading")
+  document.getElementById("taskDetailHead")
     .scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-function showProjectPanel(){
+function closeTaskPanel(){
   openTaskId = null;
 
+  document.getElementById("taskDetailHead").hidden = true;
   document.getElementById("taskPanel").hidden      = true;
-  document.getElementById("projectPanel").hidden   = false;
-  document.getElementById("detailHeading").textContent = "Project Details";
-  document.getElementById("backToProjectBtn").hidden   = true;
 
   renderTasks();
 }
@@ -915,9 +1069,10 @@ function paintTaskPanel(task){
       (task.scheduled_time ? " at " + String(task.scheduled_time).slice(0, 5) : "")
     : "No date set";
 
-  document.getElementById("taskWhen").textContent   = when;
-  document.getElementById("taskStatus").textContent = badgeFor(task).text;
-  document.getElementById("taskAuthor").textContent = task.created_by_name || "—";
+  document.getElementById("taskWhen").textContent     = when;
+  document.getElementById("taskStatus").textContent   = badgeFor(task).text;
+  document.getElementById("taskProgress").textContent = progressFor(task).text;
+  document.getElementById("taskAuthor").textContent   = task.created_by_name || "—";
 
   const link = document.getElementById("taskLink");
 
@@ -931,13 +1086,6 @@ function paintTaskPanel(task){
     link.textContent = task.link || "—";
   }
 
-  document.getElementById("taskEditBtn").href =
-    "project-task-form.html?project=" + encodeURIComponent(project.id) +
-    "&id=" + encodeURIComponent(task.id);
-
-  document.getElementById("taskDeleteBtn").onclick = function(){
-    removeTask(task.id);
-  };
 }
 
 /* What the grid below is currently showing. */
@@ -967,15 +1115,28 @@ document.getElementById("calToday").addEventListener("click", function(){
 });
 
 /*
-| The badge reads three columns, not one. `status` says whether it has been
-| published at all, `is_live` whether the scheduled date has arrived, and
-| `is_complete` whether the work behind it is done.
+| Two independent readings of a task, and they used to be crushed into one chip.
+|
+| badgeFor answers "can the client see this yet": a draft is not published at
+| all, a published task dated ahead is waiting for its date, and one whose date
+| has arrived is Published. `status` and `is_live` are the two columns behind
+| it.
+|
+| progressFor answers "is the work done", which `is_complete` tracks on its own
+| and which has nothing to do with publishing. Under the old single chip a
+| completed task stopped reporting that it was published, and a published one
+| never said whether it was finished.
 */
 function badgeFor(task){
-  if (task.status === "draft")  return { cls:"draft",     text:"Draft" };
-  if (!Number(task.is_live))    return { cls:"scheduled", text:"Scheduled" };
-  if (Number(task.is_complete)) return { cls:"completed", text:"Completed" };
-  return { cls:"active", text:"Active" };
+  if (task.status === "draft") return { cls:"draft",     text:"Draft" };
+  if (!Number(task.is_live))   return { cls:"scheduled", text:"Scheduled" };
+  return { cls:"published", text:"Published" };
+}
+
+function progressFor(task){
+  return Number(task.is_complete)
+    ? { cls:"done",  text:"Completed" }
+    : { cls:"doing", text:"In Progress" };
 }
 
 function renderTasks(){
@@ -1020,6 +1181,7 @@ function renderTasks(){
   grid.innerHTML = slice.map(task => {
 
     const badge = badgeFor(task);
+    const prog  = progressFor(task);
     const when  = task.scheduled_date ? fmtDate(task.scheduled_date) : "No date set";
 
     const image = task.image_path
@@ -1032,31 +1194,101 @@ function renderTasks(){
     return ''
       + '<div class="card ' + (task.orientation === "vertical" ? "is-vertical" : "")
       +      (Number(task.id) === openTaskId ? " selected" : "") + '">'
-      +   '<button class="card-open" type="button" onclick="showTaskPanel(' + Number(task.id) + ')"'
-      +          ' aria-label="Show details for ' + esc(task.title) + '">'
-      +     '<div class="card-img ' + (task.image_path ? "" : "empty") + '" ' + image + '>'
-      +       placeholder
-      +       '<span class="badge ' + badge.cls + '">' + badge.text + '</span>'
-      +     '</div>'
-      +     '<div class="card-body">'
-      +       '<span class="card-client">' + esc(project.company_name || project.client_name || "") + '</span>'
-      +       '<h3>' + esc(task.title) + '</h3>'
-      +       '<span class="card-when">' + esc(when)
-      +         (task.created_by_name ? " · " + esc(task.created_by_name) : "")
-      +       '</span>'
-      +     '</div>'
-      +   '</button>'
-      +   '<div class="card-actions">'
-      +     '<a class="btn btn-ghost" href="project-task-form.html?project='
-      +        encodeURIComponent(project.id) + "&id=" + encodeURIComponent(task.id) + '">Edit</a>'
-      +     '<button class="btn btn-danger" type="button" onclick="removeTask('
-      +        Number(task.id) + ')">Delete</button>'
+      +   '<div class="card-img ' + (task.image_path ? "" : "empty") + '" ' + image + '>'
+      +     placeholder
+      +     '<span class="badge ' + badge.cls + '">' + badge.text + '</span>'
       +   '</div>'
+      +   '<div class="card-body">'
+      +     '<div class="card-head">'
+      +       '<div class="card-head-text">'
+      +         '<span class="card-client">' + esc(project.company_name || project.client_name || "") + '</span>'
+      +         '<h3>' + esc(task.title) + '</h3>'
+      +         '<p class="card-desc">' + esc(task.description || "No description was added.") + '</p>'
+      +       '</div>'
+      +       taskMenu(task)
+      +     '</div>'
+      +     '<span class="card-when">' + esc(when)
+      +       (task.created_by_name ? " · " + esc(task.created_by_name) : "")
+      +     '</span>'
+      +   '</div>'
+      /* The state of the work itself, kept away from the publish badge. */
+      +   '<div class="card-foot">'
+      +     '<span class="prog ' + prog.cls + '"><i></i>' + prog.text + '</span>'
+      +   '</div>'
+      /* Last in the markup and stretched over the card behind the menu, so a
+         click anywhere that is not the menu opens the panel below. */
+      +   '<button class="card-open" type="button" onclick="showTaskPanel(' + Number(task.id) + ')"'
+      +          ' aria-label="Show details for ' + esc(task.title) + '"></button>'
       + '</div>';
   }).join("");
 
+  wireKebabs();
   renderPager(total, pages, start, slice.length);
 }
+
+/*
+| The three dots beside a card's title. Everything the card used to spend a
+| two-button row on now lives in here, plus the View details the stretched hit
+| area offers silently - a menu that leaves its own affordance out is a menu
+| people do not find.
+*/
+function taskMenu(task){
+  const editHref = "project-task-form.html?project=" + encodeURIComponent(project.id)
+                 + "&id=" + encodeURIComponent(task.id);
+
+  return ''
+    + '<div class="kebab-wrap card-menu">'
+    +   '<button class="kebab" type="button" aria-haspopup="menu" aria-expanded="false"'
+    +          ' aria-label="More actions for ' + esc(task.title) + '">'
+    +     '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>'
+    +   '</button>'
+    +   '<div class="kebab-menu" role="menu">'
+    +     '<button role="menuitem" type="button" onclick="showTaskPanel(' + Number(task.id) + ')">'
+    +       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg>'
+    +       'View details'
+    +     '</button>'
+    +     '<a role="menuitem" href="' + esc(editHref) + '">'
+    +       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>'
+    +       'Edit'
+    +     '</a>'
+    +     '<button class="danger" role="menuitem" type="button" onclick="removeTask(' + Number(task.id) + ')">'
+    +       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>'
+    +       'Delete'
+    +     '</button>'
+    +   '</div>'
+    + '</div>';
+}
+
+/*
+| The menus are re-bound on every render because the grid is replaced wholesale,
+| and opening one closes any other - two menus open at once is never what was
+| meant.
+*/
+function closeKebabs(){
+  document.querySelectorAll(".kebab-wrap.open").forEach(wrap => {
+    wrap.classList.remove("open");
+    wrap.querySelector(".kebab").setAttribute("aria-expanded", "false");
+  });
+}
+
+function wireKebabs(){
+  document.querySelectorAll(".kebab-wrap").forEach(wrap => {
+    wrap.querySelector(".kebab").addEventListener("click", function (event) {
+      event.stopPropagation();
+      const open = wrap.classList.contains("open");
+      closeKebabs();
+      if (!open) {
+        wrap.classList.add("open");
+        this.setAttribute("aria-expanded", "true");
+      }
+    });
+  });
+}
+
+document.addEventListener("click", closeKebabs);
+document.addEventListener("keydown", function (event) {
+  if (event.key === "Escape") closeKebabs();
+});
 
 function renderPager(total, pages, start, shown){
   document.getElementById("pagerInfo").textContent =
@@ -1089,7 +1321,17 @@ async function removeTask(id){
   const task = tasks.find(t => Number(t.id) === Number(id));
 
   if (!task) return;
-  if (!confirm('Delete "' + task.title + '"? This cannot be undone.')) return;
+
+  closeKebabs();
+
+  const ok = await askConfirm({
+    title : "Delete task",
+    text  : '"' + task.title + '" will be removed from this project, along with '
+          + "anything the client has already been shown of it. This cannot be undone.",
+    action: "Delete task"
+  });
+
+  if (!ok) return;
 
   const data = await api("api/project-tasks.php?id=" + encodeURIComponent(id), { method:"DELETE" });
 
@@ -1104,9 +1346,9 @@ async function removeTask(id){
   if (page > pages) page = pages;
 
   /* The panel cannot go on describing a task that is no longer there, so it
-     falls back to the project. showProjectPanel renders the grid itself. */
+     closes. closeTaskPanel renders the grid itself. */
   if (openTaskId === Number(id)) {
-    showProjectPanel();
+    closeTaskPanel();
   } else {
     renderTasks();
   }
@@ -1135,7 +1377,92 @@ function paintDetail(){
     fmtDate(project.start_date) + " – " + fmtDate(project.end_date);
   document.getElementById("detailManager").textContent = project.account_manager_name || "Unassigned";
   document.getElementById("detailStatus").textContent  = project.status_label;
+
+  const progress = Number(project.progress || 0);
+  document.getElementById("detailProgress").textContent = progress + "%";
+  document.getElementById("detailBar").style.width      = progress + "%";
 }
+
+/*
+|------------------------------------------------------------------------------
+| Delete confirmation
+|------------------------------------------------------------------------------
+|
+| window.confirm() cannot name the row it is about to destroy and takes a single
+| stray Enter as consent. This resolves a promise instead, and keeps the Delete
+| button disabled until DELETE has been typed into the field, so the consent is
+| a deliberate second action rather than a reflex.
+|
+*/
+
+let confirmResolve = null;
+
+function askConfirm(options){
+  const box    = document.getElementById("confirmModal");
+  const ack    = document.getElementById("confirmAck");
+  const okBtn  = document.getElementById("confirmOk");
+
+  document.getElementById("confirmTitle").textContent = options.title || "Delete";
+  document.getElementById("confirmText").textContent  = options.text  || "";
+  okBtn.textContent = options.action || "Delete";
+
+  // Never inherit the previous answer: every deletion is acknowledged on its own.
+  ack.value      = "";
+  ack.classList.remove("ok");
+  okBtn.disabled = true;
+
+  box.classList.add("show");
+  ack.focus();
+
+  return new Promise(function (resolve) { confirmResolve = resolve; });
+}
+
+function closeConfirm(answer){
+  document.getElementById("confirmModal").classList.remove("show");
+
+  const resolve = confirmResolve;
+  confirmResolve = null;
+
+  if (resolve) resolve(!!answer);
+}
+
+/* Case-insensitive and trimmed: the point is a deliberate second action, not a
+   typing test. Enter in the field is the same as pressing the button, but only
+   once the word is there - otherwise Enter would be exactly the reflex
+   dismissal this box exists to prevent. */
+function ackIsGiven(){
+  return document.getElementById("confirmAck").value.trim().toUpperCase() === "DELETE";
+}
+
+document.getElementById("confirmAck").addEventListener("input", function(){
+  const given = ackIsGiven();
+  this.classList.toggle("ok", given);
+  document.getElementById("confirmOk").disabled = !given;
+});
+
+document.getElementById("confirmAck").addEventListener("keydown", function (event) {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    if (ackIsGiven()) closeConfirm(true);
+  }
+});
+
+document.getElementById("confirmOk").addEventListener("click", function(){
+  if (!this.disabled) closeConfirm(true);
+});
+
+document.getElementById("confirmCancel").addEventListener("click", function(){
+  closeConfirm(false);
+});
+
+// Clicking the backdrop cancels; clicking the box itself must not.
+document.getElementById("confirmModal").addEventListener("click", function(event){
+  if (event.target === this) closeConfirm(false);
+});
+
+document.addEventListener("keydown", function (event) {
+  if (event.key === "Escape" && confirmResolve) closeConfirm(false);
+});
 
 load();
 </script>
