@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS inquiries (
   slug                     VARCHAR(200)     NULL,
   status                   VARCHAR(20)  NOT NULL DEFAULT 'active',   -- 'active' | 'inactive'
   account_manager_admin_id INT              NULL,                    -- admins.id, role account_manager
+  reference                VARCHAR(100)     NULL,                    -- the office's own handle for it
   created_by_admin_id      INT              NULL,                    -- admins.id
   created_at               TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uniq_slug (slug),
@@ -64,17 +65,23 @@ CREATE TABLE IF NOT EXISTS inquiries (
 -- inquiry and re-inserts. That is why editing is refused once an answer exists
 -- - the answers point at these ids.
 --
--- 'choice' takes any number of answers and 'select' exactly one; both read
--- their offer from `options`, one per line, and both store what came back as
--- text - a multi answer joined with ", ". Nothing ever parses that back apart,
--- so an option containing a comma is displayed, never re-split.
+-- Two types can be written: 'input' for one line of text and 'textarea' for a
+-- paragraph of it. How long an answer may be is fixed by the type - 120 and
+-- 800 characters - and enforced in api/public-inquiry.php, so nothing about it
+-- is stored here.
+--
+-- 'choice' and 'select' are legacy. The form builder no longer offers them, but
+-- questions written before still carry them and still render: both read their
+-- offer from `options`, one per line, and both store what came back as text -
+-- a multi answer joined with ", ". Nothing ever parses that back apart, so an
+-- option containing a comma is displayed, never re-split.
 --
 CREATE TABLE IF NOT EXISTS inquiry_fields (
   id          INT AUTO_INCREMENT PRIMARY KEY,
   inquiry_id  INT          NOT NULL,                        -- inquiries.id
   field_label VARCHAR(200) NOT NULL,
-  field_type  VARCHAR(20)  NOT NULL DEFAULT 'input',        -- 'input' | 'textarea' | 'choice' | 'select'
-  options     TEXT             NULL,                       -- one per line, for the two list types
+  field_type  VARCHAR(20)  NOT NULL DEFAULT 'input',        -- 'input' | 'textarea' (legacy: 'choice' | 'select')
+  options     TEXT             NULL,                       -- one per line, legacy list types only
   required    TINYINT(1)   NOT NULL DEFAULT 1,
   sort_order  INT          NOT NULL DEFAULT 0,
   KEY idx_inquiry (inquiry_id, sort_order)
@@ -146,6 +153,7 @@ CREATE TABLE IF NOT EXISTS inquiry_response_answers (
 -- ALTER TABLE inquiries ADD COLUMN account_manager_admin_id INT NULL;
 -- ALTER TABLE inquiries ADD UNIQUE KEY uniq_slug (slug);
 -- ALTER TABLE inquiry_fields ADD COLUMN options TEXT NULL;
+-- ALTER TABLE inquiries ADD COLUMN reference VARCHAR(100) NULL;
 
 
 -- ---------------------------------------------------------------------------

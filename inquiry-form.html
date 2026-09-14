@@ -280,6 +280,12 @@ document.addEventListener("DOMContentLoaded", function () {
           <label for="fDesc">Description</label>
           <textarea id="fDesc" maxlength="5000" placeholder="A short paragraph explaining what this is about. It sits above the questions on the public page."></textarea>
         </div>
+
+        <div class="field-row">
+          <label for="fReference">Inquiry reference</label>
+          <input type="text" id="fReference" maxlength="100" placeholder="e.g. WZ-2026-014">
+          <p class="hint">Your own handle for this inquiry - a job number, a client code. It shows on the inquiries list and on the details page, and never on the public form.</p>
+        </div>
       </div>
 
       <div class="form-section">
@@ -338,7 +344,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
       <div class="form-actions">
         <a class="btn btn-ghost btn-lg" href="inquiries.html">Cancel</a>
-        <button class="btn btn-danger btn-lg" type="button" id="deleteBtn" onclick="removeInquiry()" hidden>Delete inquiry</button>
         <span class="spacer"></span>
         <button class="create-btn" type="button" id="saveBtn" onclick="save()">
           <span id="saveLabel">Create Inquiry</span>
@@ -430,29 +435,35 @@ function block(message) {
 
 /* ── Custom field rows ───────────────────────────────────────────────────── */
 
-const FIELD_TYPES = ["input", "textarea", "choice", "select"];
+/* Two types: one line of text, or a paragraph of it.
 
-/* Short names for the folded header, where there is no room for the sentence
-   the Type dropdown uses. */
+   'choice' and 'select' used to be here as well. Questions of those types
+   written before still render on the public page and still read back on the
+   details page - nothing deletes them - but they cannot be created any more,
+   and an old inquiry that goes through this form again comes out with them
+   converted to short answers. */
+const FIELD_TYPES = ["input", "textarea"];
+
 const TYPE_LABELS = {
   input: "Short answer",
-  textarea: "Long answer",
-  choice: "Pick any",
-  select: "Pick one"
+  textarea: "Paragraph"
 };
 
-function addField(label, type, required, options) {
+/* How long an answer of each type may be. Fixed by the type rather than set
+   per question - "short answer" and "paragraph" are the promise, and these are
+   the numbers that make them mean something. Shown on the Type dropdown so the
+   admin picking one can see what they are choosing. Enforced in
+   api/public-inquiry.php, which is where it counts. */
+const TYPE_MAX_CHARS = {
+  input: 120,
+  textarea: 800
+};
+
+function addField(label, type, required) {
   fieldSeq++;
 
   const id = "cf-" + fieldSeq;
   const kind = FIELD_TYPES.includes(type) ? type : "input";
-  const isList = kind === "choice" || kind === "select";
-  const saved = String(options || "").split(/\r\n|\r|\n/).map(o => o.trim()).filter(Boolean);
-
-  /* A question that arrives with its options already written starts folded -
-     on an eight-question form, eight open lists is unreadable. One being built
-     now stays open, because it is the thing being worked on. */
-  const folded = isList && saved.length > 0;
 
   const row = document.createElement("div");
 
@@ -474,10 +485,8 @@ function addField(label, type, required, options) {
       <div class="field-row">
         <label>Type</label>
         <select class="cf-type" onchange="typeChanged(this)">
-          <option value="input"${kind === "input" ? " selected" : ""}>Short answer</option>
-          <option value="textarea"${kind === "textarea" ? " selected" : ""}>Long answer</option>
-          <option value="choice"${kind === "choice" ? " selected" : ""}>Multiple choice (pick any)</option>
-          <option value="select"${kind === "select" ? " selected" : ""}>Dropdown (pick one)</option>
+          <option value="input"${kind === "input" ? " selected" : ""}>Short answer (${TYPE_MAX_CHARS.input} characters)</option>
+          <option value="textarea"${kind === "textarea" ? " selected" : ""}>Paragraph (${TYPE_MAX_CHARS.textarea} characters)</option>
         </select>
       </div>
       <label class="cf-req">
@@ -489,99 +498,24 @@ function addField(label, type, required, options) {
       </button>
     </div>
 
-    <div class="cf-options${folded ? " folded" : ""}"${isList ? "" : " hidden"}>
-      <button class="opt-toggle" type="button" aria-expanded="${folded ? "false" : "true"}"
-              onclick="toggleOptions(this)">
-        <svg class="opt-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-        <span>Options</span>
-        <em class="opt-count">0</em>
-      </button>
-
-      <div class="opt-body">
-        <div class="opt-list"></div>
-        <button class="add-option-btn" type="button" onclick="addOption(this)">+ Add option</button>
-        <p class="hint">One per option. Blank ones and repeats are dropped when you save.</p>
-      </div>
-    </div>
   `;
 
   document.getElementById("cfList").appendChild(row);
-
-  saved.forEach(option => addOptionTo(row, option));
-
-  if (isList && !saved.length) fillEmptyOptions(row);
-
-  countOptions(row);
   return row;
 }
 
 /* Adding a question folds up the ones above it. What you are writing stays
-   open; everything already written gets out of the way, which is the whole
-   reason the lists fold at all. */
+   open; everything already written gets out of the way. */
 function addNewField() {
-  foldAllOptions();
+  foldAllFields();
   addField().querySelector(".cf-label").focus();
 }
 
-function foldAllOptions() {
+function foldAllFields() {
   document.querySelectorAll(".cf-row").forEach(row => {
     row.classList.add("folded");
     row.querySelector(".cf-head").setAttribute("aria-expanded", "false");
-
-    const box = row.querySelector(".cf-options");
-    box.classList.add("folded");
-    box.querySelector(".opt-toggle").setAttribute("aria-expanded", "false");
   });
-}
-
-/* One option, one input, with the same remove control the field rows have. */
-function addOptionTo(row, value) {
-  const item = document.createElement("div");
-
-  item.className = "opt-row";
-  item.innerHTML = `
-    <input type="text" class="opt-input" maxlength="200" value="${WZI.escapeHtml(value || "")}"
-           placeholder="e.g. Under 5k" oninput="countOptions(this.closest('.cf-row'))">
-    <button class="opt-remove" type="button" aria-label="Remove this option" onclick="removeOption(this)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
-    </button>
-  `;
-
-  row.querySelector(".opt-list").appendChild(item);
-  return item;
-}
-
-// The button under the list.
-function addOption(button) {
-  const row = button.closest(".cf-row");
-
-  addOptionTo(row, "").querySelector(".opt-input").focus();
-  countOptions(row);
-}
-
-function removeOption(button) {
-  const row = button.closest(".cf-row");
-
-  button.parentNode.remove();
-  countOptions(row);
-}
-
-// A list question opens with two blanks, because one option is not a choice.
-function fillEmptyOptions(row) {
-  addOptionTo(row, "");
-  addOptionTo(row, "");
-}
-
-/* The count on the folded header is the only thing showing while the list is
-   away, so it has to follow every add and remove. */
-function countOptions(row) {
-  // Filled ones. Two empty inputs are not two options, and the badge is the
-  // only thing telling you what is in there while the list is folded.
-  const count = readOptions(row).length;
-  const badge = row.querySelector(".opt-count");
-
-  badge.textContent = count;
-  badge.hidden = !count;
 }
 
 /* The question, folded. Only a phone acts on this - the stylesheet hides the
@@ -601,57 +535,16 @@ function labelChanged(input) {
   row.querySelector(".cf-head-label").textContent = input.value.trim() || "New question";
 }
 
-function toggleOptions(button) {
-  const box = button.closest(".cf-options");
-  const folded = box.classList.toggle("folded");
-
-  button.setAttribute("aria-expanded", folded ? "false" : "true");
-
-  if (!folded) {
-    const first = box.querySelector(".opt-input");
-    if (first) first.focus();
-  }
-}
-
-/* The options box belongs to the two list types and nothing else, so it
-   appears and disappears with the Type beside it. */
 function typeChanged(select) {
   const row = select.closest(".cf-row");
-  const box = row.querySelector(".cf-options");
-  const isList = select.value === "choice" || select.value === "select";
-  const wasHidden = box.hidden;
-
   row.querySelector(".cf-head-type").textContent = TYPE_LABELS[select.value] || "";
-  box.hidden = !isList;
-
-  if (!isList) return;
-
-  if (!row.querySelectorAll(".opt-row").length) fillEmptyOptions(row);
-
-  /* Arriving at a list type from a text one opens the box, because the next
-     thing to do is fill it. Moving between the two list types leaves it as the
-     admin had it. */
-  if (wasHidden) {
-    box.classList.remove("folded");
-    box.querySelector(".opt-toggle").setAttribute("aria-expanded", "true");
-  }
-
-  countOptions(row);
-}
-
-function readOptions(row) {
-  return Array.from(row.querySelectorAll(".opt-input"))
-    .map(input => input.value.trim())
-    .filter(Boolean);
 }
 
 function readFields() {
   return Array.from(document.querySelectorAll(".cf-row")).map(row => ({
     label: row.querySelector(".cf-label").value.trim(),
     type: row.querySelector(".cf-type").value,
-    required: row.querySelector(".cf-required").checked,
-    // The endpoint takes them newline-separated, which is also how they are stored.
-    options: readOptions(row).join("\n")
+    required: row.querySelector(".cf-required").checked
   })).filter(field => field.label !== "");
 }
 
@@ -698,7 +591,7 @@ async function start() {
   await loadManagers();
 
   if (!isEdit) {
-    addField("Full Name", "input", true, "");
+    addField("Full Name", "input", true);
     document.getElementById("form").hidden = false;
     return;
   }
@@ -710,7 +603,6 @@ async function start() {
 
   document.getElementById("formHeading").textContent = "Edit Inquiry";
   document.getElementById("saveLabel").textContent = "Save Changes";
-  document.getElementById("deleteBtn").hidden = false;
 
   try {
     const res = await fetch("api/admin-inquiries.php?id=" + inquiryId, {
@@ -764,8 +656,10 @@ function fill(inq, fields, answered) {
     select.value = String(inq.account_manager_admin_id);
   }
 
+  document.getElementById("fReference").value = inq.reference || "";
+
   fields.forEach(field => {
-    addField(field.field_label, field.field_type, Number(field.required) === 1, field.options);
+    addField(field.field_label, field.field_type, Number(field.required) === 1);
   });
 
   setLink(WZI.publicLink(inquiryName));
@@ -788,8 +682,6 @@ function lockQuestions() {
   document.getElementById("fDesc").disabled = true;
 
   document.querySelectorAll(".cf-row input, .cf-row select, .cf-row textarea").forEach(el => { el.disabled = true; });
-  document.querySelectorAll(".add-option-btn, .opt-remove").forEach(el => { el.hidden = true; });
-  document.querySelectorAll(".opt-toggle").forEach(el => { el.disabled = false; });
   document.querySelectorAll(".cf-remove").forEach(el => { el.hidden = true; });
 }
 
@@ -825,17 +717,10 @@ function fail(message, element, row) {
   return false;
 }
 
-// Opening the question a complaint is about, and its options with it.
+// Opening the question a complaint is about.
 function unfoldRow(row) {
   row.classList.remove("folded");
   row.querySelector(".cf-head").setAttribute("aria-expanded", "true");
-
-  const box = row.querySelector(".cf-options");
-
-  if (box && !box.hidden) {
-    box.classList.remove("folded");
-    box.querySelector(".opt-toggle").setAttribute("aria-expanded", "true");
-  }
 }
 
 // The mark clears as soon as the admin does something about it.
@@ -883,30 +768,6 @@ function validate() {
       }
 
       seen.push(label.toLowerCase());
-
-      if (type !== "choice" && type !== "select") continue;
-
-      const options = readOptions(row);
-
-      if (!options.length) {
-        return fail(`"${label}" is a list question - give it some options.`,
-          row.querySelector(".opt-input"), row);
-      }
-
-      if (options.length < 2) {
-        return fail(`"${label}" needs more than one option to be a choice.`,
-          row.querySelector(".opt-input"), row);
-      }
-
-      const lower = options.map(o => o.toLowerCase());
-      const twice = lower.find((o, at) => lower.indexOf(o) !== at);
-
-      if (twice) {
-        const input = Array.from(row.querySelectorAll(".opt-input"))
-          .filter(el => el.value.trim().toLowerCase() === twice)[1];
-
-        return fail(`"${label}" offers "${twice}" twice.`, input, row);
-      }
     }
   }
 
@@ -923,6 +784,7 @@ async function save() {
 
   const title = document.getElementById("fTitle").value.trim();
   const introText = document.getElementById("fDesc").value.trim();
+  const reference = document.getElementById("fReference").value.trim();
   const fields = readFields();
   const status = document.getElementById("fStatus").value;
   const managerId = document.getElementById("fManager").value;
@@ -936,6 +798,7 @@ async function save() {
   const body = {
     title: title,
     introText: introText,
+    reference: reference,
     fields: fields,
     status: status,
     accountManagerId: managerId
@@ -982,30 +845,6 @@ function setLink(url) {
 
 function copyLink() {
   WZI.copyLink(inquiryName);
-}
-
-async function removeInquiry() {
-  if (!confirm("Delete this inquiry? Its links and any answers go with it, and that cannot be undone.")) {
-    return;
-  }
-
-  try {
-    const res = await fetch("api/admin-inquiries.php?id=" + inquiryId, {
-      method: "DELETE",
-      headers: { Authorization: "Bearer " + adminToken }
-    });
-    const data = await res.json();
-
-    if (!data.success) {
-      WZI.toast(data.message || "Could not delete.", true);
-      return;
-    }
-
-    window.location.href = "inquiries.html";
-
-  } catch (error) {
-    WZI.toast("Network or server error.", true);
-  }
 }
 
 start();

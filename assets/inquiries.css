@@ -185,7 +185,7 @@ td.action { text-align: right; white-space: nowrap }
 | controls are always in the markup; the breakpoint decides which one shows.
 */
 
-.kebab-wrap { position: relative; display: none }
+.kebab-wrap { position: relative; display: inline-block }
 .kebab {
   width: 34px; height: 34px; border: 1px solid #dfe3ea; background: #fff;
   border-radius: 9px; color: var(--muted); cursor: pointer;
@@ -211,9 +211,14 @@ td.action { text-align: right; white-space: nowrap }
 }
 .kebab-menu a:hover,
 .kebab-menu button:hover { background: #f2f4f8 }
+/* View sits in the menu only once the button beside it has gone; above the
+   breakpoint it would be the same destination offered twice in one cell. */
+.kebab-menu .menu-view { display: none }
 .kebab-menu svg { width: 15px; height: 15px; flex: none; color: var(--muted) }
 .kebab-menu .danger,
 .kebab-menu .danger svg { color: var(--brand) }
+.kebab-menu .danger { margin-top: 5px; padding-top: 12px; border-top: 1px solid #eef1f5; border-radius: 0 }
+.kebab-menu .danger:hover { background: #fff5f5 }
 
 /* ── Pager ──────────────────────────────────────────────────────────────── */
 
@@ -385,59 +390,11 @@ td.action { text-align: right; white-space: nowrap }
 }
 .cf-chev { width: 16px; height: 16px; flex: none; color: var(--muted); transition: transform .15s }
 
+/* Label and Type across the top, with Required and Remove pinned at the end.
+   How long the answer may be is a property of the Type, printed on it, so it
+   costs the row no column of its own. */
 .cf-main { display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 12px; align-items: end }
-.cf-options { margin-top: 14px; border-top: 1px solid #eef1f5; padding-top: 12px }
-.cf-options[hidden] { display: none }
 
-/* The header is the fold control. Folded, the count is the only thing left to
-   say how big the list underneath is. */
-.opt-toggle {
-  display: flex; align-items: center; gap: 8px; width: 100%;
-  padding: 4px 0; border: none; background: none; cursor: pointer;
-  font: inherit; font-size: 12px; font-weight: 800; color: var(--text); text-align: left;
-}
-.opt-toggle:hover { color: var(--nav-active) }
-.opt-chev { width: 15px; height: 15px; flex: none; color: var(--muted); transition: transform .15s }
-.cf-options.folded .opt-chev { transform: rotate(-90deg) }
-
-.opt-count {
-  font-style: normal; font-size: 11px; font-weight: 800; line-height: 1;
-  background: #eef0f6; color: var(--nav-active);
-  border-radius: 20px; padding: 3px 8px;
-}
-.opt-count[hidden] { display: none }
-
-.opt-body { padding-top: 12px }
-.cf-options.folded .opt-body { display: none }
-.cf-options .hint { margin-top: 8px }
-
-/* One input per option, with the same remove control the field rows carry -
-   the list is built the way the fields above it are. */
-.opt-list { display: flex; flex-direction: column; gap: 8px }
-.opt-row { display: flex; gap: 8px; align-items: center }
-.opt-row .opt-input {
-  flex: 1; min-width: 0; height: 38px;
-  border: 1px solid #dfe3ea; background: #fff; border-radius: 10px;
-  padding: 0 12px; font: inherit; font-size: 13px; color: var(--text); outline: none;
-}
-.opt-row .opt-input:focus { border-color: var(--nav-active); box-shadow: 0 0 0 3px rgba(27, 30, 58, .10) }
-.opt-remove {
-  width: 38px; height: 38px; flex: none;
-  border: 1px solid #dfe3ea; background: #fff; border-radius: 9px;
-  color: var(--muted); cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-}
-.opt-remove:hover { background: #fff5f5; border-color: #f0d2d4; color: var(--brand) }
-.opt-remove[hidden] { display: none }
-.opt-remove svg { width: 14px; height: 14px }
-
-.add-option-btn {
-  margin-top: 10px; background: none; color: var(--nav-active);
-  border: 1px dashed #c9ced8; border-radius: 10px;
-  padding: 9px 14px; font: inherit; font-weight: 800; font-size: 12px; cursor: pointer;
-}
-.add-option-btn:hover { background: #f6f7f9; border-color: var(--nav-active) }
-.add-option-btn[hidden] { display: none }
 .cf-row .field-row { margin-bottom: 0 }
 .cf-row .cf-req {
   display: flex; align-items: center; gap: 7px; height: 46px;
@@ -636,8 +593,10 @@ select,
   .pager-info { order: 2 }
 
   .col-hide { display: none }
+
+  /* The cell is the menu alone here, so View moves into it. */
   .actions { display: none }
-  .kebab-wrap { display: inline-block }
+  .kebab-menu .menu-view { display: flex }
 
   .pager { padding: 16px 14px }
   .card { padding: 20px 18px }
@@ -657,8 +616,7 @@ select,
   .cf-row.folded .cf-chev { transform: rotate(-90deg) }
 
   /* Folded, the header is the whole question. */
-  .cf-row.folded .cf-main,
-  .cf-row.folded .cf-options { display: none }
+  .cf-row.folded .cf-main { display: none }
 
   /* Open, the header needs a line under it to sit above the controls. */
   .cf-row:not(.folded) .cf-head { margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #eef1f5 }

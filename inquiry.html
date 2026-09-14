@@ -6,67 +6,145 @@
 <title>Inquiry</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
-body{background:#f6f7fb;color:#101828;padding:40px 20px;}
-.wrap{max-width:640px;margin:0 auto;}
-.logo{margin-bottom:30px;}
-.logo img{height:34px;}
 
-.card{background:#fff;border-radius:20px;box-shadow:0 14px 35px rgba(0,0,0,.06);padding:34px;}
-h1{font-size:26px;margin-bottom:12px;}
-.intro{color:#667085;font-size:15px;line-height:1.6;margin-bottom:28px;}
+:root{
+  --brand:#c9000b;
+  --ink:#101828;
+  --muted:#667085;
+  --line:#e4e8ef;
+}
 
-.field-group{margin-bottom:20px;}
-.field-group label{display:block;font-size:14px;font-weight:800;margin-bottom:8px;}
-.field-group label .req{color:#c9000b;}
+body{background:#f6f7fb;color:var(--ink)}
+
+/* ── The page ──────────────────────────────────────────────────────────────
+   The form used to sit in one card in the middle of the screen, which put the
+   title, the explanation and the first question in a single narrow column and
+   pushed everything below the fold. Now the two halves sit side by side: what
+   this is about on the left, what to fill in on the right. Neither is in a
+   card - the page is the card. */
+.page{max-width:1180px;margin:0 auto;padding:0 clamp(20px,5vw,48px) 64px}
+
+/* The logo sits in the top-left corner of the page, not above a centred
+   column, so it reads as the letterhead it is. */
+.masthead{padding:26px 0 0}
+.masthead img{height:36px;width:auto;display:block}
+
+.layout{
+  display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);
+  gap:clamp(32px,6vw,80px);align-items:start;padding-top:clamp(36px,7vw,72px);
+}
+
+/* ── Left: what this is ── */
+.intro-col{position:sticky;top:48px}
+h1{font-size:clamp(30px,4vw,44px);line-height:1.15;letter-spacing:-.5px;margin-bottom:20px}
+.intro{color:var(--muted);font-size:16px;line-height:1.75;white-space:pre-wrap}
+.intro-rule{width:52px;height:4px;border-radius:3px;background:var(--brand);margin-bottom:26px}
+
+/* ── Right: the form ── */
+.form-col{min-width:0}
+
+.field-group{margin-bottom:14px}
+
+/* The label and the count share a line. The count used to sit under the
+   control on a line of its own, which cost every question a whole row of the
+   form for four words nobody reads until they are near the limit. */
+.field-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:6px}
+.field-group label{display:block;font-size:13px;font-weight:800;min-width:0}
+.field-group label .req{color:var(--brand)}
 .field-group input,.field-group textarea{
-  width:100%;border:1px solid #dfe3ea;background:#f8fafc;border-radius:12px;
-  padding:14px 16px;font-size:15px;outline:none;
+  width:100%;border:1px solid var(--line);background:#fff;border-radius:12px;
+  padding:12px 14px;font-size:15px;color:var(--ink);outline:none;
+  transition:border-color .15s,box-shadow .15s;
 }
-.field-group textarea{min-height:110px;resize:vertical;}
-
-/* Tick lists and dropdowns. A choice is a whole row, so the label is as easy
-   to hit as the box - this is a form filled in on a phone. */
-.choices{display:flex;flex-direction:column;gap:8px;}
-.choice{display:flex;align-items:flex-start;gap:10px;border:1px solid #dfe3ea;background:#fff;
-  border-radius:12px;padding:12px 14px;font-size:14px;cursor:pointer;
-  transition:border-color .15s,background .15s;}
-.choice:hover{background:#f8fafc;border-color:#c9ced8;}
-.choice input{width:18px;height:18px;flex:none;margin-top:1px;accent-color:#1b1e3a;cursor:pointer;}
-.choice:has(input:checked){border-color:#1b1e3a;background:#f6f7fb;}
-.field-group select{width:100%;border:1px solid #dfe3ea;background:#f8fafc;border-radius:12px;
-  padding:12px 14px;font-size:14px;outline:none;cursor:pointer;height:48px;}
-.field-group select:focus{border-color:#1b1e3a;box-shadow:0 0 0 4px rgba(27,30,58,.10);}
+.field-group textarea{min-height:104px;resize:vertical;line-height:1.6}
 .field-group input:focus,.field-group textarea:focus{
-  border-color:#1b1e3a;box-shadow:0 0 0 4px rgba(27,30,58,.10);
+  border-color:var(--ink);box-shadow:0 0 0 4px rgba(16,24,40,.08);
 }
+
+/* How much room is left. Only on the two text types, and it goes amber then
+   red as it runs out rather than only at zero. */
+.counter{
+  flex:none;white-space:nowrap;
+  font-size:11px;font-weight:700;color:#98a2b3;
+}
+.counter.low{color:#d97706}
+.counter.out{color:var(--brand)}
+
+/* Tick lists and dropdowns. No question of either kind can be written any
+   more, but inquiries built before this still have them and still have to
+   render. A choice is a whole row, so the label is as easy to hit as the box. */
+.choices{display:flex;flex-direction:column;gap:6px}
+.choice{display:flex;align-items:flex-start;gap:10px;border:1px solid var(--line);background:#fff;
+  border-radius:12px;padding:12px 14px;font-size:14px;cursor:pointer;
+  transition:border-color .15s,background .15s}
+.choice:hover{background:#fafbfc;border-color:#c9ced8}
+.choice input{width:18px;height:18px;flex:none;margin-top:1px;accent-color:var(--ink);cursor:pointer}
+.choice:has(input:checked){border-color:var(--ink);background:#f6f7fb}
+.field-group select{width:100%;border:1px solid var(--line);background:#fff;border-radius:12px;
+  padding:12px 14px;font-size:15px;outline:none;cursor:pointer;height:50px;color:var(--ink)}
+.field-group select:focus{border-color:var(--ink);box-shadow:0 0 0 4px rgba(16,24,40,.08)}
 
 .submit-btn{
-  width:100%;background:#101828;color:#fff;border:none;padding:16px;
-  border-radius:12px;font-weight:800;font-size:15px;cursor:pointer;margin-top:8px;
+  width:100%;background:var(--ink);color:#fff;border:none;padding:16px;
+  border-radius:12px;font-weight:800;font-size:15px;cursor:pointer;margin-top:18px;
+  transition:background .15s;
 }
-.submit-btn:hover{background:#1f2937;}
-.submit-btn:disabled{opacity:.6;cursor:not-allowed;}
+.submit-btn:hover{background:#1f2937}
+.submit-btn:disabled{opacity:.6;cursor:not-allowed}
 
-.status{margin-top:16px;font-size:14px;color:#667085;text-align:center;}
-.status.error{color:#c9000b;}
+.status{margin-top:14px;font-size:14px;color:var(--muted);text-align:center}
+.status.error{color:var(--brand)}
 
-.thankyou{text-align:center;padding:20px 0;}
-.thankyou h2{font-size:22px;margin-bottom:10px;}
-.thankyou p{color:#667085;}
+/* The states that replace the whole layout rather than sitting inside it. */
+.panel{
+  background:#fff;border:1px solid var(--line);border-radius:20px;
+  padding:56px 32px;text-align:center;margin-top:clamp(36px,7vw,72px);
+}
+.panel h2{font-size:24px;margin-bottom:10px}
+.panel p{color:var(--muted);font-size:15px;line-height:1.7;max-width:460px;margin:0 auto}
+.panel-icon{
+  width:56px;height:56px;margin:0 auto 20px;border-radius:50%;
+  background:#e8faef;color:#20a95a;
+  display:flex;align-items:center;justify-content:center;
+}
+.panel-icon svg{width:28px;height:28px}
 
-.loading,.notfound{text-align:center;color:#667085;padding:60px 0;}
+/* The way back out for the one case this flag gets wrong: two people sharing a
+   computer. Quiet, because it is the uncommon answer to the question the panel
+   just asked - but present, because without it the second person simply cannot
+   reply, and a flag in their browser is not a good enough reason for that. */
+.panel .again{
+  margin-top:22px;background:none;border:none;padding:0;
+  font:inherit;font-size:13px;font-weight:700;color:var(--muted);
+  text-decoration:underline;cursor:pointer;
+}
+.panel .again:hover{color:var(--ink)}
+.loading{text-align:center;color:var(--muted);padding:80px 0}
+
+@media(max-width:900px){
+  /* One column, and the intro stops following the scroll - there is nothing
+     beside it to stay level with. */
+  .layout{grid-template-columns:1fr;gap:36px;padding-top:32px}
+  .intro-col{position:static}
+  .masthead{padding-top:22px}
+}
 </style>
 </head>
 <body>
 
-<div class="wrap">
-  <div class="logo">
-    <img src="logo.png" alt="W|ZONE London" onerror="this.style.display='none'">
-  </div>
+<div class="page">
 
-  <div class="card" id="card">
+  <header class="masthead">
+    <!-- Same fallback the admin pages use, so a deploy without logo.png at
+         the root still shows a wordmark rather than a gap. -->
+    <img src="logo.png" alt="W|ZONE London"
+         onerror="this.onerror=null;this.src='assets/WZONE%20source.png'">
+  </header>
+
+  <div id="view">
     <div class="loading">Loading...</div>
   </div>
+
 </div>
 
 <script>
@@ -81,11 +159,91 @@ const inquiryToken = params.get("token") || params.get("ref") || "";
 
 let inquiryFields = [];
 
+/* How long an answer of each type may be, fixed by the type. The same two
+   numbers api/public-inquiry.php enforces on the way in. */
+const TYPE_MAX_CHARS = { input: 120, textarea: 800 };
+
+function capFor(field){
+  return TYPE_MAX_CHARS[field.field_type] || 120;
+}
+
+function panel(html){
+  document.getElementById("view").innerHTML = '<div class="panel">' + html + "</div>";
+}
+
+/*
+|------------------------------------------------------------------------------
+| "You have already answered this"
+|------------------------------------------------------------------------------
+|
+| A flag in localStorage against this inquiry's name, written when a submission
+| succeeds and read before the form is drawn.
+|
+| It is a courtesy and not a control, and it is worth being plain about which:
+| a private window, a different browser, a different device or clearing site
+| data all wipe it, and none of that is hard to do. What it stops is the honest
+| case - somebody who answered last week following the same link again, or
+| double-clicking Submit - which is most of what actually happens.
+|
+| The rule that does hold is on the server, and only for the older per-person
+| links: a ?token= link is claimed the moment it is used and cannot be answered
+| twice, whatever any browser thinks.
+|
+| Every access is wrapped, because localStorage throws rather than returning
+| null when a browser has storage switched off, and a form that will not load
+| is worse than one that can be answered twice.
+*/
+
+const DONE_KEY = "wz_inquiry_done_" + (inquiryName || inquiryToken);
+
+function markAnswered(){
+  try { localStorage.setItem(DONE_KEY, new Date().toISOString()); } catch (e) {}
+}
+
+function answeredAt(){
+  try { return localStorage.getItem(DONE_KEY); } catch (e) { return null; }
+}
+
+function forgetAnswered(){
+  try { localStorage.removeItem(DONE_KEY); } catch (e) {}
+}
+
+/* "on 4 September 2026", or nothing at all if the stored value is not a date
+   we can read - the sentence has to work either way. */
+function answeredWhen(stored){
+  const at = new Date(stored);
+
+  if (isNaN(at.getTime())) return "";
+
+  return " on " + at.toLocaleDateString(undefined, {
+    day: "numeric", month: "long", year: "numeric"
+  });
+}
+
+function alreadyAnswered(inquiry, stored){
+  panel(
+      '<div class="panel-icon">'
+    +   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>'
+    + "</div>"
+    + "<h2>You have already answered this</h2>"
+    + "<p>Your answers to &ldquo;" + escapeHtml(inquiry.title) + "&rdquo; were sent"
+    +   answeredWhen(stored) + ". There is nothing else to do.</p>"
+    + '<button class="again" type="button" onclick="answerAgain()">Not you? Answer again</button>'
+  );
+}
+
+/* Someone else on the same computer. The flag was about this browser, never
+   about a person, so it is dropped and the form is drawn fresh. */
+function answerAgain(){
+  forgetAnswered();
+  document.getElementById("view").innerHTML = '<div class="loading">Loading...</div>';
+  loadInquiry();
+}
+
 async function loadInquiry(){
-  const card = document.getElementById("card");
 
   if(!inquiryName && !inquiryToken){
-    card.innerHTML = `<div class="notfound">This link is missing or invalid.</div>`;
+    panel("<h2>This link is missing or invalid</h2><p>Check the address you were sent, or ask whoever sent it for a new one.</p>");
     return;
   }
 
@@ -97,7 +255,16 @@ async function loadInquiry(){
     const data = await res.json();
 
     if(!data.success){
-      card.innerHTML = `<div class="notfound">${escapeHtml(data.message || "This link is no longer available.")}</div>`;
+      panel("<h2>This link is no longer available</h2><p>" + escapeHtml(data.message || "") + "</p>");
+      return;
+    }
+
+    /* After the fetch rather than before it, so the panel can name the
+       inquiry - and so a closed or deleted one still says so first. */
+    const stored = answeredAt();
+
+    if (stored) {
+      alreadyAnswered(data.inquiry, stored);
       return;
     }
 
@@ -105,16 +272,16 @@ async function loadInquiry(){
     renderForm(data.inquiry, inquiryFields);
 
   }catch(err){
-    card.innerHTML = `<div class="notfound">Connection error. Please try again.</div>`;
+    panel("<h2>Connection error</h2><p>Something went wrong reaching the server. Please try again.</p>");
   }
 }
 
-/* One question, one control. A 'choice' takes any number of answers and a
-   'select' exactly one; both read their options from the same list, which the
-   endpoint stores one per line. */
+/* One question, one control. 'choice' and 'select' cannot be created any more,
+   but questions written before this still carry them, so both still render. */
 function control(field){
   const required = Number(field.required) === 1;
   const options = String(field.options || "").split(/\r\n|\r|\n/).map(o => o.trim()).filter(Boolean);
+  const cap = capFor(field);
 
   if(field.field_type === "choice" && options.length){
     return `
@@ -142,33 +309,76 @@ function control(field){
   }
 
   if(field.field_type === "textarea"){
-    return `<textarea data-field-id="${field.id}" ${required ? "required" : ""}></textarea>`;
+    return `<textarea data-field-id="${field.id}" maxlength="${cap}"
+                      ${required ? "required" : ""}></textarea>`;
   }
 
-  return `<input type="text" data-field-id="${field.id}" ${required ? "required" : ""}>`;
+  return `<input type="text" data-field-id="${field.id}" maxlength="${cap}"
+                 ${required ? "required" : ""}>`;
+}
+
+/* Only the two text types have a length to count down. */
+function counter(field){
+  if(field.field_type !== "input" && field.field_type !== "textarea") return "";
+
+  return `<span class="counter" data-counter-for="${field.id}">${capFor(field)} characters left</span>`;
 }
 
 function renderForm(inquiry, fields){
-  const card = document.getElementById("card");
+  document.getElementById("view").innerHTML = `
+    <div class="layout">
 
-  card.innerHTML = `
-    <h1>${escapeHtml(inquiry.title)}</h1>
-    ${inquiry.intro_text ? `<p class="intro">${escapeHtml(inquiry.intro_text)}</p>` : ``}
+      <div class="intro-col">
+        <div class="intro-rule"></div>
+        <h1>${escapeHtml(inquiry.title)}</h1>
+        ${inquiry.intro_text ? `<p class="intro">${escapeHtml(inquiry.intro_text)}</p>` : ``}
+      </div>
 
-    <form id="inquiryForm">
-      ${fields.map(f => `
-        <div class="field-group">
-          <label>${escapeHtml(f.field_label)} ${Number(f.required) === 1 ? `<span class="req">*</span>` : ``}</label>
-          ${control(f)}
-        </div>
-      `).join("")}
+      <div class="form-col">
+        <form id="inquiryForm">
+          ${fields.map(f => `
+            <div class="field-group">
+              <div class="field-head">
+                <label>${escapeHtml(f.field_label)} ${Number(f.required) === 1 ? `<span class="req">*</span>` : ``}</label>
+                ${counter(f)}
+              </div>
+              ${control(f)}
+            </div>
+          `).join("")}
 
-      <button type="submit" class="submit-btn" id="submitBtn">Submit</button>
-      <div class="status" id="formStatus"></div>
-    </form>
+          <button type="submit" class="submit-btn" id="submitBtn">Submit</button>
+          <div class="status" id="formStatus"></div>
+        </form>
+      </div>
+
+    </div>
   `;
 
   document.getElementById("inquiryForm").addEventListener("submit", submitInquiry);
+  wireCounters();
+}
+
+/* The counter under a text control. maxlength stops the typing on its own;
+   this is so the stop is not a surprise. */
+function wireCounters(){
+  inquiryFields.forEach(field => {
+    const input = document.querySelector(`[data-field-id="${field.id}"]`);
+    const counter = document.querySelector(`[data-counter-for="${field.id}"]`);
+
+    if(!input || !counter) return;
+
+    const cap = capFor(field);
+
+    const update = () => {
+      const left = cap - input.value.length;
+      counter.textContent = left + (left === 1 ? " character left" : " characters left");
+      counter.classList.toggle("low", left <= cap * 0.1 && left > 0);
+      counter.classList.toggle("out", left === 0);
+    };
+
+    input.addEventListener("input", update);
+    update();
+  });
 }
 
 async function submitInquiry(e){
@@ -218,12 +428,14 @@ async function submitInquiry(e){
       return;
     }
 
-    document.getElementById("card").innerHTML = `
-      <div class="thankyou">
-        <h2>Thank you!</h2>
-        <p>${escapeHtml(data.message)}</p>
-      </div>
-    `;
+    markAnswered();
+
+    panel(
+        '<div class="panel-icon">'
+      +   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>'
+      + "</div>"
+      + "<h2>Thank you!</h2><p>" + escapeHtml(data.message) + "</p>"
+    );
 
   }catch(err){
     statusEl.innerText = "Connection error. Please try again.";

@@ -209,6 +209,25 @@ if ($method === "POST") {
 
         $answersByFieldId[$id] = is_array($given) ? implode(", ", $given) : $given;
 
+        /* Fixed by the type: 120 characters for a short answer, 800 for a
+           paragraph. maxlength in the browser is a courtesy to the person
+           typing; this is the rule.
+
+           Only the free-text types are capped. A list answer is options the
+           admin wrote, checked against that list a few lines up, so its length
+           is not something the person answering chose. */
+        $limit = ($type === "textarea") ? 800 : 120;
+        $capped = ($type === "input" || $type === "textarea");
+
+        if ($capped && mb_strlen((string) $answersByFieldId[$id]) > $limit) {
+            echo json_encode([
+                "success" => false,
+                "message" => "\"" . $field["field_label"] . "\" must be "
+                           . $limit . " characters or fewer."
+            ]);
+            exit;
+        }
+
         if ((int)$field["required"] === 1 && $answersByFieldId[$id] === "") {
             echo json_encode([
                 "success" => false,

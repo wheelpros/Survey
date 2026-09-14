@@ -594,7 +594,11 @@ function ensureProjectTables(PDO $pdo)
 const INQUIRY_FIELD_EXTRA_COLUMNS = [
     /* The options offered by a 'choice' or 'select' question, one per line.
        Newline-separated rather than JSON because that is exactly how they are
-       typed on the form, and nothing else ever reads them apart. */
+       typed on the form, and nothing else ever reads them apart.
+
+       Neither type can be created any more - the form builder offers short
+       answer and paragraph only - but the column stays for the questions
+       written before that, which still render on the public page. */
     "options" => "TEXT NULL",
 ];
 
@@ -611,6 +615,12 @@ const INQUIRY_EXTRA_COLUMNS = [
 
     /* Whose consultation this is. Points at admins.id, role account_manager. */
     "account_manager_admin_id" => "INT NULL",
+
+    /* The admin's own handle for this inquiry - a job number, a client code,
+       whatever they file it under. It is shown on the list and on the details
+       page and deliberately never reaches the public form: it is how the
+       office refers to the inquiry, not how the person answering it does. */
+    "reference"                => "VARCHAR(100) NULL",
 ];
 
 function ensureInquiryTables(PDO $pdo)
@@ -630,6 +640,7 @@ function ensureInquiryTables(PDO $pdo)
               slug                     VARCHAR(200)     NULL,
               status                   VARCHAR(20)  NOT NULL DEFAULT 'active',
               account_manager_admin_id INT              NULL,
+              reference                VARCHAR(100)     NULL,
               created_by_admin_id      INT              NULL,
               created_at               TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
               UNIQUE KEY uniq_slug (slug),

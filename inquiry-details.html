@@ -295,6 +295,10 @@ document.addEventListener("DOMContentLoaded", function () {
           <span class="f-label">Created</span>
           <div class="f-value" id="vCreated"></div>
         </div>
+        <div>
+          <span class="f-label">Reference</span>
+          <div class="f-value" id="vReference"></div>
+        </div>
       </div>
 
       <div class="f-row">
@@ -385,6 +389,9 @@ const PER_PAGE = 5;
 let inquiryName = "";
 let fields = [];
 let responses = [];
+/* Set only when the URL names a response to open. Nothing else scrolls the
+   page off the summary card it is supposed to start on. */
+let scrollToOpen = false;
 let respPage = 1;
 let openId = null;
 
@@ -463,6 +470,11 @@ function fill(inq) {
     : `<div class="f-value t-muted">Nobody assigned</div>`;
 
   document.getElementById("vCreated").textContent = WZI.fmtDateTime(inq.created_at);
+
+  /* The office's own handle for this inquiry. Never shown on the public form. */
+  const reference = document.getElementById("vReference");
+  reference.textContent = inq.reference || "Not set";
+  reference.classList.toggle("t-muted", !inq.reference);
 
   document.getElementById("vLink").textContent = WZI.publicLink(inquiryName);
 
@@ -544,9 +556,12 @@ function renderResponses(fieldList, list) {
   if (at > -1) {
     respPage = Math.floor(at / PER_PAGE) + 1;
     openId = responses[at].id;
+    /* Only a URL naming a response is a request to be taken to it. */
+    scrollToOpen = true;
   } else {
     // Otherwise the newest is the one open, because it is the one anybody
-    // arriving here came to read.
+    // arriving here came to read - open, but not scrolled to. This page starts
+    // at the top, on the summary card.
     openId = responses[0].id;
   }
 
@@ -567,7 +582,10 @@ function renderPage() {
 
   renderRespPager(total, pages, start, slice.length);
 
-  if (openId) {
+  /* One-shot: the deep link is honoured on the render it arrived for, and
+     paging through the answers afterwards does not re-trigger it. */
+  if (openId && scrollToOpen) {
+    scrollToOpen = false;
     const el = document.getElementById("response-" + openId);
     if (el) el.scrollIntoView({ block: "nearest" });
   }

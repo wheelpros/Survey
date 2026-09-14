@@ -240,10 +240,13 @@ select.client-filter{
    layout a long unbroken name sets a minimum width and the whole thing spills
    out of the card. Columns therefore need stated widths. */
 table{width:100%;border-collapse:collapse;table-layout:fixed}
-th:nth-child(1),td:nth-child(1){width:28%}
-th:nth-child(2),td:nth-child(2){width:22%}
-th:nth-child(3),td:nth-child(3){width:24%}
-th:nth-child(4),td:nth-child(4){width:26%}
+th:nth-child(1),td:nth-child(1){width:27%}
+th:nth-child(2),td:nth-child(2){width:21%}
+th:nth-child(3),td:nth-child(3){width:23%}
+th:nth-child(4),td:nth-child(4){width:20%}
+/* Just the square plus its padding - the column never needs more, because the
+   heading above it is empty on purpose. */
+th:nth-child(5),td:nth-child(5){width:9%}
 th{text-align:left;padding:16px 24px;color:var(--muted);font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;border-bottom:1px solid var(--line)}
 td{padding:18px 24px;border-bottom:1px solid #f2f4f7;font-size:13px;vertical-align:middle}
 tr:last-child td{border-bottom:none}
@@ -257,10 +260,21 @@ tr:last-child td{border-bottom:none}
 .p-title{font-weight:700;color:var(--text)}
 .timeline{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;color:var(--muted);font-size:12px;white-space:nowrap}
 .timeline svg{width:14px;height:14px;flex:none;color:#c3c9d4}
-td.action{text-align:center;white-space:nowrap}
+td.action,th.col-action{text-align:right;white-space:nowrap;padding-right:10px}
+/* The menu's own column: no heading, and the square against the right edge of
+   the card, where the same control sits on every other list in the portal. */
+td.menu-cell,th.col-menu{text-align:right;white-space:nowrap;padding-left:6px}
+
+/* A heading that is there for a screen reader and nowhere else. */
+.sr-only{
+  position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+  overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;
+}
 /* View and Edit sit side by side, right-aligned under the Action heading. */
 .action-btns{display:inline-flex;gap:8px;align-items:center;justify-content:flex-end}
-.kebab-gap{display:inline-block;width:34px}
+/* Two cells now, so each aligns its own control against the row's middle
+   rather than against a shared text baseline. */
+.action-btns,.kebab-wrap{vertical-align:middle}
 /* The pager sits inside the card, so it needs the divider the rows have. */
 .table-card .wz-tablewrap{overflow:visible}
 .table-card .pager{padding:16px 24px;border-top:1px solid var(--line)}
@@ -290,6 +304,10 @@ td.action{text-align:center;white-space:nowrap}
   display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:8px;
   font-size:13px;font-weight:700;color:var(--text);text-decoration:none;white-space:nowrap;
 }
+/* View sits in the menu only once the button beside it has gone; above the
+   breakpoint it would be the same destination offered twice in one cell. */
+.kebab-menu .menu-view{display:none}
+
 /* Delete is a <button> rather than a link, so the menu styles both. */
 .kebab-menu button{
   width:100%;font:inherit;background:none;border:none;cursor:pointer;
@@ -304,15 +322,21 @@ td.action{text-align:center;white-space:nowrap}
 .kebab-menu .danger svg{color:var(--brand)}
 .kebab-menu .danger:hover{background:#fff5f5}
 
+/* A row this admin may only look at has nothing in its menu but View, which
+   above the breakpoint is nothing at all - so the control is hidden but its
+   box is kept, and the View buttons stay in a line down the column. */
+.kebab-wrap.view-only{visibility:hidden}
+
 /* The action cell now holds "View" and a 34px square, so the column can give
    its width back to the three that carry text. With table-layout:fixed a column
    that is too narrow lets the buttons spill out rather than widening to hold
    them, so the split still shifts before the table gets tight. */
 @media(max-width:1500px){
-  th:nth-child(1),td:nth-child(1){width:29%}
-  th:nth-child(2),td:nth-child(2){width:22%}
-  th:nth-child(3),td:nth-child(3){width:25%}
-  th:nth-child(4),td:nth-child(4){width:24%}
+  th:nth-child(1),td:nth-child(1){width:28%}
+  th:nth-child(2),td:nth-child(2){width:21%}
+  th:nth-child(3),td:nth-child(3){width:24%}
+  th:nth-child(4),td:nth-child(4){width:17%}
+  th:nth-child(5),td:nth-child(5){width:10%}
   td.action{padding-left:8px}
 }
 @media(max-width:768px){
@@ -327,14 +351,23 @@ td.action{text-align:center;white-space:nowrap}
   .table-card .wz-tablewrap td.action,
   .table-card .wz-tablewrap th:last-child{white-space:nowrap}
   .col-timeline{display:none}
+  /* View moves into the menu here, which leaves its column holding nothing -
+     so the column goes too, rather than sitting there as an empty heading. */
+  .col-action,td.action{display:none}
   /* Taller rows, and the two text columns squeezed so a long name uses the
      second line the clamp above allows instead of one wide one. */
   th,td{padding:20px 12px}
-  /* The action column takes the width it needs for both controls first; the
-     two text columns wrap, which is what the clamp above is for. */
-  th:first-child,td:first-child{padding-left:12px;width:40%}
-  th:nth-child(2),td:nth-child(2){width:28%}
+  /* Only a 34px square to fit now, so the two text columns take the room. */
+  th:first-child,td:first-child{padding-left:12px;width:60%}
+  th:nth-child(2),td:nth-child(2){width:26%}
+  th:nth-child(5),td:nth-child(5){width:14%}
   th:last-child,td:last-child{padding-right:12px}
+
+  /* The menu is the whole cell here, so it gives the padding back. */
+  td.menu-cell,th.col-menu{padding-left:0}
+  .action .action-btns{display:none}
+  .kebab-menu .menu-view{display:flex}
+  .kebab-wrap.view-only{visibility:visible}
 }
 
 /* ── Delete confirmation ───────────────────────────────────────────────────
@@ -368,15 +401,6 @@ td.action{text-align:center;white-space:nowrap}
   .confirm-box{padding:22px}
   .confirm-actions{flex-direction:column-reverse}
   .confirm-actions .btn{width:100%}
-}
-
-/* Under ~420px the action column's share stops covering View plus the kebab,
-   and the kebab was hanging 4px past the edge of the screen. The two text
-   columns give up the width - they wrap, the buttons cannot. */
-@media(max-width:420px){
-  th:first-child,td:first-child{width:36%}
-  th:nth-child(2),td:nth-child(2){width:26%}
-  td.action,th:last-child{padding-left:4px;padding-right:10px}
 }
 
 @media(max-width:1100px){.stats{grid-template-columns:repeat(2,1fr)}}
@@ -528,11 +552,14 @@ document.addEventListener("DOMContentLoaded", function () {
             <th>Project</th>
             <th>Client</th>
             <th class="col-timeline">Timeline</th>
-            <th style="text-align:center">Action</th>
+            <th class="col-action">Action</th>
+            <!-- No heading: "Action" already names the pair, and a second word
+                 over a 34px square would be the widest thing in the column. -->
+            <th class="col-menu"><span class="sr-only">More actions</span></th>
           </tr>
         </thead>
         <tbody id="rows">
-          <tr><td colspan="4" style="text-align:center;color:var(--muted);padding:30px">Loading projects...</td></tr>
+          <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:30px">Loading projects...</td></tr>
         </tbody>
       </table>
 
@@ -705,7 +732,7 @@ async function load(){
 
   if (!data.success) {
     document.getElementById("rows").innerHTML =
-      `<tr><td colspan="4" style="text-align:center;color:var(--brand);padding:30px">${esc(data.message)}</td></tr>`;
+      `<tr><td colspan="5" style="text-align:center;color:var(--brand);padding:30px">${esc(data.message)}</td></tr>`;
     return;
   }
 
@@ -858,10 +885,10 @@ function render(){
       </td>
       <td class="action">
         <span class="action-btns">
-          <a class="btn btn-ghost" href="project-details.html?id=${encodeURIComponent(project.id)}">View</a>
+          <a class="btn btn-dark" href="project-details.html?id=${encodeURIComponent(project.id)}">View</a>
         </span>
-        ${rowMenu(project)}
       </td>
+      <td class="menu-cell">${rowMenu(project)}</td>
     </tr>
   `).join("");
 
@@ -894,12 +921,17 @@ function rowMenu(project){
       </button>`);
   }
 
-  /* A row this admin may only look at still has to leave the menu's width
-     behind it, or its View button sits 42px right of every other one. */
-  if (!items.length) return '<span class="kebab-gap"></span>';
+  /* View is in the menu at every width, and showing on a phone. A row whose
+     menu holds nothing else is marked so the CSS can hide the control above the
+     breakpoint while keeping the space it occupies. */
+  items.unshift(`
+      <a class="menu-view" role="menuitem" href="project-details.html?id=${encodeURIComponent(project.id)}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg>
+        View details
+      </a>`);
 
   return `
-    <div class="kebab-wrap">
+    <div class="kebab-wrap${items.length === 1 ? " view-only" : ""}">
       <button class="kebab" type="button" aria-haspopup="menu" aria-expanded="false"
               aria-label="More actions for ${esc(project.title)}">
         <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>

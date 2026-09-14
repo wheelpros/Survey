@@ -108,49 +108,39 @@ function resolveManagerId($pdo, $raw)
 }
 
 /*
-| The question types. 'choice' takes any number of answers, 'select' exactly
-| one; both need a list to choose from, which is what makes them different from
-| the two free-text types.
+| The question types an inquiry can be built from: one line of text, or a
+| paragraph of it.
+|
+| 'choice' and 'select' are gone from this list on purpose. Questions of those
+| types written before still render on the public page and still read back on
+| the details page, because nothing here deletes them - but the form builder no
+| longer offers them, and normaliseFieldType() below turns one into 'input' if
+| an old inquiry is saved again.
 |
 | Stored as VARCHAR and checked here rather than as an ENUM, the same as
 | content.content_type and projects.project_type - adding a type never needs an
 | ALTER the database user may not have.
 */
-const INQUIRY_FIELD_TYPES = ["input", "textarea", "choice", "select"];
+const INQUIRY_FIELD_TYPES = ["input", "textarea"];
+
+/* How long an answer of each type may be. Fixed by the type and not settable
+   per question: "short answer" and "paragraph" are the promise, and a number
+   attached to each is what makes them mean something. api/public-inquiry.php
+   enforces the same two figures on the way in. */
+const INQUIRY_FIELD_MAX_CHARS = [
+    "input"    => 120,
+    "textarea" => 800,
+];
 
 function normaliseFieldType($raw)
 {
     return in_array($raw, INQUIRY_FIELD_TYPES, true) ? $raw : "input";
 }
 
-/* Options arrive as the admin typed them: one per line. Blank lines go, so do
-   duplicates - a list offering the same answer twice is a mistake every time -
-   and the whole thing is capped so a paste cannot write a novel into the row. */
-function normaliseOptions($raw)
-{
-    $lines = preg_split("/\r\n|\r|\n/", (string)$raw);
-    $clean = [];
 
-    foreach ($lines as $line) {
-        $line = trim($line);
-
-        if ($line === "" || in_array($line, $clean, true)) {
-            continue;
-        }
-
-        $clean[] = mb_substr($line, 0, 200);
-
-        if (count($clean) >= 50) {
-            break;
-        }
-    }
-
-    return $clean;
-}
-
-/* Writing the questions, for both create and edit. A choice question with no
-   options left after cleaning is stored as free text rather than as a list
-   with nothing in it - the form refuses that case first, this is the backstop. */
+/* Writing the questions, for both create and edit. Only the two free-text
+   types can be written, so `options` is always NULL on a row written here -
+   the column carries nothing but what the legacy list questions put in it. */
 function writeFields($pdo, $inquiryId, $fields)
 {
     $stmt = $pdo->prepare("
@@ -164,14 +154,9 @@ function writeFields($pdo, $inquiryId, $fields)
         $label = trim($field["label"] ?? "");
         if (!$label) continue;
 
+        /* Only the two free-text types can be written now, so nothing reaching
+           here has options to store. */
         $type = normaliseFieldType($field["type"] ?? "input");
-        $options = ($type === "choice" || $type === "select")
-            ? normaliseOptions($field["options"] ?? "")
-            : [];
-
-        if (($type === "choice" || $type === "select") && !count($options)) {
-            $type = "input";
-        }
 
         $order++;
 
@@ -180,7 +165,7 @@ function writeFields($pdo, $inquiryId, $fields)
             $label,
             $type,
             !empty($field["required"]) ? 1 : 0,
-            count($options) ? implode("\n", $options) : null,
+            null,
             $order
         ]);
     }
@@ -189,6 +174,15 @@ function writeFields($pdo, $inquiryId, $fields)
 function normaliseStatus($raw)
 {
     return ($raw === "inactive") ? "inactive" : "active";
+}
+
+/* The office's own handle for the inquiry. Free text, trimmed and capped to
+   the column; empty is stored as NULL so the list can tell "not set" from a
+   reference that is a single space. */
+function normaliseReference($raw)
+{
+    $value = trim((string) $raw);
+    return $value === "" ? null : mb_substr($value, 0, 100);
 }
 
 if ($method === "GET") {
@@ -219,7 +213,8 @@ if ($method === "GET") {
         $stmt = $pdo->prepare("
             SELECT
                 inquiries.id, inquiries.title, inquiries.intro_text, inquiries.slug,
-                inquiries.status, inquiries.account_manager_admin_id, inquiries.created_at,
+                inquiries.status, inquiries.account_manager_admin_id, inquiries.reference,
+                inquiries.created_at,
                 manager.name AS account_manager_name,
                 manager.email AS account_manager_email
             FROM inquiries
@@ -259,7 +254,7 @@ if ($method === "GET") {
     $stmt = $pdo->query("
         SELECT
             inquiries.id, inquiries.title, inquiries.slug, inquiries.status,
-            inquiries.account_manager_admin_id, inquiries.created_at,
+            inquiries.account_manager_admin_id, inquiries.reference, inquiries.created_at,
             manager.name AS account_manager_name,
             (SELECT COUNT(*) FROM inquiry_responses WHERE inquiry_responses.inquiry_id = inquiries.id) AS lead_count
         FROM inquiries
@@ -305,6 +300,7 @@ if ($method === "POST") {
     $fields = $input["fields"] ?? [];
     $status = normaliseStatus($input["status"] ?? "active");
     $managerId = resolveManagerId($pdo, $input["accountManagerId"] ?? 0);
+    $reference = normaliseReference($input["reference"] ?? "");
 
     if (!$title || !count($fields)) {
         echo json_encode(["success" => false, "message" => "A title and at least one field are required"]);
@@ -318,10 +314,11 @@ if ($method === "POST") {
         $slug = slugifyInquiryTitle($pdo, $title);
 
         $stmt = $pdo->prepare("
-            INSERT INTO inquiries (title, intro_text, slug, status, account_manager_admin_id, created_by_admin_id)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO inquiries
+                (title, intro_text, slug, status, account_manager_admin_id, reference, created_by_admin_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         ");
-        $stmt->execute([$title, $introText, $slug, $status, $managerId, $currentAdmin["id"]]);
+        $stmt->execute([$title, $introText, $slug, $status, $managerId, $reference, $currentAdmin["id"]]);
         $inquiryId = $pdo->lastInsertId();
 
         writeFields($pdo, $inquiryId, $fields);
@@ -358,6 +355,7 @@ if ($method === "PUT") {
     $fields = $input["fields"] ?? [];
     $status = normaliseStatus($input["status"] ?? "active");
     $managerId = resolveManagerId($pdo, $input["accountManagerId"] ?? 0);
+    $reference = normaliseReference($input["reference"] ?? "");
 
     if (!$inquiryId) {
         echo json_encode(["success" => false, "message" => "Inquiry id is required"]);
@@ -384,14 +382,18 @@ if ($method === "PUT") {
        over - neither touches anything historical. */
     if (inquiryHasAnswers($pdo, $inquiryId)) {
 
-        $stmt = $pdo->prepare("UPDATE inquiries SET status = ?, account_manager_admin_id = ? WHERE id = ?");
-        $stmt->execute([$status, $managerId, $inquiryId]);
+        $stmt = $pdo->prepare("
+            UPDATE inquiries
+            SET status = ?, account_manager_admin_id = ?, reference = ?
+            WHERE id = ?
+        ");
+        $stmt->execute([$status, $managerId, $reference, $inquiryId]);
 
         echo json_encode([
             "success" => true,
             "locked" => true,
             "name" => $existing["slug"],
-            "message" => "Status and account manager saved. The questions are locked - this inquiry already has answers."
+            "message" => "Status, account manager and reference saved. The questions are locked - this inquiry already has answers."
         ]);
         exit;
     }
@@ -407,10 +409,11 @@ if ($method === "PUT") {
 
         $updateStmt = $pdo->prepare("
             UPDATE inquiries
-            SET title = ?, intro_text = ?, slug = ?, status = ?, account_manager_admin_id = ?
+            SET title = ?, intro_text = ?, slug = ?, status = ?,
+                account_manager_admin_id = ?, reference = ?
             WHERE id = ?
         ");
-        $updateStmt->execute([$title, $introText, $slug, $status, $managerId, $inquiryId]);
+        $updateStmt->execute([$title, $introText, $slug, $status, $managerId, $reference, $inquiryId]);
 
         $deleteFieldsStmt = $pdo->prepare("DELETE FROM inquiry_fields WHERE inquiry_id = ?");
         $deleteFieldsStmt->execute([$inquiryId]);

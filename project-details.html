@@ -405,6 +405,13 @@ select.client-filter{
    field with the bar underneath its own number. */
 .field .bar{height:6px;border-radius:4px;background:#eef1f5;margin-top:8px;overflow:hidden;max-width:260px}
 .field .bar i{display:block;height:100%;background:var(--nav-active);border-radius:4px}
+
+/* A grid cell like the fields beside it: bottom-aligned so the button sits
+   level with the progress bar, and starting at the column's own left edge so
+   it lines up under Status rather than drifting off to the panel's corner. */
+.panel-actions{display:flex;gap:10px;align-items:flex-end;justify-content:flex-start}
+/* An admin who cannot edit gets no empty cell holding the space. */
+.panel-actions:has(.btn[hidden]){display:none}
 .detail-img{width:100%;max-height:320px;border-radius:14px;background:#eef1f5 center/cover no-repeat;aspect-ratio:16/7;margin-bottom:22px;display:flex;align-items:center;justify-content:center;color:#aeb6c4}
 .detail-img svg{width:40px;height:40px}
 /* A project with no image hides the block outright rather than showing a
@@ -416,6 +423,10 @@ select.client-filter{
 /* Two columns, the pairing the design asks for: client beside timeline,
    manager beside status. Four across put each label over a sliver of text. */
 .detail-meta{display:grid;grid-template-columns:repeat(2,1fr);gap:24px 40px}
+/* Scheduled, Published and Progress answer "when, is it out, is it done" - the
+   three readings of the same task, so they belong on one line together with
+   Added by and Link underneath. */
+#taskPanel .detail-meta{grid-template-columns:repeat(3,1fr)}
 .field strong{display:block;font-size:13px;font-weight:700;word-break:break-word}
 .field .link{color:#2563eb}
 
@@ -455,7 +466,9 @@ select.client-filter{
 @media(max-width:1100px){.grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:768px){
   .grid{grid-template-columns:1fr}
-  .detail-meta{grid-template-columns:1fr}
+  .detail-meta,#taskPanel .detail-meta{grid-template-columns:1fr}
+  .panel-actions{justify-content:stretch;margin-top:4px}
+  .panel-actions .btn{width:100%}
   /* Same treatment as admin-calendar.html at this width: the cells shrink and
      the weekday names abbreviate, so seven columns still fit a phone. */
   .cal-card{padding:14px 10px}
@@ -469,8 +482,11 @@ select.client-filter{
 }
 @media(max-width:700px){
   .detail-head{flex-wrap:wrap}
+  /* The header stacks here, so its button takes the row rather than sitting
+     as a small tab against the right edge. .create-btn as well as .btn: New
+     Task carries the former, and the rule used to name only the latter. */
   .head-actions{width:100%}
-  .head-actions .btn{flex:1;justify-content:center}
+  .head-actions .btn,.head-actions .create-btn{flex:1;justify-content:center}
   /* Only the gap tightens - the row itself is kept, so the heading and its
      buttons stay on one line. */
   .section-head{gap:12px}
@@ -600,10 +616,7 @@ document.addEventListener("DOMContentLoaded", function () {
         <p id="projectSubtitle">&nbsp;</p>
       </div>
       <div class="head-actions">
-        <a class="btn btn-ghost btn-lg" id="editProjectBtn" href="#" hidden>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
-          Edit
-        </a>
+        <a class="create-btn" id="newTaskBtn" href="#" hidden>New Task</a>
       </div>
     </div>
 
@@ -635,6 +648,16 @@ document.addEventListener("DOMContentLoaded", function () {
             <strong id="detailProgress">0%</strong>
             <div class="bar"><i id="detailBar" style="width:0%"></i></div>
           </div>
+
+          <!-- Editing the project belongs to the panel that describes it, not
+               to a page corner that also carries New Task. It takes the cell
+               the last field leaves empty, so it costs the panel no height. -->
+          <div class="panel-actions">
+            <a class="btn btn-ghost btn-lg" id="editProjectBtn" href="#" hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+              Edit project
+            </a>
+          </div>
         </div>
       </div>
 
@@ -663,7 +686,6 @@ document.addEventListener("DOMContentLoaded", function () {
         <h2 id="tasksHeading">Tasks</h2>
         <div class="section-actions">
           <button class="btn btn-ghost" type="button" id="clearDayBtn" onclick="clearDay()" hidden>Show all tasks</button>
-          <a class="create-btn" id="newTaskBtn" href="#" hidden>New Task</a>
         </div>
       </div>
       <div class="grid" id="taskGrid"></div>
