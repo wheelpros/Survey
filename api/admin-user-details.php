@@ -29,6 +29,10 @@ function respond($success, $message = "", $extra = [], $code = 200)
 | Any admin may view a user. Clients Management itself is open to every admin,
 | so narrowing here would load the page and then 401 the fetch.
 |
+| The role is read alongside the id because one thing on this page is narrower
+| than the page: the internal note below is the account manager's and the
+| owner's to write.
+|
 */
 
 $headers = function_exists("getallheaders") ? getallheaders() : [];
@@ -44,14 +48,76 @@ if (!preg_match('/Bearer\s+(.+)/i', $authorization, $matches)) {
 }
 
 try {
-    $stmt = $pdo->prepare("SELECT id FROM admins WHERE session_token = ? LIMIT 1");
+    $stmt = $pdo->prepare("SELECT id, role FROM admins WHERE session_token = ? LIMIT 1");
     $stmt->execute([trim($matches[1])]);
+    $admin = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$stmt->fetch()) {
+    if (!$admin) {
         respond(false, "Unauthorized.", [], 401);
     }
 } catch (Throwable $e) {
     respond(false, "Authentication database error.", [], 500);
+}
+
+// Who may write the internal note. Every other admin reads it and no more.
+$canManageNotes = in_array($admin["role"] ?? "", ["owner", "account_manager"], true);
+
+/*
+|--------------------------------------------------------------------------
+| Saving the internal note
+|--------------------------------------------------------------------------
+|
+| The one write this endpoint takes. It comes before the read below because a
+| POST has no business building the whole profile first.
+|
+*/
+
+if ($_SERVER["REQUEST_METHOD"] === "POST") {
+
+    $input = json_decode(file_get_contents("php://input"), true) ?: [];
+
+    if (($input["action"] ?? "") !== "save_notes") {
+        respond(false, "Unknown action.", [], 400);
+    }
+
+    if (!$canManageNotes) {
+        respond(false, "Only an account manager or the owner can edit client notes.", [], 403);
+    }
+
+    $targetId = (int) ($input["id"] ?? 0);
+
+    if (!$targetId) {
+        respond(false, "A numeric user id is required.", [], 400);
+    }
+
+    $note = trim((string) ($input["notes"] ?? ""));
+
+    // TEXT holds far more than anyone types into a note field, but a request
+    // is not a promise about its own size.
+    if (mb_strlen($note) > 5000) {
+        respond(false, "A note has to be 5000 characters or fewer.", [], 400);
+    }
+
+    ensureClientNoteColumns($pdo);
+
+    try {
+        $check = $pdo->prepare("SELECT id FROM users WHERE id = ? LIMIT 1");
+        $check->execute([$targetId]);
+
+        if (!$check->fetch()) {
+            respond(false, "User not found.", [], 404);
+        }
+
+        $save = $pdo->prepare("UPDATE users SET admin_notes = ? WHERE id = ?");
+        $save->execute([$note === "" ? null : $note, $targetId]);
+
+    } catch (Throwable $e) {
+        respond(false, "Could not save the note.", [], 500);
+    }
+
+    respond(true, $note === "" ? "Note cleared." : "Note saved.", [
+        "notes" => $note
+    ]);
 }
 
 /*
@@ -69,12 +135,16 @@ $userId = (int) $_GET["id"];
 // company_name, website, description and phone are added lazily by db.php.
 ensureUserProfileColumns($pdo);
 
+// And so is admin_notes, which is not one of them - see db.php.
+ensureClientNoteColumns($pdo);
+
 try {
     // Explicit columns: never expose password or session_token.
     $stmt = $pdo->prepare("
         SELECT
             id, name, email, phone,
             company_name, website, description,
+            admin_notes,
             profile_image, approved, created_at
         FROM users
         WHERE id = ?
@@ -179,6 +249,11 @@ if ($managing) {
 
 respond(true, "User loaded.", [
     "user"         => $user,
+
+    /* Presentation only - the POST above checks the role itself. The page uses
+       it to decide whether the note is a field or a paragraph. */
+    "canManageNotes" => $canManageNotes,
+
     "seoAdmin"     => $seoAdmin,
     "surveys"      => $surveys,
     "responses"    => $responses,

@@ -246,34 +246,59 @@ select.client-filter{
 .cal-nav svg{width:14px;height:14px}
 .cal-today{margin-left:auto;border:1px solid var(--line);background:#fff;border-radius:9px;height:32px;padding:0 14px;font:inherit;font-size:12px;font-weight:800;color:var(--text);cursor:pointer}
 .cal-today:hover{background:#f6f7f9}
-/* Seven columns are not negotiable on a weekday grid, so it scrolls rather
-   than reflows on a phone. */
 /* Seven columns at every width, the way admin-calendar.html does it: a
    weekday grid cannot reflow, so the cells shrink rather than the month
    sliding sideways in a scroll box. */
 .cal-scroll{overflow:visible}
-.cal-grid{min-width:0}
-.cal-week{display:grid;grid-template-columns:repeat(7,1fr)}
-.cal-week.names div{padding:0 0 10px;font-size:11px;font-weight:700;color:var(--muted)}
-.cal-day{border-top:1px solid var(--line);border-left:1px solid var(--line);min-height:82px;padding:8px 10px;position:relative}
-.cal-week .cal-day:last-child{border-right:1px solid var(--line)}
-.cal-week:last-child .cal-day{border-bottom:1px solid var(--line)}
-.cal-day.muted{background:#fbfcfd}
-.cal-day.muted b{color:#c3c9d4}
-.cal-day b{font-size:12px;font-weight:600;color:var(--text)}
-.cal-day.today{background:#f5f6fa}
-.cal-day.today b{color:var(--nav-active);font-weight:800}
-.cal-day{cursor:pointer;transition:background .12s}
-.cal-day:hover{background:#f4f6fa}
-.cal-day:focus-visible{outline:none;box-shadow:inset 0 0 0 2px var(--nav-active)}
+.calendar-grid{
+  display:grid;grid-template-columns:repeat(7,1fr);min-width:0;
+  border-top:1px solid var(--line);border-left:1px solid var(--line);
+  border-radius:12px;overflow:hidden;
+}
+.day-header{
+  background:#f8fafc;padding:12px;font-size:12px;font-weight:700;color:#64748b;
+  border-right:1px solid var(--line);border-bottom:1px solid var(--line);text-align:center;
+}
+.day-cell{
+  min-height:110px;padding:8px;
+  border-right:1px solid var(--line);border-bottom:1px solid var(--line);
+  background:#fff;font-size:12px;font-weight:600;color:#64748b;
+  display:flex;flex-direction:column;gap:4px;
+  cursor:pointer;transition:background .12s;text-align:left;
+}
+.day-cell:hover{background:#f8fafc}
+.day-cell:focus-visible{outline:none;box-shadow:inset 0 0 0 2px var(--nav-active)}
+/* Padding from the neighbouring month: there to keep the columns under their
+   weekday, so it is not a day you can pick. */
+.day-cell.other-month{background:#fdfdfd;color:#cbd5e1;cursor:default}
+/* The project's own dates, tinted so the timeline is visible at a glance. */
+.day-cell.in-range{background:#fcfcff}
+.day-cell.today-cell{background:#f0f9ff}
+.day-cell.today-cell > span{background:#0284c7;color:#fff;padding:2px 6px;border-radius:12px;width:max-content}
 /* Same marker admin-calendar.html uses for the day its panel is describing. */
-.cal-day.selected{box-shadow:inset 0 0 0 2px var(--nav-active);background:#f5f6fa}
-.cal-day.in-range{background:#fcfcff}
-/* One dot per task scheduled that day - the grid marks the month, the cards
-   below carry the detail. */
-.cal-dots{display:flex;flex-wrap:wrap;gap:3px;margin-top:6px}
-.cal-dot{width:6px;height:6px;border-radius:50%;background:var(--nav-active)}
-.cal-dot.done{background:#20a95a}
+.day-cell.selected-cell{box-shadow:inset 0 0 0 2px var(--nav-active);background:#f5f6fa}
+
+/* ── A task, in the day it is scheduled for ──
+   The grid used to carry one dot per task, which told you a day was busy and
+   nothing else - so reading the month meant clicking every day that had a dot.
+   The task is named in the cell now, and the colour is the same reading the
+   cards below give: amber while it is outstanding, green once it is published. */
+.event-card{
+  padding:5px 6px;border-radius:6px;font-size:10.5px;font-weight:600;
+  line-height:1.3;overflow:hidden;
+}
+.event-card b{
+  display:block;font-weight:700;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.event-card small{font-weight:600;opacity:.8}
+.event-card.pending{background:#fef3c7;border:1px solid #fde68a;color:#b45309}
+.event-card.done{background:#e8faef;border:1px solid #b8e7c8;color:#17803d}
+
+/* A day can hold more tasks than a cell can show without stretching the whole
+   row. Three, then a count - the day is clickable, and clicking it lists all
+   of them in the grid below. */
+.event-more{font-size:10px;font-weight:800;color:var(--muted);padding-left:2px}
 
 /* ── Task cards, on admin-content.html's grid ── */
 .section-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px}
@@ -469,14 +494,23 @@ select.client-filter{
   .detail-meta,#taskPanel .detail-meta{grid-template-columns:1fr}
   .panel-actions{justify-content:stretch;margin-top:4px}
   .panel-actions .btn{width:100%}
-  /* Same treatment as admin-calendar.html at this width: the cells shrink and
-     the weekday names abbreviate, so seven columns still fit a phone. */
+  /* Same treatment as admin-calendar.html at this width: seven columns still
+     fit a phone, but a named task does not fit a column that narrow - so the
+     cards collapse into the dots they used to be everywhere, keeping their
+     colour. The full list is the grid below, which is one tap away. */
   .cal-card{padding:14px 10px}
-  .cal-day{min-height:52px;padding:5px 4px}
-  .cal-day b{font-size:11px}
-  .cal-week.names div{font-size:10px;padding-bottom:8px;text-align:center}
-  .cal-dots{gap:2px;margin-top:4px;justify-content:center}
-  .cal-dot{width:5px;height:5px}
+  .day-header{padding:8px 2px;font-size:10px}
+  .day-cell{
+    min-height:58px;padding:5px 4px;
+    flex-direction:row;flex-wrap:wrap;align-content:flex-start;gap:3px;
+  }
+  .day-cell > span{width:100%;text-align:center}
+  .day-cell .event-card{
+    width:7px;height:7px;padding:0;border-radius:50%;
+    font-size:0;line-height:0;overflow:hidden;
+  }
+  .day-cell .event-card *{display:none}
+  .event-more{display:none}
   .cal-head h2{font-size:15px}
   .detail{padding:20px}
 }
@@ -554,10 +588,6 @@ document.addEventListener("DOMContentLoaded", function () {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
         <span>Forms</span>
       </a>
-      <a href="responses.html" title="Responses">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        <span>Responses</span>
-      </a>
       <a href="admin-content.html" title="Content">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
         <span>Content</span>
@@ -632,7 +662,9 @@ document.addEventListener("DOMContentLoaded", function () {
       </div>
 
       <div class="detail" id="projectPanel">
-        <div class="detail-img" id="detailImg">
+        <!-- Click to open it full size. See assets/lightbox.js. -->
+        <div class="detail-img" id="detailImg"
+             data-lightbox data-lightbox-alt="Project image">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
         </div>
         <h3 id="detailTitle">—</h3>
@@ -672,13 +704,11 @@ document.addEventListener("DOMContentLoaded", function () {
           </div>
           <button class="cal-today" type="button" id="calToday">Today</button>
         </div>
+        <!-- Headers and cells are one grid, as on admin-calendar.html, so the
+             weekday names sit in the same seven columns the days do. Both are
+             written by paintCalendar(). -->
         <div class="cal-scroll">
-          <div class="cal-grid">
-            <div class="cal-week names">
-              <div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div><div>Sun</div>
-            </div>
-            <div id="calBody"></div>
-          </div>
+          <div class="calendar-grid" id="calBody"></div>
         </div>
       </div>
 
@@ -704,7 +734,8 @@ document.addEventListener("DOMContentLoaded", function () {
       </div>
 
       <div class="detail" id="taskPanel" hidden>
-        <div class="detail-img" id="taskImg">
+        <div class="detail-img" id="taskImg"
+             data-lightbox data-lightbox-alt="Task image">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
         </div>
         <h3 id="taskTitle">—</h3>
@@ -919,9 +950,26 @@ function paintHead(){
   edit.hidden = !canEdit;
 }
 
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+/* How many tasks a cell names before it gives up and counts the rest. Three
+   fits the 110px cell without the row growing to match its busiest day. */
+const CAL_MAX_CARDS = 3;
+
+/** "14:30", or nothing when the task has no time against its date. */
+function calTime(task){
+  return task.scheduled_time ? String(task.scheduled_time).slice(0, 5) : "";
+}
+
 /*
-| The month grid. Monday-first, six rows, with the days that fall inside the
-| project's own dates tinted so the timeline is visible at a glance.
+| The month grid. Monday-first, six rows, headers in the same seven columns as
+| the days, with the days that fall inside the project's own dates tinted so
+| the timeline is visible at a glance.
+|
+| Each dated task is named in its cell rather than marked with a dot: the point
+| of a month view is to read the month without opening every day in it. The
+| phone rules in the stylesheet turn the cards back into dots, because a cell
+| one-seventh of a phone wide cannot hold a title.
 */
 function paintCalendar(){
   document.getElementById("calLabel").textContent = MONTHS_LONG[calMonth] + " " + calYear;
@@ -943,11 +991,14 @@ function paintCalendar(){
     (byDay[key] = byDay[key] || []).push(task);
   });
 
-  let html = "";
+  // Earliest first inside a day, so a cell reads down the day in order.
+  Object.keys(byDay).forEach(key => {
+    byDay[key].sort((a, b) => calTime(a).localeCompare(calTime(b)));
+  });
+
+  let html = WEEKDAYS.map(name => '<div class="day-header">' + name + "</div>").join("");
 
   for (let week = 0; week < 6; week++) {
-
-    html += '<div class="cal-week">';
 
     for (let day = 0; day < 7; day++) {
 
@@ -956,41 +1007,60 @@ function paintCalendar(){
         + String(cursor.getMonth() + 1).padStart(2, "0") + "-"
         + String(cursor.getDate()).padStart(2, "0");
 
-      const classes = ["cal-day"];
+      const outside  = cursor.getMonth() !== calMonth;
+      const dayTasks = byDay[iso] || [];
+      const count    = dayTasks.length;
 
-      if (cursor.getMonth() !== calMonth) classes.push("muted");
-      if (iso === today) classes.push("today");
+      const classes = ["day-cell"];
+
+      if (outside) classes.push("other-month");
+      if (iso === today) classes.push("today-cell");
       if (iso >= project.start_date && iso <= project.end_date) classes.push("in-range");
-      if (iso === selectedDate) classes.push("selected");
+      if (iso === selectedDate) classes.push("selected-cell");
 
-      const dots = (byDay[iso] || []).map(task =>
-        '<i class="cal-dot ' + (Number(task.is_complete) ? "done" : "") +
-        '" title="' + esc(task.title) + '"></i>'
-      ).join("");
+      const cards = dayTasks.slice(0, CAL_MAX_CARDS).map(task => {
+        const time = calTime(task);
 
-      const count = (byDay[iso] || []).length;
+        /* Amber while the task is outstanding, green once it is published -
+           the same two readings the cards below the grid give. */
+        return '<div class="event-card ' + (Number(task.is_complete) ? "done" : "pending")
+             + '" title="' + esc(task.title) + (time ? " - " + esc(time) : "") + '">'
+             +   "<b>" + esc(task.title) + "</b>"
+             +   (time ? "<small>" + esc(time) + "</small>" : "")
+             + "</div>";
+      }).join("");
 
-      /* Every day is selectable, not only the ones carrying a task - the same
-         as admin-calendar.html, where picking an empty day is how you confirm
-         nothing is booked on it. */
-      html += '<div class="' + classes.join(" ") + '" role="button" tabindex="0"'
-            + ' data-date="' + iso + '"'
-            + ' aria-pressed="' + (iso === selectedDate) + '"'
-            + ' aria-label="' + esc(fmtDate(iso)) + ", "
-            +   (count ? count + (count === 1 ? " task" : " tasks") : "no tasks") + '">'
-            + "<b>" + cursor.getDate() + "</b>"
-            + (dots ? '<div class="cal-dots">' + dots + "</div>" : "")
+      const more = count > CAL_MAX_CARDS
+        ? '<div class="event-more">+' + (count - CAL_MAX_CARDS) + " more</div>"
+        : "";
+
+      /* Every day of this month is selectable, not only the ones carrying a
+         task - the same as admin-calendar.html, where picking an empty day is
+         how you confirm nothing is booked on it. A padding day from the
+         neighbouring month is not: it is there to keep the columns lined up
+         under their weekday, and picking it would filter the list below to a
+         date this grid is not showing. */
+      html += '<div class="' + classes.join(" ") + '"'
+            + (outside
+                ? ' aria-hidden="true"'
+                : ' role="button" tabindex="0"'
+                  + ' data-date="' + iso + '"'
+                  + ' aria-pressed="' + (iso === selectedDate) + '"'
+                  + ' aria-label="' + esc(fmtDate(iso)) + ", "
+                  +   (count ? count + (count === 1 ? " task" : " tasks") : "no tasks") + '"')
+            + ">"
+            + "<span>" + cursor.getDate() + "</span>"
+            + cards
+            + more
             + "</div>";
 
       cursor.setDate(cursor.getDate() + 1);
     }
-
-    html += "</div>";
   }
 
   document.getElementById("calBody").innerHTML = html;
 
-  document.querySelectorAll(".cal-day[data-date]").forEach(cell => {
+  document.querySelectorAll(".day-cell[data-date]").forEach(cell => {
     cell.addEventListener("click", () => pickDay(cell.dataset.date));
     cell.addEventListener("keydown", event => {
       if (event.key === "Enter" || event.key === " ") {
@@ -1490,6 +1560,7 @@ load();
 </script>
 <script src="assets/notifications.js?v=1"></script>
 <script src="assets/shell.js?v=1"></script>
+<script src="assets/lightbox.js?v=1"></script>
 <script src="assets/sources-lock.js?v=1"></script>
 <script src="assets/role-nav.js?v=1"></script>
 </body></html>

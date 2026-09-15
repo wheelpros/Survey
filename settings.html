@@ -50,7 +50,7 @@ label{
   margin-bottom:8px;
 }
 
-input[type="password"], input[type="file"]{
+input[type="password"], input[type="file"], input[type="url"], input[type="text"]{
   width:100%;
   padding:14px;
   border:1px solid #ddd;
@@ -82,6 +82,9 @@ input[type="password"], input[type="file"]{
   font-weight:bold;
   color:var(--nav-active);
 }
+
+/* A save that did not happen, reported on the same line as one that did. */
+.status.error{ color:var(--brand); }
 
 /* ── Page header (the same block on every admin page, button or no button) ── */
 .page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:28px}
@@ -834,10 +837,6 @@ document.addEventListener("DOMContentLoaded", function () {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
         <span>Forms</span>
       </a>
-      <a href="responses.html" title="Responses">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        <span>Responses</span>
-      </a>
       <a href="admin-content.html" title="Content">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
         <span>Content</span>
@@ -940,6 +939,26 @@ document.addEventListener("DOMContentLoaded", function () {
     <button class="primary" onclick="uploadLogo()" style="margin-top:15px;">Update Logo</button>
 
     <div id="logoStatus" class="status"></div>
+  </div>
+</div>
+
+<!-- The address behind the logo. Same panel group as the logo because it is
+     the same thing to a visitor: a public page shows the logo, and clicking it
+     is how they get to the website. Leaving it empty leaves the logo as a
+     plain image. -->
+<div class="panel">
+  <div class="panel-head">
+    <h1>Website Address</h1>
+    <p>Where the logo takes a visitor when they click it, on the public inquiry page.</p>
+  </div>
+  <div class="panel-body">
+    <label for="websiteUrl" style="margin-top:0;">Website URL</label>
+    <input type="url" id="websiteUrl" placeholder="https://wzone.london"
+           autocomplete="off" spellcheck="false">
+
+    <button class="primary" onclick="saveWebsiteUrl()" style="margin-top:15px;">Save Website URL</button>
+
+    <div id="websiteStatus" class="status"></div>
   </div>
 </div>
 </div>
@@ -1181,7 +1200,62 @@ if (adminUser.role === "owner") {
     if (slideshowSection) slideshowSection.style.display = "block";
 
     paintCurrentLogo();
+    loadWebsiteUrl();
     loadSlides();
+}
+
+/* ── The website address ──────────────────────────────────────────────────
+   Read back exactly as it was typed, so editing it starts from what is
+   saved rather than from a normalised version of it. api/settings.php is
+   what adds the scheme for the pages that follow the link. */
+async function loadWebsiteUrl() {
+    const field = document.getElementById("websiteUrl");
+    if (!field) return;
+
+    try {
+        const res = await fetch("api/settings.php", {
+            headers: { Authorization: "Bearer " + adminToken }
+        });
+
+        const data = await res.json();
+
+        if (data.success) field.value = data.websiteUrl || "";
+
+    } catch (error) {
+        // Leave the field empty: saving still works, it just does not start
+        // from the stored value.
+    }
+}
+
+async function saveWebsiteUrl() {
+    const field = document.getElementById("websiteUrl");
+    const status = document.getElementById("websiteStatus");
+
+    status.className = "status";
+    status.innerText = "Saving...";
+
+    try {
+        const res = await fetch("api/settings.php", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: "Bearer " + adminToken
+            },
+            body: JSON.stringify({
+                action: "save_website",
+                website_url: field.value.trim()
+            })
+        });
+
+        const data = await res.json();
+
+        status.className = data.success ? "status" : "status error";
+        status.innerText = data.message || (data.success ? "Saved." : "Could not save.");
+
+    } catch (error) {
+        status.className = "status error";
+        status.innerText = "Connection error. Please try again.";
+    }
 }
 
 /* Cache-busts the preview of the logo in use. The onerror is reinstalled on

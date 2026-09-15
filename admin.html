@@ -596,10 +596,6 @@ document.addEventListener("DOMContentLoaded", function () {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
         <span>Forms</span>
       </a>
-      <a href="responses.html" title="Responses">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        <span>Responses</span>
-      </a>
       <a href="admin-content.html" title="Content">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
         <span>Content</span>
@@ -705,14 +701,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
             <div class="filter-box">
               <label>Filter by User</label>
-              <select id="surveyUserFilter" onchange="renderSurveysTable()">
+              <select id="surveyUserFilter" onchange="resetListPage()">
                 <option value="all">All Users</option>
               </select>
             </div>
 
             <div class="filter-box">
               <label>Filter by Status</label>
-              <select id="surveyStatusFilter" onchange="renderSurveysTable()">
+              <select id="surveyStatusFilter" onchange="resetListPage()">
                 <option value="all">All Status</option>
                 <option value="pending">Pending</option>
                 <option value="rejected">Rejected</option>
@@ -742,6 +738,11 @@ document.addEventListener("DOMContentLoaded", function () {
             </tr>
           </tbody>
         </table>
+
+        <div class="pager" id="listPager" hidden>
+          <span class="pager-info" id="listPagerInfo"></span>
+          <div class="pager-pages" id="listPagerPages"></div>
+        </div>
       </div>
     </div>
 
@@ -978,6 +979,18 @@ window.addEventListener("scroll", closeRowMenu, true);
 
 let allAdminSurveys = [];
 
+/* Both filters and the pager work on the same array, and changing a filter has
+   to start the result over from page one - otherwise narrowing to one client
+   leaves you on a page the filtered set no longer has. */
+let listPage = 1;
+
+const LIST_PAGE_SIZE = 10;
+
+function resetListPage(){
+  listPage = 1;
+  renderSurveysTable();
+}
+
 async function loadSurveyData(){
 
   const surveysTable = document.getElementById("surveysTable");
@@ -1049,12 +1062,21 @@ function renderSurveysTable(){
         <td colspan="7" class="empty">No forms found.</td>
       </tr>
     `;
+    renderListPager(0, 0, 0, 0);
     return;
   }
 
+  /* Clamped rather than trusted: a filter can shrink the set under the page
+     you were on, and so can a form being deleted between two renders. */
+  const totalPages = Math.max(1, Math.ceil(surveys.length / LIST_PAGE_SIZE));
+  listPage = Math.min(Math.max(1, listPage), totalPages);
 
+  const start = (listPage - 1) * LIST_PAGE_SIZE;
+  const rows = surveys.slice(start, start + LIST_PAGE_SIZE);
 
-  surveysTable.innerHTML = surveys.map(survey => {
+  renderListPager(surveys.length, totalPages, start, rows.length);
+
+  surveysTable.innerHTML = rows.map(survey => {
     const meta = statusMeta[displayStatus(survey.status)] || { label: survey.status, cls: "pending" };
 
     return `
@@ -1088,6 +1110,40 @@ function renderSurveysTable(){
     </tr>
   `;
   }).join("");
+}
+
+function goToListPage(page){
+  listPage = page;
+  renderSurveysTable();
+  document.getElementById("formsListTable")
+    .scrollIntoView({ behavior:"smooth", block:"nearest" });
+}
+
+function renderListPager(total, totalPages, start, shown){
+  const pager = document.getElementById("listPager");
+  if(!pager) return;
+
+  // One page is no choice to offer.
+  if(total <= LIST_PAGE_SIZE){
+    pager.hidden = true;
+    return;
+  }
+
+  pager.hidden = false;
+
+  document.getElementById("listPagerInfo").innerText =
+    `Showing ${start + 1}-${start + shown} of ${total}`;
+
+  const pages = Array.from({length: totalPages}, (unused, index) => index + 1);
+
+  document.getElementById("listPagerPages").innerHTML = `
+    <button type="button" onclick="goToListPage(${listPage - 1})" ${listPage === 1 ? "disabled" : ""}>Prev</button>
+    ${pages.map(page => `
+      <button type="button" class="${page === listPage ? "current" : ""}"
+              onclick="goToListPage(${page})">${page}</button>
+    `).join("")}
+    <button type="button" onclick="goToListPage(${listPage + 1})" ${listPage === totalPages ? "disabled" : ""}>Next</button>
+  `;
 }
 
 /* The modal's own Responses button. Same lookup as the row button, but it

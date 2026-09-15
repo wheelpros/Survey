@@ -72,6 +72,147 @@ function ensureUserProfileColumns(PDO $pdo)
 }
 
 /**
+ * The internal note an account manager keeps against a client, shown on the
+ * Details panel of user-details.html and nowhere else.
+ *
+ * Deliberately a column on `users` and deliberately not in
+ * USER_PROFILE_COLUMNS: the profile endpoints list their columns explicitly and
+ * none of them lists this one, so a client cannot read or write what is written
+ * about them. Same lazy approach as the columns above;
+ * sql/client_admin_notes.sql is the change to run by hand.
+ */
+const CLIENT_NOTE_COLUMNS = [
+    "admin_notes" => "TEXT NULL",
+];
+
+function ensureClientNoteColumns(PDO $pdo)
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    try {
+        $stmt = $pdo->query("
+            SELECT COLUMN_NAME
+            FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'
+        ");
+        $existing = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+        foreach (CLIENT_NOTE_COLUMNS as $column => $type) {
+            if (!in_array($column, $existing, true)) {
+                $pdo->exec("ALTER TABLE users ADD COLUMN `$column` $type");
+            }
+        }
+    } catch (PDOException $e) {
+        // Read-only DB user: the caller falls back to an empty note.
+    }
+}
+
+/**
+ * Site-wide settings that are one value each rather than a column on anything:
+ * a key/value table, created lazily like the columns above so a deploy needs no
+ * migration step. sql/site_settings.sql is the same change to run by hand.
+ *
+ * Only a handful of keys live here (the public website address the logo links
+ * to, so far), which is why this is a table of strings and not a schema.
+ */
+function ensureSiteSettings(PDO $pdo)
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    try {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS site_settings (
+                setting_key   VARCHAR(64) NOT NULL PRIMARY KEY,
+                setting_value TEXT NULL,
+                updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+    } catch (PDOException $e) {
+        // Read-only DB user: the readers below fall back to the default.
+    }
+}
+
+/**
+ * One setting, or $default when the key has never been saved - and also when
+ * the table could not be created, so a read-only database degrades to "unset"
+ * rather than to an error.
+ */
+function getSiteSetting(PDO $pdo, $key, $default = "")
+{
+    ensureSiteSettings($pdo);
+
+    try {
+        $stmt = $pdo->prepare("SELECT setting_value FROM site_settings WHERE setting_key = ? LIMIT 1");
+        $stmt->execute([$key]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        return $default;
+    }
+
+    if (!$row || $row["setting_value"] === null || $row["setting_value"] === "") {
+        return $default;
+    }
+
+    return $row["setting_value"];
+}
+
+/**
+ * Writes one setting. Returns false when the write did not happen, so the
+ * caller can say so instead of reporting a save that never landed.
+ */
+function setSiteSetting(PDO $pdo, $key, $value)
+{
+    ensureSiteSettings($pdo);
+
+    try {
+        $stmt = $pdo->prepare("
+            INSERT INTO site_settings (setting_key, setting_value)
+            VALUES (?, ?)
+            ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)
+        ");
+        $stmt->execute([$key, $value]);
+        return true;
+    } catch (PDOException $e) {
+        return false;
+    }
+}
+
+/**
+ * The public website address, normalised to something a browser can follow:
+ * an address typed as "wzone.london" is stored as typed but handed out as
+ * "https://wzone.london", and anything that is not http(s) is handed out as an
+ * empty string rather than as a link that would run when clicked.
+ */
+function publicWebsiteUrl(PDO $pdo)
+{
+    return normaliseWebUrl(getSiteSetting($pdo, "website_url", ""));
+}
+
+function normaliseWebUrl($value)
+{
+    $url = trim((string) $value);
+
+    if ($url === "") {
+        return "";
+    }
+
+    // A bare domain is the common way to type one; assume https for it.
+    if (!preg_match('~^[a-z][a-z0-9+.-]*://~i', $url)) {
+        $url = "https://" . $url;
+    }
+
+    return preg_match('~^https?://\S+$~i', $url) ? $url : "";
+}
+
+/**
  * Columns added to `content` after the table first shipped. Same lazy approach
  * as the profile columns above; sql/content_link.sql is the manual
  * version for a DB user without ALTER rights.

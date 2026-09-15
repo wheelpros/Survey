@@ -29,6 +29,11 @@ body{background:#f6f7fb;color:var(--ink)}
 .masthead{padding:26px 0 0}
 .masthead img{height:36px;width:auto;display:block}
 
+/* The logo is a link only once the website address arrives, so the wrapper is
+   inline-block and carries no styling of its own until then. */
+.masthead a{display:inline-block;text-decoration:none;transition:opacity .15s}
+.masthead a:hover{opacity:.75}
+
 .layout{
   display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);
   gap:clamp(32px,6vw,80px);align-items:start;padding-top:clamp(36px,7vw,72px);
@@ -109,16 +114,6 @@ h1{font-size:clamp(30px,4vw,44px);line-height:1.15;letter-spacing:-.5px;margin-b
 }
 .panel-icon svg{width:28px;height:28px}
 
-/* The way back out for the one case this flag gets wrong: two people sharing a
-   computer. Quiet, because it is the uncommon answer to the question the panel
-   just asked - but present, because without it the second person simply cannot
-   reply, and a flag in their browser is not a good enough reason for that. */
-.panel .again{
-  margin-top:22px;background:none;border:none;padding:0;
-  font:inherit;font-size:13px;font-weight:700;color:var(--muted);
-  text-decoration:underline;cursor:pointer;
-}
-.panel .again:hover{color:var(--ink)}
 .loading{text-align:center;color:var(--muted);padding:80px 0}
 
 @media(max-width:900px){
@@ -135,10 +130,14 @@ h1{font-size:clamp(30px,4vw,44px);line-height:1.15;letter-spacing:-.5px;margin-b
 <div class="page">
 
   <header class="masthead">
-    <!-- Same fallback the admin pages use, so a deploy without logo.png at
-         the root still shows a wordmark rather than a gap. -->
-    <img src="logo.png" alt="W|ZONE London"
-         onerror="this.onerror=null;this.src='assets/WZONE%20source.png'">
+    <!-- The anchor starts with no href, so it is a plain image until the
+         website address the owner set on settings.html comes back with the
+         inquiry. Same logo fallback the admin pages use, so a deploy without
+         logo.png at the root still shows a wordmark rather than a gap. -->
+    <a id="logoLink">
+      <img src="logo.png" alt="W|ZONE London"
+           onerror="this.onerror=null;this.src='assets/WZONE%20source.png'">
+    </a>
   </header>
 
   <div id="view">
@@ -169,6 +168,33 @@ function capFor(field){
 
 function panel(html){
   document.getElementById("view").innerHTML = '<div class="panel">' + html + "</div>";
+}
+
+/*
+| The logo links to the website address set in Settings, and to nothing at all
+| when that has been left empty. The server has already thrown away anything
+| that is not an http(s) address, so what arrives here is either a link or an
+| empty string - but it is checked again on the way in, because a link in the
+| letterhead of a public page is not the place to trust one hop.
+*/
+function applyWebsiteLink(site){
+  const link = document.getElementById("logoLink");
+  const url = String((site || {}).website_url || "").trim();
+
+  if(!link) return;
+
+  if(!/^https?:\/\//i.test(url)){
+    link.removeAttribute("href");
+    link.removeAttribute("target");
+    link.removeAttribute("rel");
+    link.removeAttribute("title");
+    return;
+  }
+
+  link.href = url;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  link.title = "Visit our website";
 }
 
 /*
@@ -204,10 +230,6 @@ function answeredAt(){
   try { return localStorage.getItem(DONE_KEY); } catch (e) { return null; }
 }
 
-function forgetAnswered(){
-  try { localStorage.removeItem(DONE_KEY); } catch (e) {}
-}
-
 /* "on 4 September 2026", or nothing at all if the stored value is not a date
    we can read - the sentence has to work either way. */
 function answeredWhen(stored){
@@ -228,16 +250,7 @@ function alreadyAnswered(inquiry, stored){
     + "<h2>You have already answered this</h2>"
     + "<p>Your answers to &ldquo;" + escapeHtml(inquiry.title) + "&rdquo; were sent"
     +   answeredWhen(stored) + ". There is nothing else to do.</p>"
-    + '<button class="again" type="button" onclick="answerAgain()">Not you? Answer again</button>'
   );
-}
-
-/* Someone else on the same computer. The flag was about this browser, never
-   about a person, so it is dropped and the form is drawn fresh. */
-function answerAgain(){
-  forgetAnswered();
-  document.getElementById("view").innerHTML = '<div class="loading">Loading...</div>';
-  loadInquiry();
 }
 
 async function loadInquiry(){
@@ -253,6 +266,9 @@ async function loadInquiry(){
       + "&name=" + encodeURIComponent(inquiryName)
     );
     const data = await res.json();
+
+    // Branding travels with every answer, refusals included.
+    applyWebsiteLink(data.site);
 
     if(!data.success){
       panel("<h2>This link is no longer available</h2><p>" + escapeHtml(data.message || "") + "</p>");

@@ -41,7 +41,11 @@ if($_SERVER["REQUEST_METHOD"]=="GET"){
     echo json_encode([
         "success"=>true,
         "role"=>$admin["role"], // مهم
-        "hasPassword"=>!empty($row["sources_password"])
+        "hasPassword"=>!empty($row["sources_password"]),
+
+        // The public website address, exactly as it was typed - the branding
+        // panel edits it, so it must not be handed back normalised.
+        "websiteUrl"=>getSiteSetting($pdo, "website_url", "")
     ]);
 
     exit;
@@ -157,6 +161,52 @@ if($_SERVER["REQUEST_METHOD"]=="POST"){
             "message"=>$active
                 ? "Admin activated - they can log in again."
                 : "Admin deactivated - they can no longer log in."
+        ]);
+
+        exit;
+    }
+
+    /* The public website address. One value, shown on the same branding panel
+       as the logo and owner-only for the same reason: it is what every visitor
+       to a public page sees behind the logo they click.
+
+       Stored as typed so the field can be edited again, and checked on the way
+       in only far enough to refuse something that is not an address - the
+       readers add the scheme. An empty value clears it, which is how the logo
+       goes back to not being a link. */
+    if(($input["action"] ?? "")=="save_website"){
+
+        if ($admin['role'] !== 'owner') {
+            echo json_encode([
+                "success"=>false,
+                "message"=>"Unauthorized"
+            ]);
+            exit;
+        }
+
+        $website = trim($input["website_url"] ?? "");
+
+        if($website !== "" && normaliseWebUrl($website) === ""){
+            echo json_encode([
+                "success"=>false,
+                "message"=>"That does not look like a web address. Try something like wzone.london"
+            ]);
+            exit;
+        }
+
+        if(!setSiteSetting($pdo, "website_url", $website)){
+            echo json_encode([
+                "success"=>false,
+                "message"=>"Could not save the website address"
+            ]);
+            exit;
+        }
+
+        echo json_encode([
+            "success"=>true,
+            "message"=>$website === ""
+                ? "Website address cleared - the logo is no longer a link."
+                : "Website address saved."
         ]);
 
         exit;

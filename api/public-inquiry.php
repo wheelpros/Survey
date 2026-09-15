@@ -108,17 +108,32 @@ if ($method === "GET") {
     $name = trim($_GET["name"] ?? "");
     $token = trim($_GET["token"] ?? $_GET["slug"] ?? "");
 
+    /* Branding, not inquiry: the public website address the owner set on
+       settings.html, which is what the logo at the top of the page links to.
+       Already normalised to an http(s) address, or an empty string when there
+       is nothing safe to link to - the page leaves the logo as a plain image
+       in that case. */
+    $site = ["website_url" => publicWebsiteUrl($pdo)];
+
     $link = resolveLink($pdo, $name, $token);
 
     if (isset($link["error"])) {
-        echo json_encode(["success" => false, "message" => $link["error"]]);
+        echo json_encode([
+            "success" => false,
+            "message" => $link["error"],
+            "site" => $site
+        ]);
         exit;
     }
 
     $closed = closedMessage($link["inquiry"]);
 
     if ($closed) {
-        echo json_encode(["success" => false, "message" => $closed]);
+        echo json_encode([
+            "success" => false,
+            "message" => $closed,
+            "site" => $site
+        ]);
         exit;
     }
 
@@ -136,7 +151,8 @@ if ($method === "GET") {
             "title" => $link["inquiry"]["title"],
             "intro_text" => $link["inquiry"]["intro_text"]
         ],
-        "fields" => $fieldsStmt->fetchAll()
+        "fields" => $fieldsStmt->fetchAll(),
+        "site" => $site
     ]);
     exit;
 }

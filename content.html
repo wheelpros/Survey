@@ -298,7 +298,9 @@ body{background:#f7f8fc;color:var(--text)}
       </div>
 
       <article class="detail is-horizontal" id="detailPanel">
-        <div class="detail-media" id="detailMedia"></div>
+        <!-- Click to open it full size. See assets/lightbox.js. -->
+        <div class="detail-media" id="detailMedia"
+             data-lightbox data-lightbox-alt="Post image"></div>
         <div class="detail-meta">
           <div class="field wide">
             <h5>Caption</h5>
@@ -680,5 +682,6 @@ loadContent();
 
 <script src="assets/notifications.js?v=1"></script>
 <script src="assets/shell.js?v=1"></script>
+<script src="assets/lightbox.js?v=1"></script>
 </body>
 </html>
