@@ -19,7 +19,7 @@ ensureUserProfileColumns($pdo);
 
 $stmt = $pdo->prepare("
     SELECT id, name, email, approved, profile_image,
-           company_name, website, description, phone
+           company_name, website, description, phone, whatsapp
     FROM users
     WHERE session_token = ?
     LIMIT 1
@@ -46,6 +46,7 @@ echo json_encode([
         "company_name" => $user["company_name"],
         "website" => $user["website"],
         "description" => $user["description"],
-        "phone" => $user["phone"]
+        "phone" => $user["phone"],
+        "whatsapp" => $user["whatsapp"]
     ]
 ]);

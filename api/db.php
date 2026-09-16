@@ -43,6 +43,7 @@ const USER_PROFILE_COLUMNS = [
     "website"      => "VARCHAR(255) NULL",
     "description"  => "TEXT NULL",
     "phone"        => "VARCHAR(50) NULL",
+    "whatsapp"     => "VARCHAR(30) NULL",
 ];
 
 function ensureUserProfileColumns(PDO $pdo)
@@ -69,6 +70,66 @@ function ensureUserProfileColumns(PDO $pdo)
     } catch (PDOException $e) {
         // Read-only DB user: the callers below fall back to empty values.
     }
+}
+
+/*
+|------------------------------------------------------------------------------
+| WhatsApp numbers
+|------------------------------------------------------------------------------
+|
+| Stored in one shape and one shape only: a plus, then the country code, then
+| the rest, with nothing in between - "+447911123456". That is what wa.me
+| needs, and keeping the stored value canonical means no reader has to guess
+| whether the number it was handed is dialable.
+|
+| The country code is the whole point of asking. A number saved as "07911
+| 123456" tells you which country it is in only if you already know, and
+| wa.me/07911123456 reaches nobody - so a value without a leading + is refused
+| rather than guessed at.
+|
+*/
+
+/**
+ * A typed number reduced to storage form, or "" when it is not one.
+ *
+ * Spaces, dashes, brackets and dots are thrown away - people type them and
+ * they carry no information. "00" in place of the plus is the other common way
+ * to write an international number, so it is accepted and converted. What is
+ * left has to be 8 to 15 digits: 15 is the most E.164 allows, and 8 is below
+ * the shortest real country-code-plus-number while still refusing a local
+ * number somebody forgot to prefix.
+ */
+function normaliseWhatsApp($value)
+{
+    $raw = trim((string) $value);
+
+    if ($raw === "") {
+        return "";
+    }
+
+    $cleaned = preg_replace('/[\s\-().]/', "", $raw);
+
+    // "0044..." is "+44..." written the other way round.
+    if (strpos($cleaned, "00") === 0) {
+        $cleaned = "+" . substr($cleaned, 2);
+    }
+
+    if (!preg_match('/^\+([1-9][0-9]{7,14})$/', $cleaned, $m)) {
+        return "";
+    }
+
+    return "+" . $m[1];
+}
+
+/**
+ * The wa.me address for a stored number, or "" when there is nothing to link
+ * to. wa.me wants the digits alone - no plus, no spaces.
+ */
+function whatsAppLink($value)
+{
+    $number = normaliseWhatsApp($value);
+
+    return $number === "" ? "" : "https://wa.me/" . ltrim($number, "+");
 }
 
 /**

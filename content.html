@@ -28,7 +28,9 @@ body{background:#f7f8fc;color:var(--text)}
 .page-title h1{font-size:30px;margin-bottom:8px}
 .page-title p{font-size:14px;color:#667085;max-width:620px}
 
-.filters{display:flex;justify-content:space-between;align-items:center;gap:20px;margin:28px 0 24px}
+.filters{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;margin:28px 0 24px}
+.filter-box{display:flex;flex-direction:column;gap:6px;min-width:0}
+.filter-box label{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#667085}
 .type-filter{min-width:220px;height:36px;border:1px solid #e1e5ed;border-radius:22px;background:#fff;padding:0 14px;outline:none;font:inherit;font-size:13px;font-weight:700;color:#101828;cursor:pointer}
 .type-filter:focus{border-color:#1b1e3a}
 .content-search{width:260px;height:36px;border:1px solid #e1e5ed;border-radius:22px;background:#fff;padding:0 16px;outline:none;font-size:13px}
@@ -132,7 +134,8 @@ body{background:#f7f8fc;color:var(--text)}
   .side-head{display:none}
   .content{padding:24px 18px}
   .grid{grid-template-columns:1fr}
-  .filters{flex-direction:column;align-items:flex-start}
+  .filters{flex-direction:column;align-items:stretch}
+  .filter-box{width:100%}
   .type-filter{width:100%}
   .content-search{width:100%}
   .detail.is-vertical,.detail.is-horizontal{grid-template-columns:1fr}
@@ -274,10 +277,13 @@ body{background:#f7f8fc;color:var(--text)}
     <!-- No client tabs here: a reader only ever sees their own client's posts.
          The type filter and the search box are the two ways to narrow down. -->
     <div class="filters">
-      <select class="type-filter" id="typeFilter" aria-label="Filter by content type"
-              onchange="filterByType(this.value)">
-        <option value="All">All types</option>
-      </select>
+      <div class="filter-box">
+        <label for="typeFilter">Type</label>
+        <select class="type-filter" id="typeFilter"
+                onchange="filterByType(this.value)">
+          <option value="All">All types</option>
+        </select>
+      </div>
       <input class="content-search" id="contentSearch" placeholder="Search content...">
     </div>
 

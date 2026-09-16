@@ -98,7 +98,24 @@ td a{color:var(--nav-active);font-weight:700}
 .scheduled{background:#fff4e5;color:#b54708}
 
 /* ── Profile header ── */
-.profile-head{display:flex;align-items:center;gap:20px;padding:26px 28px}
+/* The decision about this client is taken here, at the top of their profile,
+   rather than back on the list: this page is where you read who they are, so
+   it is where Approve, Reject and Delete belong. */
+.profile-head{display:flex;align-items:center;gap:20px;padding:26px 28px;flex-wrap:wrap}
+.head-decide{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.head-decide .btn{border:none;padding:11px 16px;border-radius:10px;font:inherit;font-size:13px;font-weight:800;cursor:pointer}
+.head-decide .approve-btn{background:#20a95a;color:#fff}
+.head-decide .approve-btn:hover{background:#188f4b}
+.head-decide .reject-btn{background:var(--brand);color:#fff}
+.head-decide .reject-btn:hover{background:#a80009}
+.head-decide .delete-btn{background:#fff;color:var(--brand);border:1px solid #f0d2d4}
+.head-decide .delete-btn:hover{background:#fff5f5}
+.head-decide .btn:disabled{opacity:.55;cursor:not-allowed}
+@media(max-width:700px){
+  .profile-head{align-items:flex-start}
+  .head-decide{width:100%}
+  .head-decide .btn{flex:1;text-align:center}
+}
 .profile-photo{
   width:76px;height:76px;border-radius:50%;flex:none;
   background:#dce3ff center/cover no-repeat;color:#3745a4;
@@ -116,6 +133,72 @@ td a{color:var(--nav-active);font-weight:700}
 .field a{color:var(--nav-active);font-weight:700}
 .field.wide{grid-column:1/-1}
 .field .muted{color:#98a2b3}
+
+/* ── WhatsApp ──
+   A number is not the useful thing here - reaching the person is. So when the
+   client has given one it renders as the button it is, and clicking it opens
+   the conversation rather than copying digits out of a paragraph. */
+.wa-link{
+  display:inline-flex;align-items:center;gap:8px;
+  background:#e8faef;border:1px solid #b8e7c8;color:#12794a !important;
+  border-radius:999px;padding:7px 14px 7px 10px;
+  font-size:13px;font-weight:800;text-decoration:none;
+  transition:background .15s,border-color .15s;
+}
+.wa-link:hover{background:#d8f5e3;border-color:#94dcae}
+.wa-link svg{width:17px;height:17px;flex:none}
+
+/* ── The Details panel while it is being edited ──
+   The panel keeps its three-column grid; each field swaps its paragraph for an
+   input of the same width, so nothing moves when editing starts. */
+.panel-head{position:relative}
+.head-with-action{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.head-with-action > div{min-width:0}
+.edit-toggle{
+  flex:none;display:inline-flex;align-items:center;gap:7px;
+  border:1px solid #dfe3ea;background:#fff;color:var(--text);
+  padding:9px 14px;border-radius:10px;font:inherit;font-size:12px;font-weight:800;cursor:pointer;
+}
+.edit-toggle:hover{background:#f6f7f9}
+.edit-toggle svg{width:14px;height:14px}
+
+.field input,.field textarea{
+  width:100%;border:1px solid #dfe3ea;border-radius:10px;background:#fff;
+  padding:10px 12px;font:inherit;font-size:14px;color:var(--text);
+  outline:none;transition:border-color .15s,box-shadow .15s;
+}
+.field textarea{min-height:88px;resize:vertical;line-height:1.6}
+.field input:focus,.field textarea:focus{border-color:var(--nav-active);box-shadow:0 0 0 3px rgba(27,30,58,.08)}
+.field .hint{margin-top:6px;font-size:11px;color:#98a2b3}
+
+.details-bar{
+  grid-column:1/-1;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  border-top:1px solid #eef1f5;padding-top:20px;
+}
+.details-save{
+  border:none;background:var(--nav-active);color:#fff;
+  padding:10px 18px;border-radius:10px;font:inherit;font-size:13px;font-weight:800;cursor:pointer;
+}
+.details-save:hover{background:#282c52}
+.details-save:disabled{opacity:.55;cursor:not-allowed}
+.details-cancel{
+  border:1px solid #dfe3ea;background:#fff;color:var(--text);
+  padding:10px 18px;border-radius:10px;font:inherit;font-size:13px;font-weight:800;cursor:pointer;
+}
+.details-cancel:hover{background:#f6f7f9}
+.details-status{font-size:12px;font-weight:700;color:var(--muted)}
+.details-status.error{color:var(--brand)}
+.details-status.ok{color:#20a95a}
+
+/* ── Pending clients ──
+   A registration that has not been approved has no surveys, no appointments and
+   no files, so the panels for them would all read "none yet" - eight empty
+   boxes under the one thing there is to look at. */
+.pending-only{
+  background:#fff4e5;border:1px solid #ffd9a8;color:#8a4b08;
+  border-radius:14px;padding:14px 18px;margin-bottom:24px;
+  font-size:13px;line-height:1.6;font-weight:600;
+}
 
 /* ── Internal note ──
    Marked off from the fields around it: everything else in this panel is the
@@ -314,6 +397,14 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
         <span>Content</span>
       </a>
+      <a href="project-management.html" title="Project Management">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+        <span>Project Management</span>
+      </a>
+      <a href="inquiries.html" title="Inquiries">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+        <span>Inquiries</span>
+      </a>
       <a href="clients-management.html" class="active" id="clientsManagementLink" title="Clients Management">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span>Clients Management</span>
@@ -325,10 +416,6 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
       <a href="admin-calendar.html" title="Calendar">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         <span>Calendar</span>
-      </a>
-      <a href="project-management.html" title="Project Management">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
-        <span>Project Management</span>
       </a>
       <a href="admin-notifications.html" title="Notifications">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 6-3 7-3 7h18s-3-1-3-7"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
@@ -740,6 +827,11 @@ async function saveClientNote(){
 
     const data = await res.json();
 
+    if(data.success){
+      currentData.user.admin_notes = data.notes;
+      noteDraft = null;
+    }
+
     status.className = "note-status " + (data.success ? "ok" : "error");
     status.innerText = data.message || (data.success ? "Saved." : "Could not save.");
 
@@ -751,16 +843,417 @@ async function saveClientNote(){
   button.disabled = false;
 }
 
-function render(data){
+/*
+|------------------------------------------------------------------------------
+| The decision about this client
+|------------------------------------------------------------------------------
+|
+| Approve, Reject and Delete used to live only on the list. They are here now,
+| in the header of the profile they act on, because this page is where you find
+| out who the client is - deciding from a row and deciding after reading are not
+| the same act, and only one of them is informed.
+|
+| Which pair shows depends on the account: pending gets Approve and Reject,
+| approved gets Delete. The owner alone gets any of them, matching
+| api/admin-users.php and api/delete-client.php - no button is offered that is
+| going to come back Unauthorized.
+|
+*/
+
+const isOwner = adminUser.role === "owner";
+
+function decideButtons(approved){
+  if(!isOwner) return "";
+
+  if(!approved){
+    return `
+      <div class="head-decide">
+        <button class="btn approve-btn" type="button" onclick="decide('approve')">Approve</button>
+        <button class="btn reject-btn" type="button" onclick="decide('reject')">Reject</button>
+      </div>`;
+  }
+
+  return `
+    <div class="head-decide">
+      <button class="btn delete-btn" type="button" onclick="removeClient()">Delete client</button>
+    </div>`;
+}
+
+/*
+| Approving lands the client in the approved table and reloads this page, so
+| everything an approved client has - surveys, appointments, files - appears.
+| Rejecting removes the registration, so there is no profile left to be on and
+| the browser goes back to the list.
+*/
+async function decide(action){
+  if(!isOwner) return;
+
+  if(action === "reject"){
+    const ok = await askConfirm({
+      title : "Reject registration",
+      text  : (currentUser.name || "This client") + " (" + (currentUser.email || "")
+            + ") will be turned away and the registration removed. They can sign "
+            + "up again later.",
+      action: "Reject",
+      icon  : "warn"
+    });
+
+    if(!ok) return;
+  }
+
+  setDecideBusy(true);
+
+  try{
+    const res = await fetch("api/admin-users.php", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + adminToken
+      },
+      body: JSON.stringify({ userId: Number(userId), action })
+    });
+
+    const data = await res.json();
+
+    alert(data.message);
+
+    if(!data.success){
+      setDecideBusy(false);
+      return;
+    }
+
+    // A rejected client no longer exists, so there is no page to stay on.
+    if(action === "reject"){
+      window.location.href = "clients-management.html";
+      return;
+    }
+
+    loadUser();
+
+  }catch(error){
+    alert("Connection error.");
+    setDecideBusy(false);
+  }
+}
+
+/* Permanent, and the whole account: the dialog names it and holds its button
+   until DELETE has been typed. Same dialog the Project Management page uses. */
+async function removeClient(){
+  if(!isOwner) return;
+
+  const ok = await askConfirm({
+    title : "Delete client",
+    text  : (currentUser.name || "This client") + " (" + (currentUser.email || "")
+          + ") will be erased, along with everything tied to the account - "
+          + "responses, appointments, assigned files and notifications. This "
+          + "cannot be undone.",
+    action: "Delete client",
+    word  : "DELETE"
+  });
+
+  if(!ok) return;
+
+  setDecideBusy(true);
+
+  try{
+    const res = await fetch("api/delete-client.php", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + adminToken
+      },
+      // The email is a staleness check: if this page is out of date, the
+      // server refuses rather than deleting whoever now holds that id.
+      body: JSON.stringify({ user_id: Number(userId), confirm_email: currentUser.email })
+    });
+
+    const data = await res.json();
+
+    alert(data.message);
+
+    if(data.success){
+      window.location.href = "clients-management.html";
+      return;
+    }
+
+    setDecideBusy(false);
+
+  }catch(error){
+    alert("Connection error.");
+    setDecideBusy(false);
+  }
+}
+
+function setDecideBusy(busy){
+  document.querySelectorAll(".head-decide .btn").forEach(button => {
+    button.disabled = busy;
+  });
+}
+
+/*
+|------------------------------------------------------------------------------
+| WhatsApp
+|------------------------------------------------------------------------------
+|
+| The client gives the number on their own profile page, with its country code -
+| that is the part api/db.php insists on, because a number without one cannot be
+| dialled from anywhere else and nothing about the value shows it is wrong.
+|
+| Here it is a button rather than a number: what you want from this field is to
+| reach the person, so clicking it opens the conversation. wa.me decides where -
+| the app if it is installed, the web client if not.
+|
+| The server works the address out and sends it; this only checks it is what it
+| says it is, because an href built from stored text is not somewhere to take
+| one hop on trust.
+*/
+
+const WA_ICON =
+    '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">'
+  + '<path d="M17.47 14.38c-.3-.15-1.75-.86-2.02-.96-.27-.1-.47-.15-.67.15-.2.3-.77.96-.92 1.16-.15.2-.3.22-.6.07-.3-.15-1.1-.4-2.1-1.3-.78-.7-1.3-1.55-1.45-1.85-.15-.3-.02-.47.13-.62.13-.13.3-.35.45-.52.15-.18.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.6-.92-2.18-.24-.58-.49-.5-.67-.5h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.01-1.04 2.46 0 1.45 1.06 2.85 1.21 3.05.15.2 2.09 3.2 5.07 4.37.71.3 1.26.48 1.69.61.71.23 1.36.2 1.87.12.57-.08 1.75-.71 2-1.41.25-.7.25-1.29.17-1.41-.07-.13-.27-.2-.57-.35z"/>'
+  + '<path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.46 1.32 4.97L2 22l5.25-1.38c1.45.79 3.08 1.21 4.75 1.21h.01c5.46 0 9.91-4.45 9.91-9.91C21.92 6.45 17.5 2 12.04 2zm0 18.13h-.01c-1.48 0-2.94-.4-4.21-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.23 8.23 0 0 1-1.26-4.36c0-4.54 3.7-8.23 8.25-8.23 2.2 0 4.27.86 5.83 2.42a8.19 8.19 0 0 1 2.41 5.82c0 4.54-3.7 8.24-8.24 8.24z"/>'
+  + "</svg>";
+
+function whatsappCell(user){
+  const number = String(user.whatsapp || "").trim();
+  const link = String(user.whatsapp_link || "").trim();
+
+  if(!number) return `<span class="muted">—</span>`;
+
+  // Only an http(s) wa.me address becomes a link; anything else is text.
+  if(!/^https:\/\/wa\.me\/[0-9]+$/.test(link)){
+    return esc(number);
+  }
+
+  return `
+    <a class="wa-link" href="${esc(link)}" target="_blank" rel="noopener noreferrer"
+       title="Open WhatsApp chat with ${esc(number)}">
+      ${WA_ICON}
+      <span>${esc(number)}</span>
+    </a>`;
+}
+
+/*
+|------------------------------------------------------------------------------
+| The Details panel
+|------------------------------------------------------------------------------
+|
+| Two versions of the same panel. Reading is the default; an account manager or
+| the owner gets an Edit button that swaps the five client-authored fields for
+| inputs, so a wrong number or a missing company can be fixed without asking the
+| client to log in and do it themselves.
+|
+| Joined, Managed by and User ID are never editable - they are facts about the
+| account rather than details someone filled in. Name and email are not here
+| either: they are the account's identity and have their own endpoints.
+|
+| canEditDetails is the server's answer, and only about the markup -
+| api/admin-user-details.php checks the role again on the POST.
+|
+*/
+
+let editingDetails = false;
+
+function detailsPanel(data){
   const u = data.user;
+  const canEdit = !!data.canEditDetails;
+
+  const website = String(u.website || "").trim();
+  const websiteHref = webUrl(website);
+
+  const head = `
+    <div class="panel-head">
+      <div class="head-with-action">
+        <div>
+          <h2>Details</h2>
+          <p>${editingDetails
+                ? "Editing the details the client filled in on their profile page."
+                : "Filled in by the user on their profile page."}</p>
+        </div>
+        ${canEdit && !editingDetails
+            ? `<button class="edit-toggle" type="button" onclick="startEditDetails()">
+                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+                 Edit details
+               </button>`
+            : ""}
+      </div>
+    </div>`;
+
+  /* The three read-only facts, identical in both versions of the panel. */
+  const facts = `
+    <div class="field"><h5>Joined</h5><p>${formatDate(u.created_at)}</p></div>
+    <div class="field">
+      <h5>Managed by</h5>
+      <p>${data.seoAdmin ? esc(data.seoAdmin.name) : `<span class="muted">Unassigned</span>`}</p>
+    </div>
+    <div class="field"><h5>User ID</h5><p>${esc(u.id)}</p></div>`;
+
+  if(!editingDetails){
+    return `
+      <div class="panel">
+        ${head}
+        <div class="fields">
+          <div class="field"><h5>Phone</h5><p>${orDash(u.phone)}</p></div>
+          <div class="field"><h5>WhatsApp</h5><p>${whatsappCell(u)}</p></div>
+          <div class="field"><h5>Company</h5><p>${orDash(u.company_name)}</p></div>
+          <div class="field">
+            <h5>Website</h5>
+            <!-- Shown as typed, followed as an address: the label is the
+                 client's own text, the href is that text made absolute. -->
+            <p>${websiteHref
+                  ? `<a href="${esc(websiteHref)}" target="_blank" rel="noopener noreferrer">${esc(website)}</a>`
+                  : orDash(website)}</p>
+          </div>
+          ${facts}
+          <div class="field wide"><h5>About</h5><p>${orDash(u.description)}</p></div>
+          ${notesField(u, data.canManageNotes)}
+        </div>
+      </div>`;
+  }
+
+  return `
+    <div class="panel">
+      ${head}
+      <div class="fields">
+        <div class="field">
+          <h5><label for="edPhone">Phone</label></h5>
+          <input type="tel" id="edPhone" value="${esc(u.phone || "")}" placeholder="+44 20 1234 5678">
+        </div>
+        <div class="field">
+          <h5><label for="edWhatsApp">WhatsApp</label></h5>
+          <input type="tel" id="edWhatsApp" value="${esc(u.whatsapp || "")}" placeholder="+44 7911 123456">
+          <p class="hint">Needs the country code, like +44.</p>
+        </div>
+        <div class="field">
+          <h5><label for="edCompany">Company</label></h5>
+          <input type="text" id="edCompany" maxlength="150" value="${esc(u.company_name || "")}">
+        </div>
+        <div class="field">
+          <h5><label for="edWebsite">Website</label></h5>
+          <input type="text" id="edWebsite" value="${esc(website)}" placeholder="example.com">
+          <p class="hint">https:// is added if you leave it off.</p>
+        </div>
+        ${facts}
+        <div class="field wide">
+          <h5><label for="edAbout">About</label></h5>
+          <textarea id="edAbout" placeholder="What this company does, in a couple of sentences.">${esc(u.description || "")}</textarea>
+        </div>
+
+        <div class="details-bar">
+          <button class="details-save" type="button" onclick="saveDetails()">Save details</button>
+          <button class="details-cancel" type="button" onclick="cancelEditDetails()">Cancel</button>
+          <span class="details-status" id="detailsStatus"></span>
+        </div>
+
+        ${notesField(u, data.canManageNotes)}
+      </div>
+    </div>`;
+}
+
+function startEditDetails(){
+  editingDetails = true;
+  render(currentData);
+  const first = document.getElementById("edPhone");
+  if(first) first.focus();
+}
+
+function cancelEditDetails(){
+  editingDetails = false;
+  render(currentData);
+}
+
+/* The client's own five fields. The server checks each one and hands back what
+   it stored, which is what gets painted - so the panel shows the saved value
+   rather than the typed one, and a bare domain reappears with its scheme. */
+async function saveDetails(){
+  const status = document.getElementById("detailsStatus");
+  const button = document.querySelector(".details-save");
+
+  status.className = "details-status";
+  status.innerText = "Saving...";
+  button.disabled = true;
+
+  const payload = {
+    action: "save_details",
+    id: userId,
+    phone: document.getElementById("edPhone").value,
+    whatsapp: document.getElementById("edWhatsApp").value,
+    company_name: document.getElementById("edCompany").value,
+    website: document.getElementById("edWebsite").value,
+    description: document.getElementById("edAbout").value
+  };
+
+  try{
+    const res = await fetch("api/admin-user-details.php", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + adminToken
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+
+    if(!data.success){
+      status.className = "details-status error";
+      status.innerText = data.message || "Could not save.";
+      button.disabled = false;
+      return;
+    }
+
+    /* Merged rather than reloaded: the note the admin may have been typing in
+       the same panel is not something to throw away over a details save.
+       whatsapp_link is re-derived here for the same reason - it is what the
+       icon is built from. */
+    Object.assign(currentData.user, data.details);
+    currentData.user.whatsapp_link = currentData.user.whatsapp
+      ? "https://wa.me/" + String(currentData.user.whatsapp).replace(/[^0-9]/g, "")
+      : "";
+
+    editingDetails = false;
+    render(currentData);
+
+  }catch(error){
+    status.className = "details-status error";
+    status.innerText = "Connection error. Please try again.";
+    button.disabled = false;
+  }
+}
+
+/* The last payload this page rendered from, so the panels can be redrawn when
+   one of them changes without asking the server again. */
+let currentData = null;
+let currentUser = {};
+
+/* An unsaved note, held across re-renders. null means "nothing in progress",
+   which is not the same as "" - an admin who has deliberately cleared the box
+   and not saved it yet should not get the stored note back. */
+let noteDraft = null;
+
+/* Every write to #pageBody goes through here, so the note survives whichever
+   of the two paths in render() drew the page. */
+function paint(html){
+  const live = document.getElementById("clientNote");
+  if(live) noteDraft = live.value;
+
+  document.getElementById("pageBody").innerHTML = html;
+
+  const fresh = document.getElementById("clientNote");
+  if(fresh && noteDraft !== null) fresh.value = noteDraft;
+}
+
+function render(data){
+  currentData = data;
+
+  const u = data.user;
+  currentUser = u;
+
   const approved = Number(u.approved) === 1;
 
   const photo = u.profile_image
     ? `<div class="profile-photo" style="background-image:url('${esc(u.profile_image)}')"></div>`
     : `<div class="profile-photo">${esc((u.name || "U").charAt(0).toUpperCase())}</div>`;
-
-  const website = String(u.website || "").trim();
-  const websiteHref = webUrl(website);
 
   const header = `
     <div class="panel">
@@ -771,36 +1264,11 @@ function render(data){
           <p>${esc(u.email || "")}</p>
         </div>
         <span class="badge ${approved ? "approved" : "pending"}">${approved ? "Approved" : "Pending"}</span>
+        ${decideButtons(approved)}
       </div>
     </div>`;
 
-  const details = `
-    <div class="panel">
-      <div class="panel-head">
-        <h2>Details</h2>
-        <p>Filled in by the user on their profile page.</p>
-      </div>
-      <div class="fields">
-        <div class="field"><h5>Phone</h5><p>${orDash(u.phone)}</p></div>
-        <div class="field"><h5>Company</h5><p>${orDash(u.company_name)}</p></div>
-        <div class="field">
-          <h5>Website</h5>
-          <!-- Shown as typed, followed as an address: the label is the
-               client's own text, the href is that text made absolute. -->
-          <p>${websiteHref
-                ? `<a href="${esc(websiteHref)}" target="_blank" rel="noopener noreferrer">${esc(website)}</a>`
-                : orDash(website)}</p>
-        </div>
-        <div class="field"><h5>Joined</h5><p>${formatDate(u.created_at)}</p></div>
-        <div class="field">
-          <h5>Managed by</h5>
-          <p>${data.seoAdmin ? esc(data.seoAdmin.name) : `<span class="muted">Unassigned</span>`}</p>
-        </div>
-        <div class="field"><h5>User ID</h5><p>${esc(u.id)}</p></div>
-        <div class="field wide"><h5>About</h5><p>${orDash(u.description)}</p></div>
-        ${notesField(u, data.canManageNotes)}
-      </div>
-    </div>`;
+  const details = detailsPanel(data);
 
   const surveys = tablePanel(
     "Surveys assigned", "Surveys and checklists allocated to this user.",
@@ -876,8 +1344,26 @@ function render(data){
     "No published content reaches this user yet."
   );
 
-  document.getElementById("pageBody").innerHTML =
-    header + details + surveys + responses + appointments + files + content;
+  /* Nothing below Details applies to an account that has not been approved:
+     a pending client has no surveys, no submissions, no meetings and no files,
+     so the panels for them would all say so and bury the only panel worth
+     reading. The note explains the gap rather than leaving it unexplained. */
+  if(!approved){
+    paint(
+      header
+      + `<div class="pending-only">
+           This registration has not been approved yet, so there is nothing
+           assigned to it. ${isOwner
+              ? "Approve it above and their surveys, meetings and files appear here."
+              : "Once the owner approves it, their surveys, meetings and files appear here."}
+         </div>`
+      + details
+    );
+
+    return;
+  }
+
+  paint(header + details + surveys + responses + appointments + files + content);
 
   initCalendar(data.appointments || []);
 }
@@ -913,6 +1399,9 @@ async function loadUser(){
     }
 
     document.title = (data.user.name || "User") + " — Admin";
+
+    // Straight from the database, so a draft from before is no longer in play.
+    noteDraft = null;
     render(data);
 
   }catch(error){
@@ -933,5 +1422,6 @@ loadUser();
 <script src="assets/notifications.js?v=1"></script>
 <script src="assets/shell.js?v=1"></script>
 <script src="assets/sources-lock.js?v=1"></script>
+<script src="assets/confirm.js?v=1"></script>
 </body>
 </html>

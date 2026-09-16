@@ -6,3 +6,4 @@ ALTER TABLE users ADD COLUMN company_name VARCHAR(150) NULL;
 ALTER TABLE users ADD COLUMN website      VARCHAR(255) NULL;
 ALTER TABLE users ADD COLUMN description  TEXT         NULL;
 ALTER TABLE users ADD COLUMN phone        VARCHAR(50)  NULL;
+ALTER TABLE users ADD COLUMN whatsapp     VARCHAR(30)  NULL;

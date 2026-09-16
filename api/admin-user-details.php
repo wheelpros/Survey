@@ -59,8 +59,13 @@ try {
     respond(false, "Authentication database error.", [], 500);
 }
 
-// Who may write the internal note. Every other admin reads it and no more.
+/* Who may change what is on this page: the internal note, and the client's own
+   details. Every other admin reads both and no more.
+
+   Approving, rejecting and deleting are not in here - those stay the owner's
+   alone, enforced by api/admin-users.php and api/delete-client.php. */
 $canManageNotes = in_array($admin["role"] ?? "", ["owner", "account_manager"], true);
+$canEditDetails = $canManageNotes;
 
 /*
 |--------------------------------------------------------------------------
@@ -75,19 +80,111 @@ $canManageNotes = in_array($admin["role"] ?? "", ["owner", "account_manager"], t
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     $input = json_decode(file_get_contents("php://input"), true) ?: [];
+    $action = $input["action"] ?? "";
 
-    if (($input["action"] ?? "") !== "save_notes") {
+    if (!in_array($action, ["save_notes", "save_details"], true)) {
         respond(false, "Unknown action.", [], 400);
     }
 
-    if (!$canManageNotes) {
-        respond(false, "Only an account manager or the owner can edit client notes.", [], 403);
+    if (!$canEditDetails) {
+        respond(false, "Only an account manager or the owner can edit a client.", [], 403);
     }
 
     $targetId = (int) ($input["id"] ?? 0);
 
     if (!$targetId) {
         respond(false, "A numeric user id is required.", [], 400);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | The client's own details
+    |--------------------------------------------------------------------------
+    |
+    | The same five fields the client edits on profile.html, editable here so an
+    | account manager can correct a number or fill in a company the client left
+    | blank without asking them to log in and do it.
+    |
+    | Deliberately not here: name and email are the account's identity, and
+    | approved is a decision rather than a detail - both have their own
+    | endpoints, with their own rules about who may change them.
+    |
+    | Each value gets the same treatment api/update-profile.php gives it, so a
+    | number saved here and a number saved there end up in the same shape.
+    |
+    */
+
+    if ($action === "save_details") {
+
+        ensureUserProfileColumns($pdo);
+
+        $company = trim((string) ($input["company_name"] ?? ""));
+        $phone = trim((string) ($input["phone"] ?? ""));
+        $about = trim((string) ($input["description"] ?? ""));
+        $websiteInput = trim((string) ($input["website"] ?? ""));
+        $whatsappInput = trim((string) ($input["whatsapp"] ?? ""));
+
+        if (mb_strlen($company) > 150) {
+            respond(false, "The company name has to be 150 characters or fewer.", [], 400);
+        }
+
+        if ($phone !== "" && !preg_match("/^[0-9+\-\s().]{6,25}$/", $phone)) {
+            respond(false, "That does not look like a phone number.", [], 400);
+        }
+
+        // A bare domain is how it is usually typed; store something linkable.
+        $website = normaliseWebUrl($websiteInput);
+
+        if ($websiteInput !== "" && $website === "") {
+            respond(false, "That does not look like a web address.", [], 400);
+        }
+
+        // The country code is the part worth insisting on - see db.php.
+        $whatsapp = normaliseWhatsApp($whatsappInput);
+
+        if ($whatsappInput !== "" && $whatsapp === "") {
+            respond(false, "Start the WhatsApp number with its country code, like +44 7911 123456.", [], 400);
+        }
+
+        try {
+            $check = $pdo->prepare("SELECT id FROM users WHERE id = ? LIMIT 1");
+            $check->execute([$targetId]);
+
+            if (!$check->fetch()) {
+                respond(false, "User not found.", [], 404);
+            }
+
+            $save = $pdo->prepare("
+                UPDATE users
+                SET company_name = ?, website = ?, description = ?, phone = ?, whatsapp = ?
+                WHERE id = ?
+            ");
+
+            $save->execute([
+                $company === "" ? null : $company,
+                $website === "" ? null : $website,
+                $about === "" ? null : $about,
+                $phone === "" ? null : $phone,
+                $whatsapp === "" ? null : $whatsapp,
+                $targetId
+            ]);
+
+        } catch (Throwable $e) {
+            respond(false, "Could not save the details.", [], 500);
+        }
+
+        /* The saved values go back, not the submitted ones: the page repaints
+           from these, so what it shows is what is stored rather than what was
+           typed. */
+        respond(true, "Details saved.", [
+            "details" => [
+                "company_name" => $company,
+                "website" => $website,
+                "description" => $about,
+                "phone" => $phone,
+                "whatsapp" => $whatsapp
+            ]
+        ]);
     }
 
     $note = trim((string) ($input["notes"] ?? ""));
@@ -142,7 +239,7 @@ try {
     // Explicit columns: never expose password or session_token.
     $stmt = $pdo->prepare("
         SELECT
-            id, name, email, phone,
+            id, name, email, phone, whatsapp,
             company_name, website, description,
             admin_notes,
             profile_image, approved, created_at
@@ -161,6 +258,11 @@ try {
 if (!$user) {
     respond(false, "User not found.", [], 404);
 }
+
+/* The address to open, worked out here rather than on the page: it is the same
+   rule wa.me needs everywhere, and an empty string is the page's cue that there
+   is no icon to draw. */
+$user["whatsapp_link"] = whatsAppLink($user["whatsapp"] ?? "");
 
 /*
 |--------------------------------------------------------------------------
@@ -251,8 +353,9 @@ respond(true, "User loaded.", [
     "user"         => $user,
 
     /* Presentation only - the POST above checks the role itself. The page uses
-       it to decide whether the note is a field or a paragraph. */
+       these to decide whether the note and the details are fields or text. */
     "canManageNotes" => $canManageNotes,
+    "canEditDetails" => $canEditDetails,
 
     "seoAdmin"     => $seoAdmin,
     "surveys"      => $surveys,

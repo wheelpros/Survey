@@ -41,6 +41,7 @@ $companyName = trim($_POST["company_name"] ?? "");
 $website = trim($_POST["website"] ?? "");
 $description = trim($_POST["description"] ?? "");
 $phone = trim($_POST["phone"] ?? "");
+$whatsappInput = trim($_POST["whatsapp"] ?? "");
 $profileImage = $user["profile_image"];
 
 if (!$name) {
@@ -69,6 +70,22 @@ if ($phone !== "" && !preg_match("/^[0-9+\-\s().]{6,25}$/", $phone)) {
     echo json_encode([
         "success" => false,
         "message" => "Please enter a valid phone number"
+    ]);
+    exit;
+}
+
+/* WhatsApp is stored in one shape - plus, country code, number - because that
+   is what wa.me needs and what makes the stored value dialable on its own.
+   normaliseWhatsApp() throws away the spacing people type and refuses a number
+   with no country code in front of it, which is the mistake worth catching: a
+   local number here reaches nobody and there is no way to tell from the value
+   itself that it is wrong. */
+$whatsapp = normaliseWhatsApp($whatsappInput);
+
+if ($whatsappInput !== "" && $whatsapp === "") {
+    echo json_encode([
+        "success" => false,
+        "message" => "Start your WhatsApp number with its country code, like +44 7911 123456"
     ]);
     exit;
 }
@@ -110,7 +127,8 @@ if (!empty($_FILES["profile_image"]["name"])) {
 $stmt = $pdo->prepare("
     UPDATE users
     SET name = ?, profile_image = ?,
-        company_name = ?, website = ?, description = ?, phone = ?
+        company_name = ?, website = ?, description = ?, phone = ?,
+        whatsapp = ?
     WHERE id = ?
 ");
 
@@ -121,6 +139,7 @@ $stmt->execute([
     $website,
     $description,
     $phone,
+    $whatsapp === "" ? null : $whatsapp,
     $user["id"]
 ]);
 
@@ -135,6 +154,7 @@ echo json_encode([
         "company_name" => $companyName,
         "website" => $website,
         "description" => $description,
-        "phone" => $phone
+        "phone" => $phone,
+        "whatsapp" => $whatsapp
     ]
 ]);

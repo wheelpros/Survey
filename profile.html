@@ -602,6 +602,14 @@
                   <label for="fPhone">Phone number</label>
                   <input type="tel" id="fPhone" name="phone" placeholder="+44 20 1234 5678" />
                 </div>
+                <div class="field">
+                  <label for="fWhatsApp">WhatsApp</label>
+                  <input type="tel" id="fWhatsApp" name="whatsapp" placeholder="+44 7911 123456" />
+                  <!-- The country code is the part worth insisting on: without
+                       it the number cannot be dialled from anywhere else, and
+                       nothing about the value itself shows it is wrong. -->
+                  <p class="note">Start with your country code, like <strong>+44</strong>. Spaces and dashes are fine.</p>
+                </div>
               </div>
             </div>
 
@@ -669,6 +677,7 @@
         document.getElementById("fName").value = user.name || "";
         document.getElementById("fEmail").value = user.email || "";
         document.getElementById("fPhone").value = user.phone || "";
+        document.getElementById("fWhatsApp").value = user.whatsapp || "";
         document.getElementById("fCompany").value = user.company_name || "";
         document.getElementById("fWebsite").value = user.website || "";
         document.getElementById("fDescription").value = user.description || "";
@@ -732,9 +741,23 @@
           return;
         }
 
+        /* Same test api/update-profile.php applies, run first so a missing
+           country code is pointed out without a round trip. Spacing is thrown
+           away; "00" counts as the plus written the other way round. */
+        const whatsappField = document.getElementById("fWhatsApp");
+        const whatsapp = whatsappField.value.trim();
+        const cleaned = whatsapp.replace(/[\s\-().]/g, "").replace(/^00/, "+");
+
+        if (whatsapp && !/^\+[1-9][0-9]{7,14}$/.test(cleaned)) {
+          setStatus("Start your WhatsApp number with its country code, like +44 7911 123456", "err");
+          whatsappField.focus();
+          return;
+        }
+
         const formData = new FormData();
         formData.append("name", name);
         formData.append("phone", document.getElementById("fPhone").value.trim());
+        formData.append("whatsapp", whatsapp);
         formData.append("company_name", document.getElementById("fCompany").value.trim());
         formData.append("website", document.getElementById("fWebsite").value.trim());
         formData.append("description", document.getElementById("fDescription").value.trim());
