@@ -102,6 +102,12 @@ td a{color:var(--nav-active);font-weight:700}
    rather than back on the list: this page is where you read who they are, so
    it is where Approve, Reject and Delete belong. */
 .profile-head{display:flex;align-items:center;gap:20px;padding:26px 28px;flex-wrap:wrap}
+/* The account number, on its own line above the photo. It is how this client is
+   referred to everywhere else in the platform, so it reads first rather than
+   sitting near the bottom of the Details grid. */
+.profile-ref{padding:20px 28px 0;font-size:12px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--muted)}
+.profile-ref b{color:var(--text)}
+.profile-ref + .profile-head{padding-top:14px}
 .head-decide{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .head-decide .btn{border:none;padding:11px 16px;border-radius:10px;font:inherit;font-size:13px;font-weight:800;cursor:pointer}
 .head-decide .approve-btn{background:#20a95a;color:#fff}
@@ -1079,14 +1085,14 @@ function detailsPanel(data){
       </div>
     </div>`;
 
-  /* The three read-only facts, identical in both versions of the panel. */
+  /* The two read-only facts, identical in both versions of the panel. The user
+     id used to be a third one; it sits above the photo in the header now. */
   const facts = `
     <div class="field"><h5>Joined</h5><p>${formatDate(u.created_at)}</p></div>
     <div class="field">
       <h5>Managed by</h5>
       <p>${data.seoAdmin ? esc(data.seoAdmin.name) : `<span class="muted">Unassigned</span>`}</p>
-    </div>
-    <div class="field"><h5>User ID</h5><p>${esc(u.id)}</p></div>`;
+    </div>`;
 
   if(!editingDetails){
     return `
@@ -1257,6 +1263,7 @@ function render(data){
 
   const header = `
     <div class="panel">
+      <div class="profile-ref">User ID <b>#${esc(u.id)}</b></div>
       <div class="profile-head">
         ${photo}
         <div class="profile-id">

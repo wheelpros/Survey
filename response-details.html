@@ -14,12 +14,13 @@ body{
 }
 
 /* ── Page header and panel: the same shell every other admin page uses ── */
-.page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:28px}
+.page-head{display:flex;align-items:flex-start;gap:16px;margin-bottom:28px}
+.page-title{flex:1;min-width:0}
 .page-title h1{font-size:30px;margin-bottom:8px}
 .page-title p{font-size:14px;color:var(--muted);max-width:620px}
-.back-link{flex:none;display:inline-flex;align-items:center;gap:8px;border:1px solid #dfe3ea;background:#fff;color:var(--text);text-decoration:none;padding:11px 18px;border-radius:10px;font-size:13px;font-weight:800}
-.back-link:hover{background:#f6f7f9}
-.back-link svg{width:15px;height:15px}
+.back-link{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;flex:none;margin-top:6px;border-radius:10px;border:1px solid #dfe3ea;background:#fff;color:var(--text);text-decoration:none;transition:background .15s}
+.back-link:hover{background:#f2f4f8}
+.back-link svg{width:17px;height:17px}
 
 .panel{
   background:#fff;
@@ -336,14 +337,13 @@ document.addEventListener("DOMContentLoaded", function () {
   <div class="admin-content">
 
     <div class="page-head">
+      <a class="back-link" href="admin.html" title="Back to forms" aria-label="Back to forms">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M11 6l-6 6 6 6"/></svg>
+      </a>
       <div class="page-title">
         <h1>Form Answers</h1>
         <p>Everything the user submitted for this form, with any files they attached.</p>
       </div>
-      <a class="back-link" href="responses.html">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-        Back to Responses
-      </a>
     </div>
 
     <div class="panel">

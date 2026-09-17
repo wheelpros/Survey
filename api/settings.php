@@ -194,10 +194,17 @@ if($_SERVER["REQUEST_METHOD"]=="POST"){
             exit;
         }
 
-        if(!setSiteSetting($pdo, "website_url", $website)){
+        // The reason travels with the refusal: the usual one is a database
+        // user that may not CREATE the site_settings table, and that is not
+        // something the page can work out on its own.
+        $saveError = "";
+
+        if(!setSiteSetting($pdo, "website_url", $website, $saveError)){
             echo json_encode([
                 "success"=>false,
-                "message"=>"Could not save the website address"
+                "message"=>$saveError === ""
+                    ? "Could not save the website address"
+                    : "Could not save the website address: " . $saveError
             ]);
             exit;
         }

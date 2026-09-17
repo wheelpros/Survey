@@ -161,10 +161,13 @@ body{padding:0}
 .table-card th:nth-child(2),.table-card td:nth-child(2){width:16%}
 .table-card th:nth-child(3),.table-card td:nth-child(3){width:12%}
 .table-card th:nth-child(4),.table-card td:nth-child(4){width:17%}
-.table-card th:nth-child(5),.table-card td:nth-child(5){width:18%}
+/* No stated width: Actions takes whatever the others leave, so the menu column
+   beside it never has to carry the slack as empty space. */
+.table-card th:nth-child(5),.table-card td:nth-child(5){width:auto}
 /* Just the square plus its padding - the column never needs more, because the
-   heading above it is empty on purpose. */
-.table-card th:nth-child(6),.table-card td:nth-child(6){width:9%}
+   heading above it is empty on purpose, and any spare width here would show up
+   as a gap between View and the three dots. */
+.table-card th:nth-child(6),.table-card td:nth-child(6){width:62px}
 @media(max-width:768px){
   /* View moves into the menu here, which leaves its column holding nothing -
      so the column goes too, rather than sitting there as an empty heading. */
@@ -236,8 +239,8 @@ body{padding:0}
 .actions,.kebab-wrap{vertical-align:middle}
 /* The menu's own column: no heading, and the square against the right edge of
    the card, where the same control sits on every other list in the portal. */
-.table-card td.menu-cell,.table-card th.col-menu{text-align:right;white-space:nowrap;padding-left:6px}
-.table-card td.action,.table-card th.col-action{text-align:right;padding-right:10px}
+.table-card td.menu-cell,.table-card th.col-menu{text-align:right;white-space:nowrap;padding-left:4px}
+.table-card td.action,.table-card th.col-action{text-align:right;padding-right:4px}
 
 /* A heading that is there for a screen reader and nowhere else. */
 .sr-only{

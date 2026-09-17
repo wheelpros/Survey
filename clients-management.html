@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Admin - Clients Management</title><style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}body{background:#f6f7fb;color:#101828;padding:35px}.panel{background:#fff;border-radius:20px;box-shadow:0 14px 35px rgba(0,0,0,.06);overflow:hidden}.panel-head{padding:24px 28px;border-bottom:1px solid #eef1f5}.panel-head h1{font-size:24px;margin-bottom:6px}.panel-head p{color:#667085;font-size:14px}table{width:100%;border-collapse:collapse}th{text-align:left;background:#f8fafc;padding:14px 24px;color:#667085;font-size:12px}td{padding:15px 24px;border-top:1px solid #eef1f5;font-size:13px}.badge{padding:6px 12px;border-radius:20px;font-size:11px;font-weight:800}.approved{background:#e8faef;color:#20a95a}.pending{background:#fff3e5;color:#d97706}.actions{display:flex;gap:8px}.btn{border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:800;font-size:12px}.approve-btn{background:#20a95a;color:#fff}.reject-btn{background:#c9000b;color:#fff}.delete-btn{background:#fff;color:#c9000b;border:1px solid #f0d2d4}.delete-btn:hover{background:#fff5f5}.action-btn{background:var(--nav-active);color:#fff}
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}body{background:#f6f7fb;color:#101828;padding:35px}.panel{background:#fff;border-radius:20px;box-shadow:0 14px 35px rgba(0,0,0,.06);overflow:hidden}.panel-head{padding:24px 28px;border-bottom:1px solid #eef1f5}.panel-head h1{font-size:24px;margin-bottom:6px}.panel-head p{color:#667085;font-size:14px}table{width:100%;border-collapse:collapse}th{text-align:left;background:#f8fafc;padding:14px 24px;color:#667085;font-size:12px}td{padding:15px 24px;border-top:1px solid #eef1f5;font-size:13px}.badge{padding:6px 12px;border-radius:20px;font-size:11px;font-weight:800}.approved{background:#e8faef;color:#20a95a}.pending{background:#fff3e5;color:#d97706}.actions{display:flex;gap:8px}.btn{border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:800;font-size:12px}.action-btn{background:var(--nav-active);color:#fff}
 /* View is an anchor, so it needs what the button styling assumes. */
 a.btn{display:inline-flex;align-items:center;text-decoration:none}
 a.action-btn:hover{background:#282c52}.empty{padding:30px;text-align:center;color:#667085}@media(max-width:800px){body{padding:18px}table{min-width:760px}.panel{overflow-x:auto}}
@@ -246,9 +246,9 @@ document.addEventListener("DOMContentLoaded", function () {
 | id selector rather than on !important.
 |
 | Six columns do not fit at 390px. The two that say which client the row is -
-| the name and whether the account is approved - stay, and the row's buttons
-| move into a kebab. The id, the email and the signup date are all on the
-| client's own page, which the first item in that menu opens.
+| the name and whether the account is approved - stay, and the row's View button
+| moves into a kebab. The id, the email and the signup date are all on the
+| client's own page, which that menu opens.
 */
 
 .row-kebab{display:none}
@@ -267,11 +267,6 @@ document.addEventListener("DOMContentLoaded", function () {
 }
 .row-menu button:hover,
 .row-menu a:hover{background:#f6f7f9}
-
-/* Reject and Delete end an account, so they read as the destructive pair they
-   are rather than sitting in the list looking like View. */
-.row-menu .danger{color:#c9000b}
-.row-menu .danger:hover{background:#fff5f5}
 
 @media(max-width:768px){
 
@@ -375,7 +370,7 @@ document.addEventListener("DOMContentLoaded", function () {
     <div class="page-head">
       <div class="page-title">
         <h1 id="usersPanelTitle">Clients Management</h1>
-        <p id="usersPanelSub">Approve or reject newly registered clients.</p>
+        <p id="usersPanelSub">Registered clients. Open one to approve, reject or delete it.</p>
       </div>
     </div>
 
@@ -452,10 +447,11 @@ function logoutAdmin(){
 const myRole = adminUser.role;
 const isOwner = myRole === "owner";
 
-// Wording for the clients table changes with role: the owner is approving new
-// signups, everyone below is just looking at the slice handed down to them.
+// Wording for the clients table changes with role: the owner sees every signup
+// and decides on it from the client's own page, everyone below is just looking
+// at the slice handed down to them.
 const USERS_COPY = {
-  owner:       { title: "Clients Management", sub: "Approve or reject newly registered clients." },
+  owner:       { title: "Clients Management", sub: "Registered clients. Open one to approve, reject or delete it." },
   super_admin: { title: "Clients Management", sub: "Clients the owner assigned to you." },
   seo_admin:   { title: "Clients Management", sub: "Clients your super admin assigned to you." },
   account_manager: { title: "Clients Management", sub: "Clients the owner assigned to you." }
@@ -569,7 +565,7 @@ function failTables(message){
 
 /* ── The row kebab ──────────────────────────────────────────────────────────
    A phone has room for the client name, the status and one control, so below
-   768px the row's buttons are swapped for this and they move into a menu. The
+   768px the row's View button is swapped for this and moves into a menu. The
    button is in the markup on every screen; shell.css's breakpoint decides
    which of the two is on show, so nothing re-renders when the window resizes.
 
@@ -621,28 +617,12 @@ function openRowMenu(event, userId){
 
   if(!user) return;
 
-  const approved = Number(user.approved) === 1;
-
-  // The same actions the row offers on a desktop, decided the same way: the
-  // owner alone approves, rejects or deletes, and which pair they get depends
-  // on whether the account has been approved yet.
+  // The same action the row offers on a desktop: the client's own page, which
+  // is where every decision about the account is made.
   const items = [
     `<a href="user-details.html?id=${encodeURIComponent(user.id)}"
         onclick="closeRowMenu()">View client</a>`
   ];
-
-  if(isOwner && !approved){
-    items.push(
-      `<button type="button" onclick="runRowAction(() => updateUser(${Number(user.id)}, 'approve'))">Approve</button>`,
-      `<button type="button" class="danger" onclick="runRowAction(() => updateUser(${Number(user.id)}, 'reject'))">Reject</button>`
-    );
-  }
-
-  if(isOwner && approved){
-    items.push(
-      `<button type="button" class="danger" onclick="runRowAction(() => deleteClient(${Number(user.id)}))">Delete</button>`
-    );
-  }
 
   const menu = rowMenuEl();
   menu.innerHTML = items.join("");
@@ -687,13 +667,6 @@ function closeRowMenu(){
   rowMenuButton = null;
 }
 
-/* Every menu item closes the menu before it does anything, so the box is never
-   left floating over the confirm dialog it just opened. */
-function runRowAction(action){
-  closeRowMenu();
-  action();
-}
-
 document.addEventListener("click", closeRowMenu);
 document.addEventListener("keydown", function(event){
   if(event.key === "Escape") closeRowMenu();
@@ -734,25 +707,12 @@ function renderUsers(){
   renderApproved();
 }
 
-/* One row, in whichever table it belongs to. The buttons differ by table
-   because the decision does: a pending account is approved or turned away, an
-   approved one is deleted. Both are the owner's call alone - api/admin-users.php
-   and api/delete-client.php refuse everyone else, and this matches so nobody is
-   offered a button that is going to come back Unauthorized. */
+/* One row, in whichever table it belongs to. View is the only action here:
+   Approve, Reject and Delete all decide something about one account, so they
+   live on that account's own page, where the rest of what the decision affects
+   is on screen. The list stays a list. */
 function userRow(user){
   const approved = Number(user.approved) === 1;
-
-  const decide = (isOwner && !approved)
-    ? `<button class="btn approve-btn" onclick="updateUser(${Number(user.id)}, 'approve')">Approve</button>
-       <button class="btn reject-btn" onclick="updateUser(${Number(user.id)}, 'reject')">Reject</button>`
-    : "";
-
-  /* Delete is the approved-account counterpart to Reject. It erases the account
-     everywhere rather than deactivating it, so it asks for the word DELETE
-     before it goes ahead. */
-  const remove = (isOwner && approved)
-    ? `<button class="btn delete-btn" onclick="deleteClient(${Number(user.id)})">Delete</button>`
-    : "";
 
   return `
     <tr>
@@ -768,11 +728,9 @@ function userRow(user){
       <td>
         <div class="actions">
           <a class="btn action-btn" href="user-details.html?id=${esc(user.id)}">View</a>
-          ${decide}
-          ${remove}
 
-          <!-- Phone only, and the whole column there: three buttons do not fit
-               beside the client name. Offers the same actions. -->
+          <!-- Phone only, and the whole column there: the View button does not
+               fit beside the client name. Opens the same page. -->
           ${kebabButton(user.id)}
         </div>
       </td>
@@ -796,7 +754,7 @@ function renderPending(){
   panel.hidden = false;
 
   document.getElementById("pendingSub").textContent = isOwner
-    ? "Newly registered clients waiting on your decision."
+    ? "Newly registered clients waiting on your decision - open one to approve or reject it."
     : "Newly registered clients waiting on the owner's decision.";
 
   // Deciding the last row on the last page would otherwise leave it blank.
@@ -823,7 +781,7 @@ function renderApproved(){
   const rows  = approvedUsers();
 
   document.getElementById("approvedSub").textContent = isOwner
-    ? "Approved accounts. Deleting one erases it and everything tied to it."
+    ? "Approved accounts. Open one to manage or delete it."
     : "Approved accounts you can manage.";
 
   if(!rows.length){
@@ -857,61 +815,6 @@ function renderApproved(){
     start,
     shown: shown.length
   });
-}
-
-/*
-| Permanent deletion, for privacy requests.
-|
-| There is nothing to undo afterwards - the client row and every row pointing at
-| it go, including their submissions, appointments and file assignments - so the
-| dialog names the account and keeps its button disabled until DELETE has been
-| typed. Same dialog the Project Management page uses; see assets/confirm.js.
-|
-| The email still travels with the request. It is not the confirmation any more,
-| it is a staleness check: if the table on screen is out of date, the server
-| refuses rather than deleting whoever now holds that id.
-*/
-
-async function deleteClient(userId){
-  const user = allUsers.find(item => Number(item.id) === Number(userId));
-
-  if(!user) return;
-
-  const ok = await askConfirm({
-    title : "Delete client",
-    text  : user.name + " (" + user.email + ") will be erased, along with "
-          + "everything tied to the account - responses, appointments, assigned "
-          + "files and notifications. This cannot be undone.",
-    action: "Delete client",
-    word  : "DELETE"
-  });
-
-  if(!ok) return;
-
-  const email = user.email;
-
-  try{
-    const res = await fetch("api/delete-client.php",{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        Authorization:"Bearer " + adminToken
-      },
-      body:JSON.stringify({ user_id:userId, confirm_email:email })
-    });
-
-    const data = await res.json();
-
-    alert(data.message);
-
-    if(data.success){
-      loadUsers();
-      if(typeof loadAssignments === "function") loadAssignments();
-    }
-
-  }catch(error){
-    alert("Connection error.");
-  }
 }
 
 /* Both tables share this, keyed by the id prefix of the one asking - the two
@@ -951,53 +854,6 @@ function goToPage(prefix, page){
     .scrollIntoView({behavior:"smooth", block:"center"});
 }
 
-async function updateUser(userId, action){
-  // Belt and braces - the server is the real gate, this just avoids a wasted
-  // round trip if a non-owner somehow calls this.
-  if(!isOwner) return;
-
-  /* Rejecting removes the registration rather than flagging it, so it gets a
-     dialog that says so and names who it is about. No word to type: turning
-     away a signup is a routine decision, and the account being removed has
-     nothing attached to it yet - unlike Delete on an approved client, which
-     takes years of work with it. */
-  if(action === "reject"){
-    const user = allUsers.find(item => Number(item.id) === Number(userId));
-
-    const ok = await askConfirm({
-      title : "Reject registration",
-      text  : (user ? user.name + " (" + user.email + ")" : "This registration")
-            + " will be turned away and the registration removed. They can sign "
-            + "up again later.",
-      action: "Reject",
-      icon  : "warn"
-    });
-
-    if(!ok) return;
-  }
-
-  try{
-    const res = await fetch("api/admin-users.php",{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        Authorization:"Bearer " + adminToken
-      },
-      body:JSON.stringify({
-        userId,
-        action
-      })
-    });
-
-    const data = await res.json();
-
-    alert(data.message);
-    loadUsers();
-
-  }catch(error){
-    alert("Connection error");
-  }
-}
 
 // ---- Assignment panel: owner -> super_admin, or super_admin -> seo_admin ----
 let targetAdmins = [];
@@ -1156,7 +1012,6 @@ loadUsers();
 
 <script src="assets/notifications.js?v=1"></script>
 <script src="assets/shell.js?v=1"></script>
-<script src="assets/confirm.js?v=1"></script>
 <script src="assets/sources-lock.js?v=1"></script>
 <script src="assets/role-nav.js?v=1"></script>
 <script>

@@ -243,10 +243,13 @@ table{width:100%;border-collapse:collapse;table-layout:fixed}
 th:nth-child(1),td:nth-child(1){width:27%}
 th:nth-child(2),td:nth-child(2){width:21%}
 th:nth-child(3),td:nth-child(3){width:23%}
-th:nth-child(4),td:nth-child(4){width:20%}
+/* No stated width: Action takes whatever the other four leave, so the menu
+   column beside it never has to carry the slack as empty space. */
+th:nth-child(4),td:nth-child(4){width:auto}
 /* Just the square plus its padding - the column never needs more, because the
-   heading above it is empty on purpose. */
-th:nth-child(5),td:nth-child(5){width:9%}
+   heading above it is empty on purpose, and any spare width here would show up
+   as a gap between View and the three dots. */
+th:nth-child(5),td:nth-child(5){width:62px}
 th{text-align:left;padding:16px 24px;color:var(--muted);font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;border-bottom:1px solid var(--line)}
 td{padding:18px 24px;border-bottom:1px solid #f2f4f7;font-size:13px;vertical-align:middle}
 tr:last-child td{border-bottom:none}
@@ -260,10 +263,10 @@ tr:last-child td{border-bottom:none}
 .p-title{font-weight:700;color:var(--text)}
 .timeline{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;color:var(--muted);font-size:12px;white-space:nowrap}
 .timeline svg{width:14px;height:14px;flex:none;color:#c3c9d4}
-td.action,th.col-action{text-align:right;white-space:nowrap;padding-right:10px}
+td.action,th.col-action{text-align:right;white-space:nowrap;padding-right:4px}
 /* The menu's own column: no heading, and the square against the right edge of
    the card, where the same control sits on every other list in the portal. */
-td.menu-cell,th.col-menu{text-align:right;white-space:nowrap;padding-left:6px}
+td.menu-cell,th.col-menu{text-align:right;white-space:nowrap;padding-left:4px}
 
 /* A heading that is there for a screen reader and nowhere else. */
 .sr-only{
@@ -335,8 +338,6 @@ td.menu-cell,th.col-menu{text-align:right;white-space:nowrap;padding-left:6px}
   th:nth-child(1),td:nth-child(1){width:28%}
   th:nth-child(2),td:nth-child(2){width:21%}
   th:nth-child(3),td:nth-child(3){width:24%}
-  th:nth-child(4),td:nth-child(4){width:17%}
-  th:nth-child(5),td:nth-child(5){width:10%}
   td.action{padding-left:8px}
 }
 @media(max-width:768px){

@@ -180,11 +180,15 @@ function ensureClientNoteColumns(PDO $pdo)
  * Only a handful of keys live here (the public website address the logo links
  * to, so far), which is why this is a table of strings and not a schema.
  */
-function ensureSiteSettings(PDO $pdo)
+function ensureSiteSettings(PDO $pdo, $force = false)
 {
     static $done = false;
-    if ($done) {
-        return;
+
+    // $force re-runs the statement after a write has failed, so the one
+    // request that actually needs the table does not give up because an
+    // earlier read in the same request already used up the single attempt.
+    if ($done && !$force) {
+        return siteSettingsDdlError();
     }
     $done = true;
 
@@ -196,9 +200,26 @@ function ensureSiteSettings(PDO $pdo)
                 updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
+        return siteSettingsDdlError("");
     } catch (PDOException $e) {
-        // Read-only DB user: the readers below fall back to the default.
+        // Usually a DB user without CREATE rights. Readers fall back to the
+        // default; writers report this so the cause is visible instead of
+        // surfacing as a bare "could not save".
+        return siteSettingsDdlError($e->getMessage());
     }
+}
+
+/* Remembers why the table could not be created, so setSiteSetting() can say
+   so. Called with an argument to store, without one to read back. */
+function siteSettingsDdlError($message = null)
+{
+    static $error = "";
+
+    if ($message !== null) {
+        $error = $message;
+    }
+
+    return $error;
 }
 
 /**
@@ -227,23 +248,45 @@ function getSiteSetting(PDO $pdo, $key, $default = "")
 
 /**
  * Writes one setting. Returns false when the write did not happen, so the
- * caller can say so instead of reporting a save that never landed.
+ * caller can say so instead of reporting a save that never landed, and fills
+ * $error with the reason - a missing table on a DB user without CREATE rights
+ * is the usual one, and it is worth saying out loud rather than leaving the
+ * page to guess.
  */
-function setSiteSetting(PDO $pdo, $key, $value)
+function setSiteSetting(PDO $pdo, $key, $value, &$error = null)
 {
+    $error = "";
     ensureSiteSettings($pdo);
 
-    try {
-        $stmt = $pdo->prepare("
-            INSERT INTO site_settings (setting_key, setting_value)
-            VALUES (?, ?)
-            ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)
-        ");
-        $stmt->execute([$key, $value]);
-        return true;
-    } catch (PDOException $e) {
-        return false;
+    // Two goes: the second one follows a fresh CREATE TABLE, which covers the
+    // table having been dropped or never created in this database.
+    for ($attempt = 0; $attempt < 2; $attempt++) {
+        try {
+            $stmt = $pdo->prepare("
+                INSERT INTO site_settings (setting_key, setting_value)
+                VALUES (?, ?)
+                ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)
+            ");
+            $stmt->execute([$key, $value]);
+            return true;
+        } catch (PDOException $e) {
+            $error = $e->getMessage();
+
+            if ($attempt === 0) {
+                $ddl = ensureSiteSettings($pdo, true);
+
+                // Both messages: the write's own error says what failed, the
+                // DDL one usually says why the table it needed is not there.
+                if ($ddl !== "") {
+                    $error .= " (creating site_settings also failed: " . $ddl . ")";
+                    return false;
+                }
+                continue;
+            }
+        }
     }
+
+    return false;
 }
 
 /**
