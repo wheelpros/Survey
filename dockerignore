@@ -1,0 +1,15 @@
+# Keeps the PHP site's Docker image to just what belongs on the public
+# web root. Without this, `COPY . /var/www/html/` in the Dockerfile
+# copies everything in the repo - including the standalone MCP server's
+# source, package.json, and .env.example - straight into a
+# publicly-downloadable path.
+
+mcp-server/
+.git/
+.gitignore
+.env
+.env.*
+*.md
+Dockerfile
+.dockerignore
+node_modules/
