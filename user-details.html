@@ -762,42 +762,35 @@ function tablePanel(title, description, headers, rows, emptyText){
 | The internal note
 |------------------------------------------------------------------------------
 |
-| One note per client, kept by the people who deal with them: an account
-| manager or the owner may write it, and every other admin reads it. It lives
-| in the Details panel on this page and appears nowhere else - not on the
-| clients list, and nowhere a client can reach.
+| A note belongs to the admin who wrote it. Whoever added it is the only person
+| who ever reads it back - not the other managers, not the owner - so what is
+| drawn here is this admin's own note and nothing else. It lives in the Details
+| panel on this page and appears nowhere else: not on the clients list, and
+| nowhere a client can reach.
 |
-| canManageNotes decides which of the two versions below is drawn. It is the
-| server's answer and not this page's guess, and it is still only about the
-| markup: api/admin-user-details.php checks the role again on the way in, so a
-| hand-made POST from an admin who may not write one is refused there.
+| canManageNotes decides whether the field is drawn at all. It is the server's
+| answer and not this page's guess, and it is still only about the markup:
+| api/admin-user-details.php checks the role again on the way in, so a hand-made
+| POST from an admin who may not write one is refused there - and the note of an
+| admin who is not the one asking is never on the response to begin with.
 |
 */
 
 function notesField(user, canManage){
   const note = String(user.admin_notes == null ? "" : user.admin_notes);
 
-  if(!canManage){
-    return `
-      <div class="note-field">
-        <div class="note-head">
-          <h5>Internal note</h5>
-          <span class="note-why">Kept by the account manager</span>
-        </div>
-        ${note.trim()
-            ? `<div class="note-read">${esc(note)}</div>`
-            : `<p class="muted">No note has been added for this client.</p>`}
-      </div>`;
-  }
+  /* Nothing to draw for an admin who may not write one: a note is private to
+     its author, so they would be looking at an empty box that can never fill. */
+  if(!canManage) return "";
 
   return `
     <div class="note-field">
       <div class="note-head">
         <h5>Internal note</h5>
-        <span class="note-why">Only you and the owner see this &middot; the client never does</span>
+        <span class="note-why">Private to you &middot; no other admin sees this, and the client never does</span>
       </div>
       <textarea id="clientNote" maxlength="5000" rows="4"
-                placeholder="Anything worth knowing next time someone picks this client up..."
+                placeholder="Anything you want to remember about this client next time..."
                 aria-label="Internal note about this client">${esc(note)}</textarea>
       <div class="note-bar">
         <button class="note-save" type="button" onclick="saveClientNote()">Save note</button>

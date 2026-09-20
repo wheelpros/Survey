@@ -195,8 +195,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         respond(false, "A note has to be 5000 characters or fewer.", [], 400);
     }
 
-    ensureClientNoteColumns($pdo);
-
     try {
         $check = $pdo->prepare("SELECT id FROM users WHERE id = ? LIMIT 1");
         $check->execute([$targetId]);
@@ -204,11 +202,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         if (!$check->fetch()) {
             respond(false, "User not found.", [], 404);
         }
-
-        $save = $pdo->prepare("UPDATE users SET admin_notes = ? WHERE id = ?");
-        $save->execute([$note === "" ? null : $note, $targetId]);
-
     } catch (Throwable $e) {
+        respond(false, "Could not save the note.", [], 500);
+    }
+
+    /* Saved against the admin who wrote it: it is theirs to read back and
+       nobody else's, so the note of whoever else has written one about this
+       client is neither read nor touched here. */
+    if (!setClientNote($pdo, $targetId, (int) $admin["id"], $note)) {
         respond(false, "Could not save the note.", [], 500);
     }
 
@@ -232,16 +233,12 @@ $userId = (int) $_GET["id"];
 // company_name, website, description and phone are added lazily by db.php.
 ensureUserProfileColumns($pdo);
 
-// And so is admin_notes, which is not one of them - see db.php.
-ensureClientNoteColumns($pdo);
-
 try {
     // Explicit columns: never expose password or session_token.
     $stmt = $pdo->prepare("
         SELECT
             id, name, email, phone, whatsapp,
             company_name, website, description,
-            admin_notes,
             profile_image, approved, created_at
         FROM users
         WHERE id = ?
@@ -263,6 +260,15 @@ if (!$user) {
    rule wa.me needs everywhere, and an empty string is the page's cue that there
    is no icon to draw. */
 $user["whatsapp_link"] = whatsAppLink($user["whatsapp"] ?? "");
+
+/* The internal note, and only this admin's own: a note is private to whoever
+   wrote it, so another admin's note about this client is not fetched here and
+   there is nothing on this response for the page to leak. An admin who has
+   written none gets an empty string, which is also what the page shows every
+   admin who may not write one at all. */
+$user["admin_notes"] = $canManageNotes
+    ? getClientNote($pdo, $userId, (int) $admin["id"])
+    : "";
 
 /*
 |--------------------------------------------------------------------------
