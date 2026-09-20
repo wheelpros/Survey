@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Deliberately minimal. This portal has no confirmed public
+  content-listing page yet - if/when one exists (a public services
+  page, a public case-study/article listing, etc.) its URL belongs
+  here. Individual inquiry consultation links are excluded on purpose:
+  each is handed to one specific person and isn't meant to be
+  discovered by crawling.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://survey.websitezone.co.uk/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+</urlset>

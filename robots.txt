@@ -1,0 +1,32 @@
+# survey.websitezone.co.uk
+#
+# This site is almost entirely an authenticated admin/client portal.
+# Nothing behind a login belongs in a search or AI index, so everything
+# under these paths is disallowed for every crawler - no exception is
+# carved out for any specific AI crawler (GPTBot, ClaudeBot,
+# PerplexityBot, Google-Extended, CCBot, anthropic-ai, etc.). They get
+# the same rules as everyone else: blocked from private areas, free to
+# fetch whatever's left.
+#
+# Individual inquiry links (inquiry.html?name=...) are deliberately not
+# referenced here or in sitemap.xml. They're handed out one-to-one to a
+# specific person, not meant to be discovered by crawling or search.
+
+User-agent: *
+Disallow: /admin*
+Disallow: /api/
+Disallow: /uploads/
+Disallow: /login.php
+Disallow: /register.php
+Disallow: /admin-login.html
+Disallow: /dashboard.html
+Disallow: /user-*.html
+Disallow: /survey*.html
+Disallow: /inquiry.html
+Disallow: /inquiries.html
+Disallow: /inquiry-form.html
+Disallow: /content.html
+Disallow: /notifications.html
+Disallow: /source-files*
+
+Sitemap: https://survey.websitezone.co.uk/sitemap.xml

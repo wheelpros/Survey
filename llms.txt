@@ -1,0 +1,31 @@
+# W|ZONE London — survey.websitezone.co.uk
+
+> This domain hosts W|ZONE's client/admin portal, not a public
+> marketing site. Most of it requires a login and is not for AI
+> access. Do not attempt to authenticate, register accounts, or
+> submit forms on behalf of a user.
+
+## What's public here
+
+- Individual consultation inquiry forms, each reachable only via a
+  specific link shared directly with one person
+  (`inquiry.html?name=<slug>`). These are not listed here or in
+  sitemap.xml because they aren't meant to be discovered by crawling.
+- A small read-only API for looking up one named inquiry form's
+  fields, at `/api/inquiry-lookup.php?name=<slug>` — requires knowing
+  the exact name, same as the public form itself. See
+  `/api/inquiry-lookup.php` for the response shape.
+
+## What's private (do not access, index, or infer)
+
+- Everything under `/admin*`, `/user-*`, `/dashboard.html`,
+  `/notifications.html`, `/source-files*` — all require an
+  authenticated session.
+- Any submitted inquiry or survey answers, uploaded files, client
+  records, or admin data. None of this is exposed by any public
+  endpoint on this domain.
+
+## Contact
+
+For anything not covered by the read-only API above, this site does
+not currently offer further public AI-facing access.
