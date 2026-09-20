@@ -149,10 +149,16 @@ td{
   color:#fff;
 }
 
-/* Generic table action (Edit, View Responses) — not an approve/reject decision. */
+/* Generic table action (View, Review, View Responses) — not an approve/reject
+   decision, and its own blue rather than the sidebar's near-black: a row action
+   should not read as heavily as the navigation behind it. */
 .action-btn{
-  background:var(--nav-active);
+  background:#27496E;
   color:#fff;
+}
+
+.action-btn:hover{
+  background:#1f3a58;
 }
 
 .empty{
@@ -650,7 +656,7 @@ document.addEventListener("DOMContentLoaded", function () {
     <div class="page-head">
       <div class="page-title">
         <h1>Forms</h1>
-        <p>All forms assigned to approved users. An account manager approves each one first.</p>
+        <p>All forms assigned to approved clients. An account manager approves each one first.</p>
       </div>
       <a class="create-btn" href="admin-form-builder.html">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -695,14 +701,14 @@ document.addEventListener("DOMContentLoaded", function () {
       <div class="panel">
         <div class="panel-head">
           <h1>Forms List</h1>
-          <p>All forms assigned to approved users.</p>
+          <p>All forms assigned to approved clients.</p>
 
           <div class="survey-filters">
 
             <div class="filter-box">
-              <label>Filter by User</label>
+              <label>Filter by Client</label>
               <select id="surveyUserFilter" onchange="resetListPage()">
-                <option value="all">All Users</option>
+                <option value="all">All Clients</option>
               </select>
             </div>
 
@@ -719,12 +725,14 @@ document.addEventListener("DOMContentLoaded", function () {
           </div>
         </div>
 
+        <!-- No Form column: every row on this list is a form, and the title
+             said so twice - once here and again on the row's own page. What
+             the list is read for is which client the form is with. -->
         <table id="formsListTable">
           <thead>
             <tr>
               <th>ID</th>
-              <th>Form</th>
-              <th>User</th>
+              <th>Client</th>
               <th>Email</th>
               <th>Status</th>
               <th>Created At</th>
@@ -734,7 +742,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
           <tbody id="surveysTable">
             <tr>
-              <td colspan="7" class="empty">Loading forms...</td>
+              <td colspan="6" class="empty">Loading forms...</td>
             </tr>
           </tbody>
         </table>
@@ -1009,7 +1017,7 @@ async function loadSurveyData(){
     if(!data.success){
       surveysTable.innerHTML = `
         <tr>
-          <td colspan="7" class="empty">Unable to load forms.</td>
+          <td colspan="6" class="empty">Unable to load forms.</td>
         </tr>
       `;
       return;
@@ -1017,13 +1025,13 @@ async function loadSurveyData(){
 
     if(data.users && data.users.length){
       surveyUserFilter.innerHTML = `
-        <option value="all">All Users</option>
+        <option value="all">All Clients</option>
         ${data.users.map(user => `
           <option value="${esc(user.id)}">${esc(user.name)} - ${esc(user.email)}</option>
         `).join("")}
       `;
     }else{
-      surveyUserFilter.innerHTML = `<option value="all">All Users</option>`;
+      surveyUserFilter.innerHTML = `<option value="all">All Clients</option>`;
     }
 
     allAdminSurveys = data.surveys || [];
@@ -1033,7 +1041,7 @@ async function loadSurveyData(){
 
     surveysTable.innerHTML = `
       <tr>
-        <td colspan="7" class="empty">Connection error.</td>
+        <td colspan="6" class="empty">Connection error.</td>
       </tr>
     `;
 
@@ -1059,7 +1067,7 @@ function renderSurveysTable(){
   if(!surveys.length){
     surveysTable.innerHTML = `
       <tr>
-        <td colspan="7" class="empty">No forms found.</td>
+        <td colspan="6" class="empty">No forms found.</td>
       </tr>
     `;
     renderListPager(0, 0, 0, 0);
@@ -1082,7 +1090,6 @@ function renderSurveysTable(){
     return `
     <tr>
       <td>#${esc(survey.id)}</td>
-      <td>${esc(survey.title)}</td>
       <td>${esc(survey.user_name)}</td>
       <td>${esc(survey.user_email)}</td>
       <td>
@@ -1101,8 +1108,8 @@ function renderSurveysTable(){
           <!-- View is the whole column. Send Again and View Responses live
                inside the modal it opens, so the column stays narrow. On a
                phone the button is swapped for the kebab, which offers the same
-               one action - a full-width button does not fit beside the form
-               title and the client name. -->
+               one action - a full-width button does not fit beside the client
+               name and their email. -->
           <button class="btn action-btn" type="button" onclick="openReview(${Number(survey.id)})">View</button>
           ${kebabButton(survey.id, "list")}
         </div>

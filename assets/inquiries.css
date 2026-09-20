@@ -81,6 +81,11 @@
 }
 .btn-dark { background: var(--nav-active); color: #fff }
 .btn-dark:hover { background: #282c52 }
+
+/* The View on a row is its own blue: a row action should not read as heavily as
+   the sidebar behind it, and the dark button stays what it is on the forms. */
+td .btn-dark { background: #27496E }
+td .btn-dark:hover { background: #1f3a58 }
 .btn-ghost { background: #fff; color: var(--text); border: 1px solid #dfe3ea }
 .btn-ghost:hover { background: #f6f7f9 }
 .btn-danger { background: #fff; color: var(--brand); border: 1px solid #f0d2d4 }

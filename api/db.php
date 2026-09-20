@@ -133,20 +133,22 @@ function whatsAppLink($value)
 }
 
 /**
- * The internal note an account manager keeps against a client, shown on the
- * Details panel of user-details.html and nowhere else.
+ * The internal note an admin keeps against a client, shown on the Details panel
+ * of user-details.html and nowhere else.
  *
- * Deliberately a column on `users` and deliberately not in
- * USER_PROFILE_COLUMNS: the profile endpoints list their columns explicitly and
- * none of them lists this one, so a client cannot read or write what is written
- * about them. Same lazy approach as the columns above;
- * sql/client_admin_notes.sql is the change to run by hand.
+ * A note belongs to the admin who wrote it, and to nobody else: whoever added
+ * it is the only person who reads it back. That is why it is a row per
+ * (client, admin) rather than one column on `users` - two managers dealing with
+ * the same client each keep their own, and neither can see or overwrite the
+ * other's.
+ *
+ * Deliberately nowhere a client can reach: no endpoint a client logs into
+ * selects this table, and the profile endpoints list their columns explicitly.
+ *
+ * Created lazily like everything else here; sql/client_admin_notes.sql is the
+ * same change to run by hand when the DB user may not CREATE.
  */
-const CLIENT_NOTE_COLUMNS = [
-    "admin_notes" => "TEXT NULL",
-];
-
-function ensureClientNoteColumns(PDO $pdo)
+function ensureClientNotes(PDO $pdo)
 {
     static $done = false;
     if ($done) {
@@ -155,20 +157,137 @@ function ensureClientNoteColumns(PDO $pdo)
     $done = true;
 
     try {
-        $stmt = $pdo->query("
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS client_admin_notes (
+              id         INT AUTO_INCREMENT PRIMARY KEY,
+              user_id    INT       NOT NULL,
+              admin_id   INT       NOT NULL,
+              note       TEXT          NULL,
+              created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+              UNIQUE KEY uniq_client_admin (user_id, admin_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+    } catch (PDOException $e) {
+        // Read-only DB user: the callers fall back to an empty note.
+        return;
+    }
+
+    migrateLegacyClientNotes($pdo);
+}
+
+/**
+ * Notes written before notes had an author.
+ *
+ * They lived in `users.admin_notes`, where every admin could read them. There
+ * is no record of who wrote each one, and the new rule needs an owner for it,
+ * so they go to the account's owner: the one admin who could certainly see all
+ * of them before, which makes this the only move that shows a note to nobody it
+ * was not already shown to.
+ *
+ * The old column is left exactly as it is - nothing reads it any more, and a
+ * copy is cheaper to explain than a dropped column. INSERT IGNORE and the
+ * unique key make this a no-op on every request after the first, and a note the
+ * owner has since cleared stays cleared because clearing keeps the row.
+ */
+function migrateLegacyClientNotes(PDO $pdo)
+{
+    try {
+        $columns = $pdo->query("
             SELECT COLUMN_NAME
             FROM information_schema.COLUMNS
             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'
-        ");
-        $existing = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        ")->fetchAll(PDO::FETCH_COLUMN);
 
-        foreach (CLIENT_NOTE_COLUMNS as $column => $type) {
-            if (!in_array($column, $existing, true)) {
-                $pdo->exec("ALTER TABLE users ADD COLUMN `$column` $type");
-            }
+        if (!in_array("admin_notes", $columns, true)) {
+            return;
         }
+
+        $owner = $pdo->query("
+            SELECT id FROM admins WHERE role = 'owner' ORDER BY id ASC LIMIT 1
+        ")->fetchColumn();
+
+        if (!$owner) {
+            return;
+        }
+
+        $stmt = $pdo->prepare("
+            INSERT IGNORE INTO client_admin_notes (user_id, admin_id, note)
+            SELECT u.id, ?, u.admin_notes
+            FROM users u
+            WHERE u.admin_notes IS NOT NULL AND u.admin_notes <> ''
+        ");
+        $stmt->execute([(int) $owner]);
+
     } catch (PDOException $e) {
-        // Read-only DB user: the caller falls back to an empty note.
+        // No owner row, no rights, no legacy column: nothing to carry over.
+    }
+}
+
+/**
+ * This admin's own note about this client, or "" when they have not written
+ * one. Never anybody else's - that is the whole point of the admin_id here.
+ */
+function getClientNote(PDO $pdo, $userId, $adminId)
+{
+    ensureClientNotes($pdo);
+
+    try {
+        $stmt = $pdo->prepare("
+            SELECT note FROM client_admin_notes
+            WHERE user_id = ? AND admin_id = ?
+            LIMIT 1
+        ");
+        $stmt->execute([(int) $userId, (int) $adminId]);
+        $note = $stmt->fetchColumn();
+    } catch (PDOException $e) {
+        return "";
+    }
+
+    return $note === false || $note === null ? "" : (string) $note;
+}
+
+/**
+ * Writes this admin's note about this client. Returns false when the write did
+ * not happen, so the page can say so rather than report a save that never
+ * landed.
+ *
+ * Clearing a note empties the row instead of deleting it: the row is also the
+ * record that this admin has dealt with this client, and keeping it is what
+ * stops a legacy note the owner cleared from being carried over again.
+ */
+function setClientNote(PDO $pdo, $userId, $adminId, $note)
+{
+    ensureClientNotes($pdo);
+
+    $userId = (int) $userId;
+    $adminId = (int) $adminId;
+    $note = $note === "" ? null : $note;
+
+    try {
+        $stmt = $pdo->prepare("
+            SELECT id FROM client_admin_notes
+            WHERE user_id = ? AND admin_id = ?
+            LIMIT 1
+        ");
+        $stmt->execute([$userId, $adminId]);
+        $existing = $stmt->fetchColumn();
+
+        if ($existing) {
+            $save = $pdo->prepare("UPDATE client_admin_notes SET note = ? WHERE id = ?");
+            $save->execute([$note, (int) $existing]);
+        } else {
+            $save = $pdo->prepare("
+                INSERT INTO client_admin_notes (user_id, admin_id, note)
+                VALUES (?, ?, ?)
+            ");
+            $save->execute([$userId, $adminId, $note]);
+        }
+
+        return true;
+
+    } catch (PDOException $e) {
+        return false;
     }
 }
 
@@ -179,38 +298,237 @@ function ensureClientNoteColumns(PDO $pdo)
  *
  * Only a handful of keys live here (the public website address the logo links
  * to, so far), which is why this is a table of strings and not a schema.
+ *
+ * The name is not always ours, though. A database that already had a
+ * `site_settings` - from something else sharing the database - keeps it exactly
+ * as it is, because CREATE TABLE IF NOT EXISTS on an existing table does
+ * nothing at all and reports no problem. The write then fails with "Unknown
+ * column 'setting_key' in 'field list'", which is the whole of that bug: the
+ * table is there, the columns are not.
+ *
+ * So the table is chosen rather than assumed, in this order:
+ *
+ *   1. `site_settings`, when it is ours or is a key/value table under other
+ *      column names (`key`/`value`, `name`/`value`, `option_name`/
+ *      `option_value`, and a few more) whose key column is uniquely indexed -
+ *      that index is what makes it a settings table rather than a table that
+ *      happens to have a column called `name`.
+ *   2. `app_site_settings`, ours, beside whatever holds the first name.
+ *
+ * Someone else's table is never altered and never written into on a guess. A
+ * one-row settings table from another app usually has NOT NULL columns of its
+ * own with no defaults, so adding two columns to it would buy a working schema
+ * and an INSERT that still fails - hence a table of our own instead.
+ */
+const SITE_SETTINGS_TABLE = "site_settings";
+const SITE_SETTINGS_FALLBACK_TABLE = "app_site_settings";
+
+/* Spellings seen in the wild for the two columns, best first. The pair is
+   matched independently, so a table with `name`/`setting_value` works. */
+const SITE_SETTINGS_KEY_COLUMNS = [
+    "setting_key", "key", "name", "option_name", "setting_name", "config_key", "skey", "k"
+];
+
+const SITE_SETTINGS_VALUE_COLUMNS = [
+    "setting_value", "value", "option_value", "config_value", "setting", "val", "v"
+];
+
+/**
+ * Makes sure there is somewhere to keep a setting, and returns "" when there
+ * is - or why there is not, which setSiteSetting() passes on to the page.
  */
 function ensureSiteSettings(PDO $pdo, $force = false)
 {
     static $done = false;
 
-    // $force re-runs the statement after a write has failed, so the one
-    // request that actually needs the table does not give up because an
-    // earlier read in the same request already used up the single attempt.
+    // $force re-runs this after a write has failed, so the one request that
+    // actually needs the table does not give up because an earlier read in the
+    // same request already used up the single attempt.
     if ($done && !$force) {
         return siteSettingsDdlError();
     }
     $done = true;
 
+    $first = siteSettingsCreate($pdo, SITE_SETTINGS_TABLE);
+
+    if (siteSettingsTarget($pdo, true) !== null) {
+        return siteSettingsDdlError("");
+    }
+
+    // The usual name is taken by a table that cannot hold a setting. Ours goes
+    // beside it rather than into it.
+    $second = siteSettingsCreate($pdo, SITE_SETTINGS_FALLBACK_TABLE);
+
+    if (siteSettingsTarget($pdo, true) !== null) {
+        return siteSettingsDdlError("");
+    }
+
+    /* Nowhere to write. The reason is worth spelling out: it is either a
+       database user without CREATE rights, or a `site_settings` belonging to
+       something else - and those are fixed in very different places. */
+    if ($second !== "") {
+        return siteSettingsDdlError(
+            "could not create the " . SITE_SETTINGS_FALLBACK_TABLE . " table: " . $second
+        );
+    }
+
+    if ($first !== "") {
+        return siteSettingsDdlError("could not create the settings table: " . $first);
+    }
+
+    return siteSettingsDdlError(
+        "the site_settings table belongs to something else and " . SITE_SETTINGS_FALLBACK_TABLE
+        . " was not created either"
+    );
+}
+
+/**
+ * CREATE TABLE IF NOT EXISTS under one name. Returns "" when the statement ran
+ * - which says nothing about the table being usable, only that nothing refused
+ * us - or the database's own words when it did not.
+ */
+function siteSettingsCreate(PDO $pdo, $table)
+{
     try {
         $pdo->exec("
-            CREATE TABLE IF NOT EXISTS site_settings (
+            CREATE TABLE IF NOT EXISTS `$table` (
                 setting_key   VARCHAR(64) NOT NULL PRIMARY KEY,
                 setting_value TEXT NULL,
                 updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
-        return siteSettingsDdlError("");
+
+        return "";
+
     } catch (PDOException $e) {
-        // Usually a DB user without CREATE rights. Readers fall back to the
-        // default; writers report this so the cause is visible instead of
-        // surfacing as a bare "could not save".
-        return siteSettingsDdlError($e->getMessage());
+        // Usually a DB user without CREATE rights. Not fatal on its own: the
+        // table may already exist, which the lookup settles.
+        return $e->getMessage();
     }
 }
 
-/* Remembers why the table could not be created, so setSiteSetting() can say
-   so. Called with an argument to store, without one to read back. */
+/**
+ * Where a setting actually goes, as ["table" => ..., "key" => ..., "value" =>
+ * ...] - or null when neither name holds anything that can keep one.
+ *
+ * Worked out once per request; $refresh re-reads it after a CREATE.
+ */
+function siteSettingsTarget(PDO $pdo, $refresh = false)
+{
+    static $resolved = false;
+    static $target = null;
+
+    if ($resolved && !$refresh) {
+        return $target;
+    }
+
+    $resolved = true;
+    $target = null;
+
+    foreach ([SITE_SETTINGS_TABLE, SITE_SETTINGS_FALLBACK_TABLE] as $table) {
+        $columns = siteSettingsTableColumns($pdo, $table);
+
+        if ($columns === null) {
+            continue;
+        }
+
+        $target = $columns;
+        break;
+    }
+
+    return $target;
+}
+
+/**
+ * The key and value columns on one table, or null when it has no pair we can
+ * use - the table not existing included.
+ */
+function siteSettingsTableColumns(PDO $pdo, $table)
+{
+    try {
+        $stmt = $pdo->prepare("
+            SELECT COLUMN_NAME
+            FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
+        ");
+        $stmt->execute([$table]);
+        $existing = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    } catch (PDOException $e) {
+        return null;
+    }
+
+    if (!$existing) {
+        return null;
+    }
+
+    // Matched case-insensitively, the way MySQL itself treats column names.
+    $lower = [];
+
+    foreach ($existing as $name) {
+        $lower[strtolower($name)] = $name;
+    }
+
+    $key = null;
+    $value = null;
+
+    foreach (SITE_SETTINGS_KEY_COLUMNS as $candidate) {
+        if (isset($lower[$candidate])) {
+            $key = $lower[$candidate];
+            break;
+        }
+    }
+
+    foreach (SITE_SETTINGS_VALUE_COLUMNS as $candidate) {
+        if (isset($lower[$candidate]) && $lower[$candidate] !== $key) {
+            $value = $lower[$candidate];
+            break;
+        }
+    }
+
+    if ($key === null || $value === null) {
+        return null;
+    }
+
+    $found = ["table" => $table, "key" => $key, "value" => $value];
+
+    // Our own shape, whichever name it is under: nothing left to check.
+    if (strtolower($key) === "setting_key" && strtolower($value) === "setting_value") {
+        return $found;
+    }
+
+    /* Somebody else's table. One key, one value, one row per key - and the
+       thing that says so is a unique index on the key column. Without it this
+       is a table that merely has a column called `name`, and a settings row
+       does not belong in it. */
+    return siteSettingsKeyIsUnique($pdo, $table, $key) ? $found : null;
+}
+
+/**
+ * Whether $column is a unique index of its own on $table - single-column, and
+ * unique rather than just indexed.
+ */
+function siteSettingsKeyIsUnique(PDO $pdo, $table, $column)
+{
+    try {
+        $stmt = $pdo->prepare("
+            SELECT INDEX_NAME
+            FROM information_schema.STATISTICS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND NON_UNIQUE = 0
+            GROUP BY INDEX_NAME
+            HAVING COUNT(*) = 1 AND MAX(COLUMN_NAME) = ?
+            LIMIT 1
+        ");
+        $stmt->execute([$table, $column]);
+
+        return (bool) $stmt->fetchColumn();
+
+    } catch (PDOException $e) {
+        return false;
+    }
+}
+
+/* Remembers why a setting cannot be kept, so setSiteSetting() can say so.
+   Called with an argument to store, without one to read back. */
 function siteSettingsDdlError($message = null)
 {
     static $error = "";
@@ -224,15 +542,26 @@ function siteSettingsDdlError($message = null)
 
 /**
  * One setting, or $default when the key has never been saved - and also when
- * the table could not be created, so a read-only database degrades to "unset"
+ * there is nowhere to keep one, so a read-only database degrades to "unset"
  * rather than to an error.
  */
 function getSiteSetting(PDO $pdo, $key, $default = "")
 {
     ensureSiteSettings($pdo);
 
+    $target = siteSettingsTarget($pdo);
+
+    if ($target === null) {
+        return $default;
+    }
+
     try {
-        $stmt = $pdo->prepare("SELECT setting_value FROM site_settings WHERE setting_key = ? LIMIT 1");
+        $stmt = $pdo->prepare("
+            SELECT `{$target["value"]}` AS setting_value
+            FROM `{$target["table"]}`
+            WHERE `{$target["key"]}` = ?
+            LIMIT 1
+        ");
         $stmt->execute([$key]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
@@ -249,39 +578,63 @@ function getSiteSetting(PDO $pdo, $key, $default = "")
 /**
  * Writes one setting. Returns false when the write did not happen, so the
  * caller can say so instead of reporting a save that never landed, and fills
- * $error with the reason - a missing table on a DB user without CREATE rights
- * is the usual one, and it is worth saying out loud rather than leaving the
+ * $error with the reason - it is worth saying out loud rather than leaving the
  * page to guess.
+ *
+ * SELECT then UPDATE or INSERT, rather than ON DUPLICATE KEY UPDATE: the row
+ * may be in a table we did not create, and the upsert would depend on an index
+ * that is ours only when the table is.
  */
 function setSiteSetting(PDO $pdo, $key, $value, &$error = null)
 {
     $error = "";
     ensureSiteSettings($pdo);
 
-    // Two goes: the second one follows a fresh CREATE TABLE, which covers the
-    // table having been dropped or never created in this database.
+    // Two goes: the second follows a fresh CREATE, which covers the table
+    // having been dropped or never created since the last look.
     for ($attempt = 0; $attempt < 2; $attempt++) {
-        try {
-            $stmt = $pdo->prepare("
-                INSERT INTO site_settings (setting_key, setting_value)
-                VALUES (?, ?)
-                ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)
-            ");
-            $stmt->execute([$key, $value]);
-            return true;
-        } catch (PDOException $e) {
-            $error = $e->getMessage();
 
-            if ($attempt === 0) {
-                $ddl = ensureSiteSettings($pdo, true);
+        $target = siteSettingsTarget($pdo);
 
-                // Both messages: the write's own error says what failed, the
-                // DDL one usually says why the table it needed is not there.
-                if ($ddl !== "") {
-                    $error .= " (creating site_settings also failed: " . $ddl . ")";
-                    return false;
+        if ($target !== null) {
+            try {
+                $exists = $pdo->prepare("
+                    SELECT 1 FROM `{$target["table"]}` WHERE `{$target["key"]}` = ? LIMIT 1
+                ");
+                $exists->execute([$key]);
+
+                if ($exists->fetchColumn()) {
+                    $stmt = $pdo->prepare("
+                        UPDATE `{$target["table"]}`
+                        SET `{$target["value"]}` = ?
+                        WHERE `{$target["key"]}` = ?
+                    ");
+                    $stmt->execute([$value, $key]);
+                } else {
+                    $stmt = $pdo->prepare("
+                        INSERT INTO `{$target["table"]}` (`{$target["key"]}`, `{$target["value"]}`)
+                        VALUES (?, ?)
+                    ");
+                    $stmt->execute([$key, $value]);
                 }
-                continue;
+
+                return true;
+
+            } catch (PDOException $e) {
+                $error = $e->getMessage();
+            }
+        }
+
+        if ($attempt === 0) {
+            $ddl = ensureSiteSettings($pdo, true);
+
+            // Both messages: the write's own error says what failed, the DDL
+            // one usually says why the table it needed is not there.
+            if ($ddl !== "") {
+                $error = $error === ""
+                    ? $ddl
+                    : $error . " (preparing the settings table also failed: " . $ddl . ")";
+                return false;
             }
         }
     }
