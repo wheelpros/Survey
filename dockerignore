@@ -4,7 +4,7 @@
 # source, package.json, and .env.example - straight into a
 # publicly-downloadable path.
 
-mcp-server/
+Wzone-ai/
 .git/
 .gitignore
 .env
