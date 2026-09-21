@@ -6,7 +6,7 @@
 <title>Inquiries</title>
 
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,"Segoe UI",Tahoma,sans-serif}
 body{background:#f6f7fb;color:#101828;padding:0}
 
 /* ── Admin shell: sidebar + header (shared across admin pages) ── */
@@ -487,7 +487,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script src="assets/inquiries.js?v=1"></script>
+<script src="assets/inquiries.js?v=2"></script>
 <script>
 /*
 |------------------------------------------------------------------------------
@@ -633,7 +633,7 @@ function row(inq) {
           aria-label="${leads} answer${leads === 1 ? "" : "s"} to ${title}">${ANSWER_ICON}${leads}</a>`
     : `<span class="answers-none">${ANSWER_ICON}0</span>`;
 
-  const refChip = `<span class="t-ref">${WZI.escapeHtml(inq.reference || "")}</span>`;
+  const refChip = `<span class="t-ref" dir="auto">${WZI.escapeHtml(inq.reference || "")}</span>`;
 
   const reference = inq.reference ? refChip : `<span class="t-ref-none">&mdash;</span>`;
 
@@ -641,7 +641,7 @@ function row(inq) {
     <tr>
       <td>
         <a class="t-link" href="inquiry-details.html?id=${inq.id}">
-          <span class="clamp2 t-title">${title}</span>
+          <span class="clamp2 t-title" dir="auto">${title}</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
         </a>
         ${inactive ? `<span class="t-sub"><span class="pill pill-inactive">Inactive</span></span>` : ""}

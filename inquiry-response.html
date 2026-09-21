@@ -6,7 +6,7 @@
 <title>Inquiry Response</title>
 
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,"Segoe UI",Tahoma,sans-serif}
 body{background:#f6f7fb;color:#101828;padding:0}
 
 /* ── Admin shell: sidebar + header (shared across admin pages) ── */
@@ -256,8 +256,8 @@ document.addEventListener("DOMContentLoaded", function () {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M11 6l-6 6 6 6"/></svg>
         </a>
         <div>
-          <h1 id="pageTitle">Response</h1>
-          <p class="head-name" id="headName"></p>
+          <h1 id="pageTitle" dir="auto">Response</h1>
+          <p class="head-name" id="headName" dir="auto"></p>
         </div>
       </div>
     </div>
@@ -268,8 +268,8 @@ document.addEventListener("DOMContentLoaded", function () {
       <div class="lead-head">
         <div class="who-avatar xl" id="vAvatar"></div>
         <div class="lead-id">
-          <div class="lead-name" id="vName"></div>
-          <div class="who-sub" id="vSub" hidden></div>
+          <div class="lead-name" id="vName" dir="auto"></div>
+          <div class="who-sub" id="vSub" dir="auto" hidden></div>
           <div class="lead-meta" id="vMeta"></div>
         </div>
         <div class="lead-actions" id="vActions"></div>
@@ -299,7 +299,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script src="assets/inquiries.js?v=1"></script>
+<script src="assets/inquiries.js?v=2"></script>
 <script>
 /*
 |------------------------------------------------------------------------------
@@ -460,7 +460,7 @@ function renderAnswers(fields, answers) {
 
     return `
       <div class="answer${wide ? " full" : ""}${kind === "empty" ? " is-empty" : ""}">
-        <span class="f-label">${WZI.escapeHtml(field.field_label)}</span>
+        <span class="f-label" dir="auto">${WZI.escapeHtml(field.field_label)}</span>
         <div class="f-value${wide && kind === "text" ? " pre" : ""}">${WZI.answerHtml(field.field_label, raw)}</div>
         ${copyable ? `
           <button class="answer-copy" type="button"

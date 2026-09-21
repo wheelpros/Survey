@@ -6,7 +6,7 @@
 <title>View Inquiry</title>
 
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,"Segoe UI",Tahoma,sans-serif}
 body{background:#f6f7fb;color:#101828;padding:0}
 
 /* ── Admin shell: sidebar + header (shared across admin pages) ── */
@@ -257,7 +257,7 @@ document.addEventListener("DOMContentLoaded", function () {
         </a>
         <div>
           <h1>View Inquiry</h1>
-          <p class="head-name" id="headName"></p>
+          <p class="head-name" id="headName" dir="auto"></p>
         </div>
       </div>
       <a class="btn btn-ghost btn-lg" id="editBtn" href="#" hidden>
@@ -272,14 +272,14 @@ document.addEventListener("DOMContentLoaded", function () {
       <div class="f-row f-head">
         <div>
           <span class="f-label">Title</span>
-          <div class="f-value big" id="vTitle"></div>
+          <div class="f-value big" id="vTitle" dir="auto"></div>
         </div>
         <span class="pill" id="vStatus"></span>
       </div>
 
       <div class="f-row" id="descRow">
         <span class="f-label">Description</span>
-        <div class="f-value pre" id="vDesc"></div>
+        <div class="f-value pre" id="vDesc" dir="auto"></div>
       </div>
 
       <div class="f-grid">
@@ -293,7 +293,7 @@ document.addEventListener("DOMContentLoaded", function () {
         </div>
         <div>
           <span class="f-label">Reference</span>
-          <div class="f-value" id="vReference"></div>
+          <div class="f-value" id="vReference" dir="auto"></div>
         </div>
       </div>
 
@@ -346,7 +346,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script src="assets/inquiries.js?v=1"></script>
+<script src="assets/inquiries.js?v=2"></script>
 <script>
 /*
 |------------------------------------------------------------------------------
@@ -459,7 +459,7 @@ function fill(inq) {
     ? `<div class="who">
          <div class="who-avatar">${WZI.escapeHtml(WZI.initials(inq.account_manager_name))}</div>
          <div>
-           <div class="who-name">${WZI.escapeHtml(inq.account_manager_name)}</div>
+           <div class="who-name" dir="auto">${WZI.escapeHtml(inq.account_manager_name)}</div>
            ${inq.account_manager_email ? `<div class="who-sub">${WZI.escapeHtml(inq.account_manager_email)}</div>` : ``}
          </div>
        </div>`
@@ -597,7 +597,7 @@ function item(response, index) {
 
     return `
       <div class="${wide ? "full" : ""}">
-        <span class="f-label">${WZI.escapeHtml(field.field_label)}</span>
+        <span class="f-label" dir="auto">${WZI.escapeHtml(field.field_label)}</span>
         <div class="f-value${wide ? " pre" : ""}">${WZI.answerHtml(field.field_label, answer)}</div>
       </div>
     `;
@@ -611,8 +611,8 @@ function item(response, index) {
         <span class="who">
           <span class="who-avatar lg">${WZI.escapeHtml(who.initials)}</span>
           <span>
-            <span class="who-name">${WZI.escapeHtml(who.name)}</span>
-            ${who.sub ? `<span class="who-sub">${WZI.escapeHtml(who.sub)}</span>` : ``}
+            <span class="who-name" dir="auto">${WZI.escapeHtml(who.name)}</span>
+            ${who.sub ? `<span class="who-sub" dir="auto">${WZI.escapeHtml(who.sub)}</span>` : ``}
           </span>
         </span>
         <span class="resp-when">${WZI.fmtDateTime(response.submitted_at)}</span>

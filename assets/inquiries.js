@@ -305,20 +305,23 @@ Object.assign(window.WZI, (function () {
     if (kind === "empty") return '<span class="f-empty">Not answered</span>';
 
     if (kind === "email") {
-      return '<a class="f-link" href="mailto:' + WZI.escapeHtml(encodeURI(text)) + '">' + safe + '</a>';
+      return '<a class="f-link" dir="ltr" href="mailto:' + WZI.escapeHtml(encodeURI(text)) + '">' + safe + '</a>';
     }
 
     if (kind === "phone") {
-      return '<a class="f-link" href="tel:' + WZI.escapeHtml(text.replace(/[^0-9+]/g, "")) + '">' + safe + '</a>';
+      return '<a class="f-link" dir="ltr" href="tel:' + WZI.escapeHtml(text.replace(/[^0-9+]/g, "")) + '">' + safe + '</a>';
     }
 
     // Only ever http(s) - answerKind refuses anything else, so no scheme can
     // be smuggled into the href.
     if (kind === "url") {
-      return '<a class="f-link" href="' + safe + '" target="_blank" rel="noopener noreferrer">' + safe + '</a>';
+      return '<a class="f-link" dir="ltr" href="' + safe + '" target="_blank" rel="noopener noreferrer">' + safe + '</a>';
     }
 
-    return safe;
+    /* Free text, and the one answer that may be Arabic. The isolate lets a
+       right-to-left sentence read correctly without dragging the cell it
+       sits in around with it. */
+    return '<span dir="auto">' + safe + '</span>';
   }
 
   // The first answer of a kind, so the page can offer "Email" and "Call"

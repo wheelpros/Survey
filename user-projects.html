@@ -6,7 +6,7 @@
 <title>Projects</title>
 
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,"Segoe UI",Tahoma,sans-serif}
 :root{--brand:#c9000b;--nav-active:#1b1e3a;--text:#101828;--muted:#667085;--line:#eaecf0;--sidebar-w:260px}
 body{background:#f7f8fc;color:var(--text)}
 .app{display:flex;min-height:100vh}
@@ -560,7 +560,7 @@ function render(){
 
   rows.innerHTML = slice.map(project => `
     <tr>
-      <td><span class="p-title">${esc(project.title)}</span></td>
+      <td><span class="p-title" dir="auto">${esc(project.title)}</span></td>
       <td class="col-type"><span class="p-type">${esc(project.type_label)}</span></td>
       <td class="col-timeline">
         <span class="timeline">

@@ -6,7 +6,7 @@
 <title>Inquiry Setup</title>
 
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,"Segoe UI",Tahoma,sans-serif}
 body{background:#f6f7fb;color:#101828;padding:0}
 
 /* ── Admin shell: sidebar + header (shared across admin pages) ── */
@@ -257,7 +257,7 @@ document.addEventListener("DOMContentLoaded", function () {
         </a>
         <div>
           <h1 id="formHeading">New Inquiry</h1>
-          <p class="head-name" id="headName" hidden></p>
+          <p class="head-name" id="headName" dir="auto" hidden></p>
         </div>
       </div>
     </div>
@@ -269,17 +269,17 @@ document.addEventListener("DOMContentLoaded", function () {
       <div class="form-section">
         <div class="field-row">
           <label for="fTitle">Title <span class="req">*</span></label>
-          <input type="text" id="fTitle" maxlength="200" placeholder="e.g. Free 30-Minute Business Growth Consultation">
+          <input type="text" id="fTitle" maxlength="200" dir="auto" placeholder="e.g. Free 30-Minute Business Growth Consultation">
         </div>
 
         <div class="field-row">
           <label for="fDesc">Description</label>
-          <textarea id="fDesc" maxlength="5000" placeholder="A short paragraph explaining what this is about. It sits above the questions on the public page."></textarea>
+          <textarea id="fDesc" maxlength="5000" dir="auto" placeholder="A short paragraph explaining what this is about. It sits above the questions on the public page."></textarea>
         </div>
 
         <div class="field-row">
           <label for="fReference">Inquiry reference</label>
-          <input type="text" id="fReference" maxlength="100" placeholder="e.g. WZ-2026-014">
+          <input type="text" id="fReference" maxlength="100" dir="auto" placeholder="e.g. WZ-2026-014">
           <p class="hint">Your own handle for this inquiry - a job number, a client code. It shows on the inquiries list and on the details page, and never on the public form.</p>
         </div>
       </div>
@@ -369,7 +369,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script src="assets/inquiries.js?v=1"></script>
+<script src="assets/inquiries.js?v=2"></script>
 <script>
 /*
 |------------------------------------------------------------------------------
@@ -468,14 +468,14 @@ function addField(label, type, required) {
   row.innerHTML = `
     <button class="cf-head" type="button" aria-expanded="true" onclick="toggleField(this)">
       <svg class="cf-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-      <span class="cf-head-label">${WZI.escapeHtml(label || "New question")}</span>
+      <span class="cf-head-label" dir="auto">${WZI.escapeHtml(label || "New question")}</span>
       <em class="cf-head-type">${TYPE_LABELS[kind]}</em>
     </button>
 
     <div class="cf-main">
       <div class="field-row">
         <label>Label</label>
-        <input type="text" class="cf-label" maxlength="200" value="${WZI.escapeHtml(label || "")}"
+        <input type="text" class="cf-label" maxlength="200" dir="auto" value="${WZI.escapeHtml(label || "")}"
                placeholder="e.g. Phone Number" oninput="labelChanged(this)">
       </div>
       <div class="field-row">

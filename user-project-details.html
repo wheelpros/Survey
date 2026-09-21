@@ -6,7 +6,7 @@
 <title>Project</title>
 
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,"Segoe UI",Tahoma,sans-serif}
 :root{--brand:#c9000b;--nav-active:#1b1e3a;--text:#101828;--muted:#667085;--line:#eaecf0;--sidebar-w:260px}
 body{background:#f7f8fc;color:var(--text)}
 .app{display:flex;min-height:100vh}
@@ -374,7 +374,7 @@ body{background:#f7f8fc;color:var(--text)}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M11 6l-6 6 6 6"/></svg>
       </a>
       <div class="page-title">
-        <h1 id="projectTitle">Loading...</h1>
+        <h1 id="projectTitle" dir="auto">Loading...</h1>
         <p id="projectSubtitle">&nbsp;</p>
       </div>
     </div>
@@ -433,7 +433,7 @@ body{background:#f7f8fc;color:var(--text)}
       <div class="detail-wrap" id="detailWrap" style="display:none">
         <div class="detail-head">
           <div class="eyebrow" id="detailEyebrow"></div>
-          <h2 id="detailTitle"></h2>
+          <h2 id="detailTitle" dir="auto"></h2>
         </div>
 
         <article class="detail is-horizontal" id="detailPanel">
@@ -443,7 +443,7 @@ body{background:#f7f8fc;color:var(--text)}
           <div class="detail-meta">
             <div class="field wide">
               <h5>Update</h5>
-              <div class="caption" id="detailDescription"></div>
+              <div class="caption" id="detailDescription" dir="auto"></div>
             </div>
 
             <div class="detail-footer">
@@ -464,9 +464,9 @@ body{background:#f7f8fc;color:var(--text)}
       <div class="section-head" style="margin-top:26px"><h2>Project Details</h2></div>
       <div class="project-panel">
         <div class="project-panel-img" id="projectImg" hidden></div>
-        <h3 id="panelTitle">—</h3>
+        <h3 id="panelTitle" dir="auto">—</h3>
         <span class="desc-label">Description</span>
-        <p class="desc" id="panelDesc">—</p>
+        <p class="desc" id="panelDesc" dir="auto">—</p>
         <div class="project-meta">
           <div class="field"><span>Type</span><strong id="panelType">—</strong></div>
           <div class="field"><span>Timeline</span><strong id="panelTimeline">—</strong></div>
@@ -588,11 +588,13 @@ setAvatarImage(user);
 | text, so this function is the only thing standing between a pasted <script>
 | and a client session - and portal_token lives in localStorage.
 |
-| Text alignment is the one piece of styling the editor's toolbar can set, so
-| it is read off the node and put back after every other attribute is dropped.
+| Text alignment is the one piece of styling the editor's toolbar can set, and
+| direction is what an Arabic paragraph carries. Both are read off the node and
+| put back after every other attribute is dropped.
 */
 
 const ALIGNMENTS = ["left","center","right","justify"];
+const DIRECTIONS = ["ltr","rtl","auto"];
 
 function sanitizeRichText(html){
   /* Parsed into a <template>, not a <div>: a template's content lives in an
@@ -622,6 +624,11 @@ function sanitizeRichText(html){
     const align = ((node.style && node.style.textAlign) || node.getAttribute("align") || "")
       .toLowerCase();
 
+    /* Read for the same reason as the alignment above: an Arabic paragraph
+       carries its direction on the node, and the loop below is about to drop
+       every attribute it has. */
+    const dir = (node.getAttribute("dir") || "").toLowerCase();
+
     [...node.attributes].forEach(attr => {
       const keep = node.tagName === "A" && attr.name === "href"
         && !/^\s*(javascript|data|vbscript):/i.test(attr.value);
@@ -629,6 +636,7 @@ function sanitizeRichText(html){
     });
 
     if(ALIGNMENTS.includes(align)) node.style.textAlign = align;
+    if(DIRECTIONS.includes(dir)) node.setAttribute("dir", dir);
 
     if(node.tagName === "A"){
       node.setAttribute("target","_blank");
@@ -954,7 +962,7 @@ function renderTasks(){
       +     '<span class="badge ' + badge.cls + '">' + badge.text + '</span>'
       +   '</div>'
       +   '<div class="card-body">'
-      +     '<h3>' + esc(task.title) + '</h3>'
+      +     '<h3 dir="auto">' + esc(task.title) + '</h3>'
       +     '<span class="card-when">' + esc(whenFor(task)) + '</span>'
       +   '</div>'
       +   '<div class="card-actions">'

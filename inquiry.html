@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Inquiry</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,"Segoe UI",Tahoma,sans-serif}
 
 :root{
   --brand:#c9000b;
@@ -325,11 +325,11 @@ function control(field){
   }
 
   if(field.field_type === "textarea"){
-    return `<textarea data-field-id="${field.id}" maxlength="${cap}"
+    return `<textarea data-field-id="${field.id}" maxlength="${cap}" dir="auto"
                       ${required ? "required" : ""}></textarea>`;
   }
 
-  return `<input type="text" data-field-id="${field.id}" maxlength="${cap}"
+  return `<input type="text" data-field-id="${field.id}" maxlength="${cap}" dir="auto"
                  ${required ? "required" : ""}>`;
 }
 
@@ -346,8 +346,8 @@ function renderForm(inquiry, fields){
 
       <div class="intro-col">
         <div class="intro-rule"></div>
-        <h1>${escapeHtml(inquiry.title)}</h1>
-        ${inquiry.intro_text ? `<p class="intro">${escapeHtml(inquiry.intro_text)}</p>` : ``}
+        <h1 dir="auto">${escapeHtml(inquiry.title)}</h1>
+        ${inquiry.intro_text ? `<p class="intro" dir="auto">${escapeHtml(inquiry.intro_text)}</p>` : ``}
       </div>
 
       <div class="form-col">
@@ -355,7 +355,7 @@ function renderForm(inquiry, fields){
           ${fields.map(f => `
             <div class="field-group">
               <div class="field-head">
-                <label>${escapeHtml(f.field_label)} ${Number(f.required) === 1 ? `<span class="req">*</span>` : ``}</label>
+                <label dir="auto">${escapeHtml(f.field_label)} ${Number(f.required) === 1 ? `<span class="req">*</span>` : ``}</label>
                 ${counter(f)}
               </div>
               ${control(f)}

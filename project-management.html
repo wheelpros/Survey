@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Admin - Project Management</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,"Segoe UI",Tahoma,sans-serif}
 body{background:#f6f7fb;color:#101828}
 .panel{background:#fff;border-radius:18px;box-shadow:0 14px 30px rgba(0,0,0,.05);overflow:hidden}
 .empty{background:#fff;border-radius:18px;padding:30px;color:var(--muted);text-align:center}
@@ -875,8 +875,8 @@ function render(){
 
   rows.innerHTML = slice.map(project => `
     <tr>
-      <td><span class="p-title">${esc(project.title)}</span></td>
-      <td><span class="p-client">${esc(project.company_name || project.client_name || "—")}</span></td>
+      <td><span class="p-title" dir="auto">${esc(project.title)}</span></td>
+      <td><span class="p-client" dir="auto">${esc(project.company_name || project.client_name || "—")}</span></td>
       <td class="col-timeline">
         <span class="timeline">
           ${esc(fmtDate(project.start_date))}

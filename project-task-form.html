@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Admin - Task</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,"Segoe UI",Tahoma,sans-serif}
 body{background:#f6f7fb;color:#101828}
 .panel{background:#fff;border-radius:18px;box-shadow:0 14px 30px rgba(0,0,0,.05);overflow:hidden}
 .empty{background:#fff;border-radius:18px;padding:30px;color:var(--muted);text-align:center}
@@ -473,12 +473,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
             <div class="field-row">
               <label for="taskName">Task name</label>
-              <input type="text" id="taskName" maxlength="200" placeholder="Task name">
+              <input type="text" id="taskName" maxlength="200" dir="auto" placeholder="Task name">
             </div>
 
             <div class="field-row">
               <label for="taskLink">Task link</label>
-              <input type="text" id="taskLink" maxlength="500" placeholder="task link">
+              <input type="text" id="taskLink" maxlength="500" dir="ltr" placeholder="task link">
               <p class="hint">Optional. Anything without http:// is saved as https://</p>
             </div>
 
@@ -502,7 +502,7 @@ document.addEventListener("DOMContentLoaded", function () {
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg>
                 </button>
               </div>
-              <div class="editor" id="description" contenteditable="true"
+              <div class="editor" id="description" contenteditable="true" dir="auto"
                    data-placeholder="Write your description here..."></div>
               <div class="counter" id="counter">0 / 2000 characters</div>
             </div>
