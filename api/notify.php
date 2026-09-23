@@ -111,23 +111,7 @@ function notifyAdminsForUser(
     string $link = "",
     int $exceptAdminId = 0
 ) {
-    if ($userId <= 0) {
-        return;
-    }
-
-    try {
-        $stmt = $pdo->prepare("
-            SELECT id FROM admins WHERE role = 'owner'
-            UNION
-            SELECT admin_id AS id FROM admin_user_assignments WHERE user_id = ?
-        ");
-        $stmt->execute([$userId]);
-        $ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
-    } catch (Throwable $e) {
-        return;
-    }
-
-    foreach ($ids as $id) {
+    foreach (adminIdsForUser($pdo, $userId) as $id) {
         if ((int) $id === $exceptAdminId) {
             continue;
         }
@@ -147,20 +131,50 @@ function notifyReviewers(
     string $link = "",
     int $exceptAdminId = 0
 ) {
-    try {
-        $stmt = $pdo->query("
-            SELECT id FROM admins WHERE role IN ('account_manager', 'owner')
-        ");
-        $ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
-    } catch (Throwable $e) {
-        return;
-    }
-
-    foreach ($ids as $id) {
+    foreach (reviewerAdminIds($pdo) as $id) {
         if ((int) $id === $exceptAdminId) {
             continue;
         }
         notify($pdo, "admin", (int) $id, $type, $title, $body, $link);
+    }
+}
+
+/*
+| Who hears about an event, apart from how they hear. The badge rows above and
+| the emails in mailer.php both go through these, so an admin who gets the
+| notification is always the admin who gets the email.
+*/
+
+/** The owner, plus every admin assigned to this client. */
+function adminIdsForUser(PDO $pdo, int $userId): array
+{
+    if ($userId <= 0) {
+        return [];
+    }
+
+    try {
+        $stmt = $pdo->prepare("
+            SELECT id FROM admins WHERE role = 'owner'
+            UNION
+            SELECT admin_id AS id FROM admin_user_assignments WHERE user_id = ?
+        ");
+        $stmt->execute([$userId]);
+        return $stmt->fetchAll(PDO::FETCH_COLUMN);
+    } catch (Throwable $e) {
+        return [];
+    }
+}
+
+/** Account managers and the owner: the admins who sign forms off. */
+function reviewerAdminIds(PDO $pdo): array
+{
+    try {
+        $stmt = $pdo->query("
+            SELECT id FROM admins WHERE role IN ('account_manager', 'owner')
+        ");
+        return $stmt->fetchAll(PDO::FETCH_COLUMN);
+    } catch (Throwable $e) {
+        return [];
     }
 }
 

@@ -53,9 +53,19 @@
       burger.setAttribute("aria-expanded", "true");
 
       // First link in the drawer, so a keyboard lands inside it rather than
-      // continuing through the page behind the backdrop.
-      var first = sidebar.querySelector("a, button");
+      // continuing through the page behind the backdrop. Only a visible one:
+      // the sidebar's first button is the collapse toggle, which shell.css
+      // hides in the drawer, and focusing it silently did nothing.
+      var items = focusable();
+      var first = items.filter(function (el) { return el.matches("a[href]"); })[0] || items[0];
       if (first) first.focus();
+    }
+
+    function focusable() {
+      return Array.prototype.filter.call(
+        sidebar.querySelectorAll("a[href], button:not([disabled])"),
+        function (el) { return el.offsetParent !== null; }
+      );
     }
 
     function shut() {
@@ -77,7 +87,32 @@
 
     document.addEventListener("keydown", function (event) {
       if (event.key === "Escape") shut();
+      if (event.key === "Tab" && isOpen()) keepFocusInside(event);
     });
+
+    /* The page behind the backdrop cannot be clicked, so it should not be
+       tabbable either: Tab past the last control wraps to the first, and
+       Shift+Tab the other way. */
+    function keepFocusInside(event) {
+
+      var items = focusable();
+
+      if (!items.length) return;
+
+      var first = items[0];
+      var last = items[items.length - 1];
+
+      if (!sidebar.contains(document.activeElement)) {
+        event.preventDefault();
+        first.focus();
+      } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
 
     // Following a link leaves the page anyway, but the drawer would otherwise
     // sit open over the old one for as long as the next page takes to load.

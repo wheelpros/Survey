@@ -105,19 +105,27 @@
   /* ── The sidebar, as a drawer ──────────────────────────────────────────── */
 
   /* Overrides width:var(--sidebar-w), which the rule above just set to 0. */
+  /* Closed, the drawer is hidden as well as moved: off-screen alone still left
+     its links in the Tab order and read out by screen readers on every page.
+     visibility waits for the slide to finish before it hides, so the drawer
+     is seen leaving rather than vanishing. The shadow only exists while open,
+     or its blur shows as a grey edge down the left of every page. */
   .sidebar,
   .admin-sidebar {
     width: min(86vw, 300px);
     transform: translateX(-100%);
-    transition: transform 0.22s ease;
+    visibility: hidden;
+    transition: transform 0.22s ease, visibility 0s linear 0.22s;
     z-index: 1000;
     overflow-y: auto;
-    box-shadow: 0 0 40px rgba(16, 24, 40, 0.18);
   }
 
   :root.nav-open .sidebar,
   :root.nav-open .admin-sidebar {
     transform: none;
+    visibility: visible;
+    transition: transform 0.22s ease, visibility 0s;
+    box-shadow: 0 0 40px rgba(16, 24, 40, 0.18);
   }
 
   .wz-scrim {
@@ -209,5 +217,43 @@
   .wz-tablewrap th,
   .wz-tablewrap td {
     white-space: nowrap;
+  }
+}
+
+/*
+| ── Pagination ───────────────────────────────────────────────────────────────
+|
+| Every list pages the same way - .pager holding .pager-info ("Showing 1 to 10
+| of 45") and .pager-pages (the buttons) - but each page styled the row itself,
+| count on the left and buttons pushed right. One layout for all of them here:
+| the buttons centred under the list, the count centred beneath them, and on a
+| phone the count dropped altogether, since the buttons already say where you
+| are and the count only pushed them onto a second line.
+|
+| :root lifts these above the page's own .pager rules, which some pages load
+| after this file.
+*/
+
+:root .pager:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+:root .pager-pages {
+  order: 1;
+  justify-content: center;
+}
+
+:root .pager-info {
+  order: 2;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  :root .pager-info {
+    display: none;
   }
 }

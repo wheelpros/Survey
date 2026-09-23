@@ -34,6 +34,12 @@
 .page-title h1 { font-size: 30px; margin-bottom: 8px; word-break: break-word }
 .page-title p { font-size: 14px; color: var(--muted); max-width: 620px }
 
+/* Stacked on narrow screens like every other page: title and subtitle at full
+   width, the action button underneath. The title keeps its 30px throughout. */
+@media (max-width: 950px) {
+  .page-head { flex-direction: column; gap: 16px }
+}
+
 /* Back arrow, then the crumbs and heading, all on one line. */
 .head-row { display: flex; gap: 16px; align-items: flex-start; min-width: 0 }
 /* Without this the column refuses to shrink below its longest word and the
@@ -51,7 +57,7 @@
 }
 /* Centred against the first line of the heading rather than pinned to the top
    of the block, so the arrow and the title read as one line. */
-.head-row > .back-link { align-self: flex-start; margin-top: 3px }
+.head-row > .back-link { align-self: flex-start; margin-top: 0 }
 .page-title h1 + .head-name { margin-top: 2px }
 .back-link:hover { background: #f2f4f8 }
 .back-link svg { width: 17px; height: 17px }
@@ -670,8 +676,6 @@ select,
 }
 
 @media (max-width: 620px) {
-  .page-title h1 { font-size: 24px }
-  .page-head { gap: 14px }
   .head-row { gap: 12px }
   .crumbs { display: flex; flex-wrap: wrap; gap: 4px }
   .f-value.big { font-size: 17px }
@@ -683,10 +687,7 @@ select,
 }
 
 @media (max-width: 420px) {
-  .admin-content { padding: 18px 12px }
   .card { padding: 18px 14px }
-  .page-title h1 { font-size: 21px }
-  .btn, .create-btn { font-size: 12px }
   .who-avatar.lg { width: 34px; height: 34px }
   .empty-state { padding: 36px 18px }
   .pager button { min-width: 32px; height: 32px; padding: 0 9px }

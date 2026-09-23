@@ -781,7 +781,7 @@ select.client-filter{
   var MOBILE = 950;
   var DRAWER = 768;   // below this the sidebar is a drawer, never a rail
   function prefersCollapsed(){ return localStorage.getItem(KEY) === "1"; }
-  function apply(){ root.classList.toggle("sidebar-collapsed", (window.innerWidth <= MOBILE && window.innerWidth > DRAWER) || prefersCollapsed()); }
+  function apply(){ root.classList.toggle("sidebar-collapsed", window.innerWidth > DRAWER && (window.innerWidth <= MOBILE || prefersCollapsed())); }
   window.toggleSidebar = function(){
     if (window.innerWidth <= MOBILE) return; // forced collapsed, nothing to toggle
     localStorage.setItem(KEY, prefersCollapsed() ? "0" : "1");
@@ -817,7 +817,7 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 </script>
-<link rel="stylesheet" href="assets/shell.css?v=2" />
+<link rel="stylesheet" href="assets/shell.css?v=3" />
 </head>
 
 <body>
@@ -1916,7 +1916,13 @@ async function saveSlideText(id) {
 }
 
 async function deleteSlide(id) {
-    if (!confirm("Remove this slide from the login page?")) return;
+    const ok = await askConfirm({
+        title : "Remove slide",
+        text  : "This slide will be removed from the login page.",
+        action: "Remove slide",
+        word  : "DELETE"
+    });
+    if (!ok) return;
 
     const status = document.getElementById("slideStatus");
 
@@ -2130,7 +2136,14 @@ async function changeAdminRole(adminId, select){
 
     const label = adminRoleLabel(newRole);
 
-    if(!confirm(`Change this person to ${label}? They will be signed out and pick up the new role next time they log in.`)){
+    const ok = await askConfirm({
+        title : "Change role",
+        text  : `This person becomes ${label}. They will be signed out and pick up the new role next time they log in.`,
+        action: "Change role",
+        icon  : "warn"
+    });
+
+    if(!ok){
         select.value = previous;
         return;
     }
@@ -2269,11 +2282,14 @@ function goToAdminsPage(page) {
 }
 async function setAdminActive(id, name, makeActive) {
 
-    const confirmed = confirm(
-        makeActive
-            ? `Reactivate "${name}"? They'll be able to log in again.`
-            : `Deactivate "${name}"? They won't be able to log in, but nothing about their account is deleted.`
-    );
+    const confirmed = await askConfirm({
+        title : makeActive ? "Reactivate admin" : "Deactivate admin",
+        text  : makeActive
+            ? `"${name}" will be able to log in again.`
+            : `"${name}" won't be able to log in, but nothing about their account is deleted.`,
+        action: makeActive ? "Reactivate" : "Deactivate",
+        icon  : "warn"
+    });
 
     if (!confirmed) return;
 
@@ -2522,7 +2538,8 @@ window.onload = loadSettings;
 
 
 <script src="assets/notifications.js?v=1"></script>
-<script src="assets/shell.js?v=1"></script>
+<script src="assets/confirm.js?v=1"></script>
+<script src="assets/shell.js?v=2"></script>
 <script src="assets/sources-lock.js?v=1"></script>
 <script src="assets/role-nav.js?v=1"></script>
 <script>

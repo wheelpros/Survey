@@ -2,6 +2,7 @@
 
 require_once "db.php";
 require_once "notify.php";
+require_once "mailer.php";
 
 header("Content-Type: application/json");
 
@@ -17,6 +18,8 @@ if (!$token) {
     exit;
 }
 ensureSurveyColumns($pdo);
+// The lists below read users.company_name.
+ensureUserProfileColumns($pdo);
 
 // Before beginTransaction() below: CREATE TABLE is DDL and commits
 // implicitly, which would strand the rollBack() in the catch.
@@ -171,6 +174,7 @@ if ($method === "GET") {
             surveys.reviewed_at,
             users.name AS user_name,
             users.email AS user_email,
+            users.company_name AS company_name,
             creator.name AS created_by_name
         FROM surveys
         JOIN users ON users.id = surveys.assigned_user_id
@@ -191,6 +195,7 @@ if ($method === "GET") {
             surveys.reviewed_at,
             users.name AS user_name,
             users.email AS user_email,
+            users.company_name AS company_name,
             creator.name AS created_by_name
         FROM surveys
         JOIN users ON users.id = surveys.assigned_user_id
@@ -396,6 +401,10 @@ if ($method === "POST" || $method === "PUT") {
                 "admin.html",
                 (int) $currentAdmin["id"]
             );
+
+            // The same reviewers, by email: a form waiting on sign-off is
+            // invisible to the client until one of them opens the portal.
+            emailReviewersAboutForm($pdo, $title, $assignedUserId, (int) $currentAdmin["id"], $method === "POST");
         }
 
         if ($isReviewer) {

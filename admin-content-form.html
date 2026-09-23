@@ -63,9 +63,9 @@ body{background:#f6f7fb;color:var(--text);padding:0}
 .page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:28px}
 .page-title h1{font-size:30px;margin-bottom:8px}
 .page-title p{font-size:14px;color:var(--muted);max-width:620px}
-.back-link{flex:none;display:inline-flex;align-items:center;gap:8px;border:1px solid #dfe3ea;background:#fff;color:var(--text);text-decoration:none;padding:11px 18px;border-radius:10px;font-size:13px;font-weight:800}
-.back-link:hover{background:#f6f7f9}
-.back-link svg{width:15px;height:15px}
+.back-link{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;flex:none;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--text);text-decoration:none;transition:background .15s}
+.back-link:hover{background:#f2f4f8}
+.back-link svg{width:17px;height:17px}
 
 /* ── Restored-draft notice ── */
 .restore-bar{
@@ -255,7 +255,7 @@ select.client-filter{
   var MOBILE = 950;
   var DRAWER = 768;   // below this the sidebar is a drawer, never a rail
   function prefersCollapsed(){ return localStorage.getItem(KEY) === "1"; }
-  function apply(){ root.classList.toggle("sidebar-collapsed", (window.innerWidth <= MOBILE && window.innerWidth > DRAWER) || prefersCollapsed()); }
+  function apply(){ root.classList.toggle("sidebar-collapsed", window.innerWidth > DRAWER && (window.innerWidth <= MOBILE || prefersCollapsed())); }
   window.toggleSidebar = function(){
     if (window.innerWidth <= MOBILE) return; // forced collapsed, nothing to toggle
     localStorage.setItem(KEY, prefersCollapsed() ? "0" : "1");
@@ -268,7 +268,7 @@ select.client-filter{
 function openAccount(){ document.getElementById("acctModal").classList.add("show"); }
 function closeAccount(){ document.getElementById("acctModal").classList.remove("show"); }
 </script>
-<link rel="stylesheet" href="assets/shell.css?v=2" />
+<link rel="stylesheet" href="assets/shell.css?v=3" />
 </head>
 
 <body>
@@ -339,14 +339,15 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
   <div class="admin-content">
 
     <div class="page-head">
-      <div class="page-title">
-        <h1 id="pageHeading">Content</h1>
-        <p>Everything ready to publish — social posts, newsletters, infographics and more.</p>
+      <div class="page-title" style="display:flex;gap:16px;align-items:flex-start">
+        <a class="back-link" href="admin-content.html" title="Back to Content" aria-label="Back to Content">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M11 6l-6 6 6 6"/></svg>
+        </a>
+        <div>
+          <h1 id="pageHeading">Content</h1>
+          <p>Everything ready to publish — social posts, newsletters, infographics and more.</p>
+        </div>
       </div>
-      <a class="back-link" href="admin-content.html">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-        Back to Content
-      </a>
     </div>
 
     <div class="restore-bar" id="restoreBar" hidden>
@@ -1028,14 +1029,20 @@ async function save(){
   }
 }
 
-function discard(){
-  if(confirm("Discard this post? Nothing will be saved.")){
-    // Discard means gone - do not let the autosaved copy restore it later,
-    // and do not ask again on the way out.
-    clearDraft();
-    leavingIntentionally = true;
-    window.location.href = "admin-content.html";
-  }
+async function discard(){
+  const ok = await askConfirm({
+    title : "Discard post",
+    text  : "Nothing in this post will be saved, and the autosaved draft is thrown away too.",
+    action: "Discard post"
+  });
+
+  if(!ok) return;
+
+  // Discard means gone - do not let the autosaved copy restore it later,
+  // and do not ask again on the way out.
+  clearDraft();
+  leavingIntentionally = true;
+  window.location.href = "admin-content.html";
 }
 
 /* ── Edit mode ──────────────────────────────────────────────────────────────
@@ -1391,8 +1398,14 @@ async function loadDraft(){
   document.getElementById("restoreBar").hidden = false;
 }
 
-function startFresh(){
-  if(!confirm("Discard the restored changes and start a blank post?")) return;
+async function startFresh(){
+  const ok = await askConfirm({
+    title : "Start fresh",
+    text  : "The restored changes will be discarded and you start again with a blank post.",
+    action: "Start fresh"
+  });
+
+  if(!ok) return;
 
   clearDraft();
   restoredDraft = false;
@@ -1420,11 +1433,23 @@ document.addEventListener("click", event => {
   const href = link.getAttribute("href");
   if(!href || href.startsWith("#") || link.target === "_blank") return;
 
-  if(confirm("Leave this page? Your changes are saved as a draft and will be restored when you come back.")){
+  // Opening the link in a new tab leaves this page where it is, so there is
+  // nothing to ask - the draft is autosaved either way.
+  if(event.ctrlKey || event.metaKey || event.shiftKey || event.button !== 0) return;
+
+  // The dialog answers later, so hold the navigation and follow it on OK.
+  event.preventDefault();
+
+  askConfirm({
+    title : "Leave this page?",
+    text  : "Your changes are saved as a draft and will be restored when you come back.",
+    action: "Leave page",
+    icon  : "warn"
+  }).then(ok => {
+    if(!ok) return;
     leavingIntentionally = true;   // already confirmed; don't ask again on unload
-  }else{
-    event.preventDefault();
-  }
+    location.href = link.href;
+  });
 });
 
 document.getElementById("panelScheduling").hidden = !canPublish;
@@ -1442,7 +1467,8 @@ if(editId){
 </script>
 
 <script src="assets/notifications.js?v=1"></script>
-<script src="assets/shell.js?v=1"></script>
+<script src="assets/confirm.js?v=1"></script>
+<script src="assets/shell.js?v=2"></script>
 <script src="assets/sources-lock.js?v=1"></script>
 </body>
 </html>

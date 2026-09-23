@@ -324,7 +324,7 @@ input:disabled{opacity:.5;cursor:not-allowed}
   var MOBILE = 950;
   var DRAWER = 768;   // below this the sidebar is a drawer, never a rail
   function prefersCollapsed(){ return localStorage.getItem(KEY) === "1"; }
-  function apply(){ root.classList.toggle("sidebar-collapsed", (window.innerWidth <= MOBILE && window.innerWidth > DRAWER) || prefersCollapsed()); }
+  function apply(){ root.classList.toggle("sidebar-collapsed", window.innerWidth > DRAWER && (window.innerWidth <= MOBILE || prefersCollapsed())); }
   window.toggleSidebar = function(){
     if (window.innerWidth <= MOBILE) return; // forced collapsed, nothing to toggle
     localStorage.setItem(KEY, prefersCollapsed() ? "0" : "1");
@@ -348,7 +348,7 @@ document.addEventListener("DOMContentLoaded", function () {
   set("adminName", name);  set("adminRole", label);  set("adminAvatar", initial);
   set("acctName", name);   set("acctRole", label);   set("acctAvatar", initial);
 });
-</script><link rel="stylesheet" href="assets/shell.css?v=2" />
+</script><link rel="stylesheet" href="assets/shell.css?v=3" />
 
 </head><body>
 <aside class="admin-sidebar">
@@ -1013,7 +1013,15 @@ async function discard(){
     return;
   }
 
-  if (!confirm("Delete this task? This cannot be undone.")) return;
+  const ok = await askConfirm({
+    title : "Delete task",
+    text  : "This task will be removed from the project, along with anything the "
+          + "client has already been shown of it. This cannot be undone.",
+    action: "Delete task",
+    word  : "DELETE"
+  });
+
+  if (!ok) return;
 
   const data = await api("api/project-tasks.php?id=" + encodeURIComponent(taskId), {
     method: "DELETE"
@@ -1029,7 +1037,8 @@ async function discard(){
 load();
 </script>
 <script src="assets/notifications.js?v=1"></script>
-<script src="assets/shell.js?v=1"></script>
+<script src="assets/confirm.js?v=1"></script>
+<script src="assets/shell.js?v=2"></script>
 <script src="assets/sources-lock.js?v=1"></script>
 <script src="assets/role-nav.js?v=1"></script>
 </body></html>

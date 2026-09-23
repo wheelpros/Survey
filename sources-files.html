@@ -261,7 +261,7 @@ select.client-filter{
   var MOBILE = 950;
   var DRAWER = 768;   // below this the sidebar is a drawer, never a rail
   function prefersCollapsed(){ return localStorage.getItem(KEY) === "1"; }
-  function apply(){ root.classList.toggle("sidebar-collapsed", (window.innerWidth <= MOBILE && window.innerWidth > DRAWER) || prefersCollapsed()); }
+  function apply(){ root.classList.toggle("sidebar-collapsed", window.innerWidth > DRAWER && (window.innerWidth <= MOBILE || prefersCollapsed())); }
   window.toggleSidebar = function(){
     if (window.innerWidth <= MOBILE) return; // forced collapsed, nothing to toggle
     localStorage.setItem(KEY, prefersCollapsed() ? "0" : "1");
@@ -286,7 +286,7 @@ document.addEventListener("DOMContentLoaded", function () {
   set("acctName", name);   set("acctRole", label);   set("acctAvatar", initial);
 });
 </script>
-<link rel="stylesheet" href="assets/shell.css?v=2" />
+<link rel="stylesheet" href="assets/shell.css?v=3" />
 </head>
 
 <body>
@@ -546,6 +546,7 @@ async function loadFiles(){
     }
 
     const files = data.files || [];
+    files.forEach(file => { fileNames[file.id] = file.original_name; });
 
     if(!files.length){
       box.innerHTML = `<div class="small">No files uploaded yet.</div>`;
@@ -652,8 +653,17 @@ function downloadFile(fileId){
     "&token=" + encodeURIComponent(adminToken);
 }
 
+// Names of the files on screen, so the delete dialog can say which one.
+const fileNames = {};
+
 async function deleteFile(fileId){
-  const ok = confirm("Delete this file?");
+  const ok = await askConfirm({
+    title : "Delete file",
+    text  : (fileNames[fileId] ? `“${fileNames[fileId]}”` : "This file")
+          + " will be deleted, and anyone it is assigned to will lose it. This cannot be undone.",
+    action: "Delete file",
+    word  : "DELETE"
+  });
   if(!ok) return;
 
   try{
@@ -868,7 +878,8 @@ initSourcesLock();
 
 
 <script src="assets/notifications.js?v=1"></script>
-<script src="assets/shell.js?v=1"></script>
+<script src="assets/confirm.js?v=1"></script>
+<script src="assets/shell.js?v=2"></script>
 <script src="assets/role-nav.js?v=1"></script>
 <script>
 /* The calendar belongs to the roles that deal with clients. A plain seo_admin

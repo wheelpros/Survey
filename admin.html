@@ -116,14 +116,6 @@ td{
   color:#c9000b;
 }
 
-.rejection-note{
-  display:block;
-  margin-top:4px;
-  font-size:11px;
-  color:#c9000b;
-  font-weight:600;
-}
-
 .actions{
   display:flex;
   gap:8px;
@@ -181,30 +173,14 @@ td{
   }
 }
 
-.survey-filters{
-  display:flex;
-  gap:20px;
-  margin-bottom:25px;
-}
-
-.filter-box{
-  flex:1;
-}
-
-.filter-box label{
-  display:block;
-  margin-bottom:8px;
-  font-weight:700;
-}
-.survey-filters{
-  display:flex;
-  gap:20px;
-  margin-top:25px;
-  margin-bottom:25px;
-}
-.filter-box select{
-  width:100%;
-}
+/* Filters: the Content page's row - a small label on the same line as its
+   pill dropdown, both filters side by side, wrapping to one per line when the
+   screen is too narrow for two. */
+.survey-filters{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:22px}
+.filter-box{display:flex;align-items:center;gap:9px;min-width:0}
+.filter-box label{flex:none;margin:0;white-space:nowrap;font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--muted)}
+.client-filter{min-width:220px;height:36px;border:1px solid #e1e5ed;border-radius:22px;background:#fff;padding:0 14px;outline:none;font:inherit;font-size:13px;font-weight:700;color:var(--text);cursor:pointer}
+.client-filter:focus{border-color:var(--nav-active)}
 .section-desc{
   margin-bottom:30px;
   color:#667085;
@@ -212,10 +188,9 @@ td{
 .surveys-section p{
   margin-bottom:30px;
 }
-@media(max-width:768px){
-  .survey-filters{
-    flex-direction:column;
-  }
+@media(max-width:950px){
+  .survey-filters .filter-box{flex:1 1 260px}
+  .survey-filters .client-filter{width:100%;min-width:0}
 }
 
 /* ── Admin shell: sidebar + header (shared across admin pages) ── */
@@ -341,6 +316,9 @@ body{padding:0}
 .page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:28px}
 .page-title h1{font-size:30px;margin-bottom:8px}
 .page-title p{font-size:14px;color:var(--muted);max-width:620px}
+/* Same as every other list page: below the rail breakpoint the title takes the
+   full width and the Create button drops underneath it. */
+@media(max-width:950px){.page-head{flex-direction:column;gap:16px}}
 .create-btn{flex:none;display:inline-flex;align-items:center;gap:8px;background:var(--nav-active);color:#fff;text-decoration:none;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:800}
 .create-btn:hover{background:#282c52}
 .create-btn svg{width:16px;height:16px}
@@ -366,8 +344,6 @@ body{padding:0}
 }
 /* ── Form Review section ── */
 .panel[hidden]{display:none}
-.from-to strong{display:block;font-size:13px}
-.from-to span{display:block;font-size:11px;color:#98a2b3}
 
 .approve-btn{background:#20a95a;color:#fff}
 .reject-btn{background:#c9000b;color:#fff}
@@ -477,8 +453,9 @@ select.client-filter{
   var root = document.documentElement;
   var KEY = "wz_sidebar_collapsed";
   var MOBILE = 950;
+  var DRAWER = 768;   // below this the sidebar is a drawer, never a rail
   function prefersCollapsed(){ return localStorage.getItem(KEY) === "1"; }
-  function apply(){ root.classList.toggle("sidebar-collapsed", window.innerWidth <= MOBILE || prefersCollapsed()); }
+  function apply(){ root.classList.toggle("sidebar-collapsed", window.innerWidth > DRAWER && (window.innerWidth <= MOBILE || prefersCollapsed())); }
   window.toggleSidebar = function(){
     if (window.innerWidth <= MOBILE) return; // forced collapsed, nothing to toggle
     localStorage.setItem(KEY, prefersCollapsed() ? "0" : "1");
@@ -504,7 +481,7 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 
-<link rel="stylesheet" href="assets/shell.css?v=2" />
+<link rel="stylesheet" href="assets/shell.css?v=3" />
 
 <style>
 /*
@@ -537,30 +514,43 @@ document.addEventListener("DOMContentLoaded", function () {
 .row-menu button:hover,
 .row-menu a:hover{background:#f6f7f9}
 
+/* The two tables on this page carry the same columns, so they share widths
+   too - left to size themselves, a long rejection note in one table pushed
+   its columns out of line with the other. */
+@media(min-width:769px){
+  #reviewListTable,#formsListTable{table-layout:fixed;width:100%}
+  #reviewListTable th:nth-child(1),#formsListTable th:nth-child(1){width:30%}
+  #reviewListTable th:nth-child(2),#formsListTable th:nth-child(2){width:22%}
+  #reviewListTable th:nth-child(3),#formsListTable th:nth-child(3){width:18%}
+  #reviewListTable th:nth-child(4),#formsListTable th:nth-child(4){width:18%}
+  #reviewListTable th:nth-child(5),#formsListTable th:nth-child(5){width:12%}
+}
+
 @media(max-width:768px){
 
-  /* Everything except Form, Client and Actions. The .empty guard keeps the
+  /* Both tables share one column order - Form, Client, Status, Created At,
+     Actions - and keep Client, Status and Actions. The .empty guard keeps the
      "Loading forms..." and "No forms found." rows, which are a single colspan
      cell sitting in first position. */
   #reviewListTable th:nth-child(1),#reviewListTable td:nth-child(1):not(.empty),
   #reviewListTable th:nth-child(4),#reviewListTable td:nth-child(4),
-  #reviewListTable th:nth-child(5),#reviewListTable td:nth-child(5),
   #formsListTable th:nth-child(1),#formsListTable td:nth-child(1):not(.empty),
-  #formsListTable th:nth-child(4),#formsListTable td:nth-child(4),
-  #formsListTable th:nth-child(5),#formsListTable td:nth-child(5),
-  #formsListTable th:nth-child(6),#formsListTable td:nth-child(6){
+  #formsListTable th:nth-child(4),#formsListTable td:nth-child(4){
     display:none;
   }
-
-  /* The review queue's client cell stacks the name over the email. The email
-     column is gone from this table, so the name is all that stays. */
-  #reviewListTable .from-to span{display:none}
 
   /* Three columns fit, so let a long form title wrap instead of handing the
      panel a horizontal scrollbar. The min-width undoes the 760px this page
      puts on every table below 800px; the wrapping beats shell.css. Both win
      on the id rather than on !important. */
   #reviewListTable,#formsListTable{min-width:0}
+
+  /* Fixed widths here too, so both tables line up on a phone as they do on a
+     desktop: Status and Actions sized to their badge and kebab, Client takes
+     what is left. */
+  #reviewListTable,#formsListTable{table-layout:fixed;width:100%}
+  #reviewListTable th:nth-child(3),#formsListTable th:nth-child(3){width:130px}
+  #reviewListTable th:nth-child(5),#formsListTable th:nth-child(5){width:68px}
   #reviewListTable th,#reviewListTable td,
   #formsListTable th,#formsListTable td{
     white-space:normal;
@@ -679,7 +669,6 @@ document.addEventListener("DOMContentLoaded", function () {
         <table id="reviewListTable">
           <thead>
             <tr>
-              <th>ID</th>
               <th>Form</th>
               <th>Client</th>
               <th>Status</th>
@@ -688,7 +677,7 @@ document.addEventListener("DOMContentLoaded", function () {
             </tr>
           </thead>
           <tbody id="reviewTable">
-            <tr><td colspan="6" class="empty">Loading forms...</td></tr>
+            <tr><td colspan="5" class="empty">Loading forms...</td></tr>
           </tbody>
         </table>
 
@@ -706,15 +695,15 @@ document.addEventListener("DOMContentLoaded", function () {
           <div class="survey-filters">
 
             <div class="filter-box">
-              <label>Filter by Client</label>
-              <select id="surveyUserFilter" onchange="resetListPage()">
+              <label for="surveyUserFilter">Client</label>
+              <select class="client-filter" id="surveyUserFilter" onchange="resetListPage()">
                 <option value="all">All Clients</option>
               </select>
             </div>
 
             <div class="filter-box">
-              <label>Filter by Status</label>
-              <select id="surveyStatusFilter" onchange="resetListPage()">
+              <label for="surveyStatusFilter">Status</label>
+              <select class="client-filter" id="surveyStatusFilter" onchange="resetListPage()">
                 <option value="all">All Status</option>
                 <option value="pending">Pending</option>
                 <option value="rejected">Rejected</option>
@@ -731,9 +720,8 @@ document.addEventListener("DOMContentLoaded", function () {
         <table id="formsListTable">
           <thead>
             <tr>
-              <th>ID</th>
+              <th>Form</th>
               <th>Client</th>
-              <th>Email</th>
               <th>Status</th>
               <th>Created At</th>
               <th>Actions</th>
@@ -742,7 +730,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
           <tbody id="surveysTable">
             <tr>
-              <td colspan="6" class="empty">Loading forms...</td>
+              <td colspan="5" class="empty">Loading forms...</td>
             </tr>
           </tbody>
         </table>
@@ -1017,7 +1005,7 @@ async function loadSurveyData(){
     if(!data.success){
       surveysTable.innerHTML = `
         <tr>
-          <td colspan="6" class="empty">Unable to load forms.</td>
+          <td colspan="5" class="empty">Unable to load forms.</td>
         </tr>
       `;
       return;
@@ -1041,7 +1029,7 @@ async function loadSurveyData(){
 
     surveysTable.innerHTML = `
       <tr>
-        <td colspan="6" class="empty">Connection error.</td>
+        <td colspan="5" class="empty">Connection error.</td>
       </tr>
     `;
 
@@ -1067,7 +1055,7 @@ function renderSurveysTable(){
   if(!surveys.length){
     surveysTable.innerHTML = `
       <tr>
-        <td colspan="6" class="empty">No forms found.</td>
+        <td colspan="5" class="empty">No forms found.</td>
       </tr>
     `;
     renderListPager(0, 0, 0, 0);
@@ -1089,18 +1077,14 @@ function renderSurveysTable(){
 
     return `
     <tr>
-      <td>#${esc(survey.id)}</td>
-      <td>${esc(survey.user_name)}</td>
-      <td>${esc(survey.user_email)}</td>
+      <td>${esc(survey.title)}</td>
+      <td>${esc(survey.company_name || "—")}</td>
       <td>
         <span class="badge ${meta.cls}">
           ${esc(meta.label)}
         </span>
-        ${
-          survey.status === "rejected" && survey.review_note
-          ? `<span class="rejection-note">Reason: ${esc(survey.review_note)}</span>`
-          : ``
-        }
+        <!-- The rejection reason is in the View popup; in the row it made the
+             Status column wider than the Form Review table beside it. -->
       </td>
       <td>${esc(survey.created_at)}</td>
       <td>
@@ -1108,8 +1092,8 @@ function renderSurveysTable(){
           <!-- View is the whole column. Send Again and View Responses live
                inside the modal it opens, so the column stays narrow. On a
                phone the button is swapped for the kebab, which offers the same
-               one action - a full-width button does not fit beside the client
-               name and their email. -->
+               one action - a full-width button does not fit beside the form
+               title and the client. -->
           <button class="btn action-btn" type="button" onclick="openReview(${Number(survey.id)})">View</button>
           ${kebabButton(survey.id, "list")}
         </div>
@@ -1217,7 +1201,7 @@ async function loadReviewSurveys(){
   const table = document.getElementById("reviewTable");
   if(!table) return;
 
-  table.innerHTML = `<tr><td colspan="6" class="empty">Loading forms...</td></tr>`;
+  table.innerHTML = `<tr><td colspan="5" class="empty">Loading forms...</td></tr>`;
 
   try{
     // No status parameter: the endpoint only ever returns the waiting queue.
@@ -1229,7 +1213,7 @@ async function loadReviewSurveys(){
 
     if(!data.success){
       allReviewSurveys = [];
-      table.innerHTML = `<tr><td colspan="6" class="empty">${esc(data.message || "Unable to load forms.")}</td></tr>`;
+      table.innerHTML = `<tr><td colspan="5" class="empty">${esc(data.message || "Unable to load forms.")}</td></tr>`;
       renderReviewPager(0, 0, 0, 0);
       return;
     }
@@ -1242,7 +1226,7 @@ async function loadReviewSurveys(){
 
   }catch(error){
     allReviewSurveys = [];
-    table.innerHTML = `<tr><td colspan="6" class="empty">Connection error.</td></tr>`;
+    table.innerHTML = `<tr><td colspan="5" class="empty">Connection error.</td></tr>`;
     renderReviewPager(0, 0, 0, 0);
   }
 }
@@ -1253,7 +1237,7 @@ function renderReviewTable(){
   const matching = allReviewSurveys;
 
   if(!matching.length){
-    table.innerHTML = `<tr><td colspan="6" class="empty">${
+    table.innerHTML = `<tr><td colspan="5" class="empty">${
       canReview
         ? "No forms are waiting for a decision."
         : "None of your forms are waiting for approval."
@@ -1275,14 +1259,8 @@ function renderReviewTable(){
   table.innerHTML = rows.map(survey => {
     return `
     <tr>
-      <td>#${esc(survey.id)}</td>
       <td>${esc(survey.title)}</td>
-      <td>
-        <div class="from-to">
-          <strong>${esc(survey.user_name || "Unknown client")}</strong>
-          <span>${esc(survey.user_email || "")}</span>
-        </div>
-      </td>
+      <td>${esc(survey.company_name || "—")}</td>
       <td>
         <span class="badge survey-status">In Review</span>
       </td>
@@ -1498,7 +1476,7 @@ loadSurveyData();
 </script>
 
 <script src="assets/notifications.js?v=1"></script>
-<script src="assets/shell.js?v=1"></script>
+<script src="assets/shell.js?v=2"></script>
 <script src="assets/role-nav.js?v=1"></script>
 <script>
 /* The calendar belongs to the roles that deal with clients. A plain seo_admin

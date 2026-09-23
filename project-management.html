@@ -265,6 +265,10 @@ tr:last-child td{border-bottom:none}
   overflow:hidden;overflow-wrap:anywhere;
 }
 .p-title{font-weight:700;color:var(--text)}
+/* Titles carry dir="auto" so Arabic reads right-to-left, which also turned
+   their alignment to the right. The page is left-to-right, so they keep their
+   text direction and align left like every other title here. */
+.p-title,.p-client{text-align:left}
 .timeline{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;color:var(--muted);font-size:12px;white-space:nowrap}
 .timeline svg{width:14px;height:14px;flex:none;color:#c3c9d4}
 td.action,th.col-action{text-align:right;white-space:nowrap;padding-right:4px}
@@ -427,7 +431,7 @@ td.menu-cell,th.col-menu{text-align:right;white-space:nowrap;padding-left:4px}
   var MOBILE = 950;
   var DRAWER = 768;   // below this the sidebar is a drawer, never a rail
   function prefersCollapsed(){ return localStorage.getItem(KEY) === "1"; }
-  function apply(){ root.classList.toggle("sidebar-collapsed", (window.innerWidth <= MOBILE && window.innerWidth > DRAWER) || prefersCollapsed()); }
+  function apply(){ root.classList.toggle("sidebar-collapsed", window.innerWidth > DRAWER && (window.innerWidth <= MOBILE || prefersCollapsed())); }
   window.toggleSidebar = function(){
     if (window.innerWidth <= MOBILE) return; // forced collapsed, nothing to toggle
     localStorage.setItem(KEY, prefersCollapsed() ? "0" : "1");
@@ -451,7 +455,7 @@ document.addEventListener("DOMContentLoaded", function () {
   set("adminName", name);  set("adminRole", label);  set("adminAvatar", initial);
   set("acctName", name);   set("acctRole", label);   set("acctAvatar", initial);
 });
-</script><link rel="stylesheet" href="assets/shell.css?v=2" />
+</script><link rel="stylesheet" href="assets/shell.css?v=3" />
 
 </head><body>
 <aside class="admin-sidebar">
@@ -1106,7 +1110,7 @@ document.getElementById("filterClient").addEventListener("change", applyFilters)
 load();
 </script>
 <script src="assets/notifications.js?v=1"></script>
-<script src="assets/shell.js?v=1"></script>
+<script src="assets/shell.js?v=2"></script>
 <script src="assets/sources-lock.js?v=1"></script>
 <script src="assets/role-nav.js?v=1"></script>
 </body></html>

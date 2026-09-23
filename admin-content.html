@@ -212,7 +212,7 @@ select.client-filter{
   var MOBILE = 950;
   var DRAWER = 768;   // below this the sidebar is a drawer, never a rail
   function prefersCollapsed(){ return localStorage.getItem(KEY) === "1"; }
-  function apply(){ root.classList.toggle("sidebar-collapsed", (window.innerWidth <= MOBILE && window.innerWidth > DRAWER) || prefersCollapsed()); }
+  function apply(){ root.classList.toggle("sidebar-collapsed", window.innerWidth > DRAWER && (window.innerWidth <= MOBILE || prefersCollapsed())); }
   window.toggleSidebar = function(){
     if (window.innerWidth <= MOBILE) return; // forced collapsed, nothing to toggle
     localStorage.setItem(KEY, prefersCollapsed() ? "0" : "1");
@@ -225,7 +225,7 @@ select.client-filter{
 function openAccount(){ document.getElementById("acctModal").classList.add("show"); }
 function closeAccount(){ document.getElementById("acctModal").classList.remove("show"); }
 </script>
-<link rel="stylesheet" href="assets/shell.css?v=2" />
+<link rel="stylesheet" href="assets/shell.css?v=3" />
 </head>
 
 <body>
@@ -826,13 +826,14 @@ function selectContent(id){
 
 async function deleteContent(id, title){
 
-  if (
-    !confirm(
-      `Delete “${title}”? This also removes its image.`
-    )
-  ) {
-    return;
-  }
+  const ok = await askConfirm({
+    title : "Delete content",
+    text  : `“${title}” will be deleted, along with its image. This cannot be undone.`,
+    action: "Delete content",
+    word  : "DELETE"
+  });
+
+  if (!ok) return;
 
   try {
 
@@ -883,7 +884,8 @@ loadContent();
 </script>
 
 <script src="assets/notifications.js?v=1"></script>
-<script src="assets/shell.js?v=1"></script>
+<script src="assets/confirm.js?v=1"></script>
+<script src="assets/shell.js?v=2"></script>
 <script src="assets/lightbox.js?v=1"></script>
 <script src="assets/sources-lock.js?v=1"></script>
 <script src="assets/role-nav.js?v=1"></script>

@@ -212,7 +212,7 @@ select.client-filter{
   var MOBILE = 950;
   var DRAWER = 768;   // below this the sidebar is a drawer, never a rail
   function prefersCollapsed(){ return localStorage.getItem(KEY) === "1"; }
-  function apply(){ root.classList.toggle("sidebar-collapsed", (window.innerWidth <= MOBILE && window.innerWidth > DRAWER) || prefersCollapsed()); }
+  function apply(){ root.classList.toggle("sidebar-collapsed", window.innerWidth > DRAWER && (window.innerWidth <= MOBILE || prefersCollapsed())); }
   window.toggleSidebar = function(){
     if (window.innerWidth <= MOBILE) return; // forced collapsed, nothing to toggle
     localStorage.setItem(KEY, prefersCollapsed() ? "0" : "1");
@@ -236,7 +236,7 @@ document.addEventListener("DOMContentLoaded", function () {
   set("adminName", name);  set("adminRole", label);  set("adminAvatar", initial);
   set("acctName", name);   set("acctRole", label);   set("acctAvatar", initial);
 });
-</script><link rel="stylesheet" href="assets/shell.css?v=2" />
+</script><link rel="stylesheet" href="assets/shell.css?v=3" />
 <style>
 /*
 | -- Clients on a phone -------------------------------------------------------
@@ -245,9 +245,9 @@ document.addEventListener("DOMContentLoaded", function () {
 | reason: a few rules here undo one of its .wz-tablewrap rules and win on the
 | id selector rather than on !important.
 |
-| Six columns do not fit at 390px. The two that say which client the row is -
-| the name and whether the account is approved - stay, and the row's View button
-| moves into a kebab. The id, the email and the signup date are all on the
+| Five columns do not fit at 390px. The two that say which client the row is -
+| the company and whether the account is approved - stay, and the row's View
+| button moves into a kebab. The email and the signup date are both on the
 | client's own page, which that menu opens.
 */
 
@@ -270,12 +270,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
 @media(max-width:768px){
 
-  /* Id, email and signup date. The .empty guard keeps the "Loading clients..."
-     and "No clients found." rows, which are a single colspan cell sitting in
-     first position. */
-  #clientsTable th:nth-child(1),#clientsTable td:nth-child(1):not(.empty),
-  #clientsTable th:nth-child(3),#clientsTable td:nth-child(3),
-  #clientsTable th:nth-child(5),#clientsTable td:nth-child(5){
+  /* Email and signup date: both are on the client's own page, which the row
+     menu opens. */
+  #pendingPanel table th:nth-child(2),#approvedPanel table th:nth-child(2),#pendingPanel table td:nth-child(2),#approvedPanel table td:nth-child(2),
+  #pendingPanel table th:nth-child(4),#approvedPanel table th:nth-child(4),#pendingPanel table td:nth-child(4),#approvedPanel table td:nth-child(4){
     display:none;
   }
 
@@ -283,17 +281,24 @@ document.addEventListener("DOMContentLoaded", function () {
      panel a horizontal scrollbar. The min-width undoes the 760px this page
      puts on every table below 800px; the wrapping beats shell.css. Both win
      on the id rather than on !important. */
-  #clientsTable{min-width:0}
-  #clientsTable th,#clientsTable td{
+  #pendingPanel table,#approvedPanel table{min-width:0}
+
+  /* Fixed widths so the Pending and Approved tables line up with each other,
+     as the two tables on the Forms page do: Status and Actions sized to their
+     badge and kebab, Client takes what is left. */
+  #pendingPanel table,#approvedPanel table{table-layout:fixed;width:100%}
+  #pendingPanel table th:nth-child(3),#approvedPanel table th:nth-child(3){width:130px}
+  #pendingPanel table th:nth-child(5),#approvedPanel table th:nth-child(5){width:68px}
+  #pendingPanel table th,#approvedPanel table th,#pendingPanel table td,#approvedPanel table td{
     white-space:normal;
     padding-left:12px;padding-right:12px;
   }
 
-  #clientsTable td:last-child{width:44px}
+  #pendingPanel table td:last-child,#approvedPanel table td:last-child{width:44px}
 
-  #clientsTable .actions .btn{display:none}
+  #pendingPanel table .actions .btn,#approvedPanel table .actions .btn{display:none}
 
-  #clientsTable .row-kebab{
+  #pendingPanel table .row-kebab,#approvedPanel table .row-kebab{
     display:inline-flex;align-items:center;justify-content:center;
     width:36px;height:36px;padding:0;flex:none;
     border:1px solid #dfe3ea;border-radius:9px;
@@ -384,7 +389,7 @@ document.addEventListener("DOMContentLoaded", function () {
     <p id="pendingSub">Newly registered clients waiting on a decision.</p>
   </div>
   <table>
-    <thead><tr><th>ID</th><th>Client</th><th>Email</th><th>Status</th><th>Registered</th><th>Actions</th></tr></thead>
+    <thead><tr><th>Client</th><th>Email</th><th>Status</th><th>Registered</th><th>Actions</th></tr></thead>
     <tbody id="pendingTable"></tbody>
   </table>
   <div class="pager" id="pendingPager" hidden>
@@ -399,8 +404,8 @@ document.addEventListener("DOMContentLoaded", function () {
     <p id="approvedSub">Approved accounts.</p>
   </div>
   <table>
-    <thead><tr><th>ID</th><th>Client</th><th>Email</th><th>Status</th><th>Created At</th><th>Actions</th></tr></thead>
-    <tbody id="approvedTable"><tr><td colspan="6" class="empty">Loading clients...</td></tr></tbody>
+    <thead><tr><th>Client</th><th>Email</th><th>Status</th><th>Created At</th><th>Actions</th></tr></thead>
+    <tbody id="approvedTable"><tr><td colspan="5" class="empty">Loading clients...</td></tr></tbody>
   </table>
   <div class="pager" id="approvedPager" hidden>
     <span class="pager-info" id="approvedPagerInfo"></span>
@@ -558,7 +563,7 @@ function failTables(message){
 
   document.getElementById("approvedTable").innerHTML = `
     <tr>
-      <td colspan="6" class="empty">${esc(message)}</td>
+      <td colspan="5" class="empty">${esc(message)}</td>
     </tr>
   `;
 }
@@ -716,8 +721,7 @@ function userRow(user){
 
   return `
     <tr>
-      <td>#${esc(user.id)}</td>
-      <td>${esc(user.name)}</td>
+      <td>${esc(user.company_name || "—")}</td>
       <td>${esc(user.email)}</td>
       <td>
         <span class="badge ${approved ? "approved" : "pending"}">
@@ -789,7 +793,7 @@ function renderApproved(){
 
     table.innerHTML = `
       <tr>
-        <td colspan="6" class="empty">${
+        <td colspan="5" class="empty">${
           pendingUsers().length
             ? "No approved clients yet - the registrations above are waiting on a decision."
             : "No clients found."
@@ -1011,7 +1015,7 @@ loadUsers();
 
 
 <script src="assets/notifications.js?v=1"></script>
-<script src="assets/shell.js?v=1"></script>
+<script src="assets/shell.js?v=2"></script>
 <script src="assets/sources-lock.js?v=1"></script>
 <script src="assets/role-nav.js?v=1"></script>
 <script>

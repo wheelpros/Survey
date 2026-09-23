@@ -18,7 +18,7 @@ body{
 .page-title{flex:1;min-width:0}
 .page-title h1{font-size:30px;margin-bottom:8px}
 .page-title p{font-size:14px;color:var(--muted);max-width:620px}
-.back-link{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;flex:none;margin-top:6px;border-radius:10px;border:1px solid #dfe3ea;background:#fff;color:var(--text);text-decoration:none;transition:background .15s}
+.back-link{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;flex:none;border-radius:10px;border:1px solid #dfe3ea;background:#fff;color:var(--text);text-decoration:none;transition:background .15s}
 .back-link:hover{background:#f2f4f8}
 .back-link svg{width:17px;height:17px}
 
@@ -242,7 +242,7 @@ body{padding:0}
   var MOBILE = 950;
   var DRAWER = 768;   // below this the sidebar is a drawer, never a rail
   function prefersCollapsed(){ return localStorage.getItem(KEY) === "1"; }
-  function apply(){ root.classList.toggle("sidebar-collapsed", (window.innerWidth <= MOBILE && window.innerWidth > DRAWER) || prefersCollapsed()); }
+  function apply(){ root.classList.toggle("sidebar-collapsed", window.innerWidth > DRAWER && (window.innerWidth <= MOBILE || prefersCollapsed())); }
   window.toggleSidebar = function(){
     if (window.innerWidth <= MOBILE) return; // forced collapsed, nothing to toggle
     localStorage.setItem(KEY, prefersCollapsed() ? "0" : "1");
@@ -268,7 +268,7 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 
-<link rel="stylesheet" href="assets/shell.css?v=2" />
+<link rel="stylesheet" href="assets/shell.css?v=3" />
 </head>
 <body>
 
@@ -283,7 +283,7 @@ document.addEventListener("DOMContentLoaded", function () {
       </button>
     </div>
     <nav class="side-nav">
-      <a href="admin.html" title="Forms">
+      <a href="admin.html" class="active" title="Forms">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
         <span>Forms</span>
       </a>
@@ -571,7 +571,7 @@ function downloadMarkdown(){
 </div>
 
 <script src="assets/notifications.js?v=1"></script>
-<script src="assets/shell.js?v=1"></script>
+<script src="assets/shell.js?v=2"></script>
 <script src="assets/sources-lock.js?v=1"></script>
 </body>
 </html>

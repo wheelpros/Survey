@@ -180,12 +180,12 @@ body {
 @media (max-width: 950px) {
 
   .main-content {
-    padding: 28px 20px;
+    padding: 24px 18px;
   }
 }
 
 .main-content {
-  padding: 42px 44px;
+  padding: 34px 44px;
 }
 .page-head {
   margin-bottom: 28px;
@@ -864,7 +864,7 @@ th {
   var DRAWER = 768;   // below this the sidebar is a drawer, never a rail
   function prefersCollapsed(){ return localStorage.getItem(KEY) === "1"; }
   function apply(){
-    root.classList.toggle("sidebar-collapsed", (window.innerWidth <= MOBILE && window.innerWidth > DRAWER) || prefersCollapsed());
+    root.classList.toggle("sidebar-collapsed", window.innerWidth > DRAWER && (window.innerWidth <= MOBILE || prefersCollapsed()));
   }
   window.toggleSidebar = function(){
     if (window.innerWidth <= MOBILE) return; // forced collapsed, nothing to toggle
@@ -898,7 +898,7 @@ th {
   });
 })();
 </script>
-<link rel="stylesheet" href="assets/shell.css?v=2" />
+<link rel="stylesheet" href="assets/shell.css?v=3" />
 </head>
 
 <body>
@@ -1781,6 +1781,6 @@ document.addEventListener("DOMContentLoaded", () => {
   </div>
 </div>
 <script src="assets/notifications.js?v=1"></script>
-<script src="assets/shell.js?v=1"></script>
+<script src="assets/shell.js?v=2"></script>
 </body>
 </html>

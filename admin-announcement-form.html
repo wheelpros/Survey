@@ -118,15 +118,15 @@ body{background:#f6f7fb;color:#101828}
 }
 
 /* ── Page header: the back arrow sits on the title line, left of it ── */
-.page-head{display:flex;align-items:flex-start;gap:14px;margin-bottom:26px}
+.page-head{display:flex;align-items:flex-start;gap:16px;margin-bottom:28px}
 .back-arrow{
-  flex:none;width:34px;height:34px;margin-top:2px;border-radius:10px;
+  flex:none;width:34px;height:34px;border-radius:10px;
   display:flex;align-items:center;justify-content:center;
   border:1px solid #dfe3ea;background:#fff;color:var(--text);text-decoration:none;
 }
 .back-arrow:hover{background:#f6f7f9}
 .back-arrow svg{width:17px;height:17px}
-.page-title h1{font-size:28px;margin-bottom:6px}
+.page-title h1{font-size:30px;margin-bottom:8px}
 .page-title p{font-size:14px;color:var(--muted);max-width:620px}
 
 /* ── The form ── */
@@ -238,7 +238,7 @@ textarea{min-height:150px;resize:vertical;line-height:1.6}
   var MOBILE = 950;
   var DRAWER = 768;   // below this the sidebar is a drawer, never a rail
   function prefersCollapsed(){ return localStorage.getItem(KEY) === "1"; }
-  function apply(){ root.classList.toggle("sidebar-collapsed", (window.innerWidth <= MOBILE && window.innerWidth > DRAWER) || prefersCollapsed()); }
+  function apply(){ root.classList.toggle("sidebar-collapsed", window.innerWidth > DRAWER && (window.innerWidth <= MOBILE || prefersCollapsed())); }
   window.toggleSidebar = function(){
     if (window.innerWidth <= MOBILE) return; // forced collapsed, nothing to toggle
     localStorage.setItem(KEY, prefersCollapsed() ? "0" : "1");
@@ -263,7 +263,7 @@ document.addEventListener("DOMContentLoaded", function () {
   set("acctName", name);   set("acctRole", label);   set("acctAvatar", initial);
 });
 </script>
-<link rel="stylesheet" href="assets/shell.css?v=2" />
+<link rel="stylesheet" href="assets/shell.css?v=3" />
 </head>
 
 <body>
@@ -812,7 +812,7 @@ loadRecipients();
 </script>
 
 <script src="assets/notifications.js?v=1"></script>
-<script src="assets/shell.js?v=1"></script>
+<script src="assets/shell.js?v=2"></script>
 <script src="assets/sources-lock.js?v=1"></script>
 <script src="assets/role-nav.js?v=1"></script>
 

@@ -6,6 +6,8 @@ require_once "notify.php";
 header("Content-Type: application/json");
 
 ensureNotificationsTable($pdo);
+// The queue below reads users.company_name.
+ensureUserProfileColumns($pdo);
 
 $headers = getallheaders();
 $authHeader = $headers["Authorization"] ?? "";
@@ -62,6 +64,7 @@ if ($method === "GET") {
                 surveys.assigned_user_id,
                 users.name AS user_name,
                 users.email AS user_email,
+                users.company_name AS company_name,
                 surveys.created_by_admin_id,
                 creator.name AS created_by_name,
                 creator.email AS created_by_email,
@@ -126,6 +129,7 @@ if ($method === "GET") {
             surveys.assigned_user_id,
             users.name AS user_name,
             users.email AS user_email,
+            users.company_name AS company_name,
             surveys.created_by_admin_id,
             creator.name AS created_by_name,
             creator.email AS created_by_email,

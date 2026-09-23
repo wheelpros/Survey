@@ -225,7 +225,7 @@
         width: calc(100% - var(--sidebar-w));
       }
       .content {
-        padding: 42px 44px;
+        padding: 34px 44px;
       }
 
       /* ── Page header: the same block every other page uses ── */
@@ -428,7 +428,7 @@
           display: none;
         }
         .content {
-          padding: 16px 20px 40px;
+          padding: 24px 18px 40px;
         }
         .fields {
           grid-template-columns: 1fr;
@@ -465,7 +465,7 @@
         function apply() {
           root.classList.toggle(
             "sidebar-collapsed",
-            (window.innerWidth <= MOBILE && window.innerWidth > DRAWER) || prefersCollapsed()
+            window.innerWidth > DRAWER && (window.innerWidth <= MOBILE || prefersCollapsed())
           );
         }
         window.toggleSidebar = function () {
@@ -500,7 +500,7 @@
         });
       })();
     </script>
-  <link rel="stylesheet" href="assets/shell.css?v=2" />
+  <link rel="stylesheet" href="assets/shell.css?v=3" />
   </head>
 
   <body>
@@ -795,6 +795,6 @@
       loadProfile();
     </script>
   <script src="assets/notifications.js?v=1"></script>
-  <script src="assets/shell.js?v=1"></script>
+  <script src="assets/shell.js?v=2"></script>
 </body>
 </html>

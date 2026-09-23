@@ -78,6 +78,10 @@ td{padding:18px 24px;border-bottom:1px solid #f2f4f7;font-size:13px;vertical-ali
 tr:last-child td{border-bottom:none}
 /* Long names wrap to two lines and then stop with an ellipsis, rather than
    stretching the column or running down the row. */
+/* Titles carry dir="auto" so Arabic reads right-to-left, which also turned
+   their alignment to the right. The page is left-to-right, so they keep their
+   text direction and align left like every other title here. */
+.p-title{text-align:left}
 .p-title{
   display:-webkit-box;-webkit-box-orient:vertical;
   -webkit-line-clamp:2;line-clamp:2;
@@ -207,7 +211,7 @@ td.action{text-align:center;white-space:nowrap}
   var DRAWER = 768;   // below this the sidebar is a drawer, never a rail
   function prefersCollapsed(){ return localStorage.getItem(KEY) === "1"; }
   function apply(){
-    root.classList.toggle("sidebar-collapsed", (window.innerWidth <= MOBILE && window.innerWidth > DRAWER) || prefersCollapsed());
+    root.classList.toggle("sidebar-collapsed", window.innerWidth > DRAWER && (window.innerWidth <= MOBILE || prefersCollapsed()));
   }
   window.toggleSidebar = function(){
     if (window.innerWidth <= MOBILE) return; // forced collapsed, nothing to toggle
@@ -241,7 +245,7 @@ td.action{text-align:center;white-space:nowrap}
   });
 })();
 </script>
-<link rel="stylesheet" href="assets/shell.css?v=2" />
+<link rel="stylesheet" href="assets/shell.css?v=3" />
 </head>
 
 <body>
@@ -611,6 +615,6 @@ load();
 </script>
 
 <script src="assets/notifications.js?v=1"></script>
-<script src="assets/shell.js?v=1"></script>
+<script src="assets/shell.js?v=2"></script>
 </body>
 </html>

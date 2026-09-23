@@ -74,7 +74,7 @@ body{background:#f6f7fb;color:var(--text);padding:0}
   background:#fff;color:var(--text);text-decoration:none;transition:background .15s;
 }
 /* Level with the first line of the heading, not with the top of the block. */
-.head-row > .back-link{margin-top:3px}
+.head-row > .back-link{margin-top:0}
 .back-link:hover{background:#f2f4f8}
 .back-link svg{width:17px;height:17px}
 
@@ -105,9 +105,6 @@ td a{color:var(--nav-active);font-weight:700}
 /* The account number, on its own line above the photo. It is how this client is
    referred to everywhere else in the platform, so it reads first rather than
    sitting near the bottom of the Details grid. */
-.profile-ref{padding:20px 28px 0;font-size:12px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--muted)}
-.profile-ref b{color:var(--text)}
-.profile-ref + .profile-head{padding-top:14px}
 .head-decide{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .head-decide .btn{border:none;padding:11px 16px;border-radius:10px;font:inherit;font-size:13px;font-weight:800;cursor:pointer}
 .head-decide .approve-btn{background:#20a95a;color:#fff}
@@ -158,8 +155,9 @@ td a{color:var(--nav-active);font-weight:700}
    The panel keeps its three-column grid; each field swaps its paragraph for an
    input of the same width, so nothing moves when editing starts. */
 .panel-head{position:relative}
-.head-with-action{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
-.head-with-action > div{min-width:0}
+.head-with-action{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.head-with-action > div{flex:1;min-width:0}
+.head-with-action > button{flex:none}
 .edit-toggle{
   flex:none;display:inline-flex;align-items:center;gap:7px;
   border:1px solid #dfe3ea;background:#fff;color:var(--text);
@@ -366,7 +364,7 @@ td a{color:var(--nav-active);font-weight:700}
   var MOBILE = 950;
   var DRAWER = 768;   // below this the sidebar is a drawer, never a rail
   function prefersCollapsed(){ return localStorage.getItem(KEY) === "1"; }
-  function apply(){ root.classList.toggle("sidebar-collapsed", (window.innerWidth <= MOBILE && window.innerWidth > DRAWER) || prefersCollapsed()); }
+  function apply(){ root.classList.toggle("sidebar-collapsed", window.innerWidth > DRAWER && (window.innerWidth <= MOBILE || prefersCollapsed())); }
   window.toggleSidebar = function(){
     if (window.innerWidth <= MOBILE) return; // forced collapsed, nothing to toggle
     localStorage.setItem(KEY, prefersCollapsed() ? "0" : "1");
@@ -379,7 +377,7 @@ td a{color:var(--nav-active);font-weight:700}
 function openAccount(){ document.getElementById("acctModal").classList.add("show"); }
 function closeAccount(){ document.getElementById("acctModal").classList.remove("show"); }
 </script>
-<link rel="stylesheet" href="assets/shell.css?v=2" />
+<link rel="stylesheet" href="assets/shell.css?v=3" />
 </head>
 
 <body>
@@ -1078,10 +1076,18 @@ function detailsPanel(data){
       </div>
     </div>`;
 
-  /* The two read-only facts, identical in both versions of the panel. The user
-     id used to be a third one; it sits above the photo in the header now. */
+  /* Who the account belongs to. Read-only in both versions of the panel: the
+     client sets these at sign-up and the edit form does not save them. */
+  const identity = `
+    <div class="field"><h5>Name</h5><p dir="auto">${orDash(u.name)}</p></div>
+    <div class="field">
+      <h5>Email</h5>
+      <p>${u.email ? `<a href="mailto:${esc(u.email)}" dir="ltr">${esc(u.email)}</a>` : orDash("")}</p>
+    </div>`;
+
+  /* The one read-only fact below the editable ones. The join date is in the
+     header, under the company name. */
   const facts = `
-    <div class="field"><h5>Joined</h5><p>${formatDate(u.created_at)}</p></div>
     <div class="field">
       <h5>Managed by</h5>
       <p>${data.seoAdmin ? esc(data.seoAdmin.name) : `<span class="muted">Unassigned</span>`}</p>
@@ -1092,6 +1098,7 @@ function detailsPanel(data){
       <div class="panel">
         ${head}
         <div class="fields">
+          ${identity}
           <div class="field"><h5>Phone</h5><p>${orDash(u.phone)}</p></div>
           <div class="field"><h5>WhatsApp</h5><p>${whatsappCell(u)}</p></div>
           <div class="field"><h5>Company</h5><p>${orDash(u.company_name)}</p></div>
@@ -1114,6 +1121,7 @@ function detailsPanel(data){
     <div class="panel">
       ${head}
       <div class="fields">
+        ${identity}
         <div class="field">
           <h5><label for="edPhone">Phone</label></h5>
           <input type="tel" id="edPhone" value="${esc(u.phone || "")}" placeholder="+44 20 1234 5678">
@@ -1250,18 +1258,22 @@ function render(data){
 
   const approved = Number(u.approved) === 1;
 
+  /* The header names the client by company, as every list in the admin does;
+     the person behind the account is in Details. An account that has not given
+     a company yet falls back to the person, so the header is never blank. */
+  const displayName = String(u.company_name || "").trim() || u.name || "Unnamed client";
+
   const photo = u.profile_image
     ? `<div class="profile-photo" style="background-image:url('${esc(u.profile_image)}')"></div>`
-    : `<div class="profile-photo">${esc((u.name || "U").charAt(0).toUpperCase())}</div>`;
+    : `<div class="profile-photo">${esc(displayName.charAt(0).toUpperCase())}</div>`;
 
   const header = `
     <div class="panel">
-      <div class="profile-ref">User ID <b>#${esc(u.id)}</b></div>
       <div class="profile-head">
         ${photo}
         <div class="profile-id">
-          <h2>${esc(u.name || "Unnamed client")}</h2>
-          <p>${esc(u.email || "")}</p>
+          <h2 dir="auto">${esc(displayName)}</h2>
+          <p>Joined ${formatDate(u.created_at)}</p>
         </div>
         <span class="badge ${approved ? "approved" : "pending"}">${approved ? "Approved" : "Pending"}</span>
         ${decideButtons(approved)}
@@ -1420,7 +1432,7 @@ loadUser();
 </script>
 
 <script src="assets/notifications.js?v=1"></script>
-<script src="assets/shell.js?v=1"></script>
+<script src="assets/shell.js?v=2"></script>
 <script src="assets/sources-lock.js?v=1"></script>
 <script src="assets/confirm.js?v=1"></script>
 </body>

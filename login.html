@@ -702,7 +702,7 @@
           <label>Company Name</label>
           <div class="input-box">
             <span>▦</span>
-            <input type="text" id="companyName" />
+            <input type="text" id="companyName" required maxlength="150" autocomplete="organization" dir="auto" />
           </div>
         </div>
 
@@ -1051,7 +1051,12 @@
 
         if (!name || !email || !company || !password) {
           status.classList.add("error");
-          status.innerText = "Please fill all required fields.";
+          // The company is what admins see for this client on every list, so
+          // it gets named rather than folded into the generic message.
+          status.innerText = company || !name || !email || !password
+            ? "Please fill all required fields."
+            : "Company name is required.";
+          if (!company) document.getElementById("companyName").focus();
           return;
         }
 

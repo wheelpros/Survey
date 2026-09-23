@@ -28,6 +28,7 @@ if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") {
 
 require_once "db.php";
 require_once "notify.php";
+require_once "mailer.php";
 
 function reply($success, $message = "", $extra = [])
 {
@@ -133,7 +134,7 @@ function scopedClients(PDO $pdo, array $admin)
 {
     if (($admin["role"] ?? "") === "owner") {
         $stmt = $pdo->query("
-            SELECT id, name, email, company_name
+            SELECT id, name, email, company_name, approved
             FROM users
             ORDER BY name ASC
         ");
@@ -141,7 +142,7 @@ function scopedClients(PDO $pdo, array $admin)
     }
 
     $stmt = $pdo->prepare("
-        SELECT u.id, u.name, u.email, u.company_name
+        SELECT u.id, u.name, u.email, u.company_name, u.approved
         FROM users u
         INNER JOIN admin_user_assignments a ON a.user_id = u.id
         WHERE a.admin_id = ?
@@ -238,6 +239,10 @@ if ($action === "create_user_request" && $user) {
         $topic . " - " . $date . " at " . $time,
         "admin-calendar.html"
     );
+
+    // The same admins, by email: a request left unseen in the portal is a
+    // client left waiting for an answer.
+    emailAdminsAboutMeetingRequest($pdo, (int) $user["id"], (string) $user["name"], $topic, $date, $time, $notes);
 
     reply(true, "Request sent to the admin team.");
 }
@@ -357,6 +362,10 @@ if ($action === "create_admin_request" && $admin) {
 
         $sent++;
     }
+
+    // Each client by email too: the request needs their answer, and the
+    // portal only shows it to someone who happens to sign in.
+    emailClientsAboutMeetingRequest($targets, (string) $admin["name"], $topic, $date, $time, $notes);
 
     reply(true, "Request sent to {$sent}" . ($sent === 1 ? " client." : " clients."));
 }
