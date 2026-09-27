@@ -35,19 +35,20 @@ if ($method === "GET") {
 
     // The pool of Admin accounts available to hand off.
     $poolStmt = $pdo->query("
-        SELECT id, name, email
+        SELECT id, name, email, role
         FROM admins
         WHERE role = 'seo_admin'
         ORDER BY name ASC
     ");
     $admins = $poolStmt->fetchAll();
 
-    // Current assignments, keyed by manager id -> array of admin ids,
-    // same shape admin-user-assignments.php uses for its assignments map.
+    // Current assignments, keyed by manager id -> array of admin ids. Super
+    // admins are in here too: an account manager can be handed super admins
+    // as well as plain admins (see settings.html distributePoolFor()).
     $assignmentsStmt = $pdo->query("
         SELECT id, managed_by_admin_id
         FROM admins
-        WHERE role = 'seo_admin' AND managed_by_admin_id IS NOT NULL
+        WHERE role IN ('seo_admin', 'super_admin') AND managed_by_admin_id IS NOT NULL
     ");
 
     $assignments = [];
@@ -96,9 +97,18 @@ if ($method === "POST") {
         exit;
     }
 
-    // Only real Admin (seo_admin) ids are ever accepted here - this also
-    // quietly drops anything bogus sent from outside the checkbox list.
-    $validIdsStmt = $pdo->query("SELECT id FROM admins WHERE role = 'seo_admin'");
+    // Who may sit under this manager: plain Admins for anyone, and super admins
+    // as well when the manager is an account manager - the same pool
+    // settings.html offers. Anything else sent from outside the checkbox list
+    // is quietly dropped.
+    $allowedRoles = $manager["role"] === "account_manager"
+        ? ["seo_admin", "super_admin"]
+        : ["seo_admin"];
+
+    $rolePlaceholders = implode(",", array_fill(0, count($allowedRoles), "?"));
+
+    $validIdsStmt = $pdo->prepare("SELECT id FROM admins WHERE role IN ($rolePlaceholders) AND id <> ?");
+    $validIdsStmt->execute(array_merge($allowedRoles, [$managerId]));
     $validAdminIds = array_map(function ($row) {
         return (int)$row["id"];
     }, $validIdsStmt->fetchAll());
@@ -108,8 +118,8 @@ if ($method === "POST") {
     $pdo->beginTransaction();
 
     try {
-        // Full replace, same as admin-user-assignments.php: clear whatever
-        // this manager currently has, then set it to exactly what was checked.
+        // Full replace: clear whatever this manager currently has, then set
+        // it to exactly what was checked.
         // (An admin checked here that belonged to a different manager moves
         // over - that's intended, since one Admin only ever has one manager.)
         $clearStmt = $pdo->prepare("
@@ -125,9 +135,9 @@ if ($method === "POST") {
             $assignStmt = $pdo->prepare("
                 UPDATE admins
                 SET managed_by_admin_id = ?
-                WHERE id IN ($placeholders) AND role = 'seo_admin'
+                WHERE id IN ($placeholders) AND role IN ($rolePlaceholders)
             ");
-            $assignStmt->execute(array_merge([$managerId], $adminIds));
+            $assignStmt->execute(array_merge([$managerId], $adminIds, $allowedRoles));
         }
 
         $pdo->commit();

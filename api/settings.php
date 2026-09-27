@@ -101,11 +101,17 @@ if($_SERVER["REQUEST_METHOD"]=="POST"){
     // that admin (assignments, surveys, review history) is touched or
     // deleted, and reactivating restores full access exactly as it was.
     //
-    // The owner can toggle anyone (except themself). A super_admin /
-    // account_manager can only toggle a plain Admin (seo_admin) that the
-    // owner has actually distributed to them - never another manager,
-    // never an admin distributed to someone else.
+    // Owner-only, like the Available Admins panel it serves: the owner can
+    // toggle anyone except themself.
     if(($input["action"] ?? "")=="toggle_admin_status"){
+
+        if($admin["role"] !== "owner"){
+            echo json_encode([
+                "success"=>false,
+                "message"=>"Only the owner can activate or deactivate admins"
+            ]);
+            exit;
+        }
 
         $targetId = (int)($input["id"] ?? 0);
         $active = isset($input["active"]) && (int)$input["active"] === 1 ? 1 : 0;
@@ -137,21 +143,6 @@ if($_SERVER["REQUEST_METHOD"]=="POST"){
             ]);
             exit;
         }
-
-        if($admin["role"] !== "owner"){
-
-            $isMyAssignedAdmin = $target["role"] === "seo_admin"
-                && (int)($target["managed_by_admin_id"] ?? 0) === (int)$admin["id"];
-
-            if(!$isMyAssignedAdmin){
-                echo json_encode([
-                    "success"=>false,
-                    "message"=>"You can only manage admins distributed to you"
-                ]);
-                exit;
-            }
-        }
-
 
         $updateStmt = $pdo->prepare("UPDATE admins SET active=? WHERE id=?");
         $updateStmt->execute([$active, $targetId]);

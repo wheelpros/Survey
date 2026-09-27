@@ -396,7 +396,12 @@ if (!adminToken || !adminUser.role) {
   window.location.href = "admin-login.html";
 }
 
-if (adminUser.role !== "owner" && adminUser.role !== "account_manager") {
+// Creating and editing inquiries are the owner's. An account manager reads
+// them on inquiries.html, so that is where they are sent; anyone else has no
+// inquiries at all. api/admin-inquiries.php refuses the save either way.
+if (adminUser.role === "account_manager") {
+  window.location.href = "inquiries.html";
+} else if (adminUser.role !== "owner") {
   window.location.href = "admin.html";
 }
 
@@ -584,16 +589,17 @@ document.getElementById("fStatus").addEventListener("change", function () {
 /* ── Loading ─────────────────────────────────────────────────────────────── */
 
 async function start() {
+  // Shown only for the moment before the redirect above lands.
+  if (!isOwner) {
+    block("Only the owner can create or edit inquiries.");
+    return;
+  }
+
   await loadManagers();
 
   if (!isEdit) {
     addField("Full Name", "input", true);
     document.getElementById("form").hidden = false;
-    return;
-  }
-
-  if (!isOwner) {
-    block("Only the owner can edit an inquiry.");
     return;
   }
 

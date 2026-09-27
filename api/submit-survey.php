@@ -3,7 +3,7 @@
 require_once "db.php";
 require_once "notify.php";
 
-header("Content-Type: application/json");
+header("Content-Type: application/json; charset=UTF-8");
 
 // Before beginTransaction() below: CREATE TABLE is DDL and commits implicitly,
 // which would strand the rollBack() in the catch.

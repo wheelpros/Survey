@@ -193,7 +193,7 @@ const PROJECT_BUCKET_SQL = "
 |--------------------------------------------------------------------------
 |
 | Creating an engagement is not an seo_admin's job - that role sits at the
-| bottom of the assignment chain in admin-user-assignments.php and works tasks.
+| bottom of the client team (see api/client-team.php) and works tasks.
 |
 | Editing is canManageContent()'s rule widened by one clause: the account
 | manager of a project may edit it. The details panel calls them the MANAGER,
@@ -1008,7 +1008,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $id = (int) $pdo->lastInsertId();
         }
 
-        /* Full replace, the shape admin-user-assignments.php uses: the form
+        /* Full replace, the same shape Settings uses for its assignments: the form
            always posts the complete team, so anything missing was removed. */
 
         $stmt = $pdo->prepare("DELETE FROM project_members WHERE project_id = ?");

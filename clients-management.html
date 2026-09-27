@@ -14,33 +14,6 @@ a.action-btn:hover{background:#1f3a58}.empty{padding:30px;text-align:center;colo
 .pager button.current{background:var(--nav-active);border-color:var(--nav-active);color:#fff}
 .pager button:disabled{opacity:.45;cursor:not-allowed}
 
-.assignment-box{
-  padding:24px;
-}
-
-.assignment-box label{
-  display:block;
-  font-size:15px;
-  font-weight:800;
-  margin-bottom:10px;
-}
-
-.assignment-box select{
-  width:100%;
-  height:56px;
-  border:1px solid #dfe3ea;
-  background:#f8fafc;
-  border-radius:14px;
-  padding:0 18px;
-  font-size:15px;
-  outline:none;
-}
-
-.assignment-box select:focus{
-  border-color:#1b1e3a;
-  box-shadow:0 0 0 4px rgba(27,30,58,.10);
-}
-
 /* ── Page header (the same block on every admin page, button or no button) ── */
 .page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:28px}
 .page-title h1{font-size:30px;margin-bottom:8px}
@@ -191,7 +164,6 @@ body{padding:0}
    without them, those rules would reset this image away. */
 select,
 .panel-body select,
-.assignment-box select,
 select.client-filter{
   -webkit-appearance:none;
   -moz-appearance:none;
@@ -412,27 +384,6 @@ document.addEventListener("DOMContentLoaded", function () {
     <div class="pager-pages" id="approvedPagerPages"></div>
   </div>
 </div>
-<div class="panel" id="assignPanel" style="margin-top:28px;">
-  <div class="panel-head">
-    <h1 id="assignPanelTitle">Assignments</h1>
-    <p id="assignPanelSub"></p>
-  </div>
-
-  <div class="assignment-box">
-    <label id="assignSelectLabel">Select Admin</label>
-    <select id="assignSelect" onchange="renderAssignmentUsers()">
-      <option value="">Loading...</option>
-    </select>
-
-    <div id="assignUsersList" style="margin-top:20px;"></div>
-
-    <button class="action-btn btn" onclick="saveAssignments()" style="margin-top:20px;padding:12px 18px;">
-      Save Assignments
-    </button>
-
-    <div id="assignmentStatus" style="margin-top:12px;color:#667085;"></div>
-  </div>
-</div>
 <script>
 let adminToken = localStorage.getItem("admin_token");
 let adminUser = JSON.parse(localStorage.getItem("admin_user") || "{}");
@@ -457,54 +408,17 @@ const isOwner = myRole === "owner";
 // at the slice handed down to them.
 const USERS_COPY = {
   owner:       { title: "Clients Management", sub: "Registered clients. Open one to approve, reject or delete it." },
-  super_admin: { title: "Clients Management", sub: "Clients the owner assigned to you." },
-  seo_admin:   { title: "Clients Management", sub: "Clients your super admin assigned to you." },
-  account_manager: { title: "Clients Management", sub: "Clients the owner assigned to you." }
+  super_admin: { title: "Clients Management", sub: "Clients whose team you are on." },
+  seo_admin:   { title: "Clients Management", sub: "Clients whose team you are on." },
+  account_manager: { title: "Clients Management", sub: "Clients whose team you are on." }
 };
 
-// The assignment panel is the same UI for two different handoffs:
-// owner -> super_admin, and super_admin -> seo_admin. seo_admin gets no
-// assignment panel at all - there's nobody below them to distribute to.
-const ASSIGN_COPY = {
-  owner: {
-    title: "Owner Assignments",
-    sub: "Choose which clients each super admin or account manager can manage.",
-    label: "Select Super Admin / Account Manager",
-    empty: "No super admins or account managers found."
-  },
-  super_admin: {
-    title: "Super Admin Assignments",
-    sub: "Choose which clients each admin can manage.",
-    label: "Select Admin",
-    empty: "No admins found."
-  }
-};
-
+// Who works on each client is set on the client's own page now, in its Team
+// section - see user-details.html and api/client-team.php.
 document.addEventListener("DOMContentLoaded", function(){
   const copy = USERS_COPY[myRole] || USERS_COPY.seo_admin;
   document.getElementById("usersPanelTitle").textContent = copy.title;
   document.getElementById("usersPanelSub").textContent = copy.sub;
-
-  const assignPanel = document.getElementById("assignPanel");
-
-  /* Only the roles with somebody beneath them distribute: the owner hands
-     clients out, and a super admin passes their share down. An account
-     manager receives clients but does not redistribute, and a plain admin is
-     the bottom of the chain - both get the list and no panel.
-
-     Keyed off ASSIGN_COPY rather than naming roles, so a role added later
-     without an entry loses the panel instead of throwing on load, which is
-     what left the dropdown stuck on "Loading...". */
-  const aCopy = ASSIGN_COPY[myRole];
-
-  if(!aCopy){
-    assignPanel.remove();
-  } else {
-    document.getElementById("assignPanelTitle").textContent = aCopy.title;
-    document.getElementById("assignPanelSub").textContent = aCopy.sub;
-    document.getElementById("assignSelectLabel").textContent = aCopy.label;
-    loadAssignments();
-  }
 });
 
 let allUsers = [];
@@ -856,140 +770,6 @@ function goToPage(prefix, page){
 
   document.getElementById(prefix + "Table")
     .scrollIntoView({behavior:"smooth", block:"center"});
-}
-
-
-// ---- Assignment panel: owner -> super_admin, or super_admin -> seo_admin ----
-let targetAdmins = [];
-let poolUsers = [];
-let assignments = {};
-
-/* The owner's list holds two roles at once, so each option names which. */
-function assignRoleLabel(role){
-  if(role === "super_admin") return "Super Admin";
-  if(role === "account_manager") return "Account Manager";
-  if(role === "seo_admin") return "Admin";
-  return role;
-}
-
-async function loadAssignments(){
-  const select = document.getElementById("assignSelect");
-
-  try{
-    const res = await fetch("api/admin-user-assignments.php",{
-      headers:{
-        Authorization:"Bearer " + adminToken
-      }
-    });
-
-    const data = await res.json();
-
-    if(!data.success){
-      select.innerHTML = `<option value="">${esc(data.message || "Unable to load")}</option>`;
-      return;
-    }
-
-    targetAdmins = data.targetAdmins || [];
-    poolUsers = data.users || [];
-    assignments = data.assignments || {};
-
-    if(!targetAdmins.length){
-      select.innerHTML = `<option value="">${esc(ASSIGN_COPY[myRole].empty)}</option>`;
-      return;
-    }
-
-    select.innerHTML = `
-      <option value="">${esc(ASSIGN_COPY[myRole].label)}</option>
-      ${targetAdmins.map(admin => `
-        <option value="${admin.id}">${esc(admin.name)} - ${esc(admin.email)}${admin.role ? " (" + esc(assignRoleLabel(admin.role)) + ")" : ""}</option>
-      `).join("")}
-    `;
-
-  }catch(error){
-    select.innerHTML = `<option value="">Connection error</option>`;
-  }
-}
-
-function renderAssignmentUsers(){
-  const adminId = document.getElementById("assignSelect").value;
-  const box = document.getElementById("assignUsersList");
-
-  if(!adminId){
-    box.innerHTML = "";
-    return;
-  }
-
-  if(!poolUsers.length){
-    box.innerHTML = `<div class="empty">No clients available to assign yet.</div>`;
-    return;
-  }
-
-  const assigned = assignments[adminId] || [];
-
-  box.innerHTML = poolUsers.map(user => `
-    <label style="
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      border:1px solid #eef1f5;
-      border-radius:12px;
-      padding:12px 16px;
-      margin-bottom:10px;
-      background:#fff;
-    ">
-      <div>
-        <strong>${esc(user.name)}</strong><br>
-        <span style="color:#667085;font-size:12px;">${esc(user.email)}</span>
-      </div>
-
-      <input
-        type="checkbox"
-        value="${esc(user.id)}"
-        ${assigned.includes(Number(user.id)) ? "checked" : ""}
-        style="width:18px;height:18px;"
-      >
-    </label>
-  `).join("");
-}
-
-async function saveAssignments(){
-  const adminId = document.getElementById("assignSelect").value;
-  const status = document.getElementById("assignmentStatus");
-
-  if(!adminId){
-    status.innerText = "Please make a selection.";
-    return;
-  }
-
-  const userIds = Array.from(
-    document.querySelectorAll("#assignUsersList input[type='checkbox']:checked")
-  ).map(input => input.value);
-
-  status.innerText = "Saving...";
-
-  try{
-    const res = await fetch("api/admin-user-assignments.php",{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        Authorization:"Bearer " + adminToken
-      },
-      body:JSON.stringify({
-        adminId,
-        userIds
-      })
-    });
-
-    const data = await res.json();
-    status.innerText = data.message;
-
-    if(data.success){
-      assignments[adminId] = userIds.map(id => Number(id));
-    }
-
-  }catch(error){
-    status.innerText = "Connection error.";
-  }
 }
 
 loadUsers();

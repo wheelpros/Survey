@@ -187,10 +187,15 @@ function normaliseReference($raw)
 
 if ($method === "GET") {
 
-    // The account manager picker on inquiry-form.html. It lives here rather
-    // than on api/inquiries-access.php because that endpoint is owner-only and
-    // an access-granted account manager can create inquiries too.
+    // The account manager picker on inquiry-form.html. Owner-only, like the
+    // form it serves: an account manager reads inquiries but does not create
+    // or edit them.
     if (isset($_GET["managers"])) {
+
+        if (!$isOwner) {
+            echo json_encode(["success" => false, "message" => "Only the owner can manage inquiries"]);
+            exit;
+        }
 
         $stmt = $pdo->query("
             SELECT id, name, email
@@ -291,10 +296,15 @@ if ($method === "GET") {
 
 if ($method === "POST") {
 
+    // Creating, editing and deleting are all the owner's - an access-granted
+    // account manager can only view inquiries and what came back from them.
+    if (!$isOwner) {
+        echo json_encode(["success" => false, "message" => "Only the owner can create inquiries"]);
+        exit;
+    }
+
     $input = json_decode(file_get_contents("php://input"), true);
 
-    // Creating an inquiry is open to the owner and any access-granted account
-    // manager - editing and deleting stay owner-only.
     $title = trim($input["title"] ?? "");
     $introText = trim($input["introText"] ?? "");
     $fields = $input["fields"] ?? [];

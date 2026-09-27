@@ -338,22 +338,8 @@ $content = fetchList($pdo, "
     ORDER BY created_at DESC
 ", [$company, $company]);
 
-/*
-| The SEO admin managing this user, if any.
-*/
-$seoAdmin = null;
-
-$managing = fetchList($pdo, "
-    SELECT a.id, a.name, a.email
-    FROM admin_user_assignments aua
-    JOIN admins a ON a.id = aua.admin_id
-    WHERE aua.user_id = ?
-    LIMIT 1
-", [$userId]);
-
-if ($managing) {
-    $seoAdmin = $managing[0];
-}
+/* Who works on this client is not in here: the page's Team panel loads it
+   from api/client-team.php, which also decides who may change it. */
 
 respond(true, "User loaded.", [
     "user"         => $user,
@@ -363,7 +349,6 @@ respond(true, "User loaded.", [
     "canManageNotes" => $canManageNotes,
     "canEditDetails" => $canEditDetails,
 
-    "seoAdmin"     => $seoAdmin,
     "surveys"      => $surveys,
     "responses"    => $responses,
     "appointments" => $appointments,

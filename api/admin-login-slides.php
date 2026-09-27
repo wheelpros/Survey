@@ -111,8 +111,8 @@ try {
 |
 | Resolving the token against the admins table above is the authorisation:
 | the same thing source-files.php, settings.php and upload-logo.php rely on.
-| Only genuinely super-admin-only features narrow further, the way
-| admin-user-assignments.php does.
+| Only genuinely role-limited features narrow further, the way
+| client-team.php does.
 |
 */
 

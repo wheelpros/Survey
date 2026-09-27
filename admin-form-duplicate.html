@@ -6,7 +6,7 @@
 <title>Send Again — Admin</title>
 
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,"Segoe UI",Tahoma,sans-serif}
 :root{--brand:#c9000b;--nav-active:#1b1e3a;--text:#101828;--muted:#667085;--line:#eaecf0}
 
 body{background:#f6f7fb;color:var(--text);padding:35px 20px}
@@ -109,7 +109,7 @@ select{
 
         <div class="field">
           <label for="title">Form title</label>
-          <input type="text" id="title" placeholder="Form title">
+          <input type="text" id="title" placeholder="Form title" dir="auto">
         </div>
 
         <div class="field">
@@ -161,6 +161,12 @@ function esc(value){
   return String(value == null ? "" : value)
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+/* A client is named by its company, as every other list in the admin does;
+   the person's name stands in only when no company was given. */
+function clientLabel(user){
+  return String(user.company_name || "").trim() || user.name || "Unnamed client";
 }
 
 /* The builder calls the free-text type "Text"; the database stores "input". */
@@ -234,7 +240,7 @@ async function load(){
 
     select.innerHTML = users.length
       ? `<option value="">Select a client</option>` + users.map(user =>
-          `<option value="${esc(user.id)}">${esc(user.name)} - ${esc(user.email)}</option>`
+          `<option value="${esc(user.id)}" dir="auto">${esc(clientLabel(user))}</option>`
         ).join("")
       : `<option value="">No clients are assigned to you</option>`;
 

@@ -6,7 +6,7 @@
 <title>Create Form — Admin</title>
 
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,"Segoe UI",Tahoma,sans-serif}
 
 body{
   background:#f6f7fb;
@@ -566,7 +566,7 @@ document.addEventListener("DOMContentLoaded", function () {
           <div class="form-row">
             <div>
               <label for="surveyTitle">Title</label>
-              <input type="text" id="surveyTitle" placeholder="Form title">
+              <input type="text" id="surveyTitle" placeholder="Form title" dir="auto">
             </div>
 
             <div>
@@ -578,7 +578,7 @@ document.addEventListener("DOMContentLoaded", function () {
           </div>
 
           <label for="surveyDescription">Description</label>
-          <textarea id="surveyDescription" class="spaced" maxlength="1000" placeholder="Optional"></textarea>
+          <textarea id="surveyDescription" class="spaced" maxlength="1000" placeholder="Optional" dir="auto"></textarea>
 
           <label>Questions</label>
 
@@ -680,6 +680,7 @@ function createOptionsBuilder(initialChips = [], isCheckbox = false, onUpdate = 
     const input = document.createElement("input");
     input.type = "text";
     input.className = "option-input";
+    input.dir = "auto";
     input.placeholder = isCheckbox ? "Enter checklist item (e.g. Check Tires)" : "Enter keyword (e.g. Quick Service)";
     input.value = val;
     input.style.cssText = "flex:1;";
@@ -762,7 +763,7 @@ function addQuestion(value = "", type = "input", chips = "", maxFileSizeMb = "")
     <div class="question-card-header">
       <div class="question-card-header-left">
         <span class="toggle-icon">▼</span>
-        <span class="question-card-title-preview">${escapeHtml(value) || "New Item / Question"}</span>
+        <span class="question-card-title-preview" dir="auto">${escapeHtml(value) || "New Item / Question"}</span>
         <span class="type-badge badge-${isCheckbox ? 'checkbox' : initialType}">${typeLabels[initialType] || initialType}</span>
       </div>
       <div class="question-card-actions">
@@ -772,7 +773,7 @@ function addQuestion(value = "", type = "input", chips = "", maxFileSizeMb = "")
     <div class="question-card-body">
       <div>
         <label>Item / Question Text</label>
-        <input type="text" class="questionText" placeholder="Enter title or text" value="${escapeHtml(value)}">
+        <input type="text" class="questionText" placeholder="Enter title or text" dir="auto" value="${escapeHtml(value)}">
       </div>
       <div>
         <label>Type</label>
@@ -976,6 +977,12 @@ async function startFresh(){
 
 /* ── Load ───────────────────────────────────────────────────────────────── */
 
+/* A client is named by its company, as every other list in the admin does;
+   the person's name stands in only when no company was given. */
+function clientLabel(user){
+  return String(user.company_name || "").trim() || user.name || "Unnamed client";
+}
+
 async function loadAssignableUsers(){
   const userSelect = document.getElementById("assignedUser");
 
@@ -995,7 +1002,7 @@ async function loadAssignableUsers(){
       userSelect.innerHTML = `
         <option value="">Select user</option>
         ${data.users.map(user => `
-          <option value="${escapeHtml(user.id)}">${escapeHtml(user.name)} - ${escapeHtml(user.email)}</option>
+          <option value="${escapeHtml(user.id)}" dir="auto">${escapeHtml(clientLabel(user))}</option>
         `).join("")}
       `;
     }else{

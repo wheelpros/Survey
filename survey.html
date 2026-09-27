@@ -6,7 +6,7 @@
 <title>Survey</title>
 
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,"Segoe UI",Tahoma,sans-serif}
 
 body{
   background:#f6f7fb;
@@ -54,6 +54,11 @@ h1{
   white-space:pre-wrap;
 }
 #surveyDescription[hidden]{ display:none; }
+
+/* dir="auto" lets an Arabic title read right to left, but the heading keeps
+   its place on the left like every other heading on the page - same override
+   as project-details.html. */
+#surveyTitle{ text-align:left; }
 
 .field{
   margin-bottom:22px;
@@ -388,9 +393,9 @@ input,textarea{
 
     <div id="completedBox"></div>
 
-    <h1 id="surveyTitle">Loading...</h1>
+    <h1 id="surveyTitle" dir="auto">Loading...</h1>
     <p class="subtitle" id="surveyMeta">Please answer all required questions.</p>
-    <p class="subtitle" id="surveyDescription" hidden></p>
+    <p class="subtitle" id="surveyDescription" dir="auto" hidden></p>
 
     <div id="questionsWrap"></div>
     <div class="confirm-box" id="confirmBox">
@@ -519,6 +524,17 @@ async function loadSurvey(){
   }
 }
 
+/* Question text, checklist items and answers are typed by people, so they go
+   into the markup as text - a "<" in a question is a character, not a tag. */
+function esc(value){
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 function renderQuestions(){
   const wrap = document.getElementById("questionsWrap");
 
@@ -555,7 +571,7 @@ function renderQuestions(){
             </div>
           `;
         }else{
-          answerHTML = `<div class="answer-box">${answerText}</div>`;
+          answerHTML = `<div class="answer-box" dir="auto">${esc(answerText)}</div>`;
         }
       }else if(isChecklist && answerObj){
         // Checklist answers are stored as "✅ item, ✅ item" — split on the comma that
@@ -566,10 +582,10 @@ function renderQuestions(){
           .filter(Boolean);
 
         answerHTML = items.length
-          ? `<ul class="answer-list">${items.map(item => `<li>${item}</li>`).join("")}</ul>`
-          : `<div class="answer-box">${answerText}</div>`;
+          ? `<ul class="answer-list">${items.map(item => `<li dir="auto">${esc(item)}</li>`).join("")}</ul>`
+          : `<div class="answer-box" dir="auto">${esc(answerText)}</div>`;
       }else{
-        answerHTML = `<div class="answer-box">${answerText}</div>`;
+        answerHTML = `<div class="answer-box" dir="auto">${esc(answerText)}</div>`;
       }
 
       const typeBadge = isChecklist ? "Checklist" : (q.question_type === "file" ? "File Upload" : "Input");
@@ -580,7 +596,7 @@ function renderQuestions(){
           <div class="collapsible-question-header" onclick="this.parentElement.classList.toggle('collapsed')">
             <div style="display:flex; align-items:center; flex:1; gap:6px;">
               <span class="type-tag ${typeClass}">${typeBadge}</span>
-              <span>${q.question_text}</span>
+              <span dir="auto">${esc(q.question_text)}</span>
             </div>
             <span class="collapsible-toggle-icon">▼</span>
           </div>
@@ -614,7 +630,7 @@ function renderQuestions(){
         type="button"
         onclick="insertChip('${q.id}', '${chip.replace(/'/g, "\\'")}')"
       >
-        ${chip}
+        <span dir="auto">${esc(chip)}</span>
       </button>
     `).join("");
 
@@ -626,7 +642,7 @@ function renderQuestions(){
           <input
             type="file"
             data-question-id="${q.id}"
-            data-question-label="${q.question_text}"
+            data-question-label="${esc(q.question_text)}"
             data-required="${required ? "1" : "0"}"
             data-max-size="${q.max_file_size_mb || ""}"
             required
@@ -662,12 +678,12 @@ function renderQuestions(){
                   type="checkbox"
                   class="survey-checkbox-input"
                   data-question-id="${q.id}"
-                  data-question-label="${q.question_text}"
-                  data-item-label="${item.replace(/"/g, '&quot;')}"
+                  data-question-label="${esc(q.question_text)}"
+                  data-item-label="${esc(item)}"
                   data-required="${required ? "1" : "0"}"
                   style="width:20px; height:20px; cursor:pointer; accent-color:#1b1e3a; margin:0;"
                 >
-                <span>${item}</span>
+                <span dir="auto">${esc(item)}</span>
               </label>
             `).join("")}
           </div>
@@ -679,8 +695,8 @@ function renderQuestions(){
               type="checkbox"
               class="survey-checkbox-input"
               data-question-id="${q.id}"
-              data-question-label="${q.question_text}"
-              data-item-label="${q.question_text.replace(/"/g, '&quot;')}"
+              data-question-label="${esc(q.question_text)}"
+              data-item-label="${esc(q.question_text)}"
               data-required="${required ? "1" : "0"}"
               style="width:24px; height:24px; cursor:pointer; accent-color:#1b1e3a; margin:0;"
             >
@@ -693,8 +709,9 @@ function renderQuestions(){
         <div class="input-area">
           <input
             type="text"
+            dir="auto"
             data-question-id="${q.id}"
-            data-question-label="${q.question_text}"
+            data-question-label="${esc(q.question_text)}"
             data-required="${required ? "1" : "0"}"
             placeholder="Type your answer here..."
             required
@@ -712,7 +729,7 @@ function renderQuestions(){
         <div class="collapsible-question-header" onclick="this.parentElement.classList.toggle('collapsed')">
           <div style="display:flex; align-items:center; flex:1; gap:6px;">
             <span class="type-tag ${typeClass}">${typeBadge}</span>
-            <span>${q.question_text} ${required ? `<span class="required" style="color:#c9000b">*</span>` : ""}</span>
+            <span><span dir="auto">${esc(q.question_text)}</span> ${required ? `<span class="required" style="color:#c9000b">*</span>` : ""}</span>
           </div>
           <span class="collapsible-toggle-icon">▼</span>
         </div>

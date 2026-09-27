@@ -3,7 +3,7 @@
 require_once "db.php";
 require_once "notify.php";
 
-header("Content-Type: application/json");
+header("Content-Type: application/json; charset=UTF-8");
 
 ensureNotificationsTable($pdo);
 // The queue below reads users.company_name.

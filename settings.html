@@ -1151,8 +1151,7 @@ if (!adminToken || !adminUser.role) {
 }
 
 // Clients Management is open to every admin, so the sidebar no longer hides it.
-// Add Admin and Distribute Admins stay owner-only. Available Admins now
-// also opens for super_admin/account_manager, scoped to admins distributed to them.
+// Add Admin, Distribute Admins and Available Admins are all owner-only.
 if (adminUser.role === "owner") {
 
     const addAdmin = document.getElementById("addAdminSection");
@@ -1165,20 +1164,6 @@ if (adminUser.role === "owner") {
 
     loadAdmins();
     loadDistribution();
-
-} else if (adminUser.role === "super_admin" || adminUser.role === "account_manager") {
-
-    const addAdmin = document.getElementById("addAdminSection");
-    const distributeAdmins = document.getElementById("distributeAdminsSection");
-    const availableAdmins = document.getElementById("availableAdminsSection");
-    const availableAdminsDesc = document.getElementById("availableAdminsDesc");
-
-    if (addAdmin) addAdmin.style.display = "none";
-    if (distributeAdmins) distributeAdmins.style.display = "none";
-    if (availableAdmins) availableAdmins.style.display = "block";
-    if (availableAdminsDesc) availableAdminsDesc.innerText = "Admin accounts the owner has distributed to you.";
-
-    loadAdmins();
 
 } else {
 

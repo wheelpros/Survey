@@ -6,7 +6,7 @@
 <title>Client Profile — Admin</title>
 
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,"Segoe UI",Tahoma,sans-serif}
 :root{--brand:#c9000b;--nav-active:#1b1e3a;--text:#101828;--muted:#667085;--line:#eaecf0;--sidebar-w:260px}
 body{background:#f6f7fb;color:var(--text);padding:0}
 
@@ -127,6 +127,9 @@ td a{color:var(--nav-active);font-weight:700}
 }
 .profile-id{flex:1;min-width:0}
 .profile-id h2{font-size:22px;margin-bottom:4px}
+/* An Arabic company name reads right to left but stays beside its photo and
+   join date, like the titles on project-details.html. */
+.profile-id h2[dir="auto"]{text-align:left}
 .profile-id p{color:var(--muted);font-size:14px;word-break:break-all}
 
 /* ── Detail grid ── */
@@ -193,6 +196,47 @@ td a{color:var(--nav-active);font-weight:700}
 .details-status{font-size:12px;font-weight:700;color:var(--muted)}
 .details-status.error{color:var(--brand)}
 .details-status.ok{color:#20a95a}
+
+/* ── Team ──
+   Three columns laid out like a table - the header row matches th above - so
+   the panel reads the same as the tables under it. On a phone the columns
+   stack, each keeping its own header. */
+.team-grid{display:grid;grid-template-columns:repeat(3,1fr)}
+.team-col{min-width:0;border-left:1px solid #eef1f5}
+.team-col:first-child{border-left:none}
+.team-col-head{background:#f8fafc;padding:14px 24px;color:var(--muted);font-size:12px;font-weight:700}
+.team-col-body{padding:16px 24px 20px;border-top:1px solid #eef1f5}
+.team-chips{display:flex;flex-wrap:wrap;gap:8px}
+.team-chip{
+  display:inline-flex;align-items:center;gap:6px;max-width:100%;
+  background:#f2f4f7;color:var(--text);border-radius:999px;
+  padding:7px 12px;font-size:13px;font-weight:700;
+}
+.team-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.team-chip.can-remove{padding-right:6px}
+.team-chip button{
+  flex:none;width:20px;height:20px;border:none;border-radius:50%;
+  background:transparent;color:var(--muted);font-size:15px;line-height:1;cursor:pointer;
+}
+.team-chip button:hover{background:#fee4e2;color:var(--brand)}
+.team-chip button:disabled{opacity:.5;cursor:not-allowed}
+.team-none{font-size:13px;color:#98a2b3}
+.team-add{
+  display:block;width:100%;margin-top:12px;height:38px;
+  border:1px dashed #d0d5dd;border-radius:10px;background:#fff;
+  padding:0 12px;font:inherit;font-size:13px;font-weight:700;color:var(--text);cursor:pointer;
+}
+.team-add:focus{outline:none;border-color:var(--nav-active);box-shadow:0 0 0 3px rgba(27,30,58,.08)}
+.team-add:disabled{opacity:.55;cursor:not-allowed}
+.team-status{padding:0 24px 16px;font-size:12px;font-weight:700;color:var(--muted)}
+.team-status:empty{display:none}
+.team-status.error{color:var(--brand)}
+.team-status.ok{color:#20a95a}
+@media(max-width:700px){
+  .team-grid{grid-template-columns:1fr}
+  .team-col{border-left:none}
+  .team-col + .team-col{border-top:1px solid #eef1f5}
+}
 
 /* ── Pending clients ──
    A registration that has not been approved has no surveys, no appointments and
@@ -1040,9 +1084,10 @@ function whatsappCell(user){
 | inputs, so a wrong number or a missing company can be fixed without asking the
 | client to log in and do it themselves.
 |
-| Joined, Managed by and User ID are never editable - they are facts about the
-| account rather than details someone filled in. Name and email are not here
-| either: they are the account's identity and have their own endpoints.
+| Name and email are never editable - they are the account's identity and have
+| their own endpoints. Company is edited here but not shown in the read view:
+| the header already names the client by it. Who manages the client is the
+| Team panel below, not a field in here.
 |
 | canEditDetails is the server's answer, and only about the markup -
 | api/admin-user-details.php checks the role again on the POST.
@@ -1085,14 +1130,6 @@ function detailsPanel(data){
       <p>${u.email ? `<a href="mailto:${esc(u.email)}" dir="ltr">${esc(u.email)}</a>` : orDash("")}</p>
     </div>`;
 
-  /* The one read-only fact below the editable ones. The join date is in the
-     header, under the company name. */
-  const facts = `
-    <div class="field">
-      <h5>Managed by</h5>
-      <p>${data.seoAdmin ? esc(data.seoAdmin.name) : `<span class="muted">Unassigned</span>`}</p>
-    </div>`;
-
   if(!editingDetails){
     return `
       <div class="panel">
@@ -1101,7 +1138,6 @@ function detailsPanel(data){
           ${identity}
           <div class="field"><h5>Phone</h5><p>${orDash(u.phone)}</p></div>
           <div class="field"><h5>WhatsApp</h5><p>${whatsappCell(u)}</p></div>
-          <div class="field"><h5>Company</h5><p>${orDash(u.company_name)}</p></div>
           <div class="field">
             <h5>Website</h5>
             <!-- Shown as typed, followed as an address: the label is the
@@ -1110,8 +1146,7 @@ function detailsPanel(data){
                   ? `<a href="${esc(websiteHref)}" target="_blank" rel="noopener noreferrer">${esc(website)}</a>`
                   : orDash(website)}</p>
           </div>
-          ${facts}
-          <div class="field wide"><h5>About</h5><p>${orDash(u.description)}</p></div>
+          <div class="field wide"><h5>About</h5><p dir="auto">${orDash(u.description)}</p></div>
           ${notesField(u, data.canManageNotes)}
         </div>
       </div>`;
@@ -1133,17 +1168,16 @@ function detailsPanel(data){
         </div>
         <div class="field">
           <h5><label for="edCompany">Company</label></h5>
-          <input type="text" id="edCompany" maxlength="150" value="${esc(u.company_name || "")}">
+          <input type="text" id="edCompany" maxlength="150" dir="auto" value="${esc(u.company_name || "")}">
         </div>
         <div class="field">
           <h5><label for="edWebsite">Website</label></h5>
           <input type="text" id="edWebsite" value="${esc(website)}" placeholder="example.com">
           <p class="hint">https:// is added if you leave it off.</p>
         </div>
-        ${facts}
         <div class="field wide">
           <h5><label for="edAbout">About</label></h5>
-          <textarea id="edAbout" placeholder="What this company does, in a couple of sentences.">${esc(u.description || "")}</textarea>
+          <textarea id="edAbout" dir="auto" placeholder="What this company does, in a couple of sentences.">${esc(u.description || "")}</textarea>
         </div>
 
         <div class="details-bar">
@@ -1226,6 +1260,199 @@ async function saveDetails(){
     status.innerText = "Connection error. Please try again.";
     button.disabled = false;
   }
+}
+
+/*
+|------------------------------------------------------------------------------
+| The Team panel
+|------------------------------------------------------------------------------
+|
+| Who works on this client, in three columns. Being in a column is what puts
+| the client in that person's lists everywhere else in the admin.
+|
+|   owner            changes all three columns, choosing from anyone
+|   account manager  changes Super Admins and Admins, from their own team
+|   super admin      changes Admins, from their own team
+|   admin            reads it
+|
+| "Their own team" is set by the owner under Settings. api/client-team.php
+| holds the rules and sends back which columns and which people this admin may
+| change - the page draws what it is told and the server checks it again on
+| every add and remove.
+|
+| It loads after the rest of the profile, and keeps what it last loaded in
+| teamState so a re-render of the page (saving Details, say) redraws it without
+| asking again.
+|
+*/
+
+const TEAM_COLUMNS = [
+  { role: "account_manager", title: "Account Managers", one: "account manager" },
+  { role: "super_admin",     title: "Super Admins",     one: "super admin" },
+  { role: "seo_admin",       title: "Admins",           one: "admin" }
+];
+
+const TEAM_SUB = {
+  owner:           "Who works on this client. You can change every column.",
+  account_manager: "Who works on this client. You can add super admins and admins from your team.",
+  super_admin:     "Who works on this client. You can add admins from your team.",
+  seo_admin:       "Who works on this client."
+};
+
+// null until the first load; { error } when it could not be loaded.
+let teamState = null;
+let teamBusy = false;
+
+function teamPanel(){
+  return `
+    <div class="panel" id="teamPanel">
+      <div class="panel-head">
+        <h2>Team</h2>
+        <p>${esc(TEAM_SUB[adminUser.role] || TEAM_SUB.seo_admin)}</p>
+      </div>
+      <div id="teamBody">${teamBodyHtml()}</div>
+    </div>`;
+}
+
+function teamBodyHtml(){
+  if(!teamState) return `<div class="empty">Loading team...</div>`;
+  if(teamState.error) return `<div class="empty">${esc(teamState.error)}</div>`;
+
+  const removable = new Set((teamState.removable || []).map(Number));
+
+  const columns = TEAM_COLUMNS.map(col => {
+    const members = (teamState.team && teamState.team[col.role]) || [];
+    const editable = !!(teamState.editable && teamState.editable[col.role]);
+    const candidates = (teamState.candidates && teamState.candidates[col.role]) || [];
+
+    const chips = members.length
+      ? `<div class="team-chips">${members.map(member => {
+          const canRemove = editable && removable.has(Number(member.id));
+
+          return `
+            <span class="team-chip${canRemove ? " can-remove" : ""}">
+              <span dir="auto" title="${esc(member.name)}">${esc(member.name)}</span>
+              ${canRemove
+                ? `<button type="button" aria-label="Remove ${esc(member.name)}"
+                           onclick="removeTeamMember(${Number(member.id)})"
+                           ${teamBusy ? "disabled" : ""}>&times;</button>`
+                : ""}
+            </span>`;
+        }).join("")}</div>`
+      : `<span class="team-none">No ${esc(col.one)} yet</span>`;
+
+    /* Only people who are not in the column already. A column this admin may
+       change but with nobody left to offer says so rather than vanishing. */
+    const add = !editable ? "" : candidates.length
+      ? `<select class="team-add" aria-label="Add ${esc(col.one)}"
+                 onchange="addTeamMember(this.value)" ${teamBusy ? "disabled" : ""}>
+           <option value="">+ Add ${esc(col.one)}</option>
+           ${candidates.map(c => `<option value="${Number(c.id)}" dir="auto">${esc(c.name)}</option>`).join("")}
+         </select>`
+      : `<select class="team-add" disabled><option>No one left to add</option></select>`;
+
+    return `
+      <div class="team-col">
+        <div class="team-col-head">${esc(col.title)}</div>
+        <div class="team-col-body">${chips}${add}</div>
+      </div>`;
+  }).join("");
+
+  return `
+    <div class="team-grid">${columns}</div>
+    <div class="team-status" id="teamStatus"></div>`;
+}
+
+function paintTeam(message, tone){
+  const body = document.getElementById("teamBody");
+  if(!body) return;
+
+  body.innerHTML = teamBodyHtml();
+
+  const status = document.getElementById("teamStatus");
+  if(status && message){
+    status.className = "team-status" + (tone ? " " + tone : "");
+    status.textContent = message;
+  }
+}
+
+async function loadTeam(){
+  try{
+    const res = await fetch("api/client-team.php?user_id=" + encodeURIComponent(userId), {
+      headers:{ Authorization: "Bearer " + adminToken }
+    });
+
+    const data = await res.json();
+
+    teamState = data.success ? data : { error: data.message || "Could not load the team." };
+
+  }catch(error){
+    teamState = { error: "Connection error. The team could not be loaded." };
+  }
+
+  paintTeam();
+}
+
+async function saveTeam(action, adminId){
+  if(teamBusy || !adminId) return;
+
+  teamBusy = true;
+  paintTeam("Saving...");
+
+  try{
+    const res = await fetch("api/client-team.php", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + adminToken
+      },
+      body: JSON.stringify({ user_id: Number(userId), action, admin_id: Number(adminId) })
+    });
+
+    const data = await res.json();
+
+    teamBusy = false;
+
+    if(!data.success){
+      paintTeam(data.message || "Could not save the team.", "error");
+      return;
+    }
+
+    // The response is the whole panel again, as the server now has it.
+    teamState = data;
+    paintTeam(data.message, "ok");
+
+  }catch(error){
+    teamBusy = false;
+    paintTeam("Connection error. Please try again.", "error");
+  }
+}
+
+function addTeamMember(adminId){
+  saveTeam("add", adminId);
+}
+
+function teamMemberName(adminId){
+  for(const col of TEAM_COLUMNS){
+    const match = ((teamState && teamState.team && teamState.team[col.role]) || [])
+      .find(member => Number(member.id) === Number(adminId));
+    if(match) return match.name;
+  }
+  return "This person";
+}
+
+async function removeTeamMember(adminId){
+  const ok = await askConfirm({
+    title : "Remove from team",
+    text  : teamMemberName(adminId) + " will be taken off this client's team and "
+          + "will no longer see the client in their lists.",
+    action: "Remove",
+    icon  : "warn"
+  });
+
+  if(!ok) return;
+
+  saveTeam("remove", adminId);
 }
 
 /* The last payload this page rendered from, so the panels can be redrawn when
@@ -1375,7 +1602,7 @@ function render(data){
     return;
   }
 
-  paint(header + details + surveys + responses + appointments + files + content);
+  paint(header + details + teamPanel() + surveys + responses + appointments + files + content);
 
   initCalendar(data.appointments || []);
 }
@@ -1414,7 +1641,13 @@ async function loadUser(){
 
     // Straight from the database, so a draft from before is no longer in play.
     noteDraft = null;
+    teamState = null;
     render(data);
+
+    // Only an approved client has the Team panel to fill.
+    if(Number(data.user.approved) === 1){
+      loadTeam();
+    }
 
   }catch(error){
     console.error(error);

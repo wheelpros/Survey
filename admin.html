@@ -6,7 +6,7 @@
 <title>Forms — Admin</title>
 
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,"Segoe UI",Tahoma,sans-serif}
 
 body{
   background:#f6f7fb;
@@ -750,7 +750,7 @@ document.addEventListener("DOMContentLoaded", function () {
 <div class="review-modal" id="reviewModal">
   <div class="review-box">
     <div class="review-head">
-      <h2 id="reviewTitle">Review Form</h2>
+      <h2 id="reviewTitle" dir="auto">Review Form</h2>
       <button type="button" onclick="closeReview()" aria-label="Close">&times;</button>
     </div>
 
@@ -766,7 +766,7 @@ document.addEventListener("DOMContentLoaded", function () {
         </div>
       </div>
 
-      <p class="review-description" id="reviewDescription" hidden></p>
+      <p class="review-description" id="reviewDescription" dir="auto" hidden></p>
 
       <div id="reviewQuestions"></div>
 
@@ -831,6 +831,12 @@ function esc(value){
   return String(value == null ? "" : value)
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+/* A client is named by its company, as the tables on this page already do;
+   the person's name stands in only when no company was given. */
+function clientLabel(user){
+  return String(user.company_name || "").trim() || user.name || "Unnamed client";
 }
 
 /* ── Status vocabulary ───────────────────────────────────────────────────────
@@ -1015,7 +1021,7 @@ async function loadSurveyData(){
       surveyUserFilter.innerHTML = `
         <option value="all">All Clients</option>
         ${data.users.map(user => `
-          <option value="${esc(user.id)}">${esc(user.name)} - ${esc(user.email)}</option>
+          <option value="${esc(user.id)}" dir="auto">${esc(clientLabel(user))}</option>
         `).join("")}
       `;
     }else{
@@ -1077,8 +1083,8 @@ function renderSurveysTable(){
 
     return `
     <tr>
-      <td>${esc(survey.title)}</td>
-      <td>${esc(survey.company_name || "—")}</td>
+      <td><span dir="auto">${esc(survey.title)}</span></td>
+      <td><span dir="auto">${esc(survey.company_name || "—")}</span></td>
       <td>
         <span class="badge ${meta.cls}">
           ${esc(meta.label)}
@@ -1259,8 +1265,8 @@ function renderReviewTable(){
   table.innerHTML = rows.map(survey => {
     return `
     <tr>
-      <td>${esc(survey.title)}</td>
-      <td>${esc(survey.company_name || "—")}</td>
+      <td><span dir="auto">${esc(survey.title)}</span></td>
+      <td><span dir="auto">${esc(survey.company_name || "—")}</span></td>
       <td>
         <span class="badge survey-status">In Review</span>
       </td>
@@ -1341,11 +1347,12 @@ async function openReview(surveyId){
     descriptionEl.innerText = description;
     descriptionEl.hidden = !description;
 
-    document.getElementById("reviewFrom").innerText =
-      (survey.created_by_name || "Unknown admin") +
-      (survey.created_by_email ? " (" + survey.created_by_email + ")" : "");
-    document.getElementById("reviewTo").innerText =
-      survey.user_name + " (" + survey.user_email + ")";
+    // Names only - no email addresses on this page.
+    document.getElementById("reviewFrom").innerText = survey.created_by_name || "Unknown admin";
+    document.getElementById("reviewTo").innerText = clientLabel({
+      company_name: survey.company_name,
+      name: survey.user_name
+    });
 
     document.getElementById("reviewQuestions").innerHTML = (data.questions || []).map((q, index) => {
       let chipsArr = [];
@@ -1354,9 +1361,9 @@ async function openReview(surveyId){
       return `
         <div class="review-question">
           <div class="q-index">Question ${index + 1}</div>
-          <div class="q-text">${esc(q.question_text)}</div>
+          <div class="q-text" dir="auto">${esc(q.question_text)}</div>
           <span class="q-type">${esc(questionTypeLabel(q.question_type))}</span>
-          ${chipsArr.length ? `<div class="q-chips">Options: ${esc(chipsArr.join(", "))}</div>` : ``}
+          ${chipsArr.length ? `<div class="q-chips">Options: <span dir="auto">${esc(chipsArr.join(", "))}</span></div>` : ``}
           ${
             q.question_type === "file" && q.max_file_size_mb
             ? `<div class="q-chips">Max file size: ${esc(q.max_file_size_mb)} MB</div>`

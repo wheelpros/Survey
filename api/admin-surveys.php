@@ -4,7 +4,7 @@ require_once "db.php";
 require_once "notify.php";
 require_once "mailer.php";
 
-header("Content-Type: application/json");
+header("Content-Type: application/json; charset=UTF-8");
 
 $headers = getallheaders();
 $authHeader = $headers["Authorization"] ?? "";
@@ -137,23 +137,24 @@ if ($method === "GET") {
     // sees the users assigned to their own admin_id.
     if ($currentAdmin["role"] === "owner") {
 
+        // Listed by company, which is what the pickers show.
         $usersStmt = $pdo->query("
-            SELECT id, name, email
+            SELECT id, name, email, company_name
             FROM users
             WHERE approved = 1
-            ORDER BY name ASC
+            ORDER BY COALESCE(NULLIF(company_name, ''), name) ASC
         ");
 
     } else {
 
         $usersStmt = $pdo->prepare("
-            SELECT users.id, users.name, users.email
+            SELECT users.id, users.name, users.email, users.company_name
             FROM users
             INNER JOIN admin_user_assignments aua
                 ON aua.user_id = users.id
             WHERE users.approved = 1
             AND aua.admin_id = ?
-            ORDER BY users.name ASC
+            ORDER BY COALESCE(NULLIF(users.company_name, ''), users.name) ASC
         ");
 
         $usersStmt->execute([$currentAdmin["id"]]);

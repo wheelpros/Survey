@@ -53,20 +53,9 @@ if ($admin["role"] === "owner") {
 
     $stmt->execute();
 
-} else if (in_array($admin["role"], ["super_admin", "account_manager"], true)) {
-
-    // A super admin / account manager only sees the plain Admin accounts
-    // the owner has distributed to them specifically.
-    $stmt = $pdo->prepare("
-        SELECT id, name, email, role, active, managed_by_admin_id
-        FROM admins
-        WHERE role = 'seo_admin' AND managed_by_admin_id = ?
-        ORDER BY id DESC
-    ");
-
-    $stmt->execute([$admin["id"]]);
-
 } else {
+
+    // Available Admins on settings.html is the owner's alone.
 
     http_response_code(403);
 
