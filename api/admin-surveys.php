@@ -83,6 +83,12 @@ function isUserInScope($pdo, $role, $adminId, $userId) {
     return (bool)$stmt->fetch();
 }
 
+// Forms are seen by whoever wrote them, plus the account manager and the owner,
+// who see every form - the same rule admin-survey-review.php applies.
+function canSeeSurvey($isReviewer, $adminId, $survey) {
+    return $isReviewer || (int)$survey["created_by_admin_id"] === (int)$adminId;
+}
+
 if ($method === "GET") {
 
     $singleSurveyId = (int)($_GET["survey_id"] ?? 0);
@@ -106,9 +112,9 @@ if ($method === "GET") {
             exit;
         }
 
-        // Don't let a scoped role open a survey that belongs to a user
-        // outside their own pool just by guessing/typing its ID.
-        if (!isUserInScope($pdo, $currentAdmin["role"], $currentAdmin["id"], (int)$survey["assigned_user_id"])) {
+        // Don't let an admin open someone else's form just by guessing/typing
+        // its ID.
+        if (!canSeeSurvey($isReviewer, $currentAdmin["id"], $survey)) {
             echo json_encode([
                 "success" => false,
                 "message" => "Survey not found"
@@ -160,9 +166,9 @@ if ($method === "GET") {
         $usersStmt->execute([$currentAdmin["id"]]);
     }
 
-    // Same scoping for the surveys list itself: a survey is visible if its
-    // assigned user is visible.
-    if ($currentAdmin["role"] === "owner") {
+    // The forms list itself: the account manager and the owner see every
+    // form, everyone else only the forms they wrote.
+    if ($isReviewer) {
 
     $surveysStmt = $pdo->query("
         SELECT 
@@ -200,10 +206,8 @@ if ($method === "GET") {
             creator.name AS created_by_name
         FROM surveys
         JOIN users ON users.id = surveys.assigned_user_id
-        INNER JOIN admin_user_assignments aua
-            ON aua.user_id = users.id
         LEFT JOIN admins creator ON creator.id = surveys.created_by_admin_id
-        WHERE aua.admin_id = ?
+        WHERE surveys.created_by_admin_id = ?
         ORDER BY surveys.created_at DESC
     ");
 
@@ -286,7 +290,7 @@ if ($method === "POST" || $method === "PUT") {
             }
 
             $checkStmt = $pdo->prepare("
-                SELECT id, status
+                SELECT id, status, created_by_admin_id
                 FROM surveys
                 WHERE id = ?
                 LIMIT 1
@@ -294,7 +298,7 @@ if ($method === "POST" || $method === "PUT") {
             $checkStmt->execute([$surveyId]);
             $survey = $checkStmt->fetch();
 
-            if (!$survey) {
+            if (!$survey || !canSeeSurvey($isReviewer, $currentAdmin["id"], $survey)) {
                 throw new Exception("Survey not found");
             }
 

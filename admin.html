@@ -519,23 +519,20 @@ document.addEventListener("DOMContentLoaded", function () {
    its columns out of line with the other. */
 @media(min-width:769px){
   #reviewListTable,#formsListTable{table-layout:fixed;width:100%}
-  #reviewListTable th:nth-child(1),#formsListTable th:nth-child(1){width:30%}
-  #reviewListTable th:nth-child(2),#formsListTable th:nth-child(2){width:22%}
+  #reviewListTable th:nth-child(1),#formsListTable th:nth-child(1){width:38%}
+  #reviewListTable th:nth-child(2),#formsListTable th:nth-child(2){width:30%}
   #reviewListTable th:nth-child(3),#formsListTable th:nth-child(3){width:18%}
-  #reviewListTable th:nth-child(4),#formsListTable th:nth-child(4){width:18%}
-  #reviewListTable th:nth-child(5),#formsListTable th:nth-child(5){width:12%}
+  #reviewListTable th:nth-child(4),#formsListTable th:nth-child(4){width:14%}
 }
 
 @media(max-width:768px){
 
-  /* Both tables share one column order - Form, Client, Status, Created At,
-     Actions - and keep Client, Status and Actions. The .empty guard keeps the
+  /* Both tables share one column order - Form, Client, Status, Actions - and
+     keep Client, Status and Actions. The .empty guard keeps the
      "Loading forms..." and "No forms found." rows, which are a single colspan
      cell sitting in first position. */
   #reviewListTable th:nth-child(1),#reviewListTable td:nth-child(1):not(.empty),
-  #reviewListTable th:nth-child(4),#reviewListTable td:nth-child(4),
-  #formsListTable th:nth-child(1),#formsListTable td:nth-child(1):not(.empty),
-  #formsListTable th:nth-child(4),#formsListTable td:nth-child(4){
+  #formsListTable th:nth-child(1),#formsListTable td:nth-child(1):not(.empty){
     display:none;
   }
 
@@ -550,7 +547,7 @@ document.addEventListener("DOMContentLoaded", function () {
      what is left. */
   #reviewListTable,#formsListTable{table-layout:fixed;width:100%}
   #reviewListTable th:nth-child(3),#formsListTable th:nth-child(3){width:130px}
-  #reviewListTable th:nth-child(5),#formsListTable th:nth-child(5){width:68px}
+  #reviewListTable th:nth-child(4),#formsListTable th:nth-child(4){width:68px}
   #reviewListTable th,#reviewListTable td,
   #formsListTable th,#formsListTable td{
     white-space:normal;
@@ -672,12 +669,11 @@ document.addEventListener("DOMContentLoaded", function () {
               <th>Form</th>
               <th>Client</th>
               <th>Status</th>
-              <th>Created At</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody id="reviewTable">
-            <tr><td colspan="5" class="empty">Loading forms...</td></tr>
+            <tr><td colspan="4" class="empty">Loading forms...</td></tr>
           </tbody>
         </table>
 
@@ -723,14 +719,13 @@ document.addEventListener("DOMContentLoaded", function () {
               <th>Form</th>
               <th>Client</th>
               <th>Status</th>
-              <th>Created At</th>
               <th>Actions</th>
             </tr>
           </thead>
 
           <tbody id="surveysTable">
             <tr>
-              <td colspan="5" class="empty">Loading forms...</td>
+              <td colspan="4" class="empty">Loading forms...</td>
             </tr>
           </tbody>
         </table>
@@ -1011,31 +1006,40 @@ async function loadSurveyData(){
     if(!data.success){
       surveysTable.innerHTML = `
         <tr>
-          <td colspan="5" class="empty">Unable to load forms.</td>
+          <td colspan="4" class="empty">Unable to load forms.</td>
         </tr>
       `;
       return;
     }
 
-    if(data.users && data.users.length){
-      surveyUserFilter.innerHTML = `
-        <option value="all">All Clients</option>
-        ${data.users.map(user => `
-          <option value="${esc(user.id)}" dir="auto">${esc(clientLabel(user))}</option>
-        `).join("")}
-      `;
-    }else{
-      surveyUserFilter.innerHTML = `<option value="all">All Clients</option>`;
-    }
-
     allAdminSurveys = data.surveys || [];
+
+    /* The clients the listed forms went to, not the admin's assigned clients:
+       the account manager sees every form, including ones for clients not
+       assigned to them, and a filter should offer exactly what the list holds. */
+    const clients = new Map();
+    allAdminSurveys.forEach(survey => {
+      clients.set(String(survey.assigned_user_id), clientLabel({
+        company_name: survey.company_name,
+        name: survey.user_name
+      }));
+    });
+
+    surveyUserFilter.innerHTML = `
+      <option value="all">All Clients</option>
+      ${[...clients]
+        .sort((a, b) => a[1].localeCompare(b[1]))
+        .map(([id, label]) => `
+          <option value="${esc(id)}" dir="auto">${esc(label)}</option>
+        `).join("")}
+    `;
     renderSurveysTable();
 
   }catch(error){
 
     surveysTable.innerHTML = `
       <tr>
-        <td colspan="5" class="empty">Connection error.</td>
+        <td colspan="4" class="empty">Connection error.</td>
       </tr>
     `;
 
@@ -1061,7 +1065,7 @@ function renderSurveysTable(){
   if(!surveys.length){
     surveysTable.innerHTML = `
       <tr>
-        <td colspan="5" class="empty">No forms found.</td>
+        <td colspan="4" class="empty">No forms found.</td>
       </tr>
     `;
     renderListPager(0, 0, 0, 0);
@@ -1092,7 +1096,6 @@ function renderSurveysTable(){
         <!-- The rejection reason is in the View popup; in the row it made the
              Status column wider than the Form Review table beside it. -->
       </td>
-      <td>${esc(survey.created_at)}</td>
       <td>
         <div class="actions">
           <!-- View is the whole column. Send Again and View Responses live
@@ -1207,7 +1210,7 @@ async function loadReviewSurveys(){
   const table = document.getElementById("reviewTable");
   if(!table) return;
 
-  table.innerHTML = `<tr><td colspan="5" class="empty">Loading forms...</td></tr>`;
+  table.innerHTML = `<tr><td colspan="4" class="empty">Loading forms...</td></tr>`;
 
   try{
     // No status parameter: the endpoint only ever returns the waiting queue.
@@ -1219,7 +1222,7 @@ async function loadReviewSurveys(){
 
     if(!data.success){
       allReviewSurveys = [];
-      table.innerHTML = `<tr><td colspan="5" class="empty">${esc(data.message || "Unable to load forms.")}</td></tr>`;
+      table.innerHTML = `<tr><td colspan="4" class="empty">${esc(data.message || "Unable to load forms.")}</td></tr>`;
       renderReviewPager(0, 0, 0, 0);
       return;
     }
@@ -1232,7 +1235,7 @@ async function loadReviewSurveys(){
 
   }catch(error){
     allReviewSurveys = [];
-    table.innerHTML = `<tr><td colspan="5" class="empty">Connection error.</td></tr>`;
+    table.innerHTML = `<tr><td colspan="4" class="empty">Connection error.</td></tr>`;
     renderReviewPager(0, 0, 0, 0);
   }
 }
@@ -1243,7 +1246,7 @@ function renderReviewTable(){
   const matching = allReviewSurveys;
 
   if(!matching.length){
-    table.innerHTML = `<tr><td colspan="5" class="empty">${
+    table.innerHTML = `<tr><td colspan="4" class="empty">${
       canReview
         ? "No forms are waiting for a decision."
         : "None of your forms are waiting for approval."
@@ -1270,7 +1273,6 @@ function renderReviewTable(){
       <td>
         <span class="badge survey-status">In Review</span>
       </td>
-      <td>${esc(survey.created_at)}</td>
       <td>
         <div class="actions">
           <button class="btn action-btn" type="button" onclick="openReview(${Number(survey.id)})">
@@ -1333,8 +1335,11 @@ async function openReview(surveyId){
 
     const data = await res.json();
 
+    // The modal is still closed here, so a message written into it would never
+    // be seen and the View button would just look dead.
     if(!data.success){
-      statusEl.innerText = data.message || "Unable to load this form.";
+      statusEl.innerText = "";
+      alert(data.message || "Unable to load this form.");
       return;
     }
 
@@ -1395,7 +1400,8 @@ async function openReview(surveyId){
     document.getElementById("reviewModal").classList.add("show");
 
   }catch(error){
-    statusEl.innerText = "Connection error.";
+    statusEl.innerText = "";
+    alert("Connection error.");
   }
 }
 
