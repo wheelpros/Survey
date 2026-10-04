@@ -1,11 +1,11 @@
--- Meeting requests behind the two calendar pages: user-appointments.html and
+-- Meeting requests behind the two calendar pages: dashboard.html and
 -- admin-calendar.html.
 --
 -- A row in `appointments` is one request, in one of two directions:
 --
 --   requested_by = 'admin'  an admin asked a client for time. Waits on the
 --                           user, who accepts or declines from the Approvals
---                           Hub on user-appointments.html.
+--                           Hub on dashboard.html.
 --   requested_by = 'user'   a client asked the admin for time. Waits on an
 --                           admin, from the Approvals Hub on
 --                           admin-calendar.html.

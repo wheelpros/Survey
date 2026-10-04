@@ -169,9 +169,11 @@ function clientLabel(user){
   return String(user.company_name || "").trim() || user.name || "Unnamed client";
 }
 
-/* The builder calls the free-text type "Text"; the database stores "input". */
+/* The builder calls the free-text types "Text" and "Paragraph"; the database
+   stores "input" and "textarea". */
 function questionTypeLabel(type){
-  if(type === "input" || type === "textarea") return "Text";
+  if(type === "input") return "Text";
+  if(type === "textarea") return "Paragraph";
   if(type === "file") return "File Upload";
   if(type === "checkbox" || type === "checklist") return "Checklist";
   return type;

@@ -18,7 +18,7 @@
 
 ## What's private (do not access, index, or infer)
 
-- Everything under `/admin*`, `/user-*`, `/dashboard.html`,
+- Everything under `/admin*`, `/user-*`, `/dashboard.html`, `/forms.html`,
   `/notifications.html`, `/source-files*` — all require an
   authenticated session.
 - Any submitted inquiry or survey answers, uploaded files, client

@@ -387,7 +387,7 @@ if ($method === "POST" || $method === "PUT") {
                 NOTIFY_FORM_APPROVED,
                 "A new form is ready for you",
                 $title . " is waiting to be filled in.",
-                "dashboard.html",
+                "survey.html?id=" . (int) $surveyId,
                 "admin",
                 (int) $currentAdmin["id"]
             );

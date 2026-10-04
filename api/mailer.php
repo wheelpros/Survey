@@ -310,7 +310,7 @@ function emailClientsAboutMeetingRequest(array $clients, string $adminName, stri
             "When"  => $date . " at " . $time,
             "Notes" => $notes,
         ],
-        "user-appointments.html",
+        "dashboard.html",
         "Answer the request"
     );
 

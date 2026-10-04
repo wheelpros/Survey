@@ -693,7 +693,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     NOTIFY_CONTENT_PUBLISHED,
                     "New content published",
                     $title,
-                    "content.html",
+                    "content.html?id=" . (int) $newId,
                     (int) $admin["id"]
                 );
             }
@@ -867,7 +867,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 NOTIFY_CONTENT_PUBLISHED,
                 "New content published",
                 $title,
-                "content.html",
+                "content.html?id=" . (int) $id,
                 (int) $admin["id"]
             );
         }

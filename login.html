@@ -1120,9 +1120,9 @@
           JSON.stringify({ name: "Jane Cooper", company_name: "Acme Media" })
         );
 
-        // Straight to the calendar: dashboard.html clears the session and
-        // bounces back here the moment its API call is refused.
-        window.location.href = "user-appointments.html";
+        // The dashboard is the calendar, the one client page with a preview fixture.
+        // The others call their APIs, get refused, and bounce back here.
+        window.location.href = "dashboard.html";
       }
 
       showRegister();

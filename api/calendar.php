@@ -5,7 +5,7 @@
 | Calendar: meeting requests between admins and clients
 |--------------------------------------------------------------------------
 |
-| Backs user-appointments.html and admin-calendar.html. One row in
+| Backs dashboard.html and admin-calendar.html. One row in
 | `appointments` is one request, and `requested_by` says which way it points:
 |
 |   'admin'  an admin asked a client for time. The user accepts or declines.
@@ -204,7 +204,7 @@ if ($action === "respond_appointment" && $user) {
     reply(true, $status === "approved" ? "Meeting confirmed" : "Meeting declined");
 }
 
-/* The "Send a new request" form on user-appointments.html. */
+/* The "Send a new request" form on dashboard.html. */
 if ($action === "create_user_request" && $user) {
 
     $date = field($input, "date");
@@ -247,7 +247,7 @@ if ($action === "create_user_request" && $user) {
     reply(true, "Request sent to the admin team.");
 }
 
-/* Everything user-appointments.html paints, in one round trip. */
+/* Everything dashboard.html paints, in one round trip. */
 if ($action === "get_user_calendar" && $user) {
 
     // A declined admin request drops off the client's calendar, but their own
@@ -355,7 +355,7 @@ if ($action === "create_admin_request" && $admin) {
             NOTIFY_APPOINTMENT_REQUEST,
             "Meeting request from " . $admin["name"],
             $topic . " - " . $date . " at " . $time,
-            "user-appointments.html",
+            "dashboard.html",
             "admin",
             (int) $admin["id"]
         );
@@ -409,7 +409,7 @@ if ($action === "respond_request" && $admin) {
         NOTIFY_APPOINTMENT_ANSWERED,
         $status === "approved" ? "Your meeting was confirmed" : "Your meeting request was declined",
         (string) ($row["topic"] ?? "Meeting"),
-        "user-appointments.html",
+        "dashboard.html",
         "admin",
         (int) $admin["id"]
     );

@@ -33,6 +33,8 @@ $stmt = $pdo->prepare("
     SELECT id, title, description, status, created_at
     FROM surveys
     WHERE id = ? AND assigned_user_id = ?
+      -- Unreviewed and rejected forms were never released to the client.
+      AND status IN ('pending', 'completed')
     LIMIT 1
 ");
 $stmt->execute([$surveyId, $user["id"]]);

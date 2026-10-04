@@ -20,6 +20,8 @@ Disallow: /login.php
 Disallow: /register.php
 Disallow: /admin-login.html
 Disallow: /dashboard.html
+Disallow: /forms.html
+Disallow: /demo/
 Disallow: /user-*.html
 Disallow: /survey*.html
 Disallow: /inquiry.html

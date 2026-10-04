@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Portal Demo - W ZONE</title>
+<script src="demo-mock.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+:root{--brand:#c9000b;--nav:#1b1e3a;--text:#101828;--muted:#667085;--line:#eaecf0}
+body{background:#f7f8fc;color:var(--text);min-height:100vh}
+.wrap{max-width:960px;margin:0 auto;padding:44px 20px 60px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:30px}
+.top img{width:140px;height:auto;display:block}
+.reset{border:1px solid #dfe3ea;background:#fff;border-radius:10px;padding:10px 14px;font:inherit;font-size:13px;font-weight:700;color:var(--text);cursor:pointer}
+.reset:hover{background:#f6f7f9}
+h1{font-size:30px;margin-bottom:10px}
+.lead{font-size:15px;color:var(--muted);line-height:1.6;max-width:640px;margin-bottom:12px}
+.tip{display:inline-block;font-size:13px;color:#475467;background:#fff;border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin-bottom:34px}
+h2{font-size:13px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin:0 0 14px}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:36px}
+.tile{display:flex;flex-direction:column;gap:8px;background:#fff;border-radius:16px;padding:20px;text-decoration:none;color:inherit;box-shadow:0 10px 26px rgba(16,24,40,.05);border:2px solid transparent;transition:border-color .15s,transform .15s}
+.tile:hover{border-color:var(--nav);transform:translateY(-2px)}
+.tile h3{font-size:16px}
+.tile p{font-size:13px;color:var(--muted);line-height:1.5}
+.tile .tag{align-self:flex-start;font-size:11px;font-weight:800;padding:4px 9px;border-radius:999px;background:#eef0f6;color:var(--nav)}
+.tile .tag.new{background:#f0ebff;color:#5b3cc4}
+@media(max-width:860px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.wrap{padding:28px 16px 48px}h1{font-size:24px}.grid{grid-template-columns:minmax(0,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <img src="../logo.png" alt="W|ZONE London" onerror="this.onerror=null;this.src='../assets/WZONE%20source.png'">
+    <button class="reset" type="button" onclick="resetDemo()">Reset demo data</button>
+  </div>
+
+  <h1>Client portal demo</h1>
+  <p class="lead">The real portal pages, running on sample data. Nothing is sent anywhere, and you don't need to log in. What you do here (accepting a meeting, submitting a form, reading a notification) stays until you close the tab or reset.</p>
+  <p class="tip">Tip: open DevTools device mode (Ctrl+Shift+M) at 375px to see the phone layouts.</p>
+
+  <h2>Client pages</h2>
+  <div class="grid">
+    <a class="tile" href="dashboard.html">
+      <span class="tag new">Was Appointments</span>
+      <h3>Dashboard</h3>
+      <p>The calendar with Day, Week and Month views, the Approvals Hub with pages, and meeting details behind the kebab on a phone.</p>
+    </a>
+    <a class="tile" href="forms.html">
+      <span class="tag new">Was Dashboard</span>
+      <h3>Forms</h3>
+      <p>Stat cards that filter the list, readable statuses, and the three latest content posts.</p>
+    </a>
+    <a class="tile" href="survey.html?id=1">
+      <span class="tag new">Paragraph field</span>
+      <h3>Fill in a form</h3>
+      <p>One of each field type: Text, Paragraph (a textarea), File Upload and Checklist.</p>
+    </a>
+    <a class="tile" href="survey.html?id=4">
+      <span class="tag">Read-only</span>
+      <h3>Completed form</h3>
+      <p>A submitted form. Paragraph answers keep their line breaks.</p>
+    </a>
+    <a class="tile" href="content.html">
+      <span class="tag">Content</span>
+      <h3>Content</h3>
+      <p>Published posts. Opening one by link (?id=) selects it.</p>
+    </a>
+    <a class="tile" href="notifications.html">
+      <span class="tag new">Open goes to the item</span>
+      <h3>Notifications</h3>
+      <p>No more "View details". Open in a form or content notification goes straight to that form or post.</p>
+    </a>
+  </div>
+
+  <h2>Admin</h2>
+  <div class="grid">
+    <a class="tile" href="admin-form-builder.html">
+      <span class="tag new">Paragraph type</span>
+      <h3>Form builder: new form</h3>
+      <p>The Type menu now offers Text, Paragraph, File Upload and Checklist.</p>
+    </a>
+    <a class="tile" href="admin-form-builder.html?edit=2">
+      <span class="tag">Edit mode</span>
+      <h3>Form builder: editing</h3>
+      <p>An existing form that includes Paragraph questions. Save is mocked.</p>
+    </a>
+  </div>
+
+</div>
+</body>
+</html>

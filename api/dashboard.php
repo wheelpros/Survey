@@ -37,11 +37,16 @@ if (!$user || (int)$user["approved"] !== 1) {
 
 $userId = $user["id"];
 
+// Only forms released to the client. "pending_review" is still with a
+// reviewer and "rejected" was sent back to its creator: the client never
+// knew either existed, so neither is counted or listed.
+$released = "status IN ('pending', 'completed')";
+
 // 1. حساب إحصائيات الاستبيانات
 $stmt = $pdo->prepare("
     SELECT COUNT(*) AS total
     FROM surveys
-    WHERE assigned_user_id = ?
+    WHERE assigned_user_id = ? AND $released
 ");
 $stmt->execute([$userId]);
 $totalSurveys = (int)$stmt->fetch()["total"];
@@ -66,7 +71,7 @@ $completedSurveys = (int)$stmt->fetch()["total"];
 $stmt = $pdo->prepare("
     SELECT id, title, status, created_at
     FROM surveys
-    WHERE assigned_user_id = ?
+    WHERE assigned_user_id = ? AND $released
     ORDER BY created_at DESC
 ");
 $stmt->execute([$userId]);
