@@ -140,16 +140,23 @@ ensureNotificationsTable($pdo);
 | Helper: who may edit or delete a post
 |--------------------------------------------------------------------------
 |
-| A post belongs to the admin who wrote it. The one exception is `owner`,
-| which sits above the roles and manages every post on the system. Every
-| other role - super_admin, seo_admin, account_manager - is read-only on
-| someone else's content no matter how senior it sounds.
+| A post belongs to the admin who wrote it. The exceptions are the roles
+| that run the posting calendar - `owner` and `account_manager` - which
+| manage every post on the system: they see the whole library and are the
+| only ones who can schedule or publish, so a draft another admin wrote has
+| to be theirs to open. super_admin and seo_admin stay read-only on someone
+| else's content no matter how senior the role sounds.
 |
 */
 
+function canPublishContent($admin)
+{
+    return in_array($admin["role"] ?? "", ["owner", "account_manager"], true);
+}
+
 function canManageContent($admin, $creatorId)
 {
-    if (($admin["role"] ?? "") === "owner") {
+    if (canPublishContent($admin)) {
         return true;
     }
 
@@ -332,7 +339,7 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
             /*
             | Keep the raw creator id before the name overwrites it. The pages
             | use it to decide whether this admin owns the post - only the
-            | author, or the owner, gets Edit and Delete.
+            | author, the owner or an account manager gets Edit and Delete.
             */
             $content["created_by_id"] =
                 (int) $content["created_by"];
@@ -430,7 +437,7 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
 
                 /* Who is asking. The page can then show Edit/Delete only on
                    the rows this admin created - or on everything, when the
-                   role is `owner`. */
+                   role is `owner` or `account_manager`. */
                 "admin_id"   => (int) $admin["id"],
                 "admin_role" => $admin["role"]
             ]
@@ -504,6 +511,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         : 0;
 
     $status = trim($_POST["status"] ?? "draft");
+
+    /*
+    | Only the account manager and the owner decide when a post goes out.
+    | Anyone else's post is saved as a draft for them to send, whatever the
+    | request asked for - the form already sends "draft" for those roles,
+    | this is what makes that a rule rather than a courtesy.
+    */
+    if (!canPublishContent($admin)) {
+        $status = "draft";
+        $publishNow = 0;
+    }
 
     $removeMedia =
         isset($_POST["remove_media"])
@@ -758,8 +776,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         | Ownership
         |----------------------------------------------------------------------
         |
-        | The author, or the owner. super_admin, seo_admin and account_manager
-        | are all read-only on someone else's post. The UI hides Edit for them;
+        | The author, the owner or an account manager. super_admin and seo_admin
+        | are read-only on someone else's post. The UI hides Edit for them;
         | this is what stops a hand-made request getting through anyway.
         |
         */
@@ -938,7 +956,7 @@ if ($_SERVER["REQUEST_METHOD"] === "DELETE") {
         }
 
         /*
-        | Same rule as the update: the author, or the owner.
+        | Same rule as the update: the author, the owner or an account manager.
         */
         if (!canManageContent($admin, $content["created_by"])) {
             response(

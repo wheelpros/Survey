@@ -737,12 +737,13 @@ function renderPager(total, totalPages, start, shown){
   `;
 }
 
-/* A post is editable by the admin who wrote it, plus the owner, who sits above
-   the roles and manages everything. Nobody else: super_admin, seo_admin and
-   account_manager see the card and its detail panel but get no buttons on a
-   post they did not create, however senior the role sounds. */
+/* A post is editable by the admin who wrote it, plus the owner and the account
+   managers, who run the posting calendar and manage everything - same rule as
+   canManageContent() in api/admin-content.php. super_admin and seo_admin see
+   the card and its detail panel but get no buttons on a post they did not
+   create, however senior the role sounds. */
 function canManage(item){
-  if(currentAdminRole === "owner") return true;
+  if(currentAdminRole === "owner" || currentAdminRole === "account_manager") return true;
 
   return currentAdminId != null
     && item.created_by_id != null
