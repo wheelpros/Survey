@@ -175,3 +175,113 @@ function answerClientMeetingRequest(PDO $pdo, array $admin, $appointmentId, $sta
 
     return $row;
 }
+
+/*
+|--------------------------------------------------------------------------
+| The client's side
+|--------------------------------------------------------------------------
+|
+| dashboard.html's "Send a new request" and its accept / decline buttons,
+| shared with api/v1. $user is the client: ["id", "name", "company_name"].
+*/
+
+/**
+ * A client asks the W|ZONE team for a meeting: one pending row, and every
+ * admin responsible for them told in the portal and by email. Returns the
+ * appointment id.
+ */
+function requestMeetingFromAdmins(PDO $pdo, array $user, $date, $time, $topic, $notes)
+{
+    $topic = mb_substr(trim((string) $topic), 0, 200);
+    $notes = trim((string) $notes);
+
+    if (!$date || !$time || $topic === "") {
+        throw new PortalWriteError("Pick a date and time, and say what the meeting is about.");
+    }
+
+    $stmt = $pdo->prepare("
+        INSERT INTO appointments
+            (user_id, title, date, time, status, topic, notes, requested_by, client)
+        VALUES (?, ?, ?, ?, 'pending', ?, ?, 'user', ?)
+    ");
+    $stmt->execute([
+        $user["id"],
+        $topic,
+        $date,
+        $time,
+        $topic,
+        $notes !== "" ? $notes : null,
+        $user["company_name"] ?? null
+    ]);
+
+    $appointmentId = (int) $pdo->lastInsertId();
+
+    // Opens this request on the calendar, not just the calendar.
+    notifyAdminsForUser(
+        $pdo,
+        (int) $user["id"],
+        NOTIFY_APPOINTMENT_REQUEST,
+        "Meeting request from " . $user["name"],
+        $topic . " - " . $date . " at " . $time,
+        "admin-calendar.html?appointment=" . $appointmentId
+    );
+
+    // The same admins, by email: a request left unseen in the portal is a
+    // client left waiting for an answer.
+    emailAdminsAboutMeetingRequest($pdo, (int) $user["id"], (string) $user["name"], $topic, $date, $time, $notes, $appointmentId);
+
+    return $appointmentId;
+}
+
+/**
+ * A client accepts ('approved') or declines ('rejected') a meeting W|ZONE
+ * asked them for. requested_by is checked so a client can't answer their own
+ * request - that one is the admin team's to decide. $onlyIfPending as in
+ * answerClientMeetingRequest(). Returns the appointment as it was.
+ */
+function answerAdminMeetingRequest(PDO $pdo, array $user, $appointmentId, $status, $onlyIfPending = false)
+{
+    if (!in_array($status, ["approved", "rejected"], true)) {
+        throw new PortalWriteError("Invalid status");
+    }
+
+    // Read before writing, so the admin who asked can be told the answer.
+    $lookup = $pdo->prepare("
+        SELECT admin_id, topic, status, date, time
+        FROM appointments
+        WHERE id = ? AND user_id = ? AND requested_by = 'admin'
+        LIMIT 1
+    ");
+    $lookup->execute([(int) $appointmentId, $user["id"]]);
+    $request = $lookup->fetch(PDO::FETCH_ASSOC);
+
+    if (!$request) {
+        throw new PortalWriteError("That meeting request isn't yours to answer.", 404);
+    }
+    if ($onlyIfPending && $request["status"] !== "pending") {
+        throw new PortalWriteError("That meeting request has already been answered.", 409);
+    }
+
+    $stmt = $pdo->prepare("
+        UPDATE appointments
+        SET status = ?
+        WHERE id = ? AND user_id = ? AND requested_by = 'admin'
+    ");
+    $stmt->execute([$status, (int) $appointmentId, $user["id"]]);
+
+    if ((int) $request["admin_id"] > 0) {
+        notify(
+            $pdo,
+            "admin",
+            (int) $request["admin_id"],
+            NOTIFY_APPOINTMENT_ANSWERED,
+            $user["name"] . ($status === "approved" ? " confirmed your meeting" : " declined your meeting"),
+            (string) ($request["topic"] ?? "Meeting"),
+            "admin-calendar.html?appointment=" . (int) $appointmentId,
+            "user",
+            (int) $user["id"]
+        );
+    }
+
+    return $request;
+}

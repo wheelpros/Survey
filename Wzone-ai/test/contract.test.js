@@ -22,6 +22,7 @@ const outputs = [
   ["prepare_change", preparedChange],
   ["confirm_change", confirmedChange],
   ["mark_notifications_read", markedRead],
+  ["mark_my_notifications_read", markedRead],
 ];
 
 describe("api/v1 contract", () => {

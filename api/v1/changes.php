@@ -18,7 +18,9 @@
 |       (scope, visibility, state); then applied once. A repeat with the
 |       same token answers with the first result and changes nothing.
 |
-| Staff only for now; the handlers are in _writes.php.
+| The handlers are in _writes.php. Staff reach the staff ones, and a client
+| only their own (request a meeting, answer one, submit a form) - see
+| requireHandlerKind() below.
 */
 
 require_once __DIR__ . "/_bootstrap.php";
@@ -26,7 +28,6 @@ require_once __DIR__ . "/_writes.php";
 
 $p = v1Principal($pdo);
 v1RequireMethod("POST");
-v1RequireStaff($p);
 
 // DDL before anything that could open a transaction (notify.php rule 1).
 ensureMcpConfirmations($pdo);
@@ -42,6 +43,17 @@ if (!is_array($in)) {
 }
 
 $handlers = v1WriteHandlers();
+
+/**
+ * A staff change for staff, a client's change for that client - never across.
+ * Checked before scope, so the answer doesn't say which scopes exist.
+ */
+function requireHandlerKind(array $handler, array $p)
+{
+    if (($handler["kind"] ?? "admin") !== $p["kind"]) {
+        v1Error(404, "unknown_change", "That change isn't available to this account.");
+    }
+}
 
 /** Runs a handler's prepare, turning a refusal into the reply. */
 function runPrepare(array $handler, PDO $pdo, array $p, array $args)
@@ -61,6 +73,7 @@ if ($action === "prepare") {
     if (!isset($handlers[$tool])) {
         v1Error(404, "unknown_change", "There is no change called '$tool'.");
     }
+    requireHandlerKind($handlers[$tool], $p);
     v1RequireScope($p, $handlers[$tool]["scope"]);
 
     $args = $in["args"] ?? [];
@@ -138,6 +151,7 @@ $handler = $handlers[$row["tool"]] ?? null;
 if (!$handler) {
     v1Error(404, "unknown_change", "That change is no longer offered.");
 }
+requireHandlerKind($handler, $p);
 v1RequireScope($p, $handler["scope"]);
 
 // Everything checked again against the portal as it is now - a form someone

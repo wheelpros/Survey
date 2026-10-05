@@ -126,6 +126,36 @@ Elicitation would be the protocol's way to ask, but this server is stateless, so
 
 **Never exposed:** deleting anything, publishing content, sending announcements, and account, role or permission changes. Those stay in the portal.
 
+### Clients
+
+A client can connect their own AI assistant only when the owner has turned on **Allow clients to connect AI assistants** on the Connected apps page. It is off by default. Turning it off ends every client connection at once, because PHP re-checks the switch on every request.
+
+A client's connection sees only that client's own records, from [`api/v1/me/`](../api/v1/me). The client's id comes from the token, never from an argument, and each file uses the same rule as the client's own page. Staff tools are never registered for a client, and the client tools are never registered for staff.
+
+| Scope | Tool | What it does |
+|---|---|---|
+| `self:read` | `my_overview` | what's waiting on them (meeting requests, forms to fill in) and what's coming up |
+| `self:read` | `my_calendar`, `get_my_meeting` | their meetings, and the posts that went live in the range |
+| `self:read` | `my_forms`, `get_my_form` | released forms only, with their own answers once sent |
+| `self:read` | `my_content` | live posts for their company, plus posts for every client |
+| `self:read` | `my_projects`, `get_my_project` | their projects and only the **live** updates. No drafts, no staff names |
+| `self:read` | `my_notifications` | their own inbox |
+| `self:write` | `request_meeting` | asks the W\|ZONE team for a meeting, as the dashboard does |
+| `self:write` | `respond_to_my_meeting` | accepts or declines a meeting W\|ZONE asked for |
+| `self:write` | `submit_my_form` | sends their answers to a form (see below) |
+| `self:write` | `mark_my_notifications_read` | own inbox, no confirmation |
+
+The three `self:write` changes go through the same prepare → `confirm_change` steps as staff changes. `changes.php` never lets a client reach a staff change, or the other way round.
+
+**`submit_my_form`** is checked more strictly than the page checks it:
+- Every question needs an answer, and ticked options must come from the form's own list.
+- A form with a file question has to be finished on the portal page, and the refusal says where.
+- The answers are stored the way the page stores them (`✅ Instagram, ✅ TikTok`).
+
+The submission itself is the page's own code, `submitSurveyResponse()` in [`api/survey-submit.php`](../api/survey-submit.php). So the client's admins are notified, the CSV email goes out, and the Google Apps Script gets its copy, exactly as from the page. That shared function also now refuses a form that hasn't been released to the client, which `submit-survey.php` used to accept if someone guessed its id.
+
+**Prompts for clients:** `fill_in_my_form(form)` goes through a form one question at a time, then sends it once the client confirms. `my_week` summarises what's waiting on them and what's coming up.
+
 ## Design rules
 
 These rules are deliberate. Keep them when you add tools.
@@ -150,10 +180,10 @@ src/app.js          HTTP layer: proxy trust, request ids, rate limit, /healthz, 
 src/server.js       MCP layer: tools, the inquiry:// resource, the intake prompt, output schemas
 src/portal/server.js the private server: whoami, then the tools, resources and prompts this person's scopes allow
 src/portal/tools.js  the read tools as data: scope, input, output schema, api/v1 path
-src/portal/writes.js the change tools (prepare), confirm_change, mark_notifications_read
+src/portal/writes.js the change tools (prepare), confirm_change, marking notifications read - staff's and clients'
 src/portal/schemas.js what each api/v1 endpoint answers with (zod)
 src/portal/resources.js client:// project:// form://
-src/portal/prompts.js staff workflows (weekly report, meeting prep, content plan, lead triage, review queue)
+src/portal/prompts.js workflows: for staff (weekly report, meeting prep, content plan, lead triage, review queue, onboarding) and for clients (fill in a form, my week)
 src/portal/call.js   the one way into api/v1: token, audit headers, envelope and shape checks
 src/portal/scopes.js scopes advertised in metadata (PHP's api/oauth/lib.php decides who gets which)
 src/oauth/provider.js OAuth provider for the SDK router; storage and consent live in PHP
@@ -191,8 +221,9 @@ The PHP side has its own test, a permission matrix in [`tests/api-v1/run.php`](.
 2. It serves the real endpoints with `php -S`.
 3. It checks that each role sees exactly the records its browser page shows, and is refused (403 or 404, never an empty success) everything else. It also covers cursors, parameter checks, MCP tokens and the audit log.
 4. [`tests/api-v1/writes.php`](../tests/api-v1/writes.php) checks the changes. The browser endpoints that now use the shared write functions must behave as before (messages, review gate, notifications). Every change goes through prepare and confirm, and is stopped by a missing scope, an invisible record, a stale state, or a reused, expired, altered or borrowed confirmation.
+5. [`tests/api-v1/clients.php`](../tests/api-v1/clients.php) checks a client's connection: nothing until the owner's switch is on, and cut off when it goes off. A client sees only their own records, never what their pages hide (unreleased forms, draft posts, draft or future project updates, a meeting they declined). Each client change works and is refused in each wrong case. The pages that now share the client's write code still behave as before.
 
-The runner's PHP server sends mail to a closed local port, so a test run never logs in to the real mail account.
+The runner's PHP server sends no email, either way the portal sends it: SMTP goes to a closed local port and `mail()` to `/bin/true`. `SURVEY_WEBHOOK_URL` is set empty, so no test answer ever reaches the real Google sheet.
 
 ```bash
 # from the repo root, against a throwaway MySQL/MariaDB database whose name ends in _test

@@ -14,8 +14,9 @@
 // stateless (see ../server.js), so the confirmation is a token instead -
 // the same reasoning as the public server's inquiry submission.
 //
-// mark_notifications_read is the one write that skips this: it only ever
-// touches the person's own inbox.
+// Marking notifications read (mark_notifications_read for staff,
+// mark_my_notifications_read for a client) is the one write that skips
+// this: it only ever touches the person's own inbox.
 
 import { z } from "zod";
 
@@ -193,6 +194,57 @@ export const WRITE_TOOLS = [
       is_complete: z.boolean().optional(),
     },
   },
+
+  // ── A client's own account (self:write) ───────────────────────────────
+  {
+    name: "request_meeting",
+    scope: "self:write",
+    title: "Ask W|ZONE for a meeting",
+    description:
+      "Asks your W|ZONE team for a meeting at one date and time. They are told in the portal " +
+      "and by email, and accept or decline it." + TWO_STEP,
+    input: {
+      date: date("The day, today or later"),
+      time: time("The start time"),
+      topic: z.string().min(1).max(200).describe("What you'd like to talk about"),
+      notes: z.string().max(2000).optional(),
+    },
+  },
+  {
+    name: "respond_to_my_meeting",
+    scope: "self:write",
+    title: "Answer a meeting request",
+    description:
+      "Accepts or declines a meeting W|ZONE asked you for (my_overview lists them under " +
+      "meetings_waiting_on_you). Whoever asked is told." + TWO_STEP,
+    input: {
+      id: recordId("The meeting's id"),
+      decision: z.enum(["accept", "decline"]),
+    },
+  },
+  {
+    name: "submit_my_form",
+    scope: "self:write",
+    title: "Send my answers to a form",
+    description:
+      "Sends your answers to a form W|ZONE sent you (get_my_form shows its questions). Every " +
+      "question needs an answer: text for input and textarea; for a checkbox question with " +
+      "options, a list of the options ticked; for a single tick box, true. Forms with a file " +
+      "question have to be finished on the portal page. Once sent, answers can't be changed." +
+      TWO_STEP,
+    input: {
+      id: recordId("The form's id"),
+      answers: z
+        .array(
+          z.object({
+            question_id: z.number().int().positive(),
+            value: z.union([z.string().max(10000), z.array(z.string().max(200)).max(50), z.boolean()]),
+          })
+        )
+        .min(1)
+        .max(100),
+    },
+  },
 ];
 
 /** True if this connection can make any confirmed change at all. */
@@ -235,10 +287,11 @@ export function registerWriteTools(server, { auth, requestId, scopes }) {
       {
         title: "Make a confirmed change",
         description:
-          "Step 2 of 2: makes a change prepared by one of the other tools (create_form_draft, " +
-          "review_form, propose_meeting, ...). Call it ONLY after the person has seen that tool's " +
-          "summary and said yes. Pass its confirmation_token and its summary exactly as returned. " +
-          "The change is checked again first, and happens at most once - repeating the call is safe.",
+          "Step 2 of 2: makes a change prepared by one of the other tools (" +
+          WRITE_TOOLS.filter((t) => scopes.includes(t.scope)).map((t) => t.name).join(", ") +
+          "). Call it ONLY after the person has seen that tool's summary and said yes. Pass its " +
+          "confirmation_token and its summary exactly as returned. The change is checked again " +
+          "first, and happens at most once - repeating the call is safe.",
         inputSchema: {
           confirmation_token: z.string().max(100).describe("From the prepare step"),
           summary: z.string().max(5000).describe("The prepare step's summary, exactly as returned"),
@@ -259,12 +312,20 @@ export function registerWriteTools(server, { auth, requestId, scopes }) {
     );
   }
 
-  if (scopes.includes("notifications:write")) {
+  // Marking read: staff through notifications.php, a client through
+  // me/notifications.php - one tool each, never both.
+  const markRead = scopes.includes("notifications:write")
+    ? { name: "mark_notifications_read", path: "notifications.php" }
+    : scopes.includes("self:write")
+      ? { name: "mark_my_notifications_read", path: "me/notifications.php" }
+      : null;
+
+  if (markRead) {
     server.registerTool(
-      "mark_notifications_read",
+      markRead.name,
       {
         title: "Mark notifications read",
-        description: "Marks some of your own notifications read (by id, from list_my_notifications), or all of them.",
+        description: "Marks some of your own notifications read (by id), or all of them.",
         inputSchema: {
           ids: z.array(z.number().int().positive()).min(1).max(100).optional(),
           all: z.boolean().optional().describe("true marks every notification read"),
@@ -276,8 +337,8 @@ export function registerWriteTools(server, { auth, requestId, scopes }) {
         portalCall({
           auth,
           requestId,
-          tool: "mark_notifications_read",
-          path: "notifications.php",
+          tool: markRead.name,
+          path: markRead.path,
           body: all ? { all: true } : { ids: ids ?? [] },
           schema: z.object(S.markedRead),
         })
