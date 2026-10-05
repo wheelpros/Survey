@@ -1441,3 +1441,86 @@ function ensureInquiryTables(PDO $pdo)
         // their own message rather than dying here.
     }
 }
+
+/*
+|--------------------------------------------------------------------------
+| Shared by the browser endpoints and api/v1
+|--------------------------------------------------------------------------
+|
+| Rules that used to be copied endpoint by endpoint, now that the AI-facing
+| api/v1 needs them too. A third copy would be one more place for a rule to
+| drift - and with projectScopeSql() a drifted copy is a silent disclosure.
+*/
+
+/**
+ * A write refused for a reason the caller can be told: bad input (422), not
+ * yours (403), gone (404), already decided (409). Thrown by the shared write
+ * functions (survey-writes.php, meeting-writes.php, task-writes.php...) so the
+ * browser endpoint and api/v1 can each answer in their own shape.
+ */
+class PortalWriteError extends RuntimeException
+{
+    public $status;
+
+    public function __construct($message, $status = 422)
+    {
+        parent::__construct($message);
+        $this->status = (int) $status;
+    }
+}
+
+/**
+ * Which projects an admin may see, as SQL on `projects p`: the owner all of
+ * them; anyone else the projects of clients assigned to them, the ones they
+ * manage, and the ones they are a member of. Returns [$sql, $params], with
+ * "" for no restriction. projects.php, project-tasks.php and api/v1 all use
+ * this one.
+ */
+function projectScopeSql(array $actor)
+{
+    if (($actor["role"] ?? "") === "owner") {
+        return ["", []];
+    }
+
+    $actorId = (int) $actor["id"];
+
+    $sql = "(
+            p.client_id IN (
+                SELECT user_id FROM admin_user_assignments WHERE admin_id = ?
+            )
+         OR p.account_manager_admin_id = ?
+         OR p.id IN (
+                SELECT project_id FROM project_members WHERE admin_id = ?
+            )
+    )";
+
+    return [$sql, [$actorId, $actorId, $actorId]];
+}
+
+/**
+ * A link that is printed as an href (content posts, project tasks): http(s)
+ * only, so javascript: and data: never reach a page. A bare domain gets
+ * https:// in front. Returns the link, null for none, or throws.
+ */
+function normalisePortalLink($link)
+{
+    $link = trim((string) $link);
+
+    if ($link === "") {
+        return null;
+    }
+
+    if (mb_strlen($link) > 500) {
+        throw new PortalWriteError("Link must be 500 characters or fewer.");
+    }
+
+    if (!preg_match('#^https?://#i', $link)) {
+        $link = "https://" . ltrim($link, "/");
+    }
+
+    if (!filter_var($link, FILTER_VALIDATE_URL)) {
+        throw new PortalWriteError("Enter a valid link, e.g. https://example.com");
+    }
+
+    return $link;
+}

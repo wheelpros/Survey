@@ -575,19 +575,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     | The link is printed as an href on the content pages, so only http(s) is
     | accepted - javascript: and data: URLs never reach the browser.
     */
-    if ($link !== "") {
-
-        if (mb_strlen($link) > 500) {
-            response(false, "Link is too long.", [], 400);
-        }
-
-        if (!preg_match('#^https?://#i', $link)) {
-            $link = "https://" . ltrim($link, "/");
-        }
-
-        if (!filter_var($link, FILTER_VALIDATE_URL)) {
-            response(false, "Enter a valid link, e.g. https://example.com", [], 400);
-        }
+    try {
+        $link = (string) normalisePortalLink($link);
+    } catch (PortalWriteError $e) {
+        response(false, $e->getMessage(), [], 400);
     }
 
     /*

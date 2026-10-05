@@ -19,7 +19,7 @@
 */
 
 require_once "db.php";
-require_once "notify.php";
+require_once "task-writes.php";
 
 header("Content-Type: application/json; charset=UTF-8");
 
@@ -59,9 +59,8 @@ function response($success, $message = "", $extra = [], $code = 200)
    the project cap for no reason anyone using it could guess. */
 const TASK_IMAGE_MAX_BYTES = 3 * 1024 * 1024;
 
-/* The rich-text counter under the editor says 0 / 2000, and it counts text,
-   not the markup the editor wraps around it. */
-const TASK_DESCRIPTION_MAX_CHARS = 2000;
+/* TASK_DESCRIPTION_MAX_CHARS is in task-writes.php, with the rest of what a
+   save checks - shared with api/v1. */
 
 /*
 |--------------------------------------------------------------------------
@@ -143,104 +142,14 @@ ensureNotificationsTable($pdo);
 
 function projectScope(array $admin)
 {
-    if (($admin["role"] ?? "") === "owner") {
-        return ["", []];
-    }
-
-    $adminId = (int) $admin["id"];
-
-    $sql = "(
-            p.client_id IN (
-                SELECT user_id FROM admin_user_assignments WHERE admin_id = ?
-            )
-         OR p.account_manager_admin_id = ?
-         OR p.id IN (
-                SELECT project_id FROM project_members WHERE admin_id = ?
-            )
-    )";
-
-    return [$sql, [$adminId, $adminId, $adminId]];
+    // One rule for projects.php, project-tasks.php and api/v1 - see db.php.
+    return projectScopeSql($admin);
 }
 
-/*
-| Null when the project does not exist OR is out of scope. The caller answers
-| 404 either way, so nothing confirms the existence of a project this admin
-| cannot reach.
-*/
+/* loadScopedProject(), canWriteTask() and canEditTask() live in
+   task-writes.php, shared with api/v1 so an AI assistant is held to the same
+   team rules as this page. */
 
-function loadScopedProject(PDO $pdo, array $admin, $projectId)
-{
-    [$scopeSql, $scopeParams] = projectScope($admin);
-
-    $sql = "
-        SELECT
-            p.id,
-            p.title,
-            p.client_id,
-            p.account_manager_admin_id,
-            p.created_by_admin_id,
-            u.company_name,
-            u.name AS client_name
-        FROM projects p
-        LEFT JOIN users u ON u.id = p.client_id
-        WHERE p.id = ?
-    ";
-
-    $params = [(int) $projectId];
-
-    if ($scopeSql !== "") {
-        $sql .= " AND " . $scopeSql;
-        $params = array_merge($params, $scopeParams);
-    }
-
-    $sql .= " LIMIT 1";
-
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
-
-    return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
-}
-
-/*
-|--------------------------------------------------------------------------
-| Who may write a task
-|--------------------------------------------------------------------------
-|
-| Wider than creating a project, because writing updates is the day job of the
-| people put on one. An seo_admin gets in only through membership - being able
-| to see a project through a client assignment does not make you part of the
-| team working on it.
-|
-*/
-
-function canWriteTask(PDO $pdo, array $admin, array $project)
-{
-    if (in_array($admin["role"] ?? "", ["owner", "account_manager", "super_admin"], true)) {
-        return true;
-    }
-
-    $stmt = $pdo->prepare("
-        SELECT 1 FROM project_members WHERE project_id = ? AND admin_id = ? LIMIT 1
-    ");
-    $stmt->execute([(int) $project["id"], (int) $admin["id"]]);
-
-    return (bool) $stmt->fetch();
-}
-
-/*
-| Editing somebody else's task is a narrower thing than writing your own: the
-| owner and the account managers, or the author. An seo_admin cannot rewrite a
-| teammate's update.
-*/
-
-function canEditTask(array $admin, array $task)
-{
-    if (in_array($admin["role"] ?? "", ["owner", "account_manager"], true)) {
-        return true;
-    }
-
-    return (int) $task["created_by_admin_id"] === (int) $admin["id"];
-}
 
 /* TASK_IS_LIVE_SQL - the one predicate that decides whether a task has gone
    live - lives in db.php beside ensureProjectTables(). This file and
@@ -573,61 +482,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     /*
     |--------------------------------------------------------------------------
-    | Validate
+    | Dates, before anything is uploaded
     |--------------------------------------------------------------------------
+    |
+    | The rest of the checks - name, link, description length, status - are
+    | saveProjectTask()'s, in task-writes.php, shared with api/v1.
     */
-
-    $title = trim((string) ($_POST["title"] ?? ""));
-
-    if ($title === "") {
-        response(false, "Task name is required.", [], 400);
-    }
-
-    if (mb_strlen($title) > 200) {
-        response(false, "Task name must be 200 characters or fewer.", [], 400);
-    }
-
-    /* Printed as an href on the card, so only http(s) - the same block
-       admin-content.php uses on content links. */
-
-    $link = trim((string) ($_POST["link"] ?? ""));
-
-    if ($link !== "") {
-
-        if (mb_strlen($link) > 500) {
-            response(false, "Link must be 500 characters or fewer.", [], 400);
-        }
-
-        if (!preg_match('#^https?://#i', $link)) {
-            $link = "https://" . ltrim($link, "/");
-        }
-
-        if (!filter_var($link, FILTER_VALIDATE_URL)) {
-            response(false, "Enter a valid link, e.g. https://example.com", [], 400);
-        }
-    }
-
-    /* The editor stores HTML but the counter under it counts text, so the cap
-       is checked against the text the same way the page measures it. */
-
-    $description = trim((string) ($_POST["description"] ?? ""));
-
-    $plain = trim(html_entity_decode(strip_tags($description), ENT_QUOTES, "UTF-8"));
-
-    if (mb_strlen($plain) > TASK_DESCRIPTION_MAX_CHARS) {
-        response(
-            false,
-            "Description must be " . TASK_DESCRIPTION_MAX_CHARS . " characters or fewer.",
-            [],
-            400
-        );
-    }
-
-    $orientation = trim((string) ($_POST["orientation"] ?? "horizontal"));
-
-    if (!in_array($orientation, ["horizontal", "vertical"], true)) {
-        $orientation = "horizontal";
-    }
 
     $scheduledDate = validDate($_POST["scheduled_date"] ?? "");
     $scheduledTime = validTime($_POST["scheduled_time"] ?? "");
@@ -638,16 +498,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     if (!empty($_POST["scheduled_time"]) && !$scheduledTime) {
         response(false, "Enter the update time as HH:MM.", [], 400);
-    }
-
-    $isComplete = !empty($_POST["is_complete"]) ? 1 : 0;
-
-    /* draft or published, nothing else - anything unrecognised is pinned to
-       draft server-side rather than trusted. */
-    $status = trim((string) ($_POST["status"] ?? "draft"));
-
-    if (!in_array($status, ["draft", "published"], true)) {
-        $status = "draft";
     }
 
     /*
@@ -666,79 +516,29 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $imagePath = null;
     }
 
+    $title = trim((string) ($_POST["title"] ?? ""));
+    $status = trim((string) ($_POST["status"] ?? "draft"));
+
     try {
-
-        if ($id > 0) {
-
-            $stmt = $pdo->prepare("
-                UPDATE project_tasks SET
-                    title          = ?,
-                    link           = ?,
-                    description    = ?,
-                    orientation    = ?,
-                    image_path     = ?,
-                    scheduled_date = ?,
-                    scheduled_time = ?,
-                    is_complete    = ?,
-                    status         = ?
-                WHERE id = ?
-            ");
-
-            $stmt->execute([
-                $title,
-                $link ?: null,
-                $description ?: null,
-                $orientation,
-                $imagePath,
-                $scheduledDate,
-                $scheduledTime,
-                $isComplete,
-                $status,
-                $id,
-            ]);
-
-        } else {
-
-            $stmt = $pdo->prepare("
-                INSERT INTO project_tasks (
-                    project_id,
-                    title,
-                    link,
-                    description,
-                    orientation,
-                    image_path,
-                    scheduled_date,
-                    scheduled_time,
-                    is_complete,
-                    status,
-                    created_by_admin_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ");
-
-            $stmt->execute([
-                $projectId,
-                $title,
-                $link ?: null,
-                $description ?: null,
-                $orientation,
-                $imagePath,
-                $scheduledDate,
-                $scheduledTime,
-                $isComplete,
-                $status,
-                (int) $admin["id"],
-            ]);
-
-            $id = (int) $pdo->lastInsertId();
-        }
-
+        $id = saveProjectTask($pdo, $admin, $project, $existing, [
+            "title"          => $title,
+            "link"           => $_POST["link"] ?? "",
+            "description"    => $_POST["description"] ?? "",
+            "orientation"    => trim((string) ($_POST["orientation"] ?? "horizontal")),
+            "image_path"     => $imagePath,
+            "scheduled_date" => $scheduledDate,
+            "scheduled_time" => $scheduledTime,
+            "is_complete"    => !empty($_POST["is_complete"]),
+            "status"         => $status,
+        ]);
     } catch (Throwable $e) {
-
         // The row was never written, so the file just uploaded is an orphan.
         if ($uploaded) {
             deleteTaskImage($uploaded);
         }
-
+        if ($e instanceof PortalWriteError) {
+            response(false, $e->getMessage(), [], $e->status === 422 ? 400 : $e->status);
+        }
         response(false, "Could not save the task.", [], 500);
     }
 
@@ -749,9 +549,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         }
     }
 
+    if (!in_array($status, ["draft", "published"], true)) {
+        $status = "draft";
+    }
+
     /* A published task dated in the future is saved, but the client-facing
        read will skip it until then - so say that rather than "Published". */
-
     if ($status === "draft") {
         $message = "Task saved as a draft.";
     } elseif ($scheduledDate && $scheduledDate > date("Y-m-d")) {
@@ -760,59 +563,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $message = "Task published.";
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Tell the client an update landed
-    |--------------------------------------------------------------------------
-    |
-    | Fires when the task is live now - the same TASK_IS_LIVE_SQL the client
-    | endpoint filters on - and has never been announced. The stamp is what
-    | makes it happen once: comparing the old status against the new one would
-    | re-announce on every later edit.
-    |
-    | The UPDATE is the test. Claiming the row and reading rowCount() means two
-    | concurrent saves cannot both decide they were first, and reusing the
-    | constant means the announcement can never disagree with what the client
-    | can actually see.
-    |
-    | The gap, stated plainly: nothing runs on a schedule here, so a task
-    | published for a future date is not announced on the day it goes live. It
-    | announces itself on the next save that finds it live, and otherwise the
-    | client meets it on the page. No notification is lost, only late.
-    |
-    | This POST runs no transaction, so notify()'s in-transaction guard is
-    | satisfied.
-    */
-
-    try {
-
-        $stmt = $pdo->prepare("
-            UPDATE project_tasks t
-            SET t.client_notified_at = NOW()
-            WHERE t.id = ?
-              AND " . TASK_IS_LIVE_SQL . "
-              AND t.client_notified_at IS NULL
-        ");
-        $stmt->execute([$id]);
-
-        if ($stmt->rowCount() > 0) {
-            notify(
-                $pdo,
-                "user",
-                (int) $project["client_id"],
-                NOTIFY_PROJECT_UPDATE,
-                "New update on " . $project["title"],
-                $title,
-                "user-project-details.html?id=" . (int) $projectId,
-                "admin",
-                (int) $admin["id"]
-            );
-        }
-
-    } catch (Throwable $e) {
-        // Same silence as notify() itself: the task is already saved, and a
-        // missing client_notified_at column costs a sidebar badge, nothing more.
-    }
+    // Told once, the first time it is live - see task-writes.php. This POST
+    // runs no transaction, so notify()'s in-transaction guard is satisfied.
+    announceTaskIfLive($pdo, $admin, $project, $id, $title);
 
     response(true, $message, [
         "id"      => $id,

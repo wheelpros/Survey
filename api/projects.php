@@ -156,23 +156,8 @@ ensureNotificationsTable($pdo);
 
 function projectScope(array $admin)
 {
-    if (($admin["role"] ?? "") === "owner") {
-        return ["", []];
-    }
-
-    $adminId = (int) $admin["id"];
-
-    $sql = "(
-            p.client_id IN (
-                SELECT user_id FROM admin_user_assignments WHERE admin_id = ?
-            )
-         OR p.account_manager_admin_id = ?
-         OR p.id IN (
-                SELECT project_id FROM project_members WHERE admin_id = ?
-            )
-    )";
-
-    return [$sql, [$adminId, $adminId, $adminId]];
+    // One rule for projects.php, project-tasks.php and api/v1 - see db.php.
+    return projectScopeSql($admin);
 }
 
 /*

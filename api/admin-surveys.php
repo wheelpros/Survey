@@ -1,8 +1,7 @@
 <?php
 
 require_once "db.php";
-require_once "notify.php";
-require_once "mailer.php";
+require_once "survey-writes.php";
 
 header("Content-Type: application/json; charset=UTF-8");
 
@@ -50,38 +49,12 @@ if (!$currentAdmin) {
 | Everyone else still goes through the gate, and an edit by anyone still
 | re-opens it further down.
 */
-$isReviewer = in_array($currentAdmin["role"], ["account_manager", "owner"], true);
+$isReviewer = isSurveyReviewer($currentAdmin);
 
 $method = $_SERVER["REQUEST_METHOD"];
 
-function prepareChips($chips) {
-    $chips = trim($chips ?? "");
-    if (!$chips) return json_encode([]);
-
-    $chipsArray = array_filter(
-        array_map("trim", explode(",", $chips))
-    );
-
-    return json_encode(array_values($chipsArray));
-}
-
-// The owner can touch any user; everyone else can only touch a user that's
-// actually assigned to their own admin_id - same boundary as the users list.
-function isUserInScope($pdo, $role, $adminId, $userId) {
-    if ($role === "owner") {
-        return true;
-    }
-
-    $stmt = $pdo->prepare("
-        SELECT 1
-        FROM admin_user_assignments
-        WHERE admin_id = ? AND user_id = ?
-        LIMIT 1
-    ");
-    $stmt->execute([$adminId, $userId]);
-
-    return (bool)$stmt->fetch();
-}
+// prepareChips() and isUserInScope() live in survey-writes.php, shared with
+// api/v1 so a form an AI drafts is held to the same rules.
 
 // Forms are seen by whoever wrote them, plus the account manager and the owner,
 // who see every form - the same rule admin-survey-review.php applies.
@@ -232,6 +205,31 @@ if ($method === "POST" || $method === "PUT") {
     $assignedUserId = (int)($input["assignedUserId"] ?? 0);
     $questions = $input["questions"] ?? [];
 
+    /*
+    | Creating is createSurveyForm() in survey-writes.php - the same function
+    | api/v1 calls when an AI assistant drafts a form, so the review gate and
+    | who hears about it can't drift between the two.
+    */
+    if ($method === "POST") {
+        try {
+            createSurveyForm($pdo, $currentAdmin, $title, $description, $assignedUserId, is_array($questions) ? $questions : []);
+        } catch (PortalWriteError $e) {
+            echo json_encode([
+                "success" => false,
+                "message" => $e->getMessage()
+            ]);
+            exit;
+        }
+
+        echo json_encode([
+            "success" => true,
+            "message" => $isReviewer
+                ? "Form created and sent to the client"
+                : "Survey created successfully - awaiting account manager approval before it's sent to the user"
+        ]);
+        exit;
+    }
+
     if (!$title || !$assignedUserId || !count($questions)) {
         echo json_encode([
             "success" => false,
@@ -240,8 +238,8 @@ if ($method === "POST" || $method === "PUT") {
         exit;
     }
 
-    // A scoped role can only create/edit surveys for a user actually in
-    // their own pool - never one they can't otherwise see or manage.
+    // A scoped role can only edit surveys for a user actually in their own
+    // pool - never one they can't otherwise see or manage.
     if (!isUserInScope($pdo, $currentAdmin["role"], $currentAdmin["id"], $assignedUserId)) {
         echo json_encode([
             "success" => false,
@@ -254,180 +252,59 @@ if ($method === "POST" || $method === "PUT") {
 
     try {
 
-        if ($method === "POST") {
-
-            /*
-            | 'pending_review' means waiting on a reviewer and invisible to the
-            | client; 'pending' means released and waiting on the client. See
-            | admin-survey-review.php, which is what moves one to the other for
-            | everybody else. A reviewer writing their own form lands on
-            | 'pending' directly, stamped as reviewed by themselves so the
-            | record still says who released it.
-            */
-            $stmt = $pdo->prepare("
-                INSERT INTO surveys
-                    (title, description, assigned_user_id, status, created_by_admin_id,
-                     reviewed_by_admin_id, reviewed_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            ");
-
-            $stmt->execute([
-                $title,
-                $description,
-                $assignedUserId,
-                $isReviewer ? "pending" : "pending_review",
-                $currentAdmin["id"],
-                $isReviewer ? $currentAdmin["id"] : null,
-                $isReviewer ? date("Y-m-d H:i:s") : null
-            ]);
-
-            $surveyId = $pdo->lastInsertId();
-
-        } else {
-
-            if (!$surveyId) {
-                throw new Exception("Survey ID is required");
-            }
-
-            $checkStmt = $pdo->prepare("
-                SELECT id, status, created_by_admin_id
-                FROM surveys
-                WHERE id = ?
-                LIMIT 1
-            ");
-            $checkStmt->execute([$surveyId]);
-            $survey = $checkStmt->fetch();
-
-            if (!$survey || !canSeeSurvey($isReviewer, $currentAdmin["id"], $survey)) {
-                throw new Exception("Survey not found");
-            }
-
-            // Editable any time before the user has actually completed it -
-            // covers surveys still awaiting review, already approved but not
-            // yet filled out, and ones the account manager sent back.
-            if (!in_array($survey["status"], ["pending_review", "pending", "rejected"], true)) {
-                throw new Exception("Only surveys that are pending review, pending, or rejected can be edited");
-            }
-
-            // Any edit re-opens the review gate: content changed, so it goes
-            // back to the account manager before it can reach the user again.
-            // Unless the editor is a reviewer, in which case the check has
-            // just happened by definition.
-            $updateStmt = $pdo->prepare("
-                UPDATE surveys
-                SET title = ?, description = ?, assigned_user_id = ?, status = ?,
-                    reviewed_by_admin_id = ?, review_note = NULL, reviewed_at = ?
-                WHERE id = ?
-            ");
-            $updateStmt->execute([
-                $title,
-                $description,
-                $assignedUserId,
-                $isReviewer ? "pending" : "pending_review",
-                $isReviewer ? $currentAdmin["id"] : null,
-                $isReviewer ? date("Y-m-d H:i:s") : null,
-                $surveyId
-            ]);
-
-            $deleteStmt = $pdo->prepare("
-                DELETE FROM survey_questions
-                WHERE survey_id = ?
-            ");
-            $deleteStmt->execute([$surveyId]);
+        if (!$surveyId) {
+            throw new Exception("Survey ID is required");
         }
 
-        $qStmt = $pdo->prepare("
-            INSERT INTO survey_questions
-            (survey_id, question_text, question_type, required, sort_order, chips, max_file_size_mb)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+        $checkStmt = $pdo->prepare("
+            SELECT id, status, created_by_admin_id
+            FROM surveys
+            WHERE id = ?
+            LIMIT 1
         ");
+        $checkStmt->execute([$surveyId]);
+        $survey = $checkStmt->fetch();
 
-        foreach ($questions as $index => $question) {
-
-            $questionText = trim($question["text"] ?? "");
-            $questionType = $question["type"] ?? "input";
-            $chips = $question["chips"] ?? "";
-
-            if (!$questionText) {
-                continue;
-            }
-
-            // 🔽 قمنا بإضافة "checkbox" هنا لكي يسمح الـ PHP بحفظه في قاعدة البيانات 🔽
-            if (!in_array($questionType, ["input", "textarea", "file", "checkbox"])) {
-                $questionType = "input";
-            }
-            
-            $maxFileSizeMb = isset($question["maxFileSizeMb"]) && $question["maxFileSizeMb"] !== ""
-            ? (int)$question["maxFileSizeMb"]
-            : null;
-
-            $qStmt->execute([
-                $surveyId,
-                $questionText,
-                $questionType, // هنا سيتم حفظ كلمة checkbox بنجاح في الداتابيز
-                1,
-                $index + 1,
-                prepareChips($chips),
-                $maxFileSizeMb
-            ]);
+        if (!$survey || !canSeeSurvey($isReviewer, $currentAdmin["id"], $survey)) {
+            throw new Exception("Survey not found");
         }
+
+        // Editable any time before the user has actually completed it -
+        // covers surveys still awaiting review, already approved but not
+        // yet filled out, and ones the account manager sent back.
+        if (!in_array($survey["status"], ["pending_review", "pending", "rejected"], true)) {
+            throw new Exception("Only surveys that are pending review, pending, or rejected can be edited");
+        }
+
+        // Any edit re-opens the review gate: content changed, so it goes
+        // back to the account manager before it can reach the user again.
+        // Unless the editor is a reviewer, in which case the check has
+        // just happened by definition.
+        $updateStmt = $pdo->prepare("
+            UPDATE surveys
+            SET title = ?, description = ?, assigned_user_id = ?, status = ?,
+                reviewed_by_admin_id = ?, review_note = NULL, reviewed_at = ?
+            WHERE id = ?
+        ");
+        $updateStmt->execute([
+            $title,
+            $description,
+            $assignedUserId,
+            $isReviewer ? "pending" : "pending_review",
+            $isReviewer ? $currentAdmin["id"] : null,
+            $isReviewer ? date("Y-m-d H:i:s") : null,
+            $surveyId
+        ]);
+
+        $deleteStmt = $pdo->prepare("
+            DELETE FROM survey_questions
+            WHERE survey_id = ?
+        ");
+        $deleteStmt->execute([$surveyId]);
+
+        writeSurveyQuestions($pdo, $surveyId, $questions);
 
         $pdo->commit();
-
-        // After the commit, never inside it - see the rules at the top of
-        // notify.php.
-        if ($isReviewer) {
-
-            // Released already, so the client is the one who needs telling -
-            // there is no reviewer left waiting to hear about it.
-            notify(
-                $pdo,
-                "user",
-                $assignedUserId,
-                NOTIFY_FORM_APPROVED,
-                "A new form is ready for you",
-                $title . " is waiting to be filled in.",
-                "survey.html?id=" . (int) $surveyId,
-                "admin",
-                (int) $currentAdmin["id"]
-            );
-
-        } else {
-
-            // Both branches leave the form awaiting sign-off, so the reviewers
-            // hear about an edit the same way they hear about a new one.
-            notifyReviewers(
-                $pdo,
-                NOTIFY_FORM_AWAITING_REVIEW,
-                $method === "POST"
-                    ? "New form awaiting approval"
-                    : "Updated form awaiting approval",
-                $title . " needs a review before it reaches the user.",
-                // Opens this form's review, not just the dashboard.
-                "admin.html?review=" . (int) $surveyId,
-                (int) $currentAdmin["id"]
-            );
-
-            // The same reviewers, by email: a form waiting on sign-off is
-            // invisible to the client until one of them opens the portal.
-            emailReviewersAboutForm($pdo, $title, $assignedUserId, (int) $currentAdmin["id"], $method === "POST", (int) $surveyId);
-        }
-
-        if ($isReviewer) {
-            $message = $method === "POST"
-                ? "Form created and sent to the client"
-                : "Form updated and sent to the client";
-        } else {
-            $message = $method === "POST"
-                ? "Survey created successfully - awaiting account manager approval before it's sent to the user"
-                : "Survey updated successfully - sent back for account manager approval";
-        }
-
-        echo json_encode([
-            "success" => true,
-            "message" => $message
-        ]);
-        exit;
 
     } catch (Exception $e) {
 
@@ -439,6 +316,20 @@ if ($method === "POST" || $method === "PUT") {
         ]);
         exit;
     }
+
+    // After the commit, never inside it - see the rules at the top of
+    // notify.php. Both branches leave the form awaiting sign-off unless a
+    // reviewer edited it, so the reviewers hear about an edit the same way
+    // they hear about a new one.
+    announceSurveyForm($pdo, $currentAdmin, $surveyId, $title, $assignedUserId, $isReviewer, false);
+
+    echo json_encode([
+        "success" => true,
+        "message" => $isReviewer
+            ? "Form updated and sent to the client"
+            : "Survey updated successfully - sent back for account manager approval"
+    ]);
+    exit;
 }
 
 echo json_encode([

@@ -295,15 +295,7 @@ function v1SeesAllContent(array $p)
 */
 function v1ProjectScopeSql(array $p)
 {
-    if ($p["role"] === "owner") {
-        return ["", []];
-    }
-    $id = (int) $p["id"];
-    return ["(
-            p.client_id IN (SELECT user_id FROM admin_user_assignments WHERE admin_id = ?)
-         OR p.account_manager_admin_id = ?
-         OR p.id IN (SELECT project_id FROM project_members WHERE admin_id = ?)
-    )", [$id, $id, $id]];
+    return projectScopeSql($p);
 }
 
 /** Joins non-empty WHERE fragments; returns [" WHERE ...", params]. */

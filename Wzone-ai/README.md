@@ -29,7 +29,7 @@ Clients such as Claude also ask the person to approve any tool that isn't read-o
 | `MCP_MODE` | Domain (suggested) | Who | What |
 |---|---|---|---|
 | `public` (default) | `mcp.websitezone.co.uk` | anyone with a link | the inquiry tools above |
-| `private` | `portal-mcp.websitezone.co.uk` | signed-in staff and (if the owner allows) clients | the portal as that person: read tools for every staff area (below) |
+| `private` | `portal-mcp.websitezone.co.uk` | signed-in staff and (if the owner allows) clients | the portal as that person: read tools for every staff area, and changes the person confirms (below) |
 
 An anonymous caller can never reach a private tool, because the private tools aren't loaded in the public process.
 
@@ -67,7 +67,7 @@ Claude ──/mcp, Bearer wzat_…──▶ portal-mcp ─introspect (cached 60 
 
 ## What the private server offers
 
-Each person gets only the tools their connection's scopes allow, so a client never sees a staff tool. Every tool is read-only and calls one `api/v1` endpoint with the person's own token. PHP applies the same visibility rule as that area's browser page, and anything outside it is a 404.
+Each person gets only the tools their connection's scopes allow, so a client never sees a staff tool. Every tool calls `api/v1` with the person's own token. PHP applies the same visibility rule as that area's browser page, and anything outside it is a 404.
 
 | Scope | Tools | Who sees which records (same as the browser) |
 |---|---|---|
@@ -87,7 +87,44 @@ Each person gets only the tools their connection's scopes allow, so a client nev
 - **Text people typed comes back under `untrusted_content`.** That covers form answers, lead answers, meeting topics and notes, captions, client descriptions and notifications. The server's instructions, and a line in front of every result that contains it, tell the model to treat it as data and never follow instructions inside it. Nothing exposed can write, so a hostile answer has nothing to act on.
 - **Every reply is checked against a zod schema** before it reaches the model ([`src/portal/schemas.js`](src/portal/schemas.js)), and so is each tool's `outputSchema`. If PHP drifts, the tool returns an "unexpected shape" error and the log names the field.
 
-Write tools (drafts and confirmed changes) come in the next phase, using the same prepare → confirm → commit tokens as inquiry submission.
+### Changes, and how the person stays in charge
+
+| Scope | Tool | What it does once confirmed |
+|---|---|---|
+| `clients:write` | `save_my_client_note` | replaces your own private note about a client |
+| `forms:write` | `create_form_draft` | creates a form for your client. It **always** goes into the review queue, even when a reviewer asks for it |
+| `forms:review` | `review_form` | approves a waiting form (it reaches the client) or returns it to its author with a comment |
+| `inquiries:write` | `create_inquiry_draft` | creates a consultation inquiry, **closed** until someone opens it in the portal |
+| `content:write` | `create_content_draft` | saves a **draft** post. Nothing here publishes |
+| `calendar:write` | `propose_meeting` | asks a client for a meeting: every account at their company that you can reach, in the portal and by email, as the calendar page does |
+| `calendar:write` | `respond_to_meeting` | accepts or declines a client's pending request |
+| `projects:write` | `post_project_update` | adds an update to a project, published (the client is told once it's live) or as a draft |
+| `projects:write` | `update_task` | changes the given fields of an update |
+| `notifications:write` | `mark_notifications_read` | marks your own notifications read. **The only change without a confirmation step** |
+
+Every other change takes two steps, through [`api/v1/changes.php`](../api/v1/changes.php):
+
+1. **Prepare.** The tool above checks the change as the person, against the portal as it is now, and writes nothing. It returns a plain-words `summary`, a `preview` and a single-use `confirmation_token`, valid for 15 minutes. These tools are read-only, and the model is told to show the summary word for word and wait for a yes.
+2. **`confirm_change(confirmation_token, summary)`** makes exactly the prepared change:
+   - **The arguments never come back from the model.** PHP stored them in `mcp_confirmations` at prepare time, so nothing can be altered in between.
+   - **The summary must match.** It is what the person's client shows when it asks them to approve a non-read-only tool, so they approve the change itself rather than an opaque token.
+   - **Everything is checked again first:** scope, visibility, and state. If a reviewer decided the form in the meantime, or the client was moved to someone else, the change stops.
+   - **It applies at most once.** A repeat returns the first result with `duplicate: true`. Only the person who prepared it, through the same connection, can confirm it.
+
+Elicitation would be the protocol's way to ask, but this server is stateless, so a token carries the confirmation instead.
+
+**Same behaviour as the page.** The changes call the browser endpoints' own shared functions, so a change made through the assistant lands exactly as the same click would: the same review gate, the same notifications and emails.
+
+| Shared code | Used by the page | And by |
+|---|---|---|
+| [`api/survey-writes.php`](../api/survey-writes.php) | `admin-surveys.php`, `admin-survey-review.php` | `create_form_draft`, `review_form` |
+| [`api/meeting-writes.php`](../api/meeting-writes.php) | `calendar.php` | `propose_meeting`, `respond_to_meeting` |
+| [`api/task-writes.php`](../api/task-writes.php) | `project-tasks.php` | `post_project_update`, `update_task` |
+| [`api/inquiry-templates.php`](../api/inquiry-templates.php) | `admin-inquiries.php` | `create_inquiry_draft` |
+
+**Attribution.** `mcp_confirmations` keeps every prepared change: who, through which connection (`grant_id`), what, and its result with the ids it created. Each call is also in `mcp_audit_log`.
+
+**Never exposed:** deleting anything, publishing content, sending announcements, and account, role or permission changes. Those stay in the portal.
 
 ## Design rules
 
@@ -113,6 +150,7 @@ src/app.js          HTTP layer: proxy trust, request ids, rate limit, /healthz, 
 src/server.js       MCP layer: tools, the inquiry:// resource, the intake prompt, output schemas
 src/portal/server.js the private server: whoami, then the tools, resources and prompts this person's scopes allow
 src/portal/tools.js  the read tools as data: scope, input, output schema, api/v1 path
+src/portal/writes.js the change tools (prepare), confirm_change, mark_notifications_read
 src/portal/schemas.js what each api/v1 endpoint answers with (zod)
 src/portal/resources.js client:// project:// form://
 src/portal/prompts.js staff workflows (weekly report, meeting prep, content plan, lead triage, review queue)
@@ -152,6 +190,9 @@ The PHP side has its own test, a permission matrix in [`tests/api-v1/run.php`](.
 1. It seeds one person per role (owner, super admin, both kinds of account manager, SEO admin, a deactivated admin, clients).
 2. It serves the real endpoints with `php -S`.
 3. It checks that each role sees exactly the records its browser page shows, and is refused (403 or 404, never an empty success) everything else. It also covers cursors, parameter checks, MCP tokens and the audit log.
+4. [`tests/api-v1/writes.php`](../tests/api-v1/writes.php) checks the changes. The browser endpoints that now use the shared write functions must behave as before (messages, review gate, notifications). Every change goes through prepare and confirm, and is stopped by a missing scope, an invisible record, a stale state, or a reused, expired, altered or borrowed confirmation.
+
+The runner's PHP server sends mail to a closed local port, so a test run never logs in to the real mail account.
 
 ```bash
 # from the repo root, against a throwaway MySQL/MariaDB database whose name ends in _test

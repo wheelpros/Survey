@@ -225,13 +225,42 @@ $server = proc_open(
     [0 => ["pipe", "r"], 1 => ["file", "/dev/null", "w"], 2 => ["file", "/dev/null", "w"]],
     $pipes,
     $root,
-    array_merge(getenv(), ["MCP_UPSTREAM_KEY" => $mcpKey])
+    // SMTP at a closed local port: the shared writes email people, and a test
+    // run must never log in to the real mail account or send anything.
+    array_merge(getenv(), ["MCP_UPSTREAM_KEY" => $mcpKey, "SMTP_HOST" => "127.0.0.1", "SMTP_PORT" => "9"])
 );
 register_shutdown_function(function () use ($server) {
     proc_terminate($server);
 });
 for ($i = 0; $i < 50 && !@fsockopen("127.0.0.1", $port); $i++) {
     usleep(100000);
+}
+
+/** POST to any portal path (not just api/v1): JSON, or a form when $form. */
+function post($path, $token, $body, array $headers = [], $form = false)
+{
+    global $port;
+    $lines = ["Authorization: Bearer $token", "Content-Type: " . ($form ? "application/x-www-form-urlencoded" : "application/json")];
+    foreach ($headers as $name => $value) {
+        $lines[] = "$name: $value";
+    }
+    $reply = @file_get_contents("http://127.0.0.1:$port/$path", false, stream_context_create([
+        "http" => ["method" => "POST", "header" => implode("\r\n", $lines), "ignore_errors" => true, "timeout" => 20,
+                   "content" => $form ? http_build_query($body) : json_encode($body)],
+    ]));
+    preg_match('/^HTTP\/\S+ (\d+)/', $http_response_header[0] ?? "", $m);
+    return [(int) ($m[1] ?? 0), json_decode((string) $reply, true)];
+}
+
+/** A browser endpoint's PUT, JSON. */
+function put($path, $token, $body)
+{
+    global $port;
+    $reply = @file_get_contents("http://127.0.0.1:$port/$path", false, stream_context_create([
+        "http" => ["method" => "PUT", "header" => "Authorization: Bearer $token\r\nContent-Type: application/json",
+                   "ignore_errors" => true, "timeout" => 20, "content" => json_encode($body)],
+    ]));
+    return json_decode((string) $reply, true);
 }
 
 function get($path, $token, array $headers = [])
@@ -516,6 +545,8 @@ check("every MCP call is audited", count($audit) === 2
 |   ... php tests/api-v1/run.php --fixtures
 */
 
+$fixtures = [];
+
 if (in_array("--fixtures", $argv, true)) {
     $calls = [
         "whoami" => ["me.php", $owner],
@@ -542,12 +573,16 @@ if (in_array("--fixtures", $argv, true)) {
         "get_project" => ["projects.php?id=501", $owner],
         "list_my_notifications" => ["notifications.php", $sa],
     ];
-    $fixtures = [];
     foreach ($calls as $tool => [$path, $token]) {
         [$status, $body] = get($path, $token);
         check("fixture $tool", $status === 200, "HTTP $status " . json_encode($body));
         $fixtures[$tool] = $body["data"] ?? null;
     }
+}
+
+require __DIR__ . "/writes.php";
+
+if (in_array("--fixtures", $argv, true)) {
     file_put_contents(
         $root . "/Wzone-ai/test/fixtures/api-v1.json",
         json_encode($fixtures, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n"

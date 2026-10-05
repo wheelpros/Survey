@@ -27,8 +27,7 @@ if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") {
 }
 
 require_once "db.php";
-require_once "notify.php";
-require_once "mailer.php";
+require_once "meeting-writes.php";
 
 function reply($success, $message = "", $extra = [])
 {
@@ -132,24 +131,8 @@ function field($input, $name, $default = "")
 
 function scopedClients(PDO $pdo, array $admin)
 {
-    if (($admin["role"] ?? "") === "owner") {
-        $stmt = $pdo->query("
-            SELECT id, name, email, company_name, approved
-            FROM users
-            ORDER BY name ASC
-        ");
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-
-    $stmt = $pdo->prepare("
-        SELECT u.id, u.name, u.email, u.company_name, u.approved
-        FROM users u
-        INNER JOIN admin_user_assignments a ON a.user_id = u.id
-        WHERE a.admin_id = ?
-        ORDER BY u.name ASC
-    ");
-    $stmt->execute([$admin["id"]]);
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // Shared with api/v1 - see meeting-writes.php.
+    return meetingScopedClients($pdo, $admin);
 }
 
 /*
@@ -303,118 +286,42 @@ if ($action === "get_clients" && $admin) {
 if ($action === "create_admin_request" && $admin) {
 
     $client = field($input, "client");
-    $date = field($input, "date");
-    $time = field($input, "time");
-    $topic = mb_substr(field($input, "topic"), 0, 200);
-    $notes = field($input, "notes");
 
     if ($client === "") {
         reply(false, "Pick the client this request is for.");
     }
 
-    if (!$date || !$time || $topic === "") {
-        reply(false, "Pick a date and time, and say what the meeting is about.");
-    }
-
-    $targets = [];
-
-    foreach (scopedClients($pdo, $admin) as $row) {
-        if (trim((string) ($row["company_name"] ?? "")) === $client) {
-            $targets[] = $row;
-        }
-    }
-
-    if (!$targets) {
-        reply(false, "No client accounts carry that company name.");
-    }
-
-    $insert = $pdo->prepare("
-        INSERT INTO appointments
-            (user_id, title, date, time, status, topic, notes, requested_by, admin_id, client)
-        VALUES (?, ?, ?, ?, 'pending', ?, ?, 'admin', ?, ?)
-    ");
-
-    $sent = 0;
-
-    foreach ($targets as $target) {
-
-        $insert->execute([
-            $target["id"],
-            $topic,
-            $date,
-            $time,
-            $topic,
-            $notes !== "" ? $notes : null,
-            $admin["id"],
-            $client
-        ]);
-
-        // One notification per account, matching the one row each of them got.
-        notify(
+    // requestMeetingFromClients() is shared with api/v1 (meeting-writes.php):
+    // the rows, notifications and emails are the same whoever sends it.
+    try {
+        $ids = requestMeetingFromClients(
             $pdo,
-            "user",
-            (int) $target["id"],
-            NOTIFY_APPOINTMENT_REQUEST,
-            "Meeting request from " . $admin["name"],
-            $topic . " - " . $date . " at " . $time,
-            "dashboard.html",
-            "admin",
-            (int) $admin["id"]
+            $admin,
+            meetingTargetsForCompany($pdo, $admin, $client),
+            $client,
+            field($input, "date"),
+            field($input, "time"),
+            field($input, "topic"),
+            field($input, "notes")
         );
-
-        $sent++;
+    } catch (PortalWriteError $e) {
+        reply(false, $e->getMessage());
     }
 
-    // Each client by email too: the request needs their answer, and the
-    // portal only shows it to someone who happens to sign in.
-    emailClientsAboutMeetingRequest($targets, (string) $admin["name"], $topic, $date, $time, $notes);
-
+    $sent = count($ids);
     reply(true, "Request sent to {$sent}" . ($sent === 1 ? " client." : " clients."));
 }
 
 /* Accept or decline a request a client sent the admin team. */
 if ($action === "respond_request" && $admin) {
 
-    $appointmentId = (int) field($input, "id", "0");
     $status = field($input, "status");
 
-    if (!in_array($status, ["approved", "rejected"], true)) {
-        reply(false, "Invalid status");
+    try {
+        answerClientMeetingRequest($pdo, $admin, (int) field($input, "id", "0"), $status);
+    } catch (PortalWriteError $e) {
+        reply(false, $e->getMessage());
     }
-
-    $allowed = array_map("intval", array_column(scopedClients($pdo, $admin), "id"));
-
-    $stmt = $pdo->prepare("
-        SELECT user_id, topic
-        FROM appointments
-        WHERE id = ? AND requested_by = 'user'
-        LIMIT 1
-    ");
-    $stmt->execute([$appointmentId]);
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$row || !in_array((int) $row["user_id"], $allowed, true)) {
-        reply(false, "That request is not yours to answer.");
-    }
-
-    $stmt = $pdo->prepare("
-        UPDATE appointments
-        SET status = ?, admin_id = ?
-        WHERE id = ?
-    ");
-    $stmt->execute([$status, $admin["id"], $appointmentId]);
-
-    notify(
-        $pdo,
-        "user",
-        (int) $row["user_id"],
-        NOTIFY_APPOINTMENT_ANSWERED,
-        $status === "approved" ? "Your meeting was confirmed" : "Your meeting request was declined",
-        (string) ($row["topic"] ?? "Meeting"),
-        "dashboard.html",
-        "admin",
-        (int) $admin["id"]
-    );
 
     reply(true, $status === "approved" ? "Meeting confirmed" : "Request declined");
 }

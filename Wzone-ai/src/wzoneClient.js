@@ -4,9 +4,9 @@
 // WZONE_BASE_URL) - the whole point of this file existing is that a
 // future domain migration is a one-line env change, not a code change.
 //
-// This client has no database credentials and no ability to write
-// anything: it only ever issues GET/HEAD requests against a single,
-// already-public, read-only endpoint.
+// This client has no database credentials. It writes only through PHP
+// endpoints that check the person (api/v1) or the shared key, and every
+// write a person makes through it is confirmed first (api/v1/changes.php).
 
 import { logger } from "./logger.js";
 
@@ -201,30 +201,35 @@ export function callOAuthStore(action, payload) {
  * A call into the AI-facing api/v1 as the signed-in person: their access
  * token, plus the X-MCP-Key that api/v1 requires before it will accept an
  * MCP token at all, plus the tool and request id for the audit log.
- * Resolves to { status, body } where body is api/v1's { ok, data | error }.
+ * A `body` makes it a JSON POST. Never retried here: a POST that timed out
+ * may have happened, and api/v1's confirmation tokens are what make a
+ * retry safe. Resolves to { status, body } where body is api/v1's
+ * { ok, data | error }.
  */
-export async function callPortalApi(path, { token, tool, requestId, query } = {}) {
+export async function callPortalApi(path, { token, tool, requestId, query, body } = {}) {
   const url = new URL(`${BASE_URL}/api/v1/${path}`);
   for (const [k, v] of Object.entries(query || {})) {
     if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
   }
   const res = await fetchWithTimeout(url, {
-    method: "GET",
+    method: body === undefined ? "GET" : "POST",
     headers: {
       ...upstreamHeaders(),
       Authorization: `Bearer ${token}`,
+      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
       ...(tool ? { "X-MCP-Tool": tool } : {}),
       ...(requestId ? { "X-Request-Id": requestId } : {}),
     },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
-  let body;
+  let reply;
   try {
-    body = await res.json();
+    reply = await res.json();
   } catch {
     logger.error("wzone_api_non_json_response", { path, status: res.status });
     throw new Error("The WZONE API returned an unexpected response");
   }
-  return { status: res.status, body };
+  return { status: res.status, body: reply };
 }
 
 /**
