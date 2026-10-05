@@ -21,7 +21,7 @@
 
 ## MCP server
 
-`https://mcp.websitezone.co.uk/mcp` (Streamable HTTP, no login):
+`https://mcp.websitezone.co.uk/public/mcp` (Streamable HTTP, no login):
 
 - `get_inquiry(name)` and the resource `inquiry://{name}` — read one
   named inquiry form. There is no way to list inquiries.
@@ -35,6 +35,10 @@
 
 Never invent answers, and never submit for someone who has not seen and
 confirmed what will be sent.
+
+`https://mcp.websitezone.co.uk/mcp` on the same server is the portal for
+W|ZONE staff and clients, and requires each person's own login. It is not
+for anonymous use.
 
 ## What's private (do not access, index, or infer)
 
