@@ -1,0 +1,61 @@
+# Both halves of the AI access layer, tested together:
+#   - every PHP file parses;
+#   - the api/v1 permission matrix passes against a real MariaDB;
+#   - the MCP server's tests pass, with its contract fixtures regenerated
+#     from that same PHP run - so a reply and its zod schema can't drift
+#     apart without this going red.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      mariadb:
+        image: mariadb:11
+        env:
+          MARIADB_DATABASE: wzone_test
+          MARIADB_USER: wz
+          MARIADB_PASSWORD: wz
+          MARIADB_ROOT_PASSWORD: root
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: "3306"
+      DB_NAME: wzone_test
+      DB_USER: wz
+      DB_PASS: wz
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: pdo_mysql
+
+      - name: PHP files parse
+        run: find . -name "*.php" -not -path "./PHPMailer/*" -not -path "*/node_modules/*" -print0 | xargs -0 -n1 php -l > /dev/null
+
+      - name: api/v1 permission matrix (and fresh contract fixtures)
+        run: php tests/api-v1/run.php --fixtures
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: Wzone-ai/package-lock.json
+
+      - name: MCP server tests
+        working-directory: Wzone-ai
+        run: |
+          npm ci
+          npm test

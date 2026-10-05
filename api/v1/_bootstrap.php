@@ -29,6 +29,7 @@
 
 require_once __DIR__ . "/../db.php";
 require_once __DIR__ . "/../auth.php";
+require_once __DIR__ . "/_helpers.php";
 
 header("Content-Type: application/json; charset=UTF-8");
 header("Cache-Control: no-store");
@@ -36,7 +37,9 @@ header("Cache-Control: no-store");
 function v1Reply($status, $data)
 {
     http_response_code($status);
-    echo json_encode(["ok" => true, "data" => $data]);
+    // Substitute rather than fail: one stray byte in a client's answer must
+    // not turn the whole reply into an empty body.
+    echo json_encode(["ok" => true, "data" => $data], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
     exit;
 }
 

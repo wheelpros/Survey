@@ -7,89 +7,41 @@
 // relevant tools to choose between. Every call goes to api/v1 with the
 // person's own token, and PHP decides what they may see; this side only
 // shapes the result.
+//
+//   tools.js      the read tools, one per api/v1 read, behind their scopes
+//   resources.js  client:// project:// form://
+//   prompts.js    ready-made staff workflows
+//   schemas.js    what api/v1 answers with
+//   call.js       the one way into api/v1
 
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-import { logger } from "../logger.js";
-import { callPortalApi } from "../wzoneClient.js";
+import { portalCall, UNTRUSTED_NOTE } from "./call.js";
+import { registerPrompts } from "./prompts.js";
+import { registerResources } from "./resources.js";
+import * as S from "./schemas.js";
+import { READ_ONLY, registerReadTools } from "./tools.js";
 
-function toolError(text) {
-  return { isError: true, content: [{ type: "text", text }] };
-}
+export { portalCall } from "./call.js";
 
-/**
- * Calls api/v1 as the person behind `auth` and turns its envelope into an
- * MCP tool result. `shape` is the zod schema the data must match.
- */
-export async function portalCall({ auth, requestId, tool, path, query, shape }) {
-  const started = Date.now();
-  const log = (outcome, extra = {}) =>
-    logger.info("portal_tool_completed", {
-      requestId,
-      tool,
-      outcome,
-      principal: `${auth.extra?.principal?.kind}:${auth.extra?.principal?.id}`,
-      duration_ms: Date.now() - started,
-      ...extra,
-    });
-
-  let result;
-  try {
-    result = await callPortalApi(path, { token: auth.token, tool, requestId, query });
-  } catch (err) {
-    logger.error("portal_api_unreachable", { requestId, tool, error: err.message });
-    log("upstream_error");
-    return toolError("The W|ZONE portal isn't reachable right now. Try again in a moment.");
-  }
-
-  const { status, body } = result;
-  if (!body?.ok) {
-    log("refused", { upstream_status: status });
-    return toolError(body?.error?.message || `The W|ZONE portal refused this (HTTP ${status}).`);
-  }
-
-  const parsed = shape.safeParse(body.data);
-  if (!parsed.success) {
-    logger.error("portal_api_shape_mismatch", {
-      requestId,
-      tool,
-      issues: parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`),
-    });
-    log("bad_upstream_shape");
-    return toolError("The W|ZONE portal returned data in an unexpected shape.");
-  }
-
-  log("ok");
-  return {
-    content: [{ type: "text", text: JSON.stringify(parsed.data, null, 2) }],
-    structuredContent: parsed.data,
-  };
-}
-
-const whoamiShape = {
-  kind: z.enum(["admin", "user"]).describe("'admin' for W|ZONE staff, 'user' for a client"),
-  id: z.number().int(),
-  name: z.string(),
-  email: z.string(),
-  role: z.string().describe("owner, super_admin, seo_admin, account_manager - or client"),
-  scopes: z.array(z.string()).describe("What this connection may do"),
-  via: z.string(),
-  connected_app: z.string().nullable().optional(),
-  visible_clients: z.enum(["all", "assigned"]).optional(),
-  visible_client_count: z.number().int().optional(),
-  company_name: z.string().nullable().optional(),
-};
-
-const READ_ONLY = {
-  readOnlyHint: true,
-  destructiveHint: false,
-  idempotentHint: true,
-  openWorldHint: false,
-};
+const INSTRUCTIONS = [
+  "This server is the W|ZONE client portal, acting as the person who connected it -",
+  "a staff member or a client. Every tool returns only what that person can see in the",
+  "portal; a 'not found' can mean it exists but isn't theirs to see.",
+  "Start with whoami if unsure what this connection can do. For anything about one",
+  "client, get_client_overview answers most questions in one call; search_clients finds",
+  "the client's id. Lists are paged: pass next_cursor back as cursor for more.",
+  UNTRUSTED_NOTE,
+].join(" ");
 
 export function buildPortalServer({ requestId, auth }) {
-  const server = new McpServer({ name: "wzone-portal", version: "0.1.0" });
+  const server = new McpServer(
+    { name: "wzone-portal", version: "0.2.0" },
+    { instructions: INSTRUCTIONS }
+  );
+  const scopes = auth.scopes || [];
+  const ctx = { auth, requestId, scopes };
 
   server.registerTool(
     "whoami",
@@ -101,7 +53,7 @@ export function buildPortalServer({ requestId, auth }) {
         "how many clients they can see. Use it when unsure whether something " +
         "is possible before trying.",
       inputSchema: {},
-      outputSchema: whoamiShape,
+      outputSchema: S.whoami,
       annotations: READ_ONLY,
     },
     async () =>
@@ -110,9 +62,13 @@ export function buildPortalServer({ requestId, auth }) {
         requestId,
         tool: "whoami",
         path: "me.php",
-        shape: z.object(whoamiShape),
+        schema: z.object(S.whoami),
       })
   );
+
+  registerReadTools(server, ctx);
+  registerResources(server, ctx);
+  registerPrompts(server, ctx);
 
   return server;
 }

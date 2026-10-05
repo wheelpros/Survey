@@ -1,6 +1,6 @@
 {
   "name": "wzone-mcp-server",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "MCP servers for the W|ZONE portal: a public one for consultation inquiries, and an OAuth-protected one that acts as the signed-in staff member or client. Both call the PHP application over HTTPS - neither holds database credentials.",
   "type": "module",
   "main": "src/index.js",

@@ -157,7 +157,8 @@ describe("private MCP server", () => {
   }
 
   it("runs whoami as the token's person, with audit headers on the api/v1 call", async () => {
-    const upstream = fakePortal();
+    // No area scopes: whoami is all there is (portal-tools.test.js covers the rest).
+    const upstream = fakePortal({ scopes: [] });
     const c = await connect("wzat_" + "d".repeat(43));
 
     expect((await c.listTools()).tools.map((t) => t.name)).toEqual(["whoami"]);

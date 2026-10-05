@@ -34,7 +34,9 @@ if ($p["kind"] === "admin") {
     $ids = assignedClientIds($pdo, $p);
     if ($ids === null) {
         $data["visible_clients"] = "all";
-        $data["visible_client_count"] = (int) $pdo->query("SELECT COUNT(*) FROM users WHERE approved = 1")->fetchColumn();
+        // Every registration, pending ones included - what search_clients
+        // and the Clients page list.
+        $data["visible_client_count"] = (int) $pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
     } else {
         $data["visible_clients"] = "assigned";
         $data["visible_client_count"] = count($ids);
