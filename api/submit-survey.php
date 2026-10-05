@@ -231,7 +231,8 @@ try {
         NOTIFY_FORM_SUBMITTED,
         "New response from " . $user["name"],
         $survey["title"] . " has been filled in and submitted.",
-        "responses.html"
+        // Opens this response, not the list of every response.
+        "response-details.html?id=" . (int) $responseId
     );
 
     sendSurveyEmail($user, $survey, $answers);

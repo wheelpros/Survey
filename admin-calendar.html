@@ -1381,6 +1381,7 @@ async function fetchCalendarData() {
     myAdminId = data.admin_id || 0;
 
     renderAll();
+    openLinkedAppointment();
 
   } catch (err) {
     console.error("Error fetching data:", err.message);
@@ -1783,6 +1784,32 @@ function openRequestModal(id) {
   document.getElementById("reqModalFoot").hidden = !decidable;
 
   document.getElementById("requestModal").classList.add("show");
+}
+
+/* A meeting notification or email links here as ?appointment=<id>. Once the
+   calendar has loaded, jump to that meeting's day and open it in full -
+   once only, so a later refresh after approving does not reopen it. A
+   meeting this admin can't see (another team's client) just leaves the
+   calendar as it is. */
+let linkedAppointmentHandled = false;
+
+function openLinkedAppointment() {
+  if (linkedAppointmentHandled) return;
+  linkedAppointmentHandled = true;
+
+  const id = new URLSearchParams(location.search).get("appointment");
+  if (!/^\d+$/.test(id || "")) return;
+
+  const row = calendarEvents.appointments.find(a => Number(a.id) === Number(id));
+  if (!row) return;
+
+  if (row.date) {
+    selectedDate = row.date;
+    currentDate = parseDateStr(row.date);
+    renderCalendar();
+    renderDailySchedule();
+  }
+  openRequestModal(row.id);
 }
 
 function closeRequestModal() {

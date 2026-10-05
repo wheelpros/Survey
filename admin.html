@@ -1488,6 +1488,19 @@ document.getElementById("reviewIntro").innerText = canReview
 loadReviewSurveys();
 
 loadSurveyData();
+
+/* A "form awaiting approval" notification or email links here as
+   ?review=<id>: open that form's review straight away, with the queue
+   scrolled into view behind it. openReview() fetches the form by id itself,
+   so it does not wait on the queue loading; if the form was already
+   decided, it says so. */
+(function () {
+  const reviewId = new URLSearchParams(location.search).get("review");
+  if (!/^\d+$/.test(reviewId || "")) return;
+  document.getElementById("formReviewSection")
+    .scrollIntoView({ behavior: "smooth", block: "start" });
+  openReview(Number(reviewId));
+})();
 </script>
 
 <script src="assets/notifications.js?v=1"></script>

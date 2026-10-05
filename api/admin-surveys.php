@@ -403,13 +403,14 @@ if ($method === "POST" || $method === "PUT") {
                     ? "New form awaiting approval"
                     : "Updated form awaiting approval",
                 $title . " needs a review before it reaches the user.",
-                "admin.html",
+                // Opens this form's review, not just the dashboard.
+                "admin.html?review=" . (int) $surveyId,
                 (int) $currentAdmin["id"]
             );
 
             // The same reviewers, by email: a form waiting on sign-off is
             // invisible to the client until one of them opens the portal.
-            emailReviewersAboutForm($pdo, $title, $assignedUserId, (int) $currentAdmin["id"], $method === "POST");
+            emailReviewersAboutForm($pdo, $title, $assignedUserId, (int) $currentAdmin["id"], $method === "POST", (int) $surveyId);
         }
 
         if ($isReviewer) {

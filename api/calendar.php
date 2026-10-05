@@ -195,7 +195,7 @@ if ($action === "respond_appointment" && $user) {
             NOTIFY_APPOINTMENT_ANSWERED,
             $user["name"] . ($status === "approved" ? " confirmed your meeting" : " declined your meeting"),
             (string) ($request["topic"] ?? "Meeting"),
-            "admin-calendar.html",
+            "admin-calendar.html?appointment=" . (int) $appointmentId,
             "user",
             (int) $user["id"]
         );
@@ -230,19 +230,21 @@ if ($action === "create_user_request" && $user) {
         $notes !== "" ? $notes : null,
         $user["company_name"] ?? null
     ]);
+    $appointmentId = (int) $pdo->lastInsertId();
 
+    // Opens this request on the calendar, not just the calendar.
     notifyAdminsForUser(
         $pdo,
         (int) $user["id"],
         NOTIFY_APPOINTMENT_REQUEST,
         "Meeting request from " . $user["name"],
         $topic . " - " . $date . " at " . $time,
-        "admin-calendar.html"
+        "admin-calendar.html?appointment=" . $appointmentId
     );
 
     // The same admins, by email: a request left unseen in the portal is a
     // client left waiting for an answer.
-    emailAdminsAboutMeetingRequest($pdo, (int) $user["id"], (string) $user["name"], $topic, $date, $time, $notes);
+    emailAdminsAboutMeetingRequest($pdo, (int) $user["id"], (string) $user["name"], $topic, $date, $time, $notes, $appointmentId);
 
     reply(true, "Request sent to the admin team.");
 }

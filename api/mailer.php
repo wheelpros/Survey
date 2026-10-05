@@ -215,7 +215,7 @@ function clientLabel(PDO $pdo, int $userId): string
  * A form is waiting on approval. Goes to the account managers and the owner,
  * except whoever wrote it.
  */
-function emailReviewersAboutForm(PDO $pdo, string $formTitle, int $userId, int $authorAdminId, bool $isNew): int
+function emailReviewersAboutForm(PDO $pdo, string $formTitle, int $userId, int $authorAdminId, bool $isNew, int $surveyId = 0): int
 {
     $recipients = adminRecipients($pdo, reviewerAdminIds($pdo), $authorAdminId);
 
@@ -240,7 +240,8 @@ function emailReviewersAboutForm(PDO $pdo, string $formTitle, int $userId, int $
             "Client" => clientLabel($pdo, $userId),
             "By"     => $author,
         ],
-        "admin.html",
+        // Straight into this form's review, as the matching notification does.
+        $surveyId ? "admin.html?review=" . $surveyId : "admin.html",
         "Review the form"
     );
 
@@ -255,7 +256,7 @@ function emailReviewersAboutForm(PDO $pdo, string $formTitle, int $userId, int $
  * A client has asked the admin team for a meeting. Goes to the owner and the
  * admins assigned to that client.
  */
-function emailAdminsAboutMeetingRequest(PDO $pdo, int $userId, string $clientName, string $topic, string $date, string $time, string $notes): int
+function emailAdminsAboutMeetingRequest(PDO $pdo, int $userId, string $clientName, string $topic, string $date, string $time, string $notes, int $appointmentId = 0): int
 {
     $recipients = adminRecipients($pdo, adminIdsForUser($pdo, $userId));
 
@@ -275,8 +276,9 @@ function emailAdminsAboutMeetingRequest(PDO $pdo, int $userId, string $clientNam
             "When"   => $date . " at " . $time,
             "Notes"  => $notes,
         ],
-        "admin-calendar.html",
-        "Open the calendar"
+        // Straight to this request, as the matching notification does.
+        $appointmentId ? "admin-calendar.html?appointment=" . $appointmentId : "admin-calendar.html",
+        "Open the request"
     );
 
     return sendPortalEmail($recipients, "Meeting request from " . ($client ?: $clientName) . ": " . $topic, $html);
