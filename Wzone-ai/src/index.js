@@ -8,7 +8,9 @@ const PORT = Number(process.env.MCP_PORT || 8787);
 const httpServer = createApp().listen(PORT, () => {
   logger.info("mcp_server_started", {
     port: PORT,
+    mode: process.env.MCP_MODE || "public",
     wzoneBaseUrl: process.env.WZONE_BASE_URL,
+    publicUrl: process.env.MCP_PUBLIC_URL,
   });
 });
 

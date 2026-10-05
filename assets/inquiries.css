@@ -451,6 +451,15 @@ td.action { text-align: right; white-space: nowrap }
 
 .resp-when { margin-left: auto; font-size: 12px; color: var(--muted); white-space: nowrap; flex: none }
 
+/* A response an AI assistant sent through the MCP server (source 'mcp').
+   Same pill as .lead-place, quieter, so it reads as a fact about the
+   response rather than a warning. */
+.via-ai {
+  display: inline-block; margin-right: 8px;
+  background: #eef0f6; color: var(--nav-active); font-weight: 700;
+  font-size: 11px; border-radius: 20px; padding: 2px 8px;
+}
+
 .resp-chev { width: 18px; height: 18px; flex: none; color: #98a2b3; transition: transform .15s }
 .resp.open .resp-chev { transform: rotate(180deg) }
 

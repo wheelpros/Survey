@@ -219,11 +219,20 @@ async function loginAdmin(){
 
     localStorage.setItem("admin_token", data.token);
     localStorage.setItem("admin_user", JSON.stringify(data.admin));
-    window.location.href = "admin.html";
+    window.location.href = afterLogin("admin.html");
 
   }catch(error){
     status.innerText = "Connection error";
   }
+}
+
+/* Where to go once signed in. Normally the admin home; when an AI
+   assistant's connect flow sent the person here (oauth-consent.html), back
+   to that approval page. Only that exact shape is honoured, so ?next= can
+   never be used to bounce someone to another site. */
+function afterLogin(fallback) {
+  const next = new URLSearchParams(location.search).get("next") || "";
+  return /^oauth-consent\.html\?request=[A-Za-z0-9_-]{43}$/.test(next) ? next : fallback;
 }
 
 function togglePassword() {

@@ -1309,6 +1309,18 @@ const INQUIRY_EXTRA_COLUMNS = [
     "reference"                => "VARCHAR(100) NULL",
 ];
 
+const INQUIRY_RESPONSE_EXTRA_COLUMNS = [
+    /* Where a submission came from: 'web' for inquiry.html, 'mcp' for an AI
+       assistant going through the MCP server (api/inquiry-submit.php). NULL
+       on rows written before anyone recorded it - all of those were 'web'. */
+    "source"         => "VARCHAR(20) NULL",
+
+    /* The MCP server's idempotency key, sha256 of the confirmation token the
+       person approved. Unique, so sending the same confirmed submission twice
+       - a retry after a timeout, say - stores it once. Always NULL for 'web'. */
+    "submission_key" => "CHAR(64) NULL",
+];
+
 function ensureInquiryTables(PDO $pdo)
 {
     static $done = false;
@@ -1368,8 +1380,11 @@ function ensureInquiryTables(PDO $pdo)
               inquiry_id   INT       NOT NULL,
               invite_id    INT       NOT NULL,
               submitted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              source         VARCHAR(20) NULL,
+              submission_key CHAR(64)    NULL,
               KEY idx_inquiry (inquiry_id, submitted_at),
-              KEY idx_invite (invite_id)
+              KEY idx_invite (invite_id),
+              UNIQUE KEY uniq_submission_key (submission_key)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
 
@@ -1386,8 +1401,9 @@ function ensureInquiryTables(PDO $pdo)
 
         // Columns added to tables that already existed.
         $tables = [
-            "inquiries"      => INQUIRY_EXTRA_COLUMNS,
-            "inquiry_fields" => INQUIRY_FIELD_EXTRA_COLUMNS,
+            "inquiries"         => INQUIRY_EXTRA_COLUMNS,
+            "inquiry_fields"    => INQUIRY_FIELD_EXTRA_COLUMNS,
+            "inquiry_responses" => INQUIRY_RESPONSE_EXTRA_COLUMNS,
         ];
 
         foreach ($tables as $table => $columns) {
@@ -1405,6 +1421,20 @@ function ensureInquiryTables(PDO $pdo)
                     $pdo->exec("ALTER TABLE `$table` ADD COLUMN `$column` $type");
                 }
             }
+        }
+
+        /* The idempotency guarantee is the unique index, not the column -
+           checked on its own so a run that added the column but died before
+           the index still gets it next time. */
+        $indexStmt = $pdo->query("
+            SELECT 1 FROM information_schema.STATISTICS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'inquiry_responses'
+              AND INDEX_NAME = 'uniq_submission_key'
+            LIMIT 1
+        ");
+        if (!$indexStmt->fetchColumn()) {
+            $pdo->exec("ALTER TABLE inquiry_responses ADD UNIQUE KEY uniq_submission_key (submission_key)");
         }
     } catch (PDOException $e) {
         // Read-only DB user: the endpoints fail on their own first query with

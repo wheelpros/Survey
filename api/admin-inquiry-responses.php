@@ -39,7 +39,7 @@ if ($responseId) {
 
     $stmt = $pdo->prepare("
         SELECT
-            inquiry_responses.id, inquiry_responses.inquiry_id, inquiry_responses.submitted_at,
+            inquiry_responses.*,
             inquiries.title, inquiries.slug, inquiries.status
         FROM inquiry_responses
         LEFT JOIN inquiries ON inquiries.id = inquiry_responses.inquiry_id
@@ -99,6 +99,9 @@ if ($responseId) {
         "response" => [
             "id" => (int)$response["id"],
             "submitted_at" => $response["submitted_at"],
+            // 'mcp' when an AI assistant sent it; null/'web' for the form.
+            // Read with ?? because the column is added lazily.
+            "source" => $response["source"] ?? null,
             "position" => (int)$positionStmt->fetchColumn(),
             "answers" => $answers
         ]
@@ -133,8 +136,10 @@ $fields = $fieldsStmt->fetchAll();
 
 // One row per answered invite - could be several now that every Copy Link
 // click generates its own independent link.
+// `*` rather than naming `source`: that column is added lazily, and a
+// database that couldn't ALTER must still list its responses.
 $responsesStmt = $pdo->prepare("
-    SELECT id, submitted_at
+    SELECT *
     FROM inquiry_responses
     WHERE inquiry_id = ?
     ORDER BY submitted_at DESC
@@ -159,9 +164,14 @@ if (!empty($responseIds)) {
     }
 }
 
+// Only what the page uses - submission_key is the MCP server's business.
 $responses = array_map(function ($r) use ($answersByResponse) {
-    $r["answers"] = $answersByResponse[$r["id"]] ?? [];
-    return $r;
+    return [
+        "id" => $r["id"],
+        "submitted_at" => $r["submitted_at"],
+        "source" => $r["source"] ?? null,
+        "answers" => $answersByResponse[$r["id"]] ?? [],
+    ];
 }, $responses);
 
 echo json_encode([

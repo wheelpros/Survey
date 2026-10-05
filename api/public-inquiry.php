@@ -4,7 +4,15 @@ require_once "db.php";
 
 header("Content-Type: application/json; charset=UTF-8");
 
+require_once "rate-limit.php";
+require_once "inquiry-submission.php";
+
 ensureInquiryTables($pdo);
+
+// Submissions per visitor per minute. Nobody filling the form in by hand gets
+// near it; a script posting leads in a loop does. Reading the form is not
+// limited here - that is a page load.
+const SUBMIT_MAX_PER_IP = 10;
 
 $method = $_SERVER["REQUEST_METHOD"];
 
@@ -30,18 +38,6 @@ $method = $_SERVER["REQUEST_METHOD"];
 | a token that has been answered stays answered.
 |
 */
-
-function findByName($pdo, $name)
-{
-    $stmt = $pdo->prepare("
-        SELECT id, title, intro_text, status, slug
-        FROM inquiries
-        WHERE slug = ?
-        LIMIT 1
-    ");
-    $stmt->execute([$name]);
-    return $stmt->fetch();
-}
 
 function findByToken($pdo, $token)
 {
@@ -87,7 +83,7 @@ function resolveLink($pdo, $name, $token)
         return ["error" => "Missing link"];
     }
 
-    $inquiry = findByName($pdo, $name);
+    $inquiry = findInquiryByName($pdo, $name);
 
     if (!$inquiry) {
         return ["error" => "This link is not valid"];
@@ -159,6 +155,12 @@ if ($method === "GET") {
 
 if ($method === "POST") {
 
+    if (rateLimited($pdo, "inquiry-submit-web", SUBMIT_MAX_PER_IP, SUBMIT_MAX_PER_IP)) {
+        http_response_code(429);
+        echo json_encode(["success" => false, "message" => "Too many submissions - please wait a minute and try again."]);
+        exit;
+    }
+
     $input = json_decode(file_get_contents("php://input"), true);
 
     $name = trim($input["name"] ?? "");
@@ -182,146 +184,21 @@ if ($method === "POST") {
         exit;
     }
 
-    $fieldsStmt = $pdo->prepare("SELECT id, field_label, field_type, required, options FROM inquiry_fields WHERE inquiry_id = ?");
-    $fieldsStmt->execute([$inquiry["id"]]);
-    $fields = $fieldsStmt->fetchAll();
+    // The rules and the write are shared with api/inquiry-submit.php (the
+    // MCP server's way in) - see api/inquiry-submission.php.
+    $fields = inquiryFieldsForSubmission($pdo, $inquiry["id"]);
 
-    $answersByFieldId = [];
+    $checked = validateInquiryAnswers($fields, $answers);
 
-    foreach ($answers as $answer) {
-        $id = (int)($answer["fieldId"] ?? 0);
-        $value = $answer["value"] ?? "";
-
-        // A 'choice' question sends an array; everything else sends a string.
-        $answersByFieldId[$id] = is_array($value)
-            ? array_values(array_filter(array_map("trim", $value), function ($v) { return $v !== ""; }))
-            : trim((string)$value);
-    }
-
-    foreach ($fields as $field) {
-        $id = (int)$field["id"];
-        $given = $answersByFieldId[$id] ?? "";
-        $type = $field["field_type"];
-
-        $allowed = ($type === "choice" || $type === "select")
-            ? array_values(array_filter(array_map("trim", preg_split("/\r\n|\r|\n/", (string)$field["options"]))))
-            : [];
-
-        /* Whatever the page rendered, an answer to a list question has to be on
-           the list. A value that is not gets dropped rather than refused: the
-           required check below is what decides whether that is fatal. */
-        if ($allowed) {
-            if (is_array($given)) {
-                $given = array_values(array_intersect($given, $allowed));
-            } else if ($given !== "" && !in_array($given, $allowed, true)) {
-                $given = "";
-            }
-
-            // 'select' takes exactly one answer however many arrive.
-            if ($type === "select" && is_array($given)) {
-                $given = count($given) ? $given[0] : "";
-            }
-        }
-
-        $answersByFieldId[$id] = is_array($given) ? implode(", ", $given) : $given;
-
-        /* Fixed by the type: 120 characters for a short answer, 800 for a
-           paragraph. maxlength in the browser is a courtesy to the person
-           typing; this is the rule.
-
-           Only the free-text types are capped. A list answer is options the
-           admin wrote, checked against that list a few lines up, so its length
-           is not something the person answering chose. */
-        $limit = ($type === "textarea") ? 800 : 120;
-        $capped = ($type === "input" || $type === "textarea");
-
-        if ($capped && mb_strlen((string) $answersByFieldId[$id]) > $limit) {
-            echo json_encode([
-                "success" => false,
-                "message" => "\"" . $field["field_label"] . "\" must be "
-                           . $limit . " characters or fewer."
-            ]);
-            exit;
-        }
-
-        if ((int)$field["required"] === 1 && $answersByFieldId[$id] === "") {
-            echo json_encode([
-                "success" => false,
-                "message" => "Please fill in \"" . $field["field_label"] . "\""
-            ]);
-            exit;
-        }
-    }
-
-    $pdo->beginTransaction();
-
-    try {
-
-        if ($inviteId) {
-
-            /* A legacy token, and it is still one answer only. The conditional
-               UPDATE is the guard: two people racing on the same old link, and
-               exactly one of them gets through. */
-            $claimStmt = $pdo->prepare("
-                UPDATE inquiry_invites
-                SET status = 'answered'
-                WHERE id = ? AND status = 'pending'
-            ");
-            $claimStmt->execute([$inviteId]);
-
-            if ($claimStmt->rowCount() === 0) {
-                $pdo->rollBack();
-                echo json_encode(["success" => false, "message" => "This link has already been used"]);
-                exit;
-            }
-
-        } else {
-
-            /* A name-only link, which is not single-use - so there is nothing
-               to claim. A row is still written per submission, because
-               inquiry_responses.invite_id points at one and because it is the
-               only per-submission record this schema keeps. */
-            do {
-                $slug = bin2hex(random_bytes(8));
-                $check = $pdo->prepare("SELECT id FROM inquiry_invites WHERE slug = ? LIMIT 1");
-                $check->execute([$slug]);
-            } while ($check->fetch());
-
-            $inviteStmt = $pdo->prepare("
-                INSERT INTO inquiry_invites (inquiry_id, slug, status, expires_at)
-                VALUES (?, ?, 'answered', NULL)
-            ");
-            $inviteStmt->execute([$inquiry["id"], $slug]);
-            $inviteId = $pdo->lastInsertId();
-        }
-
-        $responseStmt = $pdo->prepare("
-            INSERT INTO inquiry_responses (inquiry_id, invite_id)
-            VALUES (?, ?)
-        ");
-        $responseStmt->execute([$inquiry["id"], $inviteId]);
-        $responseId = $pdo->lastInsertId();
-
-        $answerStmt = $pdo->prepare("
-            INSERT INTO inquiry_response_answers (response_id, field_id, answer_text)
-            VALUES (?, ?, ?)
-        ");
-
-        foreach ($fields as $field) {
-            $value = $answersByFieldId[(int)$field["id"]] ?? "";
-            $answerStmt->execute([$responseId, $field["id"], $value]);
-        }
-
-        $pdo->commit();
-
-        echo json_encode(["success" => true, "message" => "Thanks - your message has been sent."]);
-        exit;
-
-    } catch (Exception $e) {
-        $pdo->rollBack();
-        echo json_encode(["success" => false, "message" => "Failed to submit. Please try again."]);
+    if ($checked["error"] !== null) {
+        echo json_encode(["success" => false, "message" => $checked["error"]]);
         exit;
     }
+
+    $stored = storeInquiryResponse($pdo, $inquiry["id"], $inviteId, $fields, $checked["answers"], "web");
+
+    echo json_encode(["success" => $stored["success"], "message" => $stored["message"]]);
+    exit;
 }
 
 echo json_encode(["success" => false, "message" => "Invalid request"]);

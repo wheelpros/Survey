@@ -1030,7 +1030,7 @@
           localStorage.setItem("portal_token", data.token);
           localStorage.setItem("portal_user", JSON.stringify(data.user));
 
-          window.location.href = "dashboard.html";
+          window.location.href = afterLogin("dashboard.html");
         } catch (error) {
           status.classList.add("error");
           status.innerText = "Connection error.";
@@ -1135,10 +1135,19 @@
         showLogin();
       }
 
+      /* Where to go once signed in. Normally the dashboard; when an AI
+         assistant's connect flow sent the person here (oauth-consent.html),
+         back to that approval page. Only that exact shape is honoured, so
+         ?next= can never be used to bounce someone to another site. */
+      function afterLogin(fallback) {
+        const next = new URLSearchParams(location.search).get("next") || "";
+        return /^oauth-consent\.html\?request=[A-Za-z0-9_-]{43}$/.test(next) ? next : fallback;
+      }
+
       const token = localStorage.getItem("portal_token");
 
       if (token) {
-        window.location.href = "dashboard.html";
+        window.location.href = afterLogin("dashboard.html");
       } else {
         // No point fetching images for a session that is already leaving.
         loadLoginSlides();

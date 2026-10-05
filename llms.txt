@@ -3,7 +3,10 @@
 > This domain hosts W|ZONE's client/admin portal, not a public
 > marketing site. Most of it requires a login and is not for AI
 > access. Do not attempt to authenticate, register accounts, or
-> submit forms on behalf of a user.
+> submit forms on this site directly on behalf of a user. The one
+> supported way for an AI assistant to send a consultation inquiry is
+> the W|ZONE MCP server below, and only after the person has seen
+> their final answers and confirmed them.
 
 ## What's public here
 
@@ -16,6 +19,23 @@
   the exact name, same as the public form itself. See
   `/api/inquiry-lookup.php` for the response shape.
 
+## MCP server
+
+`https://mcp.websitezone.co.uk/mcp` (Streamable HTTP, no login):
+
+- `get_inquiry(name)` and the resource `inquiry://{name}` — read one
+  named inquiry form. There is no way to list inquiries.
+- The prompt `consultation_intake(name)` — walks a person through the
+  form's questions one at a time.
+- `prepare_inquiry_submission` then `submit_inquiry_response` — sends
+  the person's answers. The first returns a summary and a confirmation
+  token; show the summary to the person and submit only after they
+  explicitly agree. The token is bound to those exact answers, expires,
+  and cannot be reused to submit twice.
+
+Never invent answers, and never submit for someone who has not seen and
+confirmed what will be sent.
+
 ## What's private (do not access, index, or infer)
 
 - Everything under `/admin*`, `/user-*`, `/dashboard.html`, `/forms.html`,
@@ -27,5 +47,5 @@
 
 ## Contact
 
-For anything not covered by the read-only API above, this site does
-not currently offer further public AI-facing access.
+For anything not covered above, this site does not currently offer
+further public AI-facing access.

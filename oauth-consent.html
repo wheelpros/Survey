@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Connect an AI assistant - W|ZONE</title>
+
+<!--
+  The page a person approves an AI assistant's access on.
+
+  The W|ZONE MCP server's /authorize sends the browser here with
+  ?request=<id>. A portal session lives in this domain's localStorage
+  (admin_token for staff, portal_token for clients), so only a page on this
+  domain can tell who is signed in - which is why approval happens here and
+  not on the MCP server. Not signed in: offer both logins, each coming back
+  here via ?next=. Decision: api/oauth/consent.php, then on to the app.
+-->
+
+<style>
+*{box-sizing:border-box;font-family:Arial,sans-serif}
+body{margin:0;min-height:100vh;background:#f6f7fb;display:flex;align-items:center;justify-content:center;padding:20px;color:#101828}
+.card{width:100%;max-width:460px;background:#fff;border-radius:24px;padding:34px;box-shadow:0 14px 35px rgba(0,0,0,.08)}
+.brand{text-align:center;margin-bottom:22px}
+.brand img{width:132px;max-width:100%;height:auto}
+h1{font-size:22px;line-height:1.3;margin:0 0 8px}
+.lede{margin:0 0 20px;color:#475467;font-size:14px;line-height:1.5}
+.who{display:flex;align-items:center;gap:12px;background:#f6f7fb;border-radius:14px;padding:12px 14px;margin-bottom:20px;font-size:13px}
+.who b{display:block;font-size:14px}
+.who span{color:#667085}
+.who a{margin-left:auto;color:#1b1e3a;font-weight:700;font-size:12px;white-space:nowrap}
+h2{font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#667085;margin:0 0 10px}
+ul.scopes{list-style:none;margin:0 0 20px;padding:0;display:grid;gap:8px}
+ul.scopes li{display:flex;gap:10px;font-size:14px;line-height:1.4}
+ul.scopes li::before{content:"";flex:none;width:7px;height:7px;border-radius:50%;background:#1b1e3a;margin-top:6px}
+.note{font-size:12px;color:#667085;line-height:1.5;margin:0 0 20px}
+.note code{background:#f1f3f6;padding:1px 5px;border-radius:5px}
+.actions{display:flex;gap:10px}
+button,.btn{flex:1;height:52px;border:none;border-radius:12px;font-weight:800;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;text-decoration:none}
+.primary{background:#1b1e3a;color:#fff}
+.secondary{background:#eef0f6;color:#1b1e3a}
+button:disabled{opacity:.5;cursor:default}
+.stack{display:grid;gap:10px}
+.status{margin-top:14px;text-align:center;font-size:13px;color:#1b1e3a;min-height:1em}
+.status.error{color:#b42318}
+.auth-foot{margin:24px 0 0;text-align:center;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#98a1ad}
+[hidden]{display:none !important}
+</style>
+</head>
+<body>
+
+<main class="card" aria-live="polite">
+  <div class="brand">
+    <img src="logo.png" alt="W|ZONE London"
+         onerror="this.onerror=null;this.src='assets/WZONE%20source.png'">
+  </div>
+
+  <!-- Not signed in -->
+  <section id="signIn" hidden>
+    <h1>Sign in to connect your AI assistant</h1>
+    <p class="lede">An AI assistant wants to connect to your W|ZONE portal account. Sign in first, then you'll choose whether to allow it.</p>
+    <div class="stack">
+      <a class="btn primary" id="staffLogin" href="#">Sign in as W|ZONE staff</a>
+      <a class="btn secondary" id="clientLogin" href="#">Sign in as a client</a>
+    </div>
+  </section>
+
+  <!-- The decision -->
+  <section id="consent" hidden>
+    <h1><span id="appName"></span> wants to access your W|ZONE account</h1>
+    <p class="lede">If you allow it, it can act as you through the W|ZONE MCP server - only within what your role can already see and do in the portal.</p>
+
+    <div class="who">
+      <div><b id="whoName"></b><span id="whoRole"></span></div>
+      <a id="switchAccount" href="#">Not you?</a>
+    </div>
+
+    <div id="scopeBlock">
+      <h2>It will be able to</h2>
+      <ul class="scopes" id="scopeList"></ul>
+    </div>
+
+    <p class="note">
+      You'll be sent back to <code id="redirectHost"></code>.
+      Nothing is published, sent or deleted without you confirming it in the conversation,
+      and you can disconnect it at any time from <a href="connected-apps.html" target="_blank" rel="noopener">Connected apps</a>.
+    </p>
+
+    <p class="status error" id="reason" hidden></p>
+
+    <div class="actions">
+      <button class="secondary" id="denyBtn" type="button">Deny</button>
+      <button class="primary" id="allowBtn" type="button">Allow</button>
+    </div>
+  </section>
+
+  <!-- Expired, invalid, finished -->
+  <section id="message" hidden>
+    <h1 id="messageTitle"></h1>
+    <p class="lede" id="messageText"></p>
+  </section>
+
+  <p class="status" id="status"></p>
+  <p class="auth-foot">&copy; <span class="yr"></span> WZONE London. All rights reserved.</p>
+</main>
+
+<script>
+document.querySelectorAll(".yr").forEach(el => el.textContent = new Date().getFullYear());
+
+const requestId = new URLSearchParams(location.search).get("request") || "";
+const here = "oauth-consent.html?request=" + encodeURIComponent(requestId);
+const statusEl = document.getElementById("status");
+
+function show(id) {
+  ["signIn", "consent", "message"].forEach(s => document.getElementById(s).hidden = s !== id);
+}
+
+function message(title, text) {
+  document.getElementById("messageTitle").textContent = title;
+  document.getElementById("messageText").textContent = text;
+  show("message");
+}
+
+// "preview" is the localhost demo login - never a real session.
+function realToken(key) {
+  const t = localStorage.getItem(key);
+  return t && t !== "preview" ? t : null;
+}
+
+const staffToken = realToken("admin_token");
+const clientToken = realToken("portal_token");
+const token = staffToken || clientToken;
+
+document.getElementById("staffLogin").href = "admin-login.html?next=" + encodeURIComponent(here);
+document.getElementById("clientLogin").href = "login.html?next=" + encodeURIComponent(here);
+
+async function api(method, body) {
+  const res = await fetch(
+    "api/oauth/consent.php" + (method === "GET" ? "?request=" + encodeURIComponent(requestId) : ""),
+    {
+      method,
+      headers: {
+        Authorization: "Bearer " + token,
+        ...(body ? { "Content-Type": "application/json" } : {})
+      },
+      body: body ? JSON.stringify(body) : undefined
+    }
+  );
+  return { status: res.status, data: await res.json().catch(() => ({})) };
+}
+
+async function decide(decision) {
+  document.getElementById("allowBtn").disabled = true;
+  document.getElementById("denyBtn").disabled = true;
+  statusEl.classList.remove("error");
+  statusEl.textContent = decision === "approve" ? "Connecting..." : "Cancelling...";
+
+  try {
+    const { data } = await api("POST", { request: requestId, decision });
+    if (data.success && data.redirect) {
+      window.location.replace(data.redirect);
+      return;
+    }
+    message("Couldn't finish", data.message || "Please start connecting again from your AI assistant.");
+    statusEl.textContent = "";
+  } catch (e) {
+    statusEl.classList.add("error");
+    statusEl.textContent = "Connection error - please try again.";
+    document.getElementById("allowBtn").disabled = false;
+    document.getElementById("denyBtn").disabled = false;
+  }
+}
+
+async function load() {
+  if (!/^[A-Za-z0-9_-]{43}$/.test(requestId)) {
+    message("This link isn't valid", "Start connecting again from your AI assistant.");
+    return;
+  }
+  if (!token) {
+    show("signIn");
+    return;
+  }
+
+  statusEl.textContent = "Loading...";
+  let result;
+  try {
+    result = await api("GET");
+  } catch (e) {
+    statusEl.classList.add("error");
+    statusEl.textContent = "Connection error - please reload.";
+    return;
+  }
+  statusEl.textContent = "";
+
+  const { status, data } = result;
+  if (status === 401) {
+    // The stored session is stale - sign in again and come straight back.
+    show("signIn");
+    return;
+  }
+  if (!data.success) {
+    message("This request has ended", data.message || "Start connecting again from your AI assistant.");
+    return;
+  }
+
+  document.getElementById("appName").textContent = data.client_name;
+  document.getElementById("whoName").textContent = data.principal.name || data.principal.email;
+  document.getElementById("whoRole").textContent =
+    (data.principal.kind === "admin" ? "Staff - " + data.principal.role.replace(/_/g, " ") : "Client")
+    + (data.principal.email ? " - " + data.principal.email : "");
+  document.getElementById("redirectHost").textContent = data.redirect_host;
+  // Switching means signing this session out first - login.html sends anyone
+  // who still has a token straight back, which would land on the same person.
+  const switchLink = document.getElementById("switchAccount");
+  switchLink.href = "#";
+  switchLink.onclick = (e) => {
+    e.preventDefault();
+    const key = data.principal.kind === "admin" ? "admin" : "portal";
+    localStorage.removeItem(key + "_token");
+    localStorage.removeItem(key + "_user");
+    location.reload();
+  };
+
+  const list = document.getElementById("scopeList");
+  list.innerHTML = "";
+  data.scopes.forEach(s => {
+    const li = document.createElement("li");
+    li.textContent = s.description;
+    li.title = s.scope;
+    list.appendChild(li);
+  });
+  document.getElementById("scopeBlock").hidden = !data.scopes.length;
+
+  const allow = document.getElementById("allowBtn");
+  if (!data.can_approve) {
+    const reason = document.getElementById("reason");
+    reason.textContent = data.reason;
+    reason.hidden = false;
+    allow.hidden = true;
+  }
+
+  allow.onclick = () => decide("approve");
+  document.getElementById("denyBtn").onclick = () => decide("deny");
+  show("consent");
+}
+
+load();
+</script>
+</body>
+</html>

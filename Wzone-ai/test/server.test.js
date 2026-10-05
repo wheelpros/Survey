@@ -26,10 +26,13 @@ const call = (name) => client.callTool({ name: "get_inquiry", arguments: { name 
 describe("tools/list", () => {
   it("advertises get_inquiry as read-only with an output schema", async () => {
     const { tools } = await client.listTools();
-    expect(tools).toHaveLength(1);
+    expect(tools.map((t) => t.name).sort()).toEqual([
+      "get_inquiry",
+      "prepare_inquiry_submission",
+      "submit_inquiry_response",
+    ]);
 
-    const [tool] = tools;
-    expect(tool.name).toBe("get_inquiry");
+    const tool = tools.find((t) => t.name === "get_inquiry");
     expect(tool.title).toBeTruthy();
     expect(tool.annotations).toMatchObject({
       readOnlyHint: true,

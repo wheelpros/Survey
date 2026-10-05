@@ -122,13 +122,22 @@ CREATE TABLE IF NOT EXISTS inquiry_invites (
 -- from the answers themselves, which is why the admin pages guess a display
 -- name from a field labelled something like "Name".
 --
+-- `source` says how a submission arrived: 'web' through inquiry.html, 'mcp'
+-- from an AI assistant via the MCP server (api/inquiry-submit.php), NULL on
+-- rows from before it was recorded. `submission_key` is the MCP server's
+-- idempotency key; its unique index is what stops a retried submission being
+-- stored twice. Both are written by api/inquiry-submission.php.
+--
 CREATE TABLE IF NOT EXISTS inquiry_responses (
-  id           INT AUTO_INCREMENT PRIMARY KEY,
-  inquiry_id   INT       NOT NULL,                           -- inquiries.id
-  invite_id    INT       NOT NULL,                           -- inquiry_invites.id
-  submitted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  id             INT AUTO_INCREMENT PRIMARY KEY,
+  inquiry_id     INT         NOT NULL,                       -- inquiries.id
+  invite_id      INT         NOT NULL,                       -- inquiry_invites.id
+  submitted_at   TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  source         VARCHAR(20)     NULL,                       -- 'web' | 'mcp' | NULL (older rows)
+  submission_key CHAR(64)        NULL,                       -- MCP idempotency key
   KEY idx_inquiry (inquiry_id, submitted_at),
-  KEY idx_invite (invite_id)
+  KEY idx_invite (invite_id),
+  UNIQUE KEY uniq_submission_key (submission_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS inquiry_response_answers (
@@ -154,6 +163,9 @@ CREATE TABLE IF NOT EXISTS inquiry_response_answers (
 -- ALTER TABLE inquiries ADD UNIQUE KEY uniq_slug (slug);
 -- ALTER TABLE inquiry_fields ADD COLUMN options TEXT NULL;
 -- ALTER TABLE inquiries ADD COLUMN reference VARCHAR(100) NULL;
+-- ALTER TABLE inquiry_responses ADD COLUMN source VARCHAR(20) NULL;
+-- ALTER TABLE inquiry_responses ADD COLUMN submission_key CHAR(64) NULL;
+-- ALTER TABLE inquiry_responses ADD UNIQUE KEY uniq_submission_key (submission_key);
 
 
 -- ---------------------------------------------------------------------------

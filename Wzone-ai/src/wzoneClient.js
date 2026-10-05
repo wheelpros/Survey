@@ -29,6 +29,21 @@ if (!BASE_URL) {
 }
 
 const LOOKUP_URL = `${BASE_URL}/api/inquiry-lookup.php`;
+const SUBMIT_URL = `${BASE_URL}/api/inquiry-submit.php`;
+
+// api/inquiry-submit.php refuses anyone without the shared key, so the
+// submit tools are only offered when it is configured.
+export const canSubmitUpstream = UPSTREAM_KEY !== "";
+
+/** An absolute URL on the PHP portal, e.g. portalUrl("oauth-consent.html"). */
+export function portalUrl(path) {
+  return `${BASE_URL}/${path.replace(/^\/+/, "")}`;
+}
+
+/** The public link a person can open to answer the form themselves. */
+export function publicFormUrl(name) {
+  return `${BASE_URL}/inquiry.html?name=${encodeURIComponent(name)}`;
+}
 
 /*
 | Successful lookups only, for CACHE_TTL_MS. A form's questions rarely
@@ -122,6 +137,94 @@ export async function lookupInquiry(name) {
   // a generic error.
   if (body && body.success === true) cacheSet(name, body);
   return { body, cached: false };
+}
+
+/**
+ * Sends answers to api/inquiry-submit.php - a dry run (validate and echo
+ * back what would be stored) or the real thing with an idempotency key.
+ *
+ * `answers` is [{ field_id, value }]; PHP's shape is { fieldId, value }.
+ * Resolves to { status, body } for any JSON reply, including refusals
+ * (404 not found, 409 closed, 422 invalid, 429) - the caller decides what
+ * each means. Throws only for a network failure, a timeout or a non-JSON
+ * reply. Never retried here: on a real submit a timeout leaves the outcome
+ * unknown, and the caller's idempotency key is what makes a retry safe.
+ */
+export async function submitToWzone({ name, answers, dryRun, submissionKey }) {
+  const res = await fetchWithTimeout(SUBMIT_URL, {
+    method: "POST",
+    headers: { ...upstreamHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name,
+      answers: answers.map((a) => ({ fieldId: a.field_id, value: a.value })),
+      dry_run: dryRun,
+      ...(submissionKey ? { submission_key: submissionKey } : {}),
+    }),
+  });
+
+  let body;
+  try {
+    body = await res.json();
+  } catch {
+    logger.error("wzone_submit_non_json_response", { status: res.status });
+    throw new Error("The WZONE API returned an unexpected response");
+  }
+  return { status: res.status, body };
+}
+
+async function postJson(url, payload, extraHeaders = {}) {
+  const res = await fetchWithTimeout(url, {
+    method: "POST",
+    headers: { ...upstreamHeaders(), "Content-Type": "application/json", ...extraHeaders },
+    body: JSON.stringify(payload),
+  });
+  let body;
+  try {
+    body = await res.json();
+  } catch {
+    logger.error("wzone_api_non_json_response", { url, status: res.status });
+    throw new Error("The WZONE API returned an unexpected response");
+  }
+  return { status: res.status, body };
+}
+
+/**
+ * One step of the OAuth flow's storage (api/oauth/server.php) - MCP
+ * server only, authenticated by the shared X-MCP-Key. Resolves to
+ * { status, body }; throws only if the portal can't be reached.
+ */
+export function callOAuthStore(action, payload) {
+  return postJson(`${BASE_URL}/api/oauth/server.php`, { action, ...payload });
+}
+
+/**
+ * A call into the AI-facing api/v1 as the signed-in person: their access
+ * token, plus the X-MCP-Key that api/v1 requires before it will accept an
+ * MCP token at all, plus the tool and request id for the audit log.
+ * Resolves to { status, body } where body is api/v1's { ok, data | error }.
+ */
+export async function callPortalApi(path, { token, tool, requestId, query } = {}) {
+  const url = new URL(`${BASE_URL}/api/v1/${path}`);
+  for (const [k, v] of Object.entries(query || {})) {
+    if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
+  }
+  const res = await fetchWithTimeout(url, {
+    method: "GET",
+    headers: {
+      ...upstreamHeaders(),
+      Authorization: `Bearer ${token}`,
+      ...(tool ? { "X-MCP-Tool": tool } : {}),
+      ...(requestId ? { "X-Request-Id": requestId } : {}),
+    },
+  });
+  let body;
+  try {
+    body = await res.json();
+  } catch {
+    logger.error("wzone_api_non_json_response", { path, status: res.status });
+    throw new Error("The WZONE API returned an unexpected response");
+  }
+  return { status: res.status, body };
 }
 
 /**
