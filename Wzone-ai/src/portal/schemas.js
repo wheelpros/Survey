@@ -231,7 +231,7 @@ export const meeting = z.object({
   status: z.string().describe("pending, approved or rejected"),
   requested_by: z
     .string()
-    .describe("'admin': W|ZONE asked and the client answers; 'user': the client asked and staff answer"),
+    .describe("'admin': staff asked and the client answers; 'user': the client asked and staff answer"),
   admin_name: maybe,
   created_at: dateTime,
   untrusted_content: untrusted({ topic: text, notes: text }),
@@ -252,7 +252,7 @@ export const calendar = {
 
 export const pendingApprovals = {
   waiting_on_you: z.array(meeting).describe("Requests from clients that staff need to answer"),
-  waiting_on_client: z.array(meeting).describe("Requests W|ZONE sent that the client hasn't answered"),
+  waiting_on_client: z.array(meeting).describe("Requests staff sent that the client hasn't answered"),
   truncated: z.boolean(),
 };
 
@@ -316,7 +316,7 @@ export const notifications = {
 // ── Whoami ──────────────────────────────────────────────────────────────
 
 export const whoami = {
-  kind: z.enum(["admin", "user"]).describe("'admin' for W|ZONE staff, 'user' for a client"),
+  kind: z.enum(["admin", "user"]).describe("'admin' for staff, 'user' for a client"),
   id,
   name: text,
   email: text,
@@ -359,8 +359,8 @@ export const myMeeting = z.object({
   date: text,
   time: text.describe("HH:MM"),
   status: z.string().describe("pending, approved or rejected"),
-  requested_by: z.string().describe("'admin': W|ZONE asked you and you answer; 'user': you asked and W|ZONE answers"),
-  with: maybe.describe("The W|ZONE person who asked, or answered"),
+  requested_by: z.string().describe("'admin': your team asked you and you answer; 'user': you asked and your team answers"),
+  with: maybe.describe("The person on your team who asked, or answered"),
   untrusted_content: untrusted({ topic: text, notes: text }),
 });
 
@@ -388,7 +388,7 @@ const myProjectItem = z.object({
 
 export const myOverview = {
   me: z.object({ name: text, email: text, company_name: maybe }),
-  meetings_waiting_on_you: z.array(myMeeting).describe("Requests from W|ZONE you haven't answered"),
+  meetings_waiting_on_you: z.array(myMeeting).describe("Requests from your team you haven't answered"),
   upcoming_meetings: z.array(myMeeting),
   forms_to_fill_in: z.array(z.object({ id, title: text, created_at: dateTime })),
   recent_content: z.array(myPost),

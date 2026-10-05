@@ -91,7 +91,7 @@ async function fetchWithTimeout(url, init) {
   } catch (err) {
     if (err.name === "AbortError") {
       logger.error("wzone_api_timeout", { url });
-      throw new Error("The WZONE API did not respond in time");
+      throw new Error("The portal API did not respond in time");
     }
     logger.error("wzone_api_request_failed", { error: err.message });
     throw err;
@@ -128,7 +128,7 @@ export async function lookupInquiry(name) {
     body = await res.json();
   } catch {
     logger.error("wzone_api_non_json_response", { status: res.status });
-    throw new Error("The WZONE API returned an unexpected response");
+    throw new Error("The portal API returned an unexpected response");
   }
 
   // A 4xx/5xx with a valid { success:false, message } body is an
@@ -167,7 +167,7 @@ export async function submitToWzone({ name, answers, dryRun, submissionKey }) {
     body = await res.json();
   } catch {
     logger.error("wzone_submit_non_json_response", { status: res.status });
-    throw new Error("The WZONE API returned an unexpected response");
+    throw new Error("The portal API returned an unexpected response");
   }
   return { status: res.status, body };
 }
@@ -183,7 +183,7 @@ async function postJson(url, payload, extraHeaders = {}) {
     body = await res.json();
   } catch {
     logger.error("wzone_api_non_json_response", { url, status: res.status });
-    throw new Error("The WZONE API returned an unexpected response");
+    throw new Error("The portal API returned an unexpected response");
   }
   return { status: res.status, body };
 }
@@ -227,7 +227,7 @@ export async function callPortalApi(path, { token, tool, requestId, query, body 
     reply = await res.json();
   } catch {
     logger.error("wzone_api_non_json_response", { path, status: res.status });
-    throw new Error("The WZONE API returned an unexpected response");
+    throw new Error("The portal API returned an unexpected response");
   }
   return { status: res.status, body: reply };
 }

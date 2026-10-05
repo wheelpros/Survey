@@ -654,6 +654,11 @@ body{padding:0}
     object-fit: contain;
 }
 
+/* No logo uploaded yet - display:block above would otherwise beat [hidden]. */
+.current-logo img[hidden] {
+    display: none;
+}
+
 .media-preview .remove {
     position: absolute;
     top: 8px;
@@ -826,7 +831,7 @@ document.addEventListener("DOMContentLoaded", function () {
   <div>
     <div class="side-head">
       <div class="side-logo">
-        <img src="logo.png" alt="W|ZONE London" onerror="this.onerror=null;this.src='assets/WZONE%20source.png'">
+        <img src="logo.png" alt="Logo" onerror="this.remove()">
       </div>
       <button class="side-toggle" type="button" onclick="toggleSidebar()" title="Toggle sidebar" aria-label="Toggle sidebar">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9.5 4v16"/></svg>
@@ -908,11 +913,11 @@ document.addEventListener("DOMContentLoaded", function () {
     <label style="margin-top:0;">Current logo</label>
 
     <!-- A logo is usually white-on-transparent, so it needs a field to sit on
-         rather than the panel's own white. The fallback covers a site that has
-         never had one uploaded, where logo.png does not exist yet. -->
+         rather than the panel's own white. Until a logo is uploaded there is
+         nothing to show, so the image hides itself. -->
     <div class="current-logo">
       <img id="currentLogo" src="logo.png" alt="Current logo"
-           onerror="this.onerror=null;this.src='assets/WZONE%20source.png'">
+           onerror="this.hidden=true">
     </div>
 
     <label for="logoFile">Logo</label>
@@ -1264,11 +1269,12 @@ function paintCurrentLogo() {
     const img = document.getElementById("currentLogo");
     if (!img) return;
 
+    // No logo uploaded yet: show nothing rather than another company's.
     img.onerror = function () {
-        this.onerror = null;
-        this.src = "assets/WZONE%20source.png";
+        this.hidden = true;
     };
 
+    img.hidden = false;
     img.src = "logo.png?" + Date.now();
 }
 

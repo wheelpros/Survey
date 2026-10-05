@@ -38,7 +38,7 @@ function v1RequireMethod($method)
 function v1RequireStaff(array $p)
 {
     if ($p["kind"] !== "admin") {
-        v1Error(403, "staff_only", "This is only available to W|ZONE staff.");
+        v1Error(403, "staff_only", "This is only available to staff.");
     }
 }
 

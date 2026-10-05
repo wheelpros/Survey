@@ -42,8 +42,8 @@ export async function fetchPortal({ auth, requestId, tool, path, query, body, sc
       ok: false,
       message:
         body === undefined
-          ? "The W|ZONE portal isn't reachable right now. Try again in a moment."
-          : "The W|ZONE portal didn't answer, so it isn't known whether this went through. " +
+          ? "The portal isn't reachable right now. Try again in a moment."
+          : "The portal didn't answer, so it isn't known whether this went through. " +
             "Trying again is safe: preparing changes nothing, a confirmation never applies twice, " +
             "and marking something read twice is harmless.",
     };
@@ -52,7 +52,7 @@ export async function fetchPortal({ auth, requestId, tool, path, query, body, sc
   const { status, body: reply } = result;
   if (!reply?.ok) {
     log("refused", { upstream_status: status });
-    return { ok: false, message: reply?.error?.message || `The W|ZONE portal refused this (HTTP ${status}).` };
+    return { ok: false, message: reply?.error?.message || `The portal refused this (HTTP ${status}).` };
   }
 
   const parsed = schema.safeParse(reply.data);
@@ -63,7 +63,7 @@ export async function fetchPortal({ auth, requestId, tool, path, query, body, sc
       issues: parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`),
     });
     log("bad_upstream_shape");
-    return { ok: false, message: "The W|ZONE portal returned data in an unexpected shape." };
+    return { ok: false, message: "The portal returned data in an unexpected shape." };
   }
 
   log("ok");

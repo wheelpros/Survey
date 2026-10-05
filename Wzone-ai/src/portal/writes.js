@@ -199,9 +199,9 @@ export const WRITE_TOOLS = [
   {
     name: "request_meeting",
     scope: "self:write",
-    title: "Ask W|ZONE for a meeting",
+    title: "Ask your team for a meeting",
     description:
-      "Asks your W|ZONE team for a meeting at one date and time. They are told in the portal " +
+      "Asks your team for a meeting at one date and time. They are told in the portal " +
       "and by email, and accept or decline it." + TWO_STEP,
     input: {
       date: date("The day, today or later"),
@@ -215,7 +215,7 @@ export const WRITE_TOOLS = [
     scope: "self:write",
     title: "Answer a meeting request",
     description:
-      "Accepts or declines a meeting W|ZONE asked you for (my_overview lists them under " +
+      "Accepts or declines a meeting your team asked you for (my_overview lists them under " +
       "meetings_waiting_on_you). Whoever asked is told." + TWO_STEP,
     input: {
       id: recordId("The meeting's id"),
@@ -227,7 +227,7 @@ export const WRITE_TOOLS = [
     scope: "self:write",
     title: "Send my answers to a form",
     description:
-      "Sends your answers to a form W|ZONE sent you (get_my_form shows its questions). Every " +
+      "Sends your answers to a form your team sent you (get_my_form shows its questions). Every " +
       "question needs an answer: text for input and textarea; for a checkbox question with " +
       "options, a list of the options ticked; for a single tick box, true. Forms with a file " +
       "question have to be finished on the portal page. Once sent, answers can't be changed." +

@@ -4,12 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex">
-<title>Connect an AI assistant - W|ZONE</title>
+<title>Connect an AI assistant</title>
 
 <!--
   The page a person approves an AI assistant's access on.
 
-  The W|ZONE MCP server's /authorize sends the browser here with
+  The MCP server's /authorize sends the browser here with
   ?request=<id>. A portal session lives in this domain's localStorage
   (admin_token for staff, portal_token for clients), so only a page on this
   domain can tell who is signed in - which is why approval happens here and
@@ -43,7 +43,6 @@ button:disabled{opacity:.5;cursor:default}
 .stack{display:grid;gap:10px}
 .status{margin-top:14px;text-align:center;font-size:13px;color:#1b1e3a;min-height:1em}
 .status.error{color:#b42318}
-.auth-foot{margin:24px 0 0;text-align:center;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#98a1ad}
 [hidden]{display:none !important}
 </style>
 </head>
@@ -51,24 +50,24 @@ button:disabled{opacity:.5;cursor:default}
 
 <main class="card" aria-live="polite">
   <div class="brand">
-    <img src="logo.png" alt="W|ZONE London"
-         onerror="this.onerror=null;this.src='assets/WZONE%20source.png'">
+    <!-- The logo uploaded in Settings (logo.png); hidden until there is one. -->
+    <img src="logo.png" alt="Logo" onerror="this.remove()">
   </div>
 
   <!-- Not signed in -->
   <section id="signIn" hidden>
     <h1>Sign in to connect your AI assistant</h1>
-    <p class="lede">An AI assistant wants to connect to your W|ZONE portal account. Sign in first, then you'll choose whether to allow it.</p>
+    <p class="lede">An AI assistant wants to connect to your portal account. Sign in first, then you'll choose whether to allow it.</p>
     <div class="stack">
-      <a class="btn primary" id="staffLogin" href="#">Sign in as W|ZONE staff</a>
+      <a class="btn primary" id="staffLogin" href="#">Sign in as staff</a>
       <a class="btn secondary" id="clientLogin" href="#">Sign in as a client</a>
     </div>
   </section>
 
   <!-- The decision -->
   <section id="consent" hidden>
-    <h1><span id="appName"></span> wants to access your W|ZONE account</h1>
-    <p class="lede">If you allow it, it can act as you through the W|ZONE MCP server - only within what your role can already see and do in the portal.</p>
+    <h1><span id="appName"></span> wants to access your account</h1>
+    <p class="lede">If you allow it, it can act as you in the portal - only within what your role can already see and do.</p>
 
     <div class="who">
       <div><b id="whoName"></b><span id="whoRole"></span></div>
@@ -101,11 +100,9 @@ button:disabled{opacity:.5;cursor:default}
   </section>
 
   <p class="status" id="status"></p>
-  <p class="auth-foot">&copy; <span class="yr"></span> WZONE London. All rights reserved.</p>
 </main>
 
 <script>
-document.querySelectorAll(".yr").forEach(el => el.textContent = new Date().getFullYear());
 
 const requestId = new URLSearchParams(location.search).get("request") || "";
 const here = "oauth-consent.html?request=" + encodeURIComponent(requestId);

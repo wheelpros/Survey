@@ -61,7 +61,7 @@ function v1Principal(PDO $pdo)
     }
     if ($p["via"] === "mcp") {
         if (!isMcpServer()) {
-            v1Error(401, "unauthorized", "AI access tokens are only accepted through the W|ZONE MCP server.");
+            v1Error(401, "unauthorized", "AI access tokens are only accepted through the MCP server.");
         }
         v1StartAudit($pdo, $p);
     }

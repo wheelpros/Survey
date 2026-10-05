@@ -98,7 +98,7 @@ async function loadInquiry(name, requestId) {
       ok: false,
       outcome: "bad_upstream_shape",
       cached,
-      message: "The WZONE inquiry API returned data in an unexpected shape.",
+      message: "The inquiry API returned data in an unexpected shape.",
     };
   }
 
@@ -130,7 +130,7 @@ function intakePrompt(name) {
       ];
 
   return [
-    `Help me answer the W|ZONE consultation inquiry "${name}".`,
+    `Help me answer the consultation inquiry "${name}".`,
     "",
     "Work through it like this:",
     `1. Call get_inquiry with name "${name}". If it can't be found, say so and stop.`,
@@ -174,7 +174,7 @@ function intakePrompt(name) {
 */
 export function buildServer({ requestId, clientIp } = {}) {
   const server = new McpServer({
-    name: "wzone-inquiries",
+    name: "consultation-inquiries",
     version: "1.2.0",
   });
 
@@ -225,7 +225,7 @@ export function buildServer({ requestId, clientIp } = {}) {
       } catch (err) {
         logger.error("get_inquiry_tool_failed", { requestId, error: err.message });
         done("upstream_error");
-        return toolError("Unable to reach the WZONE inquiry API right now.");
+        return toolError("Unable to reach the inquiry API right now.");
       }
     }
   );
@@ -260,7 +260,7 @@ export function buildServer({ requestId, clientIp } = {}) {
     {
       title: "Answer a consultation inquiry",
       description:
-        "Walk a person through a W|ZONE consultation form one question at a time" +
+        "Walk a person through a consultation form one question at a time" +
         (SUBMIT_ENABLED ? ", then send it once they confirm." : "."),
       argsSchema: { name: nameSchema },
     },
@@ -350,7 +350,7 @@ export function buildServer({ requestId, clientIp } = {}) {
       } catch (err) {
         logger.error("prepare_inquiry_submission_failed", { requestId, error: err.message });
         done("upstream_error");
-        return toolError("Unable to reach the WZONE inquiry API right now.");
+        return toolError("Unable to reach the inquiry API right now.");
       }
     }
   );
@@ -360,7 +360,7 @@ export function buildServer({ requestId, clientIp } = {}) {
     {
       title: "Send a confirmed inquiry",
       description:
-        "Step 2 of 2: sends the answers to W|ZONE. Call ONLY after the person " +
+        "Step 2 of 2: sends the answers. Call ONLY after the person " +
         "has seen the summary from prepare_inquiry_submission and explicitly " +
         "agreed. Pass the same name and the same answers, plus its " +
         "confirmation_token - if any answer changed, prepare again and get a " +
@@ -427,7 +427,7 @@ export function buildServer({ requestId, clientIp } = {}) {
           duplicate: body.duplicate === true,
           message: body.duplicate
             ? "Already received earlier - nothing was sent twice."
-            : "Sent. W|ZONE has the answers.",
+            : "Sent. The answers have been received.",
         };
         done("ok", { duplicate: result.duplicate });
         return {
@@ -438,7 +438,7 @@ export function buildServer({ requestId, clientIp } = {}) {
         logger.error("submit_inquiry_response_failed", { requestId, error: err.message });
         done("upstream_error");
         return toolError(
-          "Couldn't confirm whether it was sent - W|ZONE didn't answer in time. " +
+          "Couldn't confirm whether it was sent - the server didn't answer in time. " +
             "It is safe to call submit_inquiry_response again with the same token; " +
             "it will never be stored twice."
         );

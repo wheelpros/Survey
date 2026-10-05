@@ -135,7 +135,7 @@ describe("get_inquiry", () => {
     const result = await call("slow");
 
     expect(result.isError).toBe(true);
-    expect(result.content[0].text).toBe("Unable to reach the WZONE inquiry API right now.");
+    expect(result.content[0].text).toBe("Unable to reach the inquiry API right now.");
   });
 
   it("reports a non-JSON response as a generic upstream error", async () => {
@@ -144,7 +144,7 @@ describe("get_inquiry", () => {
     const result = await call("broken");
 
     expect(result.isError).toBe(true);
-    expect(result.content[0].text).toBe("Unable to reach the WZONE inquiry API right now.");
+    expect(result.content[0].text).toBe("Unable to reach the inquiry API right now.");
   });
 
   it("rejects an upstream payload that doesn't match the output schema", async () => {
