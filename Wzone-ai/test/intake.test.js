@@ -125,7 +125,7 @@ describe("prepare → submit", () => {
     expect(sent.structuredContent).toEqual({
       submitted: true,
       duplicate: false,
-      message: "Sent. W|ZONE has the answers.",
+      message: "Sent. The answers have been received.",
     });
 
     const [[key, body]] = [...stored.entries()];

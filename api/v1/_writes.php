@@ -835,7 +835,7 @@ function v1WriteHandlers()
                 $notes = argText($a, "notes", 2000, false);
                 return [
                     "args" => ["date" => $date, "time" => $time, "topic" => $topic, "notes" => $notes],
-                    "summary" => "Ask the W|ZONE team for a meeting on $date at $time about " . quoteFor($topic)
+                    "summary" => "Ask your team for a meeting on $date at $time about " . quoteFor($topic)
                         . ". Your team is told in the portal and by email, and will accept or decline it.",
                     "preview" => ["date" => $date, "time" => $time, "untrusted_content" => ["topic" => $topic, "notes" => $notes]],
                 ];
@@ -910,7 +910,7 @@ function v1WriteHandlers()
                     "args" => ["id" => $id, "answers" => $given],
                     "summary" => "Send your answers to " . quoteFor($form["title"]) . " (" . count($answers)
                         . (count($answers) === 1 ? " answer" : " answers")
-                        . "). Once sent they can't be changed, and your W|ZONE team is told.",
+                        . "). Once sent they can't be changed, and your team is told.",
                     "preview" => [
                         "form" => ["id" => (int) $form["id"], "title" => (string) $form["title"]],
                         "untrusted_content" => ["answers" => array_map(function ($x) {

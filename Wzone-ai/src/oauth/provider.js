@@ -50,7 +50,7 @@ async function store(action, body) {
     result = await callOAuthStore(action, body);
   } catch (err) {
     logger.error("oauth_store_unreachable", { action, error: err.message });
-    throw new TemporarilyUnavailableError("The W|ZONE portal is not reachable right now");
+    throw new TemporarilyUnavailableError("The portal is not reachable right now");
   }
   const { status, body: data } = result;
   if (status >= 200 && status < 300) return data;

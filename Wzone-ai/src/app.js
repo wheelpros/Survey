@@ -220,7 +220,7 @@ function mountPrivate(app, limiter) {
       issuerUrl,
       resourceServerUrl: resourceUrl,
       scopesSupported: ALL_SCOPES,
-      resourceName: "W|ZONE portal",
+      resourceName: "Client portal",
       // A DCR secret that expires strands the client with no way to
       // refresh; revoking the grant is how access ends here instead.
       clientRegistrationOptions: { clientSecretExpirySeconds: 0 },

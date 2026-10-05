@@ -37,7 +37,7 @@ const PROMPTS = [
       const weekAgo = isoDay(new Date(today.getTime() - 7 * 86400000));
       const nextWeek = isoDay(new Date(today.getTime() + 7 * 86400000));
       return [
-        `Write a weekly report on W|ZONE client ${client}.`,
+        `Write a weekly report on client ${client}.`,
         "",
         `1. Call get_client_overview with client ${client}. If it isn't found, say so and stop.`,
         "2. For each section the overview includes, look closer where it helps:",
@@ -87,7 +87,7 @@ const PROMPTS = [
       const first = `${month}-01`;
       const last = isoDay(new Date(Date.UTC(y, m, 0)));
       return [
-        `Plan ${month}'s content for W|ZONE client ${client}.`,
+        `Plan ${month}'s content for client ${client}.`,
         "",
         `1. Call get_client_overview with client ${client} for who they are and what's running.`,
         `2. Call list_content with client ${client}, from ${first}, to ${last} - what's already planned.`,
@@ -161,7 +161,7 @@ const PROMPTS = [
     args: { client: idArg("The client's id (search_clients finds it)") },
     text: ({ client }, scopes) =>
       [
-        `Help me onboard W|ZONE client ${client}.`,
+        `Help me onboard client ${client}.`,
         "",
         `1. Call get_client_overview with client ${client}. Note their company, website and what they`,
         "   wrote about themselves, and any forms they already have - don't ask for anything twice.",
@@ -186,11 +186,11 @@ const PROMPTS = [
     name: "fill_in_my_form",
     needs: ["self:read", "self:write"],
     title: "Fill in a form with me",
-    description: "Goes through one of your W|ZONE forms a question at a time, then sends it once you're happy.",
+    description: "Goes through one of your forms a question at a time, then sends it once you're happy.",
     args: { form: idArg("The form's id (my_forms lists them)") },
     text: ({ form }) =>
       [
-        `Help me fill in my W|ZONE form ${form}.`,
+        `Help me fill in my form ${form}.`,
         "",
         `1. Call get_my_form with id ${form}. If it's already completed, show me my answers and stop.`,
         "   If it has a file question, tell me up front that it has to be finished on the portal",
@@ -209,13 +209,13 @@ const PROMPTS = [
   {
     name: "my_week",
     needs: ["self:read"],
-    title: "My week with W|ZONE",
-    description: "What's happening with your W|ZONE account this week, and what's waiting on you.",
+    title: "My week",
+    description: "What's happening with your account this week, and what's waiting on you.",
     args: {},
     text: () => {
       const today = new Date();
       return [
-        "Tell me what's going on with my W|ZONE account.",
+        "Tell me what's going on with my account.",
         "",
         "1. Call my_overview.",
         `2. Call my_calendar from ${isoDay(today)} to ${isoDay(new Date(today.getTime() + 7 * 86400000))}.`,

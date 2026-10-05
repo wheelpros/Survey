@@ -28,7 +28,7 @@ import { registerWriteTools } from "./writes.js";
 export { portalCall } from "./call.js";
 
 const INSTRUCTIONS = [
-  "This server is the W|ZONE client portal, acting as the person who connected it -",
+  "This server is the client portal, acting as the person who connected it -",
   "a staff member or a client. Every tool returns only what that person can see in the",
   "portal; a 'not found' can mean it exists but isn't theirs to see.",
   "Start with whoami if unsure what this connection can do. Staff: for anything about one",
@@ -43,7 +43,7 @@ const INSTRUCTIONS = [
 
 export function buildPortalServer({ requestId, auth }) {
   const server = new McpServer(
-    { name: "wzone-portal", version: "0.4.0" },
+    { name: "client-portal", version: "0.4.0" },
     { instructions: INSTRUCTIONS }
   );
   const scopes = auth.scopes || [];
@@ -54,7 +54,7 @@ export function buildPortalServer({ requestId, auth }) {
     {
       title: "Who am I connected as",
       description:
-        "Shows which W|ZONE portal account this connection acts as - name, " +
+        "Shows which portal account this connection acts as - name, " +
         "role, and what it is allowed to do (its scopes) - and, for staff, " +
         "how many clients they can see. Use it when unsure whether something " +
         "is possible before trying.",
