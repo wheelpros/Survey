@@ -22,30 +22,37 @@ MCP *elicitation* lets a server ask the person a question in the middle of a too
 
 Clients such as Claude also ask the person to approve any tool that isn't read-only, so there is a second confirmation on the client side.
 
-## Two servers, one codebase
+## One app, two endpoints
 
-`MCP_MODE` decides which server a deployment is. Deploy each one as its own Coolify app from this folder:
+W|ZONE runs a single Coolify app from this folder, on `mcp.websitezone.co.uk`, with `MCP_MODE=private`:
 
-| `MCP_MODE` | Domain (suggested) | Who | What |
+| Endpoint | Login | Who | What |
 |---|---|---|---|
-| `public` (default) | `mcp.websitezone.co.uk` | anyone with a link | the inquiry tools above |
-| `private` | `portal-mcp.websitezone.co.uk` | signed-in staff and (if the owner allows) clients | the portal as that person: read tools for every staff area, and changes the person confirms (below) |
+| `https://mcp.websitezone.co.uk/mcp` | yes (OAuth, the person's portal account) | staff, and clients if the owner allows it | the portal as that person: read tools for every area, and changes the person confirms (below). This is the address to add as a connector in Claude |
+| `https://mcp.websitezone.co.uk/public/mcp` | none | anyone with a consultation link | the inquiry tools above |
 
-An anonymous caller can never reach a private tool, because the private tools aren't loaded in the public process.
+The two can't share one path. Claude decides whether to sign the person in from how `/mcp` answers, so a path is either behind a login or it isn't.
+
+An anonymous caller can never reach a portal tool:
+- `/mcp` refuses any request without a valid token before a server is even built.
+- `/public/mcp` only ever builds the anonymous inquiry server.
+- Each endpoint has its own rate-limit bucket.
+
+`MCP_MODE=public` (the default) still exists. It serves only the inquiry tools, at `/mcp`, for a deployment that should have no portal access at all.
 
 ### How signing in works (private)
 
 ```
-Claude ──/register, /authorize──▶ portal-mcp (Node, SDK mcpAuthRouter)
+Claude ──/register, /authorize──▶ mcp.websitezone.co.uk (Node, SDK mcpAuthRouter)
                                    │ stores the request (api/oauth/server.php)
          ◀── 302 ──────────────────┘
 Browser ──▶ survey.websitezone.co.uk/oauth-consent.html
             (signed in? else admin-login / login with ?next=, then back)
             Allow → api/oauth/consent.php → grant + one-time code
          ◀── 302 to Claude's redirect_uri?code=…&state=…
-Claude ──/token (code + PKCE)──▶ portal-mcp → api/oauth/server.php
+Claude ──/token (code + PKCE)──▶ mcp.websitezone.co.uk → api/oauth/server.php
          ◀── access token (1 h) + refresh token (30 days, rotated)
-Claude ──/mcp, Bearer wzat_…──▶ portal-mcp ─introspect (cached 60 s)─▶ PHP
+Claude ──/mcp, Bearer wzat_…──▶ mcp.websitezone.co.uk ─introspect (cached 60 s)─▶ PHP
                                    └─ tool → api/v1/*.php with the same token
                                       + X-MCP-Key + X-MCP-Tool + X-Request-Id
 ```

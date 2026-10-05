@@ -69,10 +69,12 @@ function mcpHandler(build) {
 }
 
 /**
- * MCP_MODE=public (default): anonymous, public inquiry data only.
- * MCP_MODE=private: OAuth required; the portal as the signed-in person.
- * Two deployments of one codebase, so an anonymous caller can never reach
- * a private tool - the private tools simply aren't in the public process.
+ * MCP_MODE=public (default): anonymous, public inquiry data only, at /mcp.
+ * MCP_MODE=private: the portal as the signed-in person at /mcp (OAuth),
+ * and the same anonymous inquiry tools at /public/mcp - everything on one
+ * domain. An anonymous caller still can't reach a portal tool: /mcp turns
+ * away any request without a valid token before a server is even built,
+ * and /public/mcp only ever builds the public one.
  */
 export function createApp({ mode = process.env.MCP_MODE || "public" } = {}) {
   const app = express();
@@ -97,16 +99,20 @@ export function createApp({ mode = process.env.MCP_MODE || "public" } = {}) {
   // malicious MCP client can't hammer this process itself, and it's per
   // caller, which the PHP side can't be: every request reaching PHP from
   // here comes from this one container.
-  const limiter = rateLimit({
-    windowMs: Number(process.env.MCP_RATE_LIMIT_WINDOW_MS || 60000),
-    limit: Number(process.env.MCP_RATE_LIMIT_MAX_REQUESTS || 60),
-    standardHeaders: true,
-    legacyHeaders: false,
-    handler: (req, res) => {
-      logger.warn("mcp_rate_limited", { requestId: req.id, ip: req.ip });
-      rpcError(res, 429, -32000, "Too many requests");
-    },
-  });
+  // One per endpoint, so anonymous traffic on the public tools can never
+  // use up the bucket a signed-in person's requests come from.
+  const makeLimiter = () =>
+    rateLimit({
+      windowMs: Number(process.env.MCP_RATE_LIMIT_WINDOW_MS || 60000),
+      limit: Number(process.env.MCP_RATE_LIMIT_MAX_REQUESTS || 60),
+      standardHeaders: true,
+      legacyHeaders: false,
+      handler: (req, res) => {
+        logger.warn("mcp_rate_limited", { requestId: req.id, ip: req.ip, path: req.path });
+        rpcError(res, 429, -32000, "Too many requests");
+      },
+    });
+  const limiter = makeLimiter();
 
   app.get("/healthz", (req, res) => {
     // Liveness: no secrets, no config values, no upstream call - just
@@ -121,20 +127,30 @@ export function createApp({ mode = process.env.MCP_MODE || "public" } = {}) {
     res.status(upstream ? 200 : 503).json({ ok: upstream, upstream });
   });
 
-  if (mode === "private") {
-    mountPrivate(app, limiter);
-  } else {
+  const publicEndpoint = (path, pathLimiter) =>
     app.post(
-      "/mcp",
-      limiter,
+      path,
+      pathLimiter,
       express.json({ limit: "100kb" }),
       mcpHandler((req) => buildServer({ requestId: req.id, clientIp: req.ip }))
     );
+
+  if (mode === "private") {
+    // The portal at /mcp, behind OAuth; and the public inquiry tools, which
+    // need no login, beside it at /public/mcp - one app, one domain. They
+    // can't share /mcp: Claude decides whether to sign the person in from
+    // how /mcp answers, so a path is either behind a login or it isn't.
+    // /public/mcp only ever builds the anonymous server - the same one
+    // MCP_MODE=public serves - so no portal tool is reachable through it.
+    mountPrivate(app, limiter);
+    publicEndpoint("/public/mcp", makeLimiter());
+  } else {
+    publicEndpoint("/mcp", limiter);
   }
 
   // Streamable HTTP is POST-only for a stateless server like this one -
   // no GET (SSE stream) / DELETE (end session) semantics to support.
-  app.all("/mcp", (req, res) => {
+  app.all(["/mcp", "/public/mcp"], (req, res) => {
     rpcError(res, 405, -32000, "Method not allowed - this server is stateless (POST only)");
   });
 

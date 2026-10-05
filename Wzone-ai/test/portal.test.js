@@ -5,7 +5,7 @@ import { InvalidTargetError, InvalidTokenError } from "@modelcontextprotocol/sdk
 
 import { createApp } from "../src/app.js";
 import { createWzoneOAuthProvider, sha256 } from "../src/oauth/provider.js";
-import { jsonResponse, stubUpstream } from "./helpers.js";
+import { jsonResponse, sampleInquiry, stubUpstream } from "./helpers.js";
 
 const resourceUrl = new URL("http://localhost:18999/mcp");
 const consentUrl = "https://wzone.test/oauth-consent.html";
@@ -138,6 +138,40 @@ describe("private MCP server", () => {
     const as = await (await fetch(`${base}/.well-known/oauth-authorization-server`)).json();
     expect(as.code_challenge_methods_supported).toEqual(["S256"]);
     expect(as.scopes_supported).toContain("self:read");
+  });
+
+  it("serves the public inquiry tools at /public/mcp, with no login and nothing of the portal", async () => {
+    const upstream = stubUpstream((url) =>
+      url.includes("/api/inquiry-lookup.php")
+        ? jsonResponse(200, sampleInquiry)
+        : jsonResponse(404, {})
+    );
+    const c = new Client({ name: "t", version: "0" });
+    await c.connect(new StreamableHTTPClientTransport(new URL(`${base}/public/mcp`), {
+      requestInit: { headers: { "X-Forwarded-For": "198.51.100.250" } },
+    }));
+
+    const names = (await c.listTools()).tools.map((t) => t.name);
+    expect(names).toContain("get_inquiry");
+    expect(names).not.toContain("whoami");
+    expect(names.some((n) => n.startsWith("list_") || n.startsWith("my_"))).toBe(false);
+
+    const r = await c.callTool({ name: "get_inquiry", arguments: { name: "free-consult" } });
+    expect(r.structuredContent.title).toBe(sampleInquiry.inquiry.title);
+    // Anonymous: the portal's token check never ran.
+    expect(upstream.mock.calls.some(([url]) => url.endsWith("/api/oauth/server.php"))).toBe(false);
+    await c.close();
+  });
+
+  it("still turns /mcp away without a token when /public/mcp is open", async () => {
+    const res = await fetch(`${base}/mcp`, {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json, text/event-stream", "X-Forwarded-For": "198.51.100.251" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
+    });
+    expect(res.status).toBe(401);
+    const get = await fetch(`${base}/public/mcp`);
+    expect(get.status).toBe(405);
   });
 
   it("answers /mcp without a token with 401 and where to log in", async () => {
