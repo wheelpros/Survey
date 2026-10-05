@@ -388,13 +388,28 @@ function esc(value){
     .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
 }
 
-fetch("api/response-details.php?id=" + encodeURIComponent(id))
-.then(r => r.json())
+// The endpoint now checks who is asking - the answers are client data.
+fetch("api/response-details.php?id=" + encodeURIComponent(id), {
+  headers: { Authorization: "Bearer " + adminToken }
+})
+.then(r => {
+  // A stale session goes back to login rather than showing "no answers".
+  if (r.status === 401) {
+    logoutAdmin();
+    throw new Error("signed out");
+  }
+  return r.json();
+})
 .then(data => {
 
-  responseAnswers = data.answers || [];
-
   const target = document.getElementById("answers");
+
+  if(!data.success){
+    target.innerHTML = `<div class="empty">${esc(data.message || "Unable to load this response.")}</div>`;
+    return;
+  }
+
+  responseAnswers = data.answers || [];
 
   if(!responseAnswers.length){
     target.innerHTML = `<div class="empty">No answers were submitted for this response.</div>`;
