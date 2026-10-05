@@ -1,0 +1,15 @@
+# Tracked on purpose: a .gitignore that ignores itself never reaches other
+# clones, so they would commit node_modules/, .env and uploads.
+.claude/
+.agent/
+.env.*
+uploads/
+logo.png
+# Local demo pages (node demo/build-demo.js) - kept off GitHub.
+demo/
+
+# Wzone-ai (MCP server): dependencies, and the local .env its README
+# tells you to create - .env.* above does not match a bare .env.
+node_modules/
+.env
+coverage/

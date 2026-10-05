@@ -35,8 +35,13 @@ $method = $_SERVER["REQUEST_METHOD"];
 |     inquiry.html?name=free-30-minute-business-growth-consultation&token=...
 |
 | and the endpoint that serves that link checks the two against each other, so
-| the slug has to be unique. A title of nothing but punctuation would slugify to
-| an empty string, hence the "inquiry" fallback.
+| the slug has to be unique. A title with no Latin letters or digits at all -
+| an Arabic title, or nothing but punctuation - would slugify to an empty
+| string. It used to fall back to a bare "inquiry", then "inquiry-2", "-3"...,
+| which says nothing about which form a link opens and depends on the order
+| forms were made in; such a title now gets "inquiry-" plus a short random
+| tail instead. Links stay ASCII either way, which the AI-facing
+| api/inquiry-lookup.php and the MCP server require.
 */
 function slugifyInquiryTitle($pdo, $title, $excludeId = 0)
 {
@@ -47,7 +52,7 @@ function slugifyInquiryTitle($pdo, $title, $excludeId = 0)
     $base = trim($base, "-");
 
     if ($base === "") {
-        $base = "inquiry";
+        $base = "inquiry-" . substr(bin2hex(random_bytes(3)), 0, 6);
     }
 
     $slug = $base;

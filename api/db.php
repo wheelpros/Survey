@@ -9,11 +9,40 @@ if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") {
     exit;
 }
 
-$DB_HOST = "fsook8og8oscgccgcgs88w4o";
-$DB_PORT = "3306";
-$DB_NAME = "default";
-$DB_USER = "mysql";
-$DB_PASS = "rCHm3LJRaAa04UAnRtNFPwEk8fSoif40uvP8WAPGgJ18qFzh11vMCeoii9iuX9u1";
+/*
+| Connection settings come from the environment - set them in Coolify's
+| Environment Variables panel for this application (runtime only, not
+| build time). Nothing here may hardcode them: this file is in git, and a
+| password in git is a password anyone with the repo, or its history, has.
+|
+|   DB_HOST  DB_PORT (default 3306)  DB_NAME  DB_USER  DB_PASS
+|
+| getenv() first; $_SERVER as well, for hosts that hand env to PHP that way.
+*/
+function dbSetting($name, $default = null)
+{
+    $value = getenv($name);
+    if ($value === false || $value === "") {
+        $value = $_SERVER[$name] ?? $default;
+    }
+    return $value;
+}
+
+$DB_HOST = dbSetting("DB_HOST");
+$DB_PORT = dbSetting("DB_PORT", "3306");
+$DB_NAME = dbSetting("DB_NAME");
+$DB_USER = dbSetting("DB_USER");
+$DB_PASS = dbSetting("DB_PASS");
+
+if (!$DB_HOST || !$DB_NAME || !$DB_USER || $DB_PASS === null) {
+    // Names only, never values - this goes to the server log, not the page.
+    error_log("db.php: missing database settings - set DB_HOST, DB_NAME, DB_USER and DB_PASS");
+    echo json_encode([
+        "success" => false,
+        "message" => "Database connection failed"
+    ]);
+    exit;
+}
 
 try {
     $pdo = new PDO(
