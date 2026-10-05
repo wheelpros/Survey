@@ -221,13 +221,16 @@ seed($pdo, "mcp_tokens", [["token_hash" => tokenHash($mcpToken), "kind" => "acce
 $port = 18000 + random_int(0, 999);
 $mcpKey = "test-mcp-key";
 $server = proc_open(
-    [PHP_BINARY, "-S", "127.0.0.1:$port", "-t", $root],
+    // mail() goes nowhere: a submitted form emails its answers as a CSV.
+    [PHP_BINARY, "-d", "sendmail_path=/bin/true", "-S", "127.0.0.1:$port", "-t", $root],
     [0 => ["pipe", "r"], 1 => ["file", "/dev/null", "w"], 2 => ["file", "/dev/null", "w"]],
     $pipes,
     $root,
     // SMTP at a closed local port: the shared writes email people, and a test
     // run must never log in to the real mail account or send anything.
-    array_merge(getenv(), ["MCP_UPSTREAM_KEY" => $mcpKey, "SMTP_HOST" => "127.0.0.1", "SMTP_PORT" => "9"])
+    // SURVEY_WEBHOOK_URL empty: no test answer ever reaches the real Google
+    // sheet a submitted form is copied to.
+    array_merge(getenv(), ["MCP_UPSTREAM_KEY" => $mcpKey, "SMTP_HOST" => "127.0.0.1", "SMTP_PORT" => "9", "SURVEY_WEBHOOK_URL" => ""])
 );
 register_shutdown_function(function () use ($server) {
     proc_terminate($server);
@@ -581,6 +584,7 @@ if (in_array("--fixtures", $argv, true)) {
 }
 
 require __DIR__ . "/writes.php";
+require __DIR__ . "/clients.php";
 
 if (in_array("--fixtures", $argv, true)) {
     file_put_contents(

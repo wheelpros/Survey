@@ -351,3 +351,109 @@ export const markedRead = {
   marked: id.describe("How many were unread and are now read"),
   unread_count: id,
 };
+
+// ── A client's own view (api/v1/me) ─────────────────────────────────────
+
+export const myMeeting = z.object({
+  id,
+  date: text,
+  time: text.describe("HH:MM"),
+  status: z.string().describe("pending, approved or rejected"),
+  requested_by: z.string().describe("'admin': W|ZONE asked you and you answer; 'user': you asked and W|ZONE answers"),
+  with: maybe.describe("The W|ZONE person who asked, or answered"),
+  untrusted_content: untrusted({ topic: text, notes: text }),
+});
+
+const myPost = z.object({
+  id,
+  title: text,
+  type_label: maybe,
+  platform: maybe,
+  live_at: dateTime,
+  has_media: z.boolean(),
+  link: maybe,
+  untrusted_content: untrusted({ caption: text }),
+});
+
+const myProjectItem = z.object({
+  id,
+  title: text,
+  type_label: text,
+  status: text,
+  status_label: text,
+  progress: id.describe("0-100"),
+  start_date: text,
+  end_date: text,
+});
+
+export const myOverview = {
+  me: z.object({ name: text, email: text, company_name: maybe }),
+  meetings_waiting_on_you: z.array(myMeeting).describe("Requests from W|ZONE you haven't answered"),
+  upcoming_meetings: z.array(myMeeting),
+  forms_to_fill_in: z.array(z.object({ id, title: text, created_at: dateTime })),
+  recent_content: z.array(myPost),
+  active_projects: z.array(
+    z.object({ id, title: text, status: text, status_label: text, progress: id, start_date: text, end_date: text })
+  ),
+  unread_notifications: id,
+};
+
+export const myCalendar = {
+  from: text,
+  to: text,
+  meetings: z.array(myMeeting),
+  content: z.array(myPost).describe("Posts that went live in the range"),
+  truncated: z.boolean(),
+};
+
+export const myFormItem = z.object({
+  id,
+  title: text,
+  status: z.string().describe("pending: waiting for you; completed: you sent it"),
+  created_at: dateTime,
+});
+
+export const myForm = {
+  ...myFormItem.shape,
+  description: text,
+  questions: z.array(
+    z.object({
+      id,
+      text,
+      type: z
+        .string()
+        .describe("input: one line; textarea: a paragraph; checkbox: tick options (one box if none); file: upload, portal only"),
+      required: z.boolean(),
+      options: z.array(text).describe("checkbox: the boxes; others: suggestions"),
+      max_file_size_mb: id.nullable(),
+    })
+  ),
+  my_answers: z
+    .object({
+      untrusted_content: untrusted({
+        answers: z.array(z.object({ question_id: id, question: text, answer: text })),
+      }),
+    })
+    .nullable()
+    .describe("Your answers, once sent"),
+};
+
+export const myProjects = { items: z.array(myProjectItem) };
+
+export const myProject = {
+  ...myProjectItem.shape,
+  untrusted_content: untrusted({ description: text }),
+  updates: z.array(
+    z.object({
+      id,
+      title: text,
+      date: maybe,
+      time: maybe,
+      is_complete: z.boolean(),
+      link: maybe,
+      untrusted_content: untrusted({ description: text }),
+    })
+  ),
+};
+
+export const myPosts = page(myPost);

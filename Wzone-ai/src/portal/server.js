@@ -11,7 +11,7 @@
 //   tools.js      the read tools, one per api/v1 read, behind their scopes
 //   writes.js     the changes, each prepared, shown, then confirmed
 //   resources.js  client:// project:// form://
-//   prompts.js    ready-made staff workflows
+//   prompts.js    ready-made workflows, for staff and for clients
 //   schemas.js    what api/v1 answers with
 //   call.js       the one way into api/v1
 
@@ -31,18 +31,19 @@ const INSTRUCTIONS = [
   "This server is the W|ZONE client portal, acting as the person who connected it -",
   "a staff member or a client. Every tool returns only what that person can see in the",
   "portal; a 'not found' can mean it exists but isn't theirs to see.",
-  "Start with whoami if unsure what this connection can do. For anything about one",
-  "client, get_client_overview answers most questions in one call; search_clients finds",
-  "the client's id. Lists are paged: pass next_cursor back as cursor for more.",
-  "Changes take two steps: a tool such as create_form_draft or propose_meeting only",
-  "prepares the change and returns a summary - show it to the person, and call",
-  "confirm_change only once they have said yes. Never confirm on their behalf.",
+  "Start with whoami if unsure what this connection can do. Staff: for anything about one",
+  "client, get_client_overview answers most questions in one call, and search_clients finds",
+  "the client's id. Clients: my_overview shows what's waiting on them and what's coming up.",
+  "Lists are paged: pass next_cursor back as cursor for more.",
+  "Changes take two steps: a tool such as propose_meeting or submit_my_form only prepares",
+  "the change and returns a summary - show it to the person, and call confirm_change only",
+  "once they have said yes. Never confirm on their behalf.",
   UNTRUSTED_NOTE,
 ].join(" ");
 
 export function buildPortalServer({ requestId, auth }) {
   const server = new McpServer(
-    { name: "wzone-portal", version: "0.3.0" },
+    { name: "wzone-portal", version: "0.4.0" },
     { instructions: INSTRUCTIONS }
   );
   const scopes = auth.scopes || [];

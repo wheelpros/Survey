@@ -315,6 +315,102 @@ export const READ_TOOLS = [
     path: "notifications.php",
     query: ({ unread, ...rest }) => ({ ...rest, unread: unread ? 1 : undefined }),
   },
+
+  // ── A client's own account (self:read) ────────────────────────────────
+  // Only ever the caller's own records - api/v1/me takes the client from
+  // the token, never from an argument.
+  {
+    name: "my_overview",
+    scope: "self:read",
+    title: "My overview",
+    description:
+      "What's waiting on you and what's coming up: meeting requests to answer, upcoming " +
+      "meetings, forms to fill in, recent posts, your projects and unread notifications. " +
+      "Start here.",
+    input: {},
+    output: S.myOverview,
+    path: "me/overview.php",
+  },
+  {
+    name: "my_calendar",
+    scope: "self:read",
+    title: "My calendar",
+    description: "Your meetings between two days, and the posts that went live in them. Defaults to the next 30 days.",
+    input: {
+      from: date("First day (default today)").optional(),
+      to: date("Last day (default 30 days after from)").optional(),
+    },
+    output: S.myCalendar,
+    path: "me/calendar.php",
+  },
+  {
+    name: "get_my_meeting",
+    scope: "self:read",
+    title: "One of my meetings",
+    description: "One meeting or meeting request, with its topic and notes.",
+    input: { id: recordId("The meeting's id") },
+    output: S.myMeeting.shape,
+    path: "me/calendar.php",
+  },
+  {
+    name: "my_forms",
+    scope: "self:read",
+    title: "My forms",
+    description: "Forms W|ZONE has sent you: to fill in (pending) or sent (completed). " + ORDER,
+    input: { status: z.enum(["pending", "completed"]).optional(), ...paging },
+    output: S.page(S.myFormItem),
+    path: "me/forms.php",
+  },
+  {
+    name: "get_my_form",
+    scope: "self:read",
+    title: "One of my forms",
+    description: "A form's questions - and your answers, if you've sent it.",
+    input: { id: recordId("The form's id") },
+    output: S.myForm,
+    path: "me/forms.php",
+  },
+  {
+    name: "my_content",
+    scope: "self:read",
+    title: "My content",
+    description: "Posts W|ZONE has published for you. Newest first - or, with from/to, forward in time.",
+    input: {
+      from: date("Live on or after this day").optional(),
+      to: date("Live on or before this day").optional(),
+      ...paging,
+    },
+    output: S.myPosts,
+    path: "me/content.php",
+  },
+  {
+    name: "my_projects",
+    scope: "self:read",
+    title: "My projects",
+    description: "Your projects with W|ZONE and how far along each is.",
+    input: {},
+    output: S.myProjects,
+    path: "me/projects.php",
+  },
+  {
+    name: "get_my_project",
+    scope: "self:read",
+    title: "One of my projects",
+    description: "A project with the updates W|ZONE has published on it.",
+    input: { id: recordId("The project's id") },
+    output: S.myProject,
+    path: "me/projects.php",
+  },
+  {
+    name: "my_notifications",
+    scope: "self:read",
+    title: "My notifications",
+    description: "Your portal notifications. " + ORDER,
+    input: { unread: z.boolean().optional().describe("Only unread ones"), ...paging },
+    output: S.notifications,
+    path: "me/notifications.php",
+    query: ({ unread, ...rest }) => ({ ...rest, unread: unread ? 1 : undefined }),
+  },
 ];
 
 /** Registers every read tool `scopes` allows. Returns their names. */

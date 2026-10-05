@@ -15,8 +15,10 @@
 |       Nothing is written.
 |   apply($pdo, $p, $args)    makes the change with the cleaned arguments
 |       and returns its result. Run only on confirm, after prepare has
-|       been run again - so a form someone reviewed in the meantime, or a
-|       client taken off this admin, stops the change.
+|       been run again on those same arguments - so a form someone
+|       reviewed in the meantime, or a client taken off this admin, stops
+|       the change. The cleaned arguments must therefore still be valid
+|       input to prepare.
 |
 | The writes themselves are the browser endpoints' own shared functions
 | (survey-writes.php, meeting-writes.php, task-writes.php,
@@ -26,12 +28,17 @@
 |
 | Deliberately missing: anything that deletes, publishes content, sends an
 | announcement, or changes accounts or permissions. Those stay in the portal.
+|
+| Each handler is for staff, or - with "kind" => "user" - for a client acting
+| on their own account (the self:* scopes). changes.php never lets one reach
+| the other's.
 */
 
 require_once __DIR__ . "/../survey-writes.php";
 require_once __DIR__ . "/../meeting-writes.php";
 require_once __DIR__ . "/../task-writes.php";
 require_once __DIR__ . "/../inquiry-templates.php";
+require_once __DIR__ . "/../survey-submit.php";
 
 const V1_CONFIRM_TTL = 900; // 15 minutes to say yes
 
@@ -228,6 +235,122 @@ function loadEditableTask(PDO $pdo, array $p, $id)
         throw new PortalWriteError("You can only edit your own tasks.", 403);
     }
     return [$task, $project];
+}
+
+/** A client's own users row, for the shared writes that name them. */
+function clientRow(PDO $pdo, array $p)
+{
+    $stmt = $pdo->prepare("SELECT id, name, email, company_name FROM users WHERE id = ? LIMIT 1");
+    $stmt->execute([$p["id"]]);
+    return $stmt->fetch();
+}
+
+/**
+ * A client's answers, checked the way survey.html checks them before it lets
+ * the form go - and stricter where the page relies on its own widgets: every
+ * question answered, ticked options only from the form's own list. Returns
+ * the page's answer shape, [{questionId, questionLabel, answer}], with the
+ * questions' own labels, ready for submitSurveyResponse().
+ */
+function clientFormAnswers(PDO $pdo, array $form, array $given)
+{
+    $q = $pdo->prepare("
+        SELECT id, question_text, question_type, required, chips
+        FROM survey_questions WHERE survey_id = ?
+        ORDER BY sort_order ASC, id ASC
+    ");
+    $q->execute([$form["id"]]);
+    $questions = $q->fetchAll();
+
+    $files = array_filter($questions, function ($r) {
+        return $r["question_type"] === "file";
+    });
+    if ($files) {
+        throw new PortalWriteError(
+            "This form asks for a file (" . implode(", ", array_map(function ($r) {
+                return quoteFor($r["question_text"], 60);
+            }, $files)) . "), and files can only be attached on the portal page: "
+            . APP_URL . "/survey.html?id=" . (int) $form["id"]
+        );
+    }
+
+    $byId = [];
+    foreach ($given as $i => $a) {
+        $qid = is_array($a) ? ($a["question_id"] ?? null) : null;
+        if (!is_int($qid)) {
+            throw new PortalWriteError("answers[" . ($i + 1) . "] needs a question_id.");
+        }
+        if (isset($byId[$qid])) {
+            throw new PortalWriteError("Question $qid is answered twice.");
+        }
+        $byId[$qid] = array_key_exists("value", $a) ? $a["value"] : null;
+    }
+
+    $known = array_map(function ($r) {
+        return (int) $r["id"];
+    }, $questions);
+    foreach (array_keys($byId) as $qid) {
+        if (!in_array($qid, $known, true)) {
+            throw new PortalWriteError("Question $qid isn't on this form.");
+        }
+    }
+
+    $answers = [];
+    $missing = [];
+    foreach ($questions as $r) {
+        $qid = (int) $r["id"];
+        $value = $byId[$qid] ?? null;
+        $label = (string) $r["question_text"];
+        $options = json_decode((string) ($r["chips"] ?? ""), true);
+        $options = is_array($options) ? array_values(array_map("strval", $options)) : [];
+
+        if ($r["question_type"] === "checkbox") {
+            if ($options) {
+                // Ticked boxes, stored the way the page stores them:
+                // "✅ Instagram, ✅ TikTok", in the form's own order.
+                if ($value !== null && (!is_array($value) || array_filter($value, function ($v) use ($options) {
+                    return !is_string($v) || !in_array($v, $options, true);
+                }))) {
+                    throw new PortalWriteError(quoteFor($label, 60) . " takes options from its list only: " . implode(", ", $options) . ".");
+                }
+                $ticked = array_values(array_filter($options, function ($o) use ($value) {
+                    return is_array($value) && in_array($o, $value, true);
+                }));
+                $text = implode(", ", array_map(function ($o) {
+                    return "✅ " . $o;
+                }, $ticked));
+            } else {
+                // A single box - ticked or not.
+                if ($value !== null && !is_bool($value)) {
+                    throw new PortalWriteError(quoteFor($label, 60) . " is a single tick box: answer true or false.");
+                }
+                $text = $value === true ? "✅" : "";
+            }
+        } else {
+            if ($value !== null && !is_string($value)) {
+                throw new PortalWriteError(quoteFor($label, 60) . " needs a text answer.");
+            }
+            $text = trim((string) $value);
+            $max = $r["question_type"] === "textarea" ? 10000 : 2000;
+            if (mb_strlen($text) > $max) {
+                throw new PortalWriteError(quoteFor($label, 60) . " must be $max characters or fewer.");
+            }
+        }
+
+        if ($text === "" && (int) $r["required"] === 1) {
+            $missing[] = quoteFor($label, 60);
+            continue;
+        }
+        if ($text !== "") {
+            $answers[] = ["questionId" => $qid, "questionLabel" => $label, "answer" => $text];
+        }
+    }
+
+    if ($missing) {
+        throw new PortalWriteError("Still to answer: " . implode("; ", $missing) . ".");
+    }
+
+    return $answers;
 }
 
 /*
@@ -692,6 +815,114 @@ function v1WriteHandlers()
                     "task_id" => (int) $a["id"],
                     "client_notified" => announceTaskIfLive($pdo, $p, $project, $a["id"], $title),
                 ];
+            },
+        ],
+        // ── A client's own account ───────────────────────────────────────
+
+        "request_meeting" => [
+            "scope" => "self:write",
+            "kind" => "user",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                $date = argDate($a, "date");
+                $time = argTime($a, "time");
+                if ($date === null || $time === null) {
+                    throw new PortalWriteError("date and time are required.");
+                }
+                if ($date < date("Y-m-d")) {
+                    throw new PortalWriteError("That date has passed.");
+                }
+                $topic = argText($a, "topic", 200);
+                $notes = argText($a, "notes", 2000, false);
+                return [
+                    "args" => ["date" => $date, "time" => $time, "topic" => $topic, "notes" => $notes],
+                    "summary" => "Ask the W|ZONE team for a meeting on $date at $time about " . quoteFor($topic)
+                        . ". Your team is told in the portal and by email, and will accept or decline it.",
+                    "preview" => ["date" => $date, "time" => $time, "untrusted_content" => ["topic" => $topic, "notes" => $notes]],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                ensureAppointmentTables($pdo);
+                $id = requestMeetingFromAdmins($pdo, clientRow($pdo, $p), $a["date"], $a["time"], $a["topic"], $a["notes"]);
+                return ["meeting_id" => $id, "status" => "pending"];
+            },
+        ],
+
+        "respond_to_my_meeting" => [
+            "scope" => "self:write",
+            "kind" => "user",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                $id = argInt($a, "id");
+                $decision = argEnum($a, "decision", ["accept", "decline"]);
+                $stmt = $pdo->prepare("
+                    SELECT a.date, a.time, a.status, a.topic, a.title, ad.name AS admin_name
+                    FROM appointments a
+                    LEFT JOIN admins ad ON ad.id = a.admin_id
+                    WHERE a.id = ? AND a.user_id = ? AND a.requested_by = 'admin'
+                    LIMIT 1
+                ");
+                $stmt->execute([$id, $p["id"]]);
+                $request = $stmt->fetch();
+                if (!$request) {
+                    throw new PortalWriteError("No meeting request to you with that id.", 404);
+                }
+                if ($request["status"] !== "pending") {
+                    throw new PortalWriteError("You have already answered that request ({$request["status"]}).", 409);
+                }
+                $topic = (string) ($request["topic"] ?? $request["title"] ?? "");
+                return [
+                    "args" => ["id" => $id, "decision" => $decision],
+                    "summary" => ($decision === "accept" ? "Accept" : "Decline") . " the meeting on {$request["date"]} at "
+                        . substr((string) $request["time"], 0, 5) . " about " . quoteFor($topic)
+                        . ($request["admin_name"] ? ". " . $request["admin_name"] . " is told." : "."),
+                    "preview" => [
+                        "meeting_id" => $id,
+                        "date" => (string) $request["date"],
+                        "time" => substr((string) $request["time"], 0, 5),
+                        "with" => v1NullableString($request["admin_name"]),
+                        "decision" => $decision,
+                        "untrusted_content" => ["topic" => $topic],
+                    ],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                answerAdminMeetingRequest($pdo, clientRow($pdo, $p), $a["id"], $a["decision"] === "accept" ? "approved" : "rejected", true);
+                return ["meeting_id" => $a["id"], "status" => $a["decision"] === "accept" ? "approved" : "rejected"];
+            },
+        ],
+
+        "submit_my_form" => [
+            "scope" => "self:write",
+            "kind" => "user",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                $id = argInt($a, "id");
+                $form = loadClientSurvey($pdo, $p["id"], $id);
+                if (!$form) {
+                    throw new PortalWriteError("No form of yours with that id.", 404);
+                }
+                if ($form["status"] === "completed") {
+                    throw new PortalWriteError("You have already sent this form.", 409);
+                }
+                $given = argList($a, "answers", 1, 100);
+                $answers = clientFormAnswers($pdo, $form, $given);
+                return [
+                    // As given, not converted: confirm runs this prepare again
+                    // on exactly these arguments before apply converts them.
+                    "args" => ["id" => $id, "answers" => $given],
+                    "summary" => "Send your answers to " . quoteFor($form["title"]) . " (" . count($answers)
+                        . (count($answers) === 1 ? " answer" : " answers")
+                        . "). Once sent they can't be changed, and your W|ZONE team is told.",
+                    "preview" => [
+                        "form" => ["id" => (int) $form["id"], "title" => (string) $form["title"]],
+                        "untrusted_content" => ["answers" => array_map(function ($x) {
+                            return ["question" => $x["questionLabel"], "answer" => $x["answer"]];
+                        }, $answers)],
+                    ],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                $answers = clientFormAnswers($pdo, loadClientSurvey($pdo, $p["id"], $a["id"]), $a["answers"]);
+                $responseId = submitSurveyResponse($pdo, clientRow($pdo, $p), $a["id"], $answers, null);
+                return ["form_id" => $a["id"], "response_id" => $responseId, "status" => "completed"];
             },
         ],
     ];

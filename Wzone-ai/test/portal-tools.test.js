@@ -88,13 +88,13 @@ describe("private server: per-person tools", () => {
 
   const toolNames = async (c) => (await c.listTools()).tools.map((t) => t.name).sort();
 
-  it("gives a client connection nothing but whoami", async () => {
-    fakePortal({ scopes: ["self:read", "self:write"] });
+  it("gives a client connection only its own tools", async () => {
+    fakePortal({ scopes: ["self:read"] });
     const c = await connect();
-    expect(await toolNames(c)).toEqual(["whoami"]);
-    // Not even advertised: with nothing to offer, the server has no prompts
-    // or resources capability at all.
-    expect(c.getServerCapabilities().prompts).toBeUndefined();
+    const names = await toolNames(c);
+    expect(names).toEqual(["whoami", ...READ_TOOLS.filter((t) => t.scope === "self:read").map((t) => t.name)].sort());
+    // Read-only: no change tools at all, and no staff resources.
+    expect(names).not.toContain("confirm_change");
     expect(c.getServerCapabilities().resources).toBeUndefined();
     await c.close();
   });
@@ -102,8 +102,10 @@ describe("private server: per-person tools", () => {
   it("gives the owner every tool, resource and prompt", async () => {
     fakePortal({ scopes: ALL_STAFF });
     const c = await connect();
+    const staff = (t) => !t.scope.startsWith("self:");
     expect(await toolNames(c)).toEqual(
-      ["whoami", "confirm_change", "mark_notifications_read", ...READ_TOOLS.map((t) => t.name), ...WRITE_TOOLS.map((t) => t.name)].sort()
+      ["whoami", "confirm_change", "mark_notifications_read",
+       ...READ_TOOLS.filter(staff).map((t) => t.name), ...WRITE_TOOLS.filter(staff).map((t) => t.name)].sort()
     );
     expect((await c.listResourceTemplates()).resourceTemplates.map((r) => r.uriTemplate).sort())
       .toEqual(["client://{id}", "form://{id}", "project://{id}"]);

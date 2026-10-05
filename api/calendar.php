@@ -144,44 +144,13 @@ function scopedClients(PDO $pdo, array $admin)
 /* Accept or decline a request an admin sent this client. */
 if ($action === "respond_appointment" && $user) {
 
-    $appointmentId = (int) field($input, "id", "0");
     $status = field($input, "status");
 
-    if (!in_array($status, ["approved", "rejected"], true)) {
-        reply(false, "Invalid status");
-    }
-
-    // requested_by is checked so a client cannot answer their own request -
-    // that one is the admin team's to decide.
-    // Read before writing, so the admin who asked can be told the answer.
-    $lookup = $pdo->prepare("
-        SELECT admin_id, topic
-        FROM appointments
-        WHERE id = ? AND user_id = ? AND requested_by = 'admin'
-        LIMIT 1
-    ");
-    $lookup->execute([$appointmentId, $user["id"]]);
-    $request = $lookup->fetch(PDO::FETCH_ASSOC);
-
-    $stmt = $pdo->prepare("
-        UPDATE appointments
-        SET status = ?
-        WHERE id = ? AND user_id = ? AND requested_by = 'admin'
-    ");
-    $stmt->execute([$status, $appointmentId, $user["id"]]);
-
-    if ($request && (int) $request["admin_id"] > 0) {
-        notify(
-            $pdo,
-            "admin",
-            (int) $request["admin_id"],
-            NOTIFY_APPOINTMENT_ANSWERED,
-            $user["name"] . ($status === "approved" ? " confirmed your meeting" : " declined your meeting"),
-            (string) ($request["topic"] ?? "Meeting"),
-            "admin-calendar.html?appointment=" . (int) $appointmentId,
-            "user",
-            (int) $user["id"]
-        );
+    // answerAdminMeetingRequest() is shared with api/v1 (meeting-writes.php).
+    try {
+        answerAdminMeetingRequest($pdo, $user, (int) field($input, "id", "0"), $status);
+    } catch (PortalWriteError $e) {
+        reply(false, $e->getMessage());
     }
 
     reply(true, $status === "approved" ? "Meeting confirmed" : "Meeting declined");
@@ -190,44 +159,13 @@ if ($action === "respond_appointment" && $user) {
 /* The "Send a new request" form on dashboard.html. */
 if ($action === "create_user_request" && $user) {
 
-    $date = field($input, "date");
-    $time = field($input, "time");
-    $topic = mb_substr(field($input, "topic"), 0, 200);
-    $notes = field($input, "notes");
-
-    if (!$date || !$time || $topic === "") {
-        reply(false, "Pick a date and time, and say what the meeting is about.");
+    // requestMeetingFromAdmins() is shared with api/v1 (meeting-writes.php):
+    // the row, notifications and emails are the same whoever sends it.
+    try {
+        requestMeetingFromAdmins($pdo, $user, field($input, "date"), field($input, "time"), field($input, "topic"), field($input, "notes"));
+    } catch (PortalWriteError $e) {
+        reply(false, $e->getMessage());
     }
-
-    $stmt = $pdo->prepare("
-        INSERT INTO appointments
-            (user_id, title, date, time, status, topic, notes, requested_by, client)
-        VALUES (?, ?, ?, ?, 'pending', ?, ?, 'user', ?)
-    ");
-    $stmt->execute([
-        $user["id"],
-        $topic,
-        $date,
-        $time,
-        $topic,
-        $notes !== "" ? $notes : null,
-        $user["company_name"] ?? null
-    ]);
-    $appointmentId = (int) $pdo->lastInsertId();
-
-    // Opens this request on the calendar, not just the calendar.
-    notifyAdminsForUser(
-        $pdo,
-        (int) $user["id"],
-        NOTIFY_APPOINTMENT_REQUEST,
-        "Meeting request from " . $user["name"],
-        $topic . " - " . $date . " at " . $time,
-        "admin-calendar.html?appointment=" . $appointmentId
-    );
-
-    // The same admins, by email: a request left unseen in the portal is a
-    // client left waiting for an answer.
-    emailAdminsAboutMeetingRequest($pdo, (int) $user["id"], (string) $user["name"], $topic, $date, $time, $notes, $appointmentId);
 
     reply(true, "Request sent to the admin team.");
 }

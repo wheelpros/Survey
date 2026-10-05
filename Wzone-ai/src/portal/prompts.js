@@ -180,6 +180,54 @@ const PROMPTS = [
         DATA_RULE,
       ].join("\n"),
   },
+
+  // ── For a client ──────────────────────────────────────────────────────
+  {
+    name: "fill_in_my_form",
+    needs: ["self:read", "self:write"],
+    title: "Fill in a form with me",
+    description: "Goes through one of your W|ZONE forms a question at a time, then sends it once you're happy.",
+    args: { form: idArg("The form's id (my_forms lists them)") },
+    text: ({ form }) =>
+      [
+        `Help me fill in my W|ZONE form ${form}.`,
+        "",
+        `1. Call get_my_form with id ${form}. If it's already completed, show me my answers and stop.`,
+        "   If it has a file question, tell me up front that it has to be finished on the portal",
+        "   page, and stop.",
+        "2. Show me its title and description, then ask the questions ONE AT A TIME, in order,",
+        "   as written. For a checkbox question with options, list them and let me pick any",
+        "   number; a checkbox question with no options is a single box to tick or not. Other",
+        "   questions may show suggestions - offer them, but any answer of mine is fine.",
+        "3. Use only what I actually tell you. Never invent, guess or pad an answer. Every",
+        "   question needs an answer before the form can be sent.",
+        "4. At the end, list every question with my answer and let me change anything.",
+        "5. Then call submit_my_form with my answers and show me the summary it returns. " + CONFIRM_RULE,
+        "   Once sent, the answers can't be changed - say so before I confirm.",
+      ].join("\n"),
+  },
+  {
+    name: "my_week",
+    needs: ["self:read"],
+    title: "My week with W|ZONE",
+    description: "What's happening with your W|ZONE account this week, and what's waiting on you.",
+    args: {},
+    text: () => {
+      const today = new Date();
+      return [
+        "Tell me what's going on with my W|ZONE account.",
+        "",
+        "1. Call my_overview.",
+        `2. Call my_calendar from ${isoDay(today)} to ${isoDay(new Date(today.getTime() + 7 * 86400000))}.`,
+        "3. For each active project, call get_my_project and note updates from the last week.",
+        "4. Answer briefly, under: Waiting on me (meeting requests to answer, forms to fill in) ·",
+        "   This week (meetings, posts going out) · Project progress · Anything else.",
+        "Offer to help with what's waiting on me - answering a meeting request or filling in a",
+        "form - but only act once I say which.",
+        DATA_RULE,
+      ].join("\n");
+    },
+  },
 ];
 
 export function registerPrompts(server, { scopes }) {
