@@ -328,3 +328,26 @@ export const whoami = {
   visible_client_count: id.optional(),
   company_name: maybe.optional(),
 };
+
+// ── Changes (api/v1/changes.php) ────────────────────────────────────────
+
+export const preparedChange = {
+  tool: text,
+  summary: text.describe("What will happen, in plain words - show it to the person exactly"),
+  preview: z.record(z.string(), z.unknown()).describe("The details of the change"),
+  confirmation_token: text.describe("Pass to confirm_change, with the summary, once the person says yes"),
+  expires_at: text.describe("UTC; after this, prepare again"),
+};
+
+export const confirmedChange = {
+  done: z.boolean(),
+  duplicate: z.boolean().describe("true: this was already confirmed earlier - nothing happened twice"),
+  tool: text,
+  summary: text,
+  result: z.record(z.string(), z.unknown()).describe("What was created or changed, with its ids"),
+};
+
+export const markedRead = {
+  marked: id.describe("How many were unread and are now read"),
+  unread_count: id,
+};

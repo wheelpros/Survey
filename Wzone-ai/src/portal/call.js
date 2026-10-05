@@ -20,7 +20,7 @@ export function toolError(text) {
  * `schema`. Resolves to { ok: true, data } or { ok: false, message } -
  * never throws.
  */
-export async function fetchPortal({ auth, requestId, tool, path, query, schema }) {
+export async function fetchPortal({ auth, requestId, tool, path, query, body, schema }) {
   const started = Date.now();
   const log = (outcome, extra = {}) =>
     logger.info("portal_tool_completed", {
@@ -34,20 +34,28 @@ export async function fetchPortal({ auth, requestId, tool, path, query, schema }
 
   let result;
   try {
-    result = await callPortalApi(path, { token: auth.token, tool, requestId, query });
+    result = await callPortalApi(path, { token: auth.token, tool, requestId, query, body });
   } catch (err) {
     logger.error("portal_api_unreachable", { requestId, tool, error: err.message });
     log("upstream_error");
-    return { ok: false, message: "The W|ZONE portal isn't reachable right now. Try again in a moment." };
+    return {
+      ok: false,
+      message:
+        body === undefined
+          ? "The W|ZONE portal isn't reachable right now. Try again in a moment."
+          : "The W|ZONE portal didn't answer, so it isn't known whether this went through. " +
+            "Trying again is safe: preparing changes nothing, a confirmation never applies twice, " +
+            "and marking something read twice is harmless.",
+    };
   }
 
-  const { status, body } = result;
-  if (!body?.ok) {
+  const { status, body: reply } = result;
+  if (!reply?.ok) {
     log("refused", { upstream_status: status });
-    return { ok: false, message: body?.error?.message || `The W|ZONE portal refused this (HTTP ${status}).` };
+    return { ok: false, message: reply?.error?.message || `The W|ZONE portal refused this (HTTP ${status}).` };
   }
 
-  const parsed = schema.safeParse(body.data);
+  const parsed = schema.safeParse(reply.data);
   if (!parsed.success) {
     logger.error("portal_api_shape_mismatch", {
       requestId,
@@ -64,15 +72,17 @@ export async function fetchPortal({ auth, requestId, tool, path, query, schema }
 
 /**
  * fetchPortal as an MCP tool result: structuredContent plus its JSON as
- * text, with the untrusted-content reminder in front when it applies.
+ * text, led by `lead(data)` when given (what the model must do next) and
+ * the untrusted-content reminder when it applies.
  */
-export async function portalCall(opts) {
+export async function portalCall({ lead, ...opts }) {
   const result = await fetchPortal(opts);
   if (!result.ok) return toolError(result.message);
 
   const json = JSON.stringify(result.data, null, 2);
+  const notes = [lead ? lead(result.data) : null, json.includes('"untrusted_content"') ? UNTRUSTED_NOTE : null].filter(Boolean);
   return {
-    content: [{ type: "text", text: json.includes('"untrusted_content"') ? `${UNTRUSTED_NOTE}\n\n${json}` : json }],
+    content: [{ type: "text", text: [...notes, json].join("\n\n") }],
     structuredContent: result.data,
   };
 }

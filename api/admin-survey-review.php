@@ -1,7 +1,7 @@
 <?php
 
 require_once "db.php";
-require_once "notify.php";
+require_once "survey-writes.php";
 
 header("Content-Type: application/json; charset=UTF-8");
 
@@ -42,7 +42,7 @@ if (!$currentAdmin) {
 // alongside for oversight: only they may approve or reject. Every other admin
 // may still read this endpoint, but only to watch their own submissions sit
 // in the queue.
-$canReview = in_array($currentAdmin["role"], ["account_manager", "owner"], true);
+$canReview = isSurveyReviewer($currentAdmin);
 
 $method = $_SERVER["REQUEST_METHOD"];
 
@@ -166,158 +166,32 @@ if ($method === "GET") {
 
 if ($method === "POST") {
 
-    if (!$canReview) {
-        echo json_encode([
-            "success" => false,
-            "message" => "Only an account manager or the owner can approve or reject a form"
-        ]);
-        exit;
-    }
-
     $input = json_decode(file_get_contents("php://input"), true);
-
-    $surveyId = (int)($input["surveyId"] ?? 0);
     $action = $input["action"] ?? "";
-    $note = trim($input["note"] ?? "");
 
-    if (!$surveyId || !in_array($action, ["approve", "reject"], true)) {
+    /*
+    | The decision is reviewSurveyForm() in survey-writes.php, shared with
+    | api/v1: who may decide, the note a return needs, deciding only once,
+    | and who hears about it are the same whether it's clicked here or
+    | confirmed through an AI assistant.
+    */
+    try {
+        reviewSurveyForm($pdo, $currentAdmin, $input["surveyId"] ?? 0, $action, $input["note"] ?? "");
+    } catch (PortalWriteError $e) {
         echo json_encode([
             "success" => false,
-            "message" => "A survey and a valid action (approve or reject) are required"
+            "message" => $e->getMessage()
         ]);
         exit;
     }
 
-    if ($action === "reject" && $note === "") {
-        echo json_encode([
-            "success" => false,
-            "message" => "Please add a short note explaining the rejection"
-        ]);
-        exit;
-    }
-
-    // title, assigned_user_id and created_by_admin_id ride along for the
-    // notifications below, rather than costing a second read.
-    $checkStmt = $pdo->prepare("
-        SELECT id, status, title, assigned_user_id, created_by_admin_id
-        FROM surveys
-        WHERE id = ?
-        LIMIT 1
-    ");
-    $checkStmt->execute([$surveyId]);
-    $survey = $checkStmt->fetch();
-
-    if (!$survey) {
-        echo json_encode([
-            "success" => false,
-            "message" => "Survey not found"
-        ]);
-        exit;
-    }
-
-    if ($survey["status"] !== "pending_review") {
-        echo json_encode([
-            "success" => false,
-            "message" => "This survey has already been reviewed or is no longer pending"
-        ]);
-        exit;
-    }
-
-    if ($action === "approve") {
-
-        // Approving is what actually releases the survey to the assigned
-        // user - this is the moment it becomes visible/deliverable to them.
-        $stmt = $pdo->prepare("
-            UPDATE surveys
-            SET status = 'pending',
-                reviewed_by_admin_id = ?,
-                review_note = NULL,
-                reviewed_at = NOW()
-            WHERE id = ? AND status = 'pending_review'
-        ");
-        $stmt->execute([$currentAdmin["id"], $surveyId]);
-
-        if ($stmt->rowCount() === 0) {
-            echo json_encode([
-                "success" => false,
-                "message" => "This survey has already been reviewed by someone else"
-            ]);
-            exit;
-        }
-
-        // Approving is the moment the form reaches the user, so both ends
-        // hear about it: the person who has to fill it in, and the admin who
-        // wrote it and has been waiting on the gate.
-        notify(
-            $pdo,
-            "user",
-            (int) $survey["assigned_user_id"],
-            NOTIFY_FORM_APPROVED,
-            "A new form is ready for you",
-            $survey["title"] . " is waiting to be filled in.",
-            "survey.html?id=" . (int) $surveyId,
-            "admin",
-            (int) $currentAdmin["id"]
-        );
-
-        notify(
-            $pdo,
-            "admin",
-            (int) $survey["created_by_admin_id"],
-            NOTIFY_FORM_APPROVED,
-            "Your form was approved",
-            $survey["title"] . " has been sent to the assigned user.",
-            "admin.html",
-            "admin",
-            (int) $currentAdmin["id"]
-        );
-
-        echo json_encode([
-            "success" => true,
-            "message" => "Survey approved and sent to the user"
-        ]);
-        exit;
-
-    } else {
-
-        $stmt = $pdo->prepare("
-            UPDATE surveys
-            SET status = 'rejected',
-                reviewed_by_admin_id = ?,
-                review_note = ?,
-                reviewed_at = NOW()
-            WHERE id = ? AND status = 'pending_review'
-        ");
-        $stmt->execute([$currentAdmin["id"], $note, $surveyId]);
-
-        if ($stmt->rowCount() === 0) {
-            echo json_encode([
-                "success" => false,
-                "message" => "This survey has already been reviewed by someone else"
-            ]);
-            exit;
-        }
-
-        // Only the creator: the assigned user never knew this form existed,
-        // because a rejected form has not been released to them.
-        notify(
-            $pdo,
-            "admin",
-            (int) $survey["created_by_admin_id"],
-            NOTIFY_FORM_REJECTED,
-            "Your form was sent back",
-            $survey["title"] . ": " . $note,
-            "admin-form-builder.html?edit=" . (int) $survey["id"],
-            "admin",
-            (int) $currentAdmin["id"]
-        );
-
-        echo json_encode([
-            "success" => true,
-            "message" => "Survey rejected and sent back to the creator"
-        ]);
-        exit;
-    }
+    echo json_encode([
+        "success" => true,
+        "message" => $action === "approve"
+            ? "Survey approved and sent to the user"
+            : "Survey rejected and sent back to the creator"
+    ]);
+    exit;
 }
 
 echo json_encode([

@@ -9,9 +9,10 @@
 | events that are waiting on someone - a form to approve, a meeting to accept
 | or decline - also go to that person's inbox, from here.
 |
-| Same SMTP account as the password-reset emails in forgot-password.php and
-| sources-lock.php. The SMTP_* environment variables override it, so the
-| password can move out of the code without touching this file again.
+| Every email the portal sends - these, and the password resets in
+| forgot-password.php and sources-lock.php - goes through
+| configurePortalSmtp(): the account and its password come only from the
+| SMTP_* environment variables on the PHP app, never from the code.
 |
 | Like notify.php, nothing in this file throws. A failed send is logged and
 | the request that triggered it carries on: the form is saved and the meeting
@@ -35,6 +36,38 @@ function mailerSetting(string $name, string $fallback): string
 }
 
 /**
+ * Points $mail at the portal's mailbox, from the environment only - set
+ * SMTP_HOST, SMTP_PORT, SMTP_USER and SMTP_PASS on the PHP app in Coolify
+ * (runtime, not build time). There is no password in this file: one in git
+ * is one anybody with the repository or its history has.
+ *
+ * Returns false, and logs which setting is missing, when the password isn't
+ * set - every caller then reports "could not send" as it would for a mail
+ * server that is down. Used by every email the portal sends:
+ * sendPortalEmail() below, forgot-password.php and sources-lock.php.
+ */
+function configurePortalSmtp(PHPMailer $mail): bool
+{
+    $password = getenv("SMTP_PASS");
+    if ($password === false || $password === "") {
+        error_log("mailer: SMTP_PASS is not set - no email can be sent");
+        return false;
+    }
+
+    $mail->isSMTP();
+    $mail->Host = mailerSetting("SMTP_HOST", "smtp.hostinger.com");
+    $mail->SMTPAuth = true;
+    $mail->Username = mailerSetting("SMTP_USER", "survey@wzonevr.com");
+    $mail->Password = $password;
+    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+    $mail->Port = (int) mailerSetting("SMTP_PORT", "587");
+    $mail->CharSet = PHPMailer::CHARSET_UTF8;
+    $mail->Timeout = 10;
+
+    return true;
+}
+
+/**
  * One email to each recipient, over a single SMTP connection.
  *
  * $recipients is a list of ["email" => ..., "name" => ...]. Each gets their
@@ -51,15 +84,9 @@ function sendPortalEmail(array $recipients, string $subject, string $html): int
     $mail = new PHPMailer(true);
 
     try {
-        $mail->isSMTP();
-        $mail->Host = mailerSetting("SMTP_HOST", "smtp.hostinger.com");
-        $mail->SMTPAuth = true;
-        $mail->Username = mailerSetting("SMTP_USER", "survey@wzonevr.com");
-        $mail->Password = mailerSetting("SMTP_PASS", "Survey1@!t");
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port = (int) mailerSetting("SMTP_PORT", "587");
-        $mail->CharSet = PHPMailer::CHARSET_UTF8;
-        $mail->Timeout = 10;
+        if (!configurePortalSmtp($mail)) {
+            return 0;
+        }
 
         // Several recipients share one connection instead of a login each.
         $mail->SMTPKeepAlive = true;

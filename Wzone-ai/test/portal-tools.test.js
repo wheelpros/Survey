@@ -5,6 +5,7 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 
 import { createApp } from "../src/app.js";
 import { READ_TOOLS } from "../src/portal/tools.js";
+import { WRITE_TOOLS } from "../src/portal/writes.js";
 import { jsonResponse, stubUpstream } from "./helpers.js";
 
 const fixtures = JSON.parse(readFileSync(new URL("./fixtures/api-v1.json", import.meta.url), "utf8"));
@@ -98,16 +99,21 @@ describe("private server: per-person tools", () => {
     await c.close();
   });
 
-  it("gives the owner every read tool, resource and prompt", async () => {
+  it("gives the owner every tool, resource and prompt", async () => {
     fakePortal({ scopes: ALL_STAFF });
     const c = await connect();
-    expect(await toolNames(c)).toEqual(["whoami", ...READ_TOOLS.map((t) => t.name)].sort());
+    expect(await toolNames(c)).toEqual(
+      ["whoami", "confirm_change", "mark_notifications_read", ...READ_TOOLS.map((t) => t.name), ...WRITE_TOOLS.map((t) => t.name)].sort()
+    );
     expect((await c.listResourceTemplates()).resourceTemplates.map((r) => r.uriTemplate).sort())
       .toEqual(["client://{id}", "form://{id}", "project://{id}"]);
     expect((await c.listPrompts()).prompts.map((p) => p.name).sort())
-      .toEqual(["client_weekly_report", "meeting_prep", "plan_month_content", "review_queue", "triage_new_leads"]);
+      .toEqual(["client_weekly_report", "meeting_prep", "onboard_new_client", "plan_month_content", "review_queue", "triage_new_leads"]);
     const { tools } = await c.listTools();
-    expect(tools.every((t) => t.annotations?.readOnlyHint === true && t.outputSchema)).toBe(true);
+    expect(tools.every((t) => t.outputSchema)).toBe(true);
+    // Only the two tools that actually change something are not read-only.
+    expect(tools.filter((t) => t.annotations?.readOnlyHint !== true).map((t) => t.name).sort())
+      .toEqual(["confirm_change", "mark_notifications_read"]);
     await c.close();
   });
 

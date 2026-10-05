@@ -11,11 +11,18 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import { READ_TOOLS } from "../src/portal/tools.js";
-import { whoami } from "../src/portal/schemas.js";
+import { confirmedChange, markedRead, preparedChange, whoami } from "../src/portal/schemas.js";
 
 const fixtures = JSON.parse(readFileSync(new URL("./fixtures/api-v1.json", import.meta.url), "utf8"));
 
-const outputs = [["whoami", whoami], ...READ_TOOLS.map((t) => [t.name, t.output])];
+const outputs = [
+  ["whoami", whoami],
+  ...READ_TOOLS.map((t) => [t.name, t.output]),
+  // Every prepare tool answers in the same shape; one real reply stands for all.
+  ["prepare_change", preparedChange],
+  ["confirm_change", confirmedChange],
+  ["mark_notifications_read", markedRead],
+];
 
 describe("api/v1 contract", () => {
   it("has a real reply for every tool", () => {

@@ -35,6 +35,13 @@ const paging = {
 
 const ORDER = "Newest first.";
 
+// The nine content types admin-content-form.html offers (CONTENT_TYPE_TITLES
+// in api/v1/_helpers.php), as list_content_types returns their ids.
+export const CONTENT_TYPE_IDS = [
+  "articles", "campaign", "design", "events", "photos",
+  "reports", "social_media", "training", "videos",
+];
+
 export const READ_TOOLS = [
   // ── Clients ───────────────────────────────────────────────────────────
   {

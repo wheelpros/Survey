@@ -1,6 +1,7 @@
 <?php
 
 require_once "db.php";
+require_once "mailer.php";
 require_once "../PHPMailer/src/Exception.php";
 require_once "../PHPMailer/src/PHPMailer.php";
 require_once "../PHPMailer/src/SMTP.php";
@@ -138,25 +139,17 @@ $mail = new PHPMailer(true);
 
 try {
 
-    $mail->isSMTP();
-
-    $mail->Host = "smtp.hostinger.com";
-
-    $mail->SMTPAuth = true;
-
-    $mail->Username = "survey@wzonevr.com";
-
-    $mail->Password = "Survey1@!t";
-
-
-    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-
-    $mail->Port = 587;
+    // The mailbox and its password come from the environment - see
+    // configurePortalSmtp() in mailer.php. `Exception` here is PHPMailer's,
+    // so the catch below reports this like any other failed send.
+    if (!configurePortalSmtp($mail)) {
+        throw new Exception("Mail is not configured");
+    }
 
 
 
     $mail->setFrom(
-        "survey@wzonevr.com",
+        $mail->Username,
         "Survey from WZone"
     );
 

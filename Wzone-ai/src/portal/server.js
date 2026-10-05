@@ -9,6 +9,7 @@
 // shapes the result.
 //
 //   tools.js      the read tools, one per api/v1 read, behind their scopes
+//   writes.js     the changes, each prepared, shown, then confirmed
 //   resources.js  client:// project:// form://
 //   prompts.js    ready-made staff workflows
 //   schemas.js    what api/v1 answers with
@@ -22,6 +23,7 @@ import { registerPrompts } from "./prompts.js";
 import { registerResources } from "./resources.js";
 import * as S from "./schemas.js";
 import { READ_ONLY, registerReadTools } from "./tools.js";
+import { registerWriteTools } from "./writes.js";
 
 export { portalCall } from "./call.js";
 
@@ -32,12 +34,15 @@ const INSTRUCTIONS = [
   "Start with whoami if unsure what this connection can do. For anything about one",
   "client, get_client_overview answers most questions in one call; search_clients finds",
   "the client's id. Lists are paged: pass next_cursor back as cursor for more.",
+  "Changes take two steps: a tool such as create_form_draft or propose_meeting only",
+  "prepares the change and returns a summary - show it to the person, and call",
+  "confirm_change only once they have said yes. Never confirm on their behalf.",
   UNTRUSTED_NOTE,
 ].join(" ");
 
 export function buildPortalServer({ requestId, auth }) {
   const server = new McpServer(
-    { name: "wzone-portal", version: "0.2.0" },
+    { name: "wzone-portal", version: "0.3.0" },
     { instructions: INSTRUCTIONS }
   );
   const scopes = auth.scopes || [];
@@ -67,6 +72,7 @@ export function buildPortalServer({ requestId, auth }) {
   );
 
   registerReadTools(server, ctx);
+  registerWriteTools(server, ctx);
   registerResources(server, ctx);
   registerPrompts(server, ctx);
 
