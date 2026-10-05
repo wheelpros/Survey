@@ -95,6 +95,7 @@ body{background:#f6f7fb;color:var(--text);padding:0}
 .card-body:last-child{padding-bottom:12px}
 .card-eyebrow{font-size:11px;font-weight:800;letter-spacing:.4px;color:var(--text);text-transform:uppercase;margin-bottom:7px}
 .card-body h3{font-size:13px;font-weight:400;line-height:1.4;color:var(--muted)}
+.card-times{display:flex;flex-direction:column;gap:2px;margin-top:10px;font-size:11px;color:#98a2b3}
 .card-actions{display:flex;gap:8px;padding:14px 8px 6px}
 .card-actions a,.card-actions button{flex:1;text-align:center;font:inherit;font-size:12px;font-weight:800;padding:9px 0;border-radius:9px;border:1px solid #dfe3ea;background:#fff;color:var(--text);text-decoration:none;cursor:pointer}
 .card-actions a:hover{background:#f6f7f9}
@@ -368,10 +369,15 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
               <p id="detailScheduled">Not scheduled</p>
             </div>
             <div class="field link-slot" id="linkSlot"></div>
-            <!-- Last on the line: when the post was created, not when it runs. -->
+            <!-- Last on the line: when the post was created, not when it runs -
+                 and, only once it has been edited, when that last happened. -->
             <div class="field">
-              <h5>Timing</h5>
-              <p id="detailTiming">—</p>
+              <h5>Created at</h5>
+              <p id="detailCreated">—</p>
+            </div>
+            <div class="field" id="detailUpdatedField" hidden>
+              <h5>Updated at</h5>
+              <p id="detailUpdated">—</p>
             </div>
           </div>
         </div>
@@ -525,15 +531,34 @@ function formatTiming(item){
 /* When the post was created. MySQL hands back "YYYY-MM-DD HH:MM:SS", which
    only some browsers parse - the T is what makes it a valid date string
    everywhere. */
-function formatCreated(item){
-  if(!item.created_at) return "—";
+function formatStamp(value){
+  if(!value) return "—";
 
-  const date = new Date(String(item.created_at).replace(" ", "T"));
+  const date = new Date(String(value).replace(" ", "T"));
 
-  if(isNaN(date)) return String(item.created_at);
+  if(isNaN(date)) return String(value);
 
   return date.toLocaleDateString(undefined,{day:"numeric",month:"short",year:"numeric"})
     + " · " + date.toTimeString().slice(0,5);
+}
+
+/* updated_at is set on insert too, so it only means an edit when it moved on
+   from created_at. A minute's grace covers the save that created the row. */
+function wasUpdated(item){
+  if(!item.updated_at || !item.created_at) return false;
+
+  const created = new Date(String(item.created_at).replace(" ", "T"));
+  const updated = new Date(String(item.updated_at).replace(" ", "T"));
+
+  return !isNaN(created) && !isNaN(updated) && updated - created > 60 * 1000;
+}
+
+function cardTimes(item){
+  return `
+    <div class="card-times">
+      <span>Created ${esc(formatStamp(item.created_at))}</span>
+      ${wasUpdated(item) ? `<span>Updated ${esc(formatStamp(item.updated_at))}</span>` : ""}
+    </div>`;
 }
 
 async function loadContent(){
@@ -768,6 +793,7 @@ function renderGrid(items){
       <div class="card-body" onclick="selectContent('${esc(item.id)}')">
         <div class="card-eyebrow">${esc(item.platform)} · ${esc(item.type_label)}</div>
         <h3>${esc(item.title)}</h3>
+        ${cardTimes(item)}
       </div>
       ${canManage(item) ? `
         <div class="card-actions">
@@ -822,7 +848,9 @@ function selectContent(id){
   document.getElementById("detailCreatedBy").innerText =
     item.created_by_email || item.created_by || "—";
   document.getElementById("detailScheduled").innerText = formatTiming(item);
-  document.getElementById("detailTiming").innerText = formatCreated(item);
+  document.getElementById("detailCreated").innerText = formatStamp(item.created_at);
+  document.getElementById("detailUpdated").innerText = formatStamp(item.updated_at);
+  document.getElementById("detailUpdatedField").hidden = !wasUpdated(item);
 }
 
 async function deleteContent(id, title){

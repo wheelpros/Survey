@@ -340,6 +340,25 @@ body {
 .event-card.pending { background: #fef3c7; border: 1px solid #fde68a; color: #b45309; }
 .event-card.rejected { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
 
+/* Content that went live that day. A link to the post, in its own colour so
+   it never reads as a meeting - on a phone it is a purple dot. */
+.event-card.content {
+  display: block;
+  background: #f0ebff;
+  border: 1px solid #ddd2ff;
+  color: #5b3cc4;
+  text-decoration: none;
+}
+.event-card.content:hover { border-color: #b9a6ff; }
+
+.badge.content { background: #f0ebff; color: #5b3cc4; }
+
+.schedule-link { color: inherit; text-decoration: none; }
+.schedule-link:hover { text-decoration: underline; }
+
+/* The eye is a link on content rows, so it loses the underline. */
+a.eye-btn { text-decoration: none; }
+
 /* Form Styles */
 .form-row {
   display: flex;
@@ -1325,7 +1344,7 @@ th {
       <div class="page-head">
         <div class="page-title">
           <h1>Dashboard</h1>
-          <p>Your meetings with the team: what's coming up, what's waiting on you, and the requests you've sent.</p>
+          <p>Your meetings and content in one calendar: what's coming up, what's waiting on you, and what has gone out.</p>
         </div>
 
         <div class="view-toggle" id="viewToggle">
@@ -1464,7 +1483,9 @@ let selectedDate = toDateStr(new Date());
 let currentView = "month";
 let showAllApprovals = false;
 
-let calendarEvents = { appointments: [] };
+// Meetings from api/calendar.php, and the live content from
+// api/user-content.php that the grid files under the day it went out.
+let calendarEvents = { appointments: [], content: [] };
 
 const MONTHS = ["January", "February", "March", "April", "May", "June",
                 "July", "August", "September", "October", "November", "December"];
@@ -1574,6 +1595,14 @@ function demoData() {
       { id: 7, title: "Content strategy", topic: "Content strategy",
         notes: "", date: demoDate(-3), time: "11:00:00",
         status: "rejected", requested_by: "user" }
+    ],
+
+    content: [
+      { id: 1, title: "Five lessons from our spring campaign", platform: "LinkedIn",
+        type_label: "Articles", live_at: demoDate(0) + " 09:00:00" },
+
+      { id: 2, title: "Behind the scenes at the new studio", platform: "Instagram",
+        type_label: "Photos", live_at: demoDate(-2) + " 17:30:00" }
     ]
   };
 }
@@ -1612,6 +1641,57 @@ async function fetchCalendarData() {
   } catch (err) {
     console.error("Error fetching data:", err.message);
   }
+}
+
+/* Live content only - api/user-content.php leaves out drafts and anything
+   scheduled for later. Loaded once, beside the meetings: a failure here
+   leaves the calendar showing meetings, never an error. */
+async function fetchContent() {
+
+  if (PREVIEW) return; // demoData() already carries a couple of posts
+
+  try {
+    const res = await fetch("api/user-content.php", {
+      headers: { Authorization: "Bearer " + token }
+    });
+
+    const data = await res.json();
+
+    calendarEvents.content = (data.success && data.content) || [];
+    renderAll();
+
+  } catch (err) {
+    console.error("Error fetching content:", err.message);
+  }
+}
+
+/* ── Content on the calendar ───────────────────────────────────────────── */
+
+/** "YYYY-MM-DD HH:MM:SS" the post went live: its scheduled moment, or when it
+    was created for "Publish immediately". The API sends it as live_at; the
+    fallback covers a response from before that field existed. */
+function contentLiveAt(item) {
+  if (item.live_at) return String(item.live_at);
+
+  if (Number(item.publish_now) === 1 || !item.post_date) {
+    return String(item.created_at || "");
+  }
+
+  return `${item.post_date} ${item.post_time || "00:00:00"}`;
+}
+
+function contentOn(dateStr) {
+  return (calendarEvents.content || [])
+    .filter(item => contentLiveAt(item).slice(0, 10) === dateStr)
+    .sort((a, b) => contentLiveAt(a).localeCompare(contentLiveAt(b)));
+}
+
+function contentHref(item) {
+  return `content.html?id=${encodeURIComponent(item.id)}`;
+}
+
+function contentMeta(item) {
+  return [item.platform, item.type_label].filter(Boolean).join(" · ") || "Content";
 }
 
 function renderAll() {
@@ -1724,6 +1804,18 @@ function renderCalendar() {
         `;
       });
 
+    // A post opens itself; stopPropagation keeps the click from also
+    // selecting the day, which would repaint the grid under the link.
+    contentOn(dateStr).forEach(item => {
+      cell.innerHTML += `
+        <a class="event-card content" href="${contentHref(item)}"
+           onclick="event.stopPropagation()" title="Open this post">
+          ■ <b dir="auto">${esc(item.title || "Content")}</b><br>
+          <small>${esc(prettyTime(contentLiveAt(item).slice(11)))} · ${esc(contentMeta(item))}</small>
+        </a>
+      `;
+    });
+
     // Picking a day drives the schedule panel, and the Day/Week views.
     cell.onclick = () => {
       selectedDate = dateStr;
@@ -1754,39 +1846,82 @@ function renderDailySchedule() {
 
   title.innerText = `Daily Schedule – ${prettyDate(selectedDate)}`;
 
-  const rows = calendarEvents.appointments
+  // Meetings and posts in one list, in time order.
+  const meetings = calendarEvents.appointments
     .filter(a => a.date === selectedDate)
-    .sort((a, b) => String(a.time).localeCompare(String(b.time)));
+    .map(row => ({ time: String(row.time || ""), html: meetingRow(row) }));
+
+  const posts = contentOn(selectedDate)
+    .map(item => ({ time: contentLiveAt(item).slice(11), html: contentRow(item) }));
+
+  const rows = meetings.concat(posts)
+    .sort((a, b) => a.time.localeCompare(b.time));
 
   if (!rows.length) {
     list.innerHTML = `<div class="empty-cell" style="padding:22px 0;">Nothing scheduled for this day.</div>`;
     return;
   }
 
-  list.innerHTML = rows.map(row => {
-    const date = parseDateStr(row.date);
-    const who = row.requested_by === "user"
-      ? "Your request"
-      : `With ${row.admin_name || "the admin team"}`;
+  list.innerHTML = rows.map(row => row.html).join("");
+}
 
-    return `
-      <div class="schedule-row">
-        <div class="schedule-date">
-          <span class="m">${MONTHS_SHORT[date.getMonth()]}</span>
-          <span class="d">${String(date.getDate()).padStart(2, "0")}</span>
-        </div>
+function scheduleDate(dateStr) {
+  const date = parseDateStr(dateStr);
 
-        <div class="schedule-info">
-          <h4 dir="auto">${esc(row.topic || row.title || "Meeting")}</h4>
-          <p>${esc(who)}</p>
-        </div>
+  return `
+    <div class="schedule-date">
+      <span class="m">${MONTHS_SHORT[date.getMonth()]}</span>
+      <span class="d">${String(date.getDate()).padStart(2, "0")}</span>
+    </div>
+  `;
+}
 
-        <span class="schedule-time wide-only">${esc(prettyTime(row.time))}</span>
-        <span class="badge wide-only ${esc(row.status || "pending")}">${statusLabel(row.status)}</span>
-        ${eyeButton(row.id)}
+function meetingRow(row) {
+  const who = row.requested_by === "user"
+    ? "Your request"
+    : `With ${row.admin_name || "the admin team"}`;
+
+  return `
+    <div class="schedule-row">
+      ${scheduleDate(row.date)}
+
+      <div class="schedule-info">
+        <h4 dir="auto">${esc(row.topic || row.title || "Meeting")}</h4>
+        <p>${esc(who)}</p>
       </div>
-    `;
-  }).join("");
+
+      <span class="schedule-time wide-only">${esc(prettyTime(row.time))}</span>
+      <span class="badge wide-only ${esc(row.status || "pending")}">${statusLabel(row.status)}</span>
+      ${eyeButton(row.id)}
+    </div>
+  `;
+}
+
+/* A post is a link to itself: the title on a desktop, the eye on a phone. */
+function contentRow(item) {
+  const liveAt = contentLiveAt(item);
+  const href = contentHref(item);
+
+  return `
+    <div class="schedule-row">
+      ${scheduleDate(liveAt.slice(0, 10))}
+
+      <div class="schedule-info">
+        <h4 dir="auto"><a class="schedule-link" href="${href}">${esc(item.title || "Content")}</a></h4>
+        <p>${esc(contentMeta(item))}</p>
+      </div>
+
+      <span class="schedule-time wide-only">${esc(prettyTime(liveAt.slice(11)))}</span>
+      <span class="badge wide-only content">Content</span>
+      <a class="eye-btn" href="${href}" title="Open this post" aria-label="Open this post">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      </a>
+    </div>
+  `;
 }
 
 /* ── Approvals Hub ─────────────────────────────────────────────────────── */
@@ -2137,10 +2272,11 @@ function openCalendarDay(date) {
   title.innerText = prettyDate(date);
 
   const apps = calendarEvents.appointments.filter(a => a.date === date);
+  const posts = contentOn(date);
 
   let html = "";
 
-  if (!apps.length) {
+  if (!apps.length && !posts.length) {
     html = `<div class="day-details-item">Nothing scheduled for this day.</div>`;
   }
 
@@ -2151,6 +2287,16 @@ function openCalendarDay(date) {
         Time: ${esc(prettyTime(a.time))}<br>
         ${a.notes ? `Notes: ${esc(a.notes)}<br>` : ""}
         Status: <span class="badge ${esc(a.status || "pending")}">${statusLabel(a.status)}</span>
+      </div>
+    `;
+  });
+
+  posts.forEach(item => {
+    html += `
+      <div class="day-details-item">
+        ■ <b dir="auto"><a class="schedule-link" href="${contentHref(item)}">${esc(item.title || "Content")}</a></b><br>
+        Time: ${esc(prettyTime(contentLiveAt(item).slice(11)))}<br>
+        <span class="badge content">Content</span> ${esc(contentMeta(item))}
       </div>
     `;
   });
@@ -2297,6 +2443,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setAvatarImage(storedUser);
 
   fetchCalendarData();
+  fetchContent();
 });
 </script>
 <div class="calendar-modal" id="calendarModal">

@@ -331,12 +331,12 @@ $files = fetchList($pdo, "
 $company = trim($user["company_name"] ?? "");
 
 $content = fetchList($pdo, "
-    SELECT id, title, platform, type_label, client, status, created_at
-    FROM content
-    WHERE status = 'published'
+    SELECT id, title, platform, type_label, client, 'published' AS status, created_at
+    FROM content c
+    WHERE " . contentIsLiveSql("c") . "
       AND (client IS NULL OR client = '' OR (? <> '' AND client = ?))
-    ORDER BY created_at DESC
-", [$company, $company]);
+    ORDER BY " . contentLiveAtSql("c") . " DESC
+", [contentNow(), $company, $company]);
 
 /* Who works on this client is not in here: the page's Team panel loads it
    from api/client-team.php, which also decides who may change it. */

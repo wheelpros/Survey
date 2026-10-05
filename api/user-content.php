@@ -85,7 +85,11 @@ try {
 | a client only reaches users whose company_name matches, which is what the
 | Client dropdown on admin-content-form.html selects from.
 |
-| Drafts and scheduled posts stay out of it entirely.
+| Drafts stay out of it entirely, and a scheduled post stays out until its
+| own date and time have passed (contentIsLiveSql() in db.php). `live_at` is
+| that moment - the scheduled one, or the creation time for "Publish
+| immediately" - and is what the list is sorted by and the Dashboard
+| calendar files each post under.
 |
 | `created_by` holds an admins.id, but content.html prints the value straight
 | into the "Created by" field - so resolve it to a name here, exactly as
@@ -113,9 +117,10 @@ try {
             c.post_date,
             c.post_time,
             c.publish_now,
-            c.status,
+            'published' AS status,
             c.created_at,
             c.updated_at,
+            " . contentLiveAtSql("c") . " AS live_at,
 
             COALESCE(a.name, 'Unknown') AS created_by
 
@@ -124,17 +129,17 @@ try {
         LEFT JOIN admins a
             ON a.id = c.created_by
 
-        WHERE c.status = 'published'
+        WHERE " . contentIsLiveSql("c") . "
           AND (
                 c.client IS NULL
              OR c.client = ''
              OR (? <> '' AND c.client = ?)
           )
 
-        ORDER BY c.created_at DESC
+        ORDER BY live_at DESC, c.id DESC
     ");
 
-    $stmt->execute([$company, $company]);
+    $stmt->execute([contentNow(), $company, $company]);
 
     echo json_encode([
         "success" => true,

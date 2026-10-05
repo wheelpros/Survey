@@ -401,9 +401,13 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
                 c.post_date,
                 c.post_time,
                 c.publish_now,
-                c.status,
+
+                /* A scheduled post whose time has passed is live to clients,
+                   so it reads as published here too. */
+                " . contentStatusSql("c") . " AS status,
                 c.created_at,
                 c.updated_at,
+                " . contentLiveAtSql("c") . " AS live_at,
 
                 /* The raw id stays alongside the name: the grid compares it
                    with the logged-in admin to pick whether Edit/Delete show.
@@ -425,7 +429,8 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
             ORDER BY c.created_at DESC
         ");
 
-        $stmt->execute($seesAll ? [] : [$admin["id"]]);
+        // The first ? is the status CASE in the SELECT; the scope's comes after.
+        $stmt->execute($seesAll ? [contentNow()] : [contentNow(), $admin["id"]]);
 
         $contents = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -607,6 +612,19 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 [],
                 400
             );
+        }
+
+        /*
+        | A date that has already passed is when the post went out, not a
+        | reason to treat it as "Publish immediately": it goes live now and
+        | keeps its date, so the Content pages and the calendar show the day
+        | it was meant for. Publishing here, rather than waiting for a read to
+        | notice, is also what sends the client their notification.
+        */
+        $scheduledAt = strtotime($postDate . " " . $postTime);
+
+        if ($scheduledAt !== false && $scheduledAt <= time()) {
+            $status = "published";
         }
 
     }

@@ -742,6 +742,65 @@ function ensureContentColumns(PDO $pdo)
     }
 }
 
+/*
+|--------------------------------------------------------------------------
+| When a post reaches clients
+|--------------------------------------------------------------------------
+|
+| Nothing moves a post from `scheduled` to `published` - there is no cron.
+| The reads ask instead, the way project tasks are filtered further down: a
+| scheduled post is live once its own date and time have passed.
+|
+| "Now" comes in as a bound parameter from PHP (contentNow()) rather than
+| MySQL's NOW(), so the save in api/admin-content.php - which compares with
+| PHP's clock - and every read agree on the moment, whatever time zone the
+| database server keeps.
+|
+*/
+
+function contentNow(): string
+{
+    return date("Y-m-d H:i:s");
+}
+
+/** The post's scheduled moment as SQL. Midnight when no time was set. */
+function contentScheduledAtSql(string $alias = "c"): string
+{
+    return "TIMESTAMP({$alias}.post_date, COALESCE({$alias}.post_time, '00:00:00'))";
+}
+
+/**
+ * When the post went (or goes) live: its scheduled moment, or when it was
+ * created for "Publish immediately" and for posts saved without a date.
+ */
+function contentLiveAtSql(string $alias = "c"): string
+{
+    return "CASE WHEN {$alias}.publish_now = 1 OR {$alias}.post_date IS NULL
+                 THEN {$alias}.created_at
+                 ELSE " . contentScheduledAtSql($alias) . "
+            END";
+}
+
+/** Live to clients. Binds one ? - pass contentNow(). */
+function contentIsLiveSql(string $alias = "c"): string
+{
+    return "({$alias}.status = 'published'
+             OR ({$alias}.status = 'scheduled'
+                 AND {$alias}.post_date IS NOT NULL
+                 AND " . contentScheduledAtSql($alias) . " <= ?))";
+}
+
+/** The status to show: a scheduled post whose time has passed reads as published. Binds one ?. */
+function contentStatusSql(string $alias = "c"): string
+{
+    return "CASE WHEN {$alias}.status = 'scheduled'
+                  AND {$alias}.post_date IS NOT NULL
+                  AND " . contentScheduledAtSql($alias) . " <= ?
+                 THEN 'published'
+                 ELSE {$alias}.status
+            END";
+}
+
 /**
  * Custom content types the admins add on the creation form. Kept in their own
  * table so a type added once is offered again on every later post, for every
