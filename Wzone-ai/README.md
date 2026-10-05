@@ -29,7 +29,7 @@ Clients such as Claude also ask the person to approve any tool that isn't read-o
 | `MCP_MODE` | Domain (suggested) | Who | What |
 |---|---|---|---|
 | `public` (default) | `mcp.websitezone.co.uk` | anyone with a link | the inquiry tools above |
-| `private` | `portal-mcp.websitezone.co.uk` | signed-in staff and (if the owner allows) clients | the portal as that person. `whoami` today; the area tools build on it |
+| `private` | `portal-mcp.websitezone.co.uk` | signed-in staff and (if the owner allows) clients | the portal as that person: read tools for every staff area (below) |
 
 An anonymous caller can never reach a private tool, because the private tools aren't loaded in the public process.
 
@@ -65,6 +65,30 @@ Claude ──/mcp, Bearer wzat_…──▶ portal-mcp ─introspect (cached 60 
   - The **owner** decides whether clients may connect at all. This is off by default, and turning it off ends every existing client connection.
   - The owner also sees recent AI activity across the portal.
 
+## What the private server offers
+
+Each person gets only the tools their connection's scopes allow, so a client never sees a staff tool. Every tool is read-only and calls one `api/v1` endpoint with the person's own token. PHP applies the same visibility rule as that area's browser page, and anything outside it is a 404.
+
+| Scope | Tools | Who sees which records (same as the browser) |
+|---|---|---|
+| always | `whoami` | your own account and scopes |
+| `clients:read` | `search_clients`, `get_client_overview`, `get_client_team`, `get_my_client_note` | the owner: every client; everyone else: the clients assigned to them. Notes are private to whoever wrote them |
+| `forms:read` | `list_forms`, `get_form`, `list_forms_awaiting_review`, `list_form_responses`, `get_form_response` | forms: the owner and account managers see all, others the forms they wrote. Responses: from your assigned clients |
+| `inquiries:read` | `list_inquiries`, `get_inquiry_form`, `list_inquiry_leads`, `get_inquiry_lead` | the owner, and account managers with inquiries access |
+| `content:read` | `list_content`, `get_content`, `list_content_types` | the owner and account managers see all posts, others their own |
+| `calendar:read` | `get_calendar`, `list_pending_approvals`, `get_meeting` | meetings of your assigned clients; closed to SEO admins |
+| `projects:read` | `list_projects`, `get_project` | your clients' projects, the ones you manage, and the ones you're a member of; drafts as on the project page |
+| `notifications:read` | `list_my_notifications` | your own inbox |
+
+- **`get_client_overview`** answers "tell me about client X" in one call: profile, team, open forms, recent responses, upcoming and recent content, upcoming meetings, active projects. A section the connection has no scope for is left out and named in `not_included`.
+- **Lists are paged by cursor.** Pass `next_cursor` back as `cursor`. Rows never repeat or go missing when new ones arrive between pages.
+- **Resources:** `client://{id}`, `project://{id}` and `form://{id}` hold the same data as the overview and `get_*` tools, for attaching as context. Listing them returns only what the caller can see (up to 100 of each).
+- **Prompts:** `client_weekly_report(client)`, `meeting_prep(meeting)`, `plan_month_content(client, month)`, `triage_new_leads(since)` and `review_queue()`. Each one is offered only when every tool it uses is available. They end in a recommendation; approving, scheduling and sending still happen in the portal.
+- **Text people typed comes back under `untrusted_content`.** That covers form answers, lead answers, meeting topics and notes, captions, client descriptions and notifications. The server's instructions, and a line in front of every result that contains it, tell the model to treat it as data and never follow instructions inside it. Nothing exposed can write, so a hostile answer has nothing to act on.
+- **Every reply is checked against a zod schema** before it reaches the model ([`src/portal/schemas.js`](src/portal/schemas.js)), and so is each tool's `outputSchema`. If PHP drifts, the tool returns an "unexpected shape" error and the log names the field.
+
+Write tools (drafts and confirmed changes) come in the next phase, using the same prepare → confirm → commit tokens as inquiry submission.
+
 ## Design rules
 
 These rules are deliberate. Keep them when you add tools.
@@ -87,7 +111,12 @@ These rules are deliberate. Keep them when you add tools.
 src/index.js        starts the process and handles graceful shutdown
 src/app.js          HTTP layer: proxy trust, request ids, rate limit, /healthz, /readyz, /mcp
 src/server.js       MCP layer: tools, the inquiry:// resource, the intake prompt, output schemas
-src/portal/server.js the private server: tools registered per person, portalCall() into api/v1
+src/portal/server.js the private server: whoami, then the tools, resources and prompts this person's scopes allow
+src/portal/tools.js  the read tools as data: scope, input, output schema, api/v1 path
+src/portal/schemas.js what each api/v1 endpoint answers with (zod)
+src/portal/resources.js client:// project:// form://
+src/portal/prompts.js staff workflows (weekly report, meeting prep, content plan, lead triage, review queue)
+src/portal/call.js   the one way into api/v1: token, audit headers, envelope and shape checks
 src/portal/scopes.js scopes advertised in metadata (PHP's api/oauth/lib.php decides who gets which)
 src/oauth/provider.js OAuth provider for the SDK router; storage and consent live in PHP
 src/confirmation.js signed, expiring confirmation tokens + idempotency keys
@@ -95,6 +124,7 @@ src/submitLimiter.js per-caller submission cap
 src/wzoneClient.js  the only code that talks to PHP: timeout, 60s cache, X-MCP-Key
 src/logger.js       one JSON line per event, written to stdout
 test/               vitest suite, with PHP mocked at the fetch layer
+test/fixtures/      real api/v1 replies, captured by tests/api-v1/run.php (see Testing)
 ```
 
 ## Running locally
@@ -112,6 +142,24 @@ To try the server interactively:
 npx @modelcontextprotocol/inspector
 # Transport: Streamable HTTP, URL: http://localhost:8787/mcp
 ```
+
+## Testing
+
+`npm test` runs the vitest suite with PHP mocked at the fetch layer. `test/contract.test.js` checks every tool's output schema against real `api/v1` replies in `test/fixtures/api-v1.json`. A reply must parse to itself, so a field PHP adds without a matching schema change fails too.
+
+The PHP side has its own test, a permission matrix in [`tests/api-v1/run.php`](../tests/api-v1/run.php) at the repo root:
+
+1. It seeds one person per role (owner, super admin, both kinds of account manager, SEO admin, a deactivated admin, clients).
+2. It serves the real endpoints with `php -S`.
+3. It checks that each role sees exactly the records its browser page shows, and is refused (403 or 404, never an empty success) everything else. It also covers cursors, parameter checks, MCP tokens and the audit log.
+
+```bash
+# from the repo root, against a throwaway MySQL/MariaDB database whose name ends in _test
+DB_HOST=127.0.0.1 DB_NAME=wzone_test DB_USER=... DB_PASS=... php tests/api-v1/run.php
+# ...and --fixtures to rewrite Wzone-ai/test/fixtures/api-v1.json after changing a reply
+```
+
+The runner drops every table in the database it is given, so it refuses a name that doesn't end in `_test`. `tests/` is in `.dockerignore`, so it never reaches the web root. CI runs both, and regenerates the fixtures from the real PHP before the Node tests run, so a reply and its schema can't drift apart unnoticed.
 
 ## Endpoints
 

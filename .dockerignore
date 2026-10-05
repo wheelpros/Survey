@@ -5,6 +5,8 @@
 # publicly-downloadable path.
 
 Wzone-ai/
+# The api/v1 test runner drops every table in the database it is given.
+tests/
 .git/
 .gitignore
 .env
