@@ -4,10 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex">
-<title>Connected apps - W|ZONE</title>
+<title>Connected apps</title>
 
 <!--
-  The AI assistants this person has connected to their W|ZONE account
+  The AI assistants this person has connected to their portal account
   (through the authenticated MCP server), with a Disconnect for each.
   Works for staff (admin_token) and clients (portal_token) alike.
 
@@ -57,12 +57,13 @@ th{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#667085}
 
   <div class="top">
     <a id="backLink" href="index.html">&larr; Back to the portal</a>
-    <img src="logo.png" alt="W|ZONE London" onerror="this.onerror=null;this.src='assets/WZONE%20source.png'">
+    <!-- The logo uploaded in Settings (logo.png); hidden until there is one. -->
+    <img src="logo.png" alt="Logo" onerror="this.remove()">
   </div>
 
   <section class="card">
     <h1>Connected apps</h1>
-    <p class="lede">AI assistants you've allowed to use your W|ZONE account. Each one can only do what you approved, within what your role allows. Disconnecting takes effect within a minute.</p>
+    <p class="lede">AI assistants you've allowed to use your account. Each one can only do what you approved, within what your role allows. Disconnecting takes effect within a minute.</p>
     <div class="list" id="apps"></div>
     <p class="empty" id="noApps" hidden>No AI assistants are connected to your account.</p>
     <p class="status" id="appsStatus"></p>
@@ -150,7 +151,7 @@ async function loadApps() {
 }
 
 async function disconnect(id, name) {
-  if (!confirm(`Disconnect ${name}? It will lose access to your W|ZONE account.`)) return;
+  if (!confirm(`Disconnect ${name}? It will lose access to your account.`)) return;
   const status = document.getElementById("appsStatus");
   status.className = "status";
   status.textContent = "Disconnecting...";
