@@ -1,15 +1,16 @@
 {
   "name": "wzone-mcp-server",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Standalone read-only MCP server for W|ZONE's public inquiry data. Calls the existing PHP application over HTTPS - holds no database credentials.",
   "type": "module",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "node --watch src/index.js"
+    "dev": "node --watch src/index.js",
+    "test": "vitest run"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.26.0",
@@ -17,5 +18,8 @@
     "express": "^4.19.2",
     "express-rate-limit": "^7.4.0",
     "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.3"
   }
 }

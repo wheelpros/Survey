@@ -37,6 +37,11 @@ header("Content-Type: application/json");
 
 const RATE_LIMIT_WINDOW_SECONDS = 60;
 const RATE_LIMIT_MAX_REQUESTS = 30;
+// The MCP server (Wzone-ai/) reaches this endpoint from one address on
+// behalf of every AI client, and already limits each of those per IP
+// itself - so it gets one shared bucket of its own, sized for all of
+// them together, instead of the 30 one visitor gets.
+const RATE_LIMIT_MCP_MAX_REQUESTS = 300;
 
 function ensureApiRateLimitTable(PDO $pdo)
 {
@@ -65,6 +70,100 @@ function ensureApiRateLimitTable(PDO $pdo)
 }
 
 /**
+ * True if $ip falls inside $cidr ("203.0.113.0/24", "2001:db8::/32", or a
+ * bare address). Works for IPv4 and IPv6; a v4 address never matches a v6
+ * range.
+ */
+function ipInCidr($ip, $cidr)
+{
+    $parts = explode("/", trim($cidr), 2);
+    $ipBin = @inet_pton($ip);
+    $subnetBin = @inet_pton($parts[0]);
+    if ($ipBin === false || $subnetBin === false || strlen($ipBin) !== strlen($subnetBin)) {
+        return false;
+    }
+
+    $bits = isset($parts[1]) ? (int) $parts[1] : strlen($ipBin) * 8;
+    $bytes = intdiv($bits, 8);
+    if (substr($ipBin, 0, $bytes) !== substr($subnetBin, 0, $bytes)) {
+        return false;
+    }
+
+    $rem = $bits % 8;
+    if ($rem === 0) {
+        return true;
+    }
+    $mask = (0xFF << (8 - $rem)) & 0xFF;
+    return (ord($ipBin[$bytes]) & $mask) === (ord($subnetBin[$bytes]) & $mask);
+}
+
+/**
+ * A hop whose X-Forwarded-For entry can be believed: anything on a
+ * private or reserved range (Coolify's Traefik, the Docker network), plus
+ * whatever the TRUSTED_PROXIES env var lists - comma-separated addresses
+ * or CIDRs, e.g. a CDN's published ranges if one is ever put in front.
+ */
+function isTrustedProxy($ip)
+{
+    if (filter_var($ip, FILTER_VALIDATE_IP) === false) {
+        return false;
+    }
+    if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
+        return true;
+    }
+    foreach (explode(",", (string) getenv("TRUSTED_PROXIES")) as $cidr) {
+        if (trim($cidr) !== "" && ipInCidr($ip, $cidr)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * The caller's address, as the nearest proxy we trust saw it.
+ *
+ * X-Forwarded-For is whatever the client sent with each proxy's view of
+ * its peer appended on the right, so only the right-hand end can be
+ * believed. Walk it right to left through trusted proxies; the first hop
+ * that isn't one is the client. Taking the left-most entry instead - as
+ * this used to - lets anyone pick their own rate-limit bucket by sending a
+ * made-up header.
+ */
+function clientIp()
+{
+    $ip = $_SERVER["REMOTE_ADDR"] ?? "unknown";
+    if (!isTrustedProxy($ip)) {
+        // Reached us directly - any forwarded header is the client's own.
+        return $ip;
+    }
+
+    $hops = array_reverse(explode(",", (string) ($_SERVER["HTTP_X_FORWARDED_FOR"] ?? "")));
+    foreach ($hops as $hop) {
+        $hop = trim($hop);
+        if (filter_var($hop, FILTER_VALIDATE_IP) === false) {
+            break;
+        }
+        $ip = $hop;
+        if (!isTrustedProxy($hop)) {
+            break;
+        }
+    }
+    return $ip;
+}
+
+/**
+ * True if the request carries the MCP server's shared key (MCP_UPSTREAM_KEY,
+ * set to the same value on both deployments). Unset on either side means
+ * the MCP server is treated like any other visitor.
+ */
+function isMcpServer()
+{
+    $key = (string) getenv("MCP_UPSTREAM_KEY");
+    $sent = (string) ($_SERVER["HTTP_X_MCP_KEY"] ?? "");
+    return $key !== "" && $sent !== "" && hash_equals($key, $sent);
+}
+
+/**
  * True if this caller has exceeded the limit for this endpoint in the
  * current window. Fails open (never blocks) on any DB error - a broken
  * limiter should not be able to take the endpoint down with it.
@@ -73,13 +172,15 @@ function rateLimited(PDO $pdo, $endpoint)
 {
     ensureApiRateLimitTable($pdo);
 
-    $ip = $_SERVER["HTTP_X_FORWARDED_FOR"] ?? $_SERVER["REMOTE_ADDR"] ?? "unknown";
-    // A forwarded-for header can carry a chain; the first entry is the
-    // original client as the nearest proxy saw it.
-    $ip = trim(explode(",", $ip)[0]);
+    if (isMcpServer()) {
+        $bucketKey = $endpoint . ":mcp";
+        $max = RATE_LIMIT_MCP_MAX_REQUESTS;
+    } else {
+        $bucketKey = $endpoint . ":" . clientIp();
+        $max = RATE_LIMIT_MAX_REQUESTS;
+    }
 
     $window = intdiv(time(), RATE_LIMIT_WINDOW_SECONDS);
-    $bucketKey = $endpoint . ":" . $ip;
 
     try {
         $pdo->prepare("
@@ -102,7 +203,7 @@ function rateLimited(PDO $pdo, $endpoint)
         $pdo->prepare("DELETE FROM api_rate_limits WHERE window_start < ?")
             ->execute([$window - 5]);
 
-        return $count > RATE_LIMIT_MAX_REQUESTS;
+        return $count > $max;
 
     } catch (PDOException $e) {
         return false;
