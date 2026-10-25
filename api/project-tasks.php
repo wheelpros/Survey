@@ -350,15 +350,21 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
                 response(false, "Task not found.", [], 404);
             }
 
-            response(true, "Task loaded.", [
-                "task"       => $task,
-                "project"    => $project,
-                "admin_id"   => (int) $admin["id"],
-                "admin_role" => $admin["role"],
-                "can_edit"   => canEditTask($admin, $task),
-                "max_bytes"  => TASK_IMAGE_MAX_BYTES,
-                "max_chars"  => TASK_DESCRIPTION_MAX_CHARS,
-            ]);
+            $canEdit = canEditTask($admin, $task);
+
+            response(true, "Task loaded.", array_merge(taskTeamPayload($pdo, $task["id"]), [
+                "task"        => $task,
+                "project"     => $project,
+                "admin_id"    => (int) $admin["id"],
+                "admin_role"  => $admin["role"],
+                "can_edit"    => $canEdit,
+                // Only the form needs the pool, and only someone who can edit uses it.
+                "candidates"  => $canEdit ? taskTeamCandidates($pdo, $project) : [],
+                "statuses"    => TASK_ASSIGNMENT_STATUSES,
+                "priorities"  => TASK_PRIORITIES,
+                "max_bytes"   => TASK_IMAGE_MAX_BYTES,
+                "max_chars"   => TASK_DESCRIPTION_MAX_CHARS,
+            ]));
         }
 
         /*
@@ -404,12 +410,18 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
 
+        $canWrite = canWriteTask($pdo, $admin, $project);
+
         response(true, "Tasks loaded.", [
             "tasks"       => $stmt->fetchAll(PDO::FETCH_ASSOC),
             "project"     => $project,
             "admin_id"    => (int) $admin["id"],
             "admin_role"  => $admin["role"],
-            "can_write"   => canWriteTask($pdo, $admin, $project),
+            "can_write"   => $canWrite,
+            // The pool a new phase picks its teammates from.
+            "candidates"  => $canWrite ? taskTeamCandidates($pdo, $project) : [],
+            "statuses"    => TASK_ASSIGNMENT_STATUSES,
+            "priorities"  => TASK_PRIORITIES,
             "max_bytes"   => TASK_IMAGE_MAX_BYTES,
             "max_chars"   => TASK_DESCRIPTION_MAX_CHARS,
         ]);
@@ -437,6 +449,73 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             [],
             413
         );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Your own box, your own status
+    |--------------------------------------------------------------------------
+    |
+    | set_done ticks the caller's teammate box on a phase; set_my_status moves
+    | the caller's own assignment between To do, In progress and Done - from
+    | the phase page or the admin dashboard, with no Save. Only the caller's
+    | own row changes, so nobody moves someone else's work, and someone not on
+    | the phase has no row to move.
+    |
+    */
+    $action = (string) ($_POST["action"] ?? "");
+
+    if ($action === "set_done" || $action === "set_my_status") {
+
+        $taskId = (int) ($_POST["task_id"] ?? 0);
+
+        $stmt = $pdo->prepare("SELECT id, project_id FROM project_tasks WHERE id = ? LIMIT 1");
+        $stmt->execute([$taskId]);
+        $task = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$task || !loadScopedProject($pdo, $admin, $task["project_id"])) {
+            response(false, "Phase not found.", [], 404);
+        }
+
+        try {
+            if ($action === "set_done") {
+                $done = ($_POST["done"] ?? "") === "1" ? 1 : 0;
+
+                $stmt = $pdo->prepare("
+                    UPDATE project_task_teammates
+                    SET is_done = ?, done_at = IF(? = 1, NOW(), NULL)
+                    WHERE task_id = ? AND admin_id = ?
+                ");
+                $stmt->execute([$done, $done, $taskId, (int) $admin["id"]]);
+
+                $stmt = $pdo->prepare("SELECT 1 FROM project_task_teammates WHERE task_id = ? AND admin_id = ?");
+                $stmt->execute([$taskId, (int) $admin["id"]]);
+                if (!$stmt->fetchColumn()) {
+                    response(false, "Only a teammate on this phase can tick their box.", [], 403);
+                }
+
+                response(true, $done ? "Marked as done." : "Marked as not done.", ["done" => $done]);
+            }
+
+            $status = (string) ($_POST["status"] ?? "");
+            if (!array_key_exists($status, TASK_ASSIGNMENT_STATUSES)) {
+                response(false, "Pick To do, In progress or Done.", [], 400);
+            }
+
+            $stmt = $pdo->prepare("SELECT 1 FROM project_task_assignments WHERE task_id = ? AND admin_id = ?");
+            $stmt->execute([$taskId, (int) $admin["id"]]);
+            if (!$stmt->fetchColumn()) {
+                response(false, "Only someone assigned to this phase can change their status.", [], 403);
+            }
+
+            $stmt = $pdo->prepare("UPDATE project_task_assignments SET status = ? WHERE task_id = ? AND admin_id = ?");
+            $stmt->execute([$status, $taskId, (int) $admin["id"]]);
+
+        } catch (Throwable $e) {
+            response(false, "Could not save your status.", [], 500);
+        }
+
+        response(true, "Status set to " . TASK_ASSIGNMENT_STATUSES[$status] . ".", ["status" => $status]);
     }
 
     $id = isset($_POST["id"]) ? (int) $_POST["id"] : 0;
@@ -519,27 +598,66 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $title = trim((string) ($_POST["title"] ?? ""));
     $status = trim((string) ($_POST["status"] ?? "draft"));
 
-    try {
-        $id = saveProjectTask($pdo, $admin, $project, $existing, [
-            "title"          => $title,
-            "link"           => $_POST["link"] ?? "",
-            "description"    => $_POST["description"] ?? "",
-            "orientation"    => trim((string) ($_POST["orientation"] ?? "horizontal")),
-            "image_path"     => $imagePath,
-            "scheduled_date" => $scheduledDate,
-            "scheduled_time" => $scheduledTime,
-            "is_complete"    => !empty($_POST["is_complete"]),
-            "status"         => $status,
-        ]);
-    } catch (Throwable $e) {
-        // The row was never written, so the file just uploaded is an orphan.
+    $fields = [
+        "title"          => $title,
+        "link"           => $_POST["link"] ?? "",
+        "description"    => $_POST["description"] ?? "",
+        "orientation"    => trim((string) ($_POST["orientation"] ?? "horizontal")),
+        "image_path"     => $imagePath,
+        "scheduled_date" => $scheduledDate,
+        "scheduled_time" => $scheduledTime,
+        "is_complete"    => !empty($_POST["is_complete"]),
+        "status"         => $status,
+    ];
+
+    // Only the ones the form sent: an absent field is left as it was.
+    foreach (["phase_label", "role", "priority", "notes"] as $key) {
+        if (array_key_exists($key, $_POST)) {
+            $fields[$key] = (string) $_POST[$key];
+        }
+    }
+
+    /* Both lists come as JSON, so an empty one ("[]") is still sent and still
+       means "nobody" - an absent key means "leave the list alone". */
+    $teammateIds = isset($_POST["teammates"]) ? json_decode((string) $_POST["teammates"], true) : null;
+    $assignments = isset($_POST["assignments"]) ? json_decode((string) $_POST["assignments"], true) : null;
+
+    if ((isset($_POST["teammates"]) && !is_array($teammateIds))
+        || (isset($_POST["assignments"]) && !is_array($assignments))) {
         if ($uploaded) {
             deleteTaskImage($uploaded);
         }
-        if ($e instanceof PortalWriteError) {
-            response(false, $e->getMessage(), [], $e->status === 422 ? 400 : $e->status);
+        response(false, "The team list could not be read.", [], 400);
+    }
+
+    $taskSaved = false;
+
+    try {
+        $id = saveProjectTask($pdo, $admin, $project, $existing, $fields);
+        $taskSaved = true;
+
+        $newcomers = [];
+        if ($teammateIds !== null) {
+            $newcomers = saveTaskTeammates($pdo, $admin, $project, $id, $title, $teammateIds);
         }
-        response(false, "Could not save the task.", [], 500);
+        if ($assignments !== null) {
+            $newcomers = array_merge($newcomers, saveTaskAssignments($pdo, $admin, $project, $id, $title, $assignments));
+        }
+        notifyAddedToPhase($pdo, $admin, $project, $id, $title, $newcomers);
+    } catch (Throwable $e) {
+        // The row was never written, so the file just uploaded is an orphan.
+        // Once it was, the row points at the file and it has to stay.
+        if ($uploaded && !$taskSaved) {
+            deleteTaskImage($uploaded);
+        }
+        $message = $taskSaved
+            ? "The phase was saved, but its team was not: "
+            : "";
+        if ($e instanceof PortalWriteError) {
+            response(false, $message . $e->getMessage(), $taskSaved ? ["id" => $id] : [], $e->status === 422 ? 400 : $e->status);
+        }
+        response(false, $taskSaved ? "The phase was saved, but its team could not be." : "Could not save the task.",
+            $taskSaved ? ["id" => $id] : [], 500);
     }
 
     // Safe now that the row points somewhere else.
@@ -617,6 +735,10 @@ if ($_SERVER["REQUEST_METHOD"] === "DELETE") {
     try {
         $stmt = $pdo->prepare("DELETE FROM project_tasks WHERE id = ?");
         $stmt->execute([$id]);
+
+        // The phase's people go with it.
+        $pdo->prepare("DELETE FROM project_task_teammates WHERE task_id = ?")->execute([$id]);
+        $pdo->prepare("DELETE FROM project_task_assignments WHERE task_id = ?")->execute([$id]);
     } catch (Throwable $e) {
         response(false, "Could not delete the task.", [], 500);
     }

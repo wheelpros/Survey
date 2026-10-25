@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Admin - Task</title>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Admin - Phase</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial,"Segoe UI",Tahoma,sans-serif}
 body{background:#f6f7fb;color:#101828}
@@ -185,121 +185,159 @@ select.client-filter{
   padding-right:38px;
 }
 
-/* ── Form layout, panels and controls: admin-content-form.html's, trimmed to
-      the pieces a task needs (no content-type chips). ── */
-/* Back arrow, then the breadcrumb and heading, all on one line. Scoped with a
-   modifier because .page-title is also the plain h1 + paragraph block on the
-   other screens, which must stay stacked. */
-.page-title.with-back{display:flex;align-items:flex-start;gap:16px}
-.page-title.with-back .title-text{min-width:0}
-.page-title.with-back h1{margin-bottom:0}
-@media(max-width:700px){.page-title.with-back{gap:12px}}
+/* ── Edit Phase: a column of cards on admin-content-form.html's controls ── */
+.form-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.pill-link{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border:1px solid var(--line);border-radius:20px;background:#fff;color:var(--text);font-size:12px;font-weight:700;text-decoration:none}
+.pill-link:hover{background:#f6f7f9}
+.pill-link svg{width:13px;height:13px}
+.form-top h1{font-size:15px;font-weight:800;color:var(--muted)}
 
-.crumbs{font-size:12px;color:var(--muted);margin-top:7px}
-.crumbs a{color:var(--muted);text-decoration:none}
-.crumbs a:hover{color:var(--text);text-decoration:underline}
+.form-wrap{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;max-width:880px;padding-bottom:96px}
+.form-card{background:#fff;border:1px solid var(--line);border-radius:16px}
+.form-card[hidden]{display:none}
+.card-pad{padding:20px 22px}
+.card-title h2{font-size:15px;font-weight:800}
+.card-title p{font-size:12px;color:var(--muted);margin-top:3px}
+.card-title{margin-bottom:16px}
+.card-title.row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 
-.form-wrap{display:grid;grid-template-columns:1fr 340px;gap:24px;align-items:start}
-.col{display:grid;gap:24px}
+/* The cover: the phase's image, or a calm block holding its place. The badge
+   says whether the client can see the phase. */
+.hero{position:relative;height:200px;border-radius:16px 16px 0 0;background:#5a7de8 center/cover no-repeat;display:flex;align-items:center;justify-content:center}
+.hero .ph{font-size:11px;font-weight:700;color:#fff;background:rgba(255,255,255,.22);padding:5px 12px;border-radius:20px}
+.hero.has-image .ph{display:none}
+.vis-badge{position:absolute;top:12px;left:12px;background:#fff;color:#17803d;border:1px solid #b8e7c8;border-radius:20px;padding:4px 10px;font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase}
+.vis-badge.draft{color:#667085;border-color:#e4e7ec}
+.hero-remove{position:absolute;top:10px;right:10px;width:28px;height:28px;border:none;border-radius:50%;background:rgba(16,24,40,.7);color:#fff;font-size:16px;line-height:1;cursor:pointer}
+.hero-remove[hidden]{display:none}
 
-.panel[hidden]{display:none}
-.panel-head{padding:18px 22px;border-bottom:1px solid #eef1f5;display:flex;align-items:center;gap:10px}
-.panel-head svg{width:17px;height:17px;color:var(--muted);flex:none}
-.panel-head h2{font-size:15px}
-.panel-body{padding:22px}
-
-/* The panels fold away independently, so a long form narrows to the section
-   being worked on. Everything starts open. */
-button.panel-head{width:100%;font:inherit;text-align:left;background:transparent;border:none;border-bottom:1px solid #eef1f5;cursor:pointer;transition:background .15s}
-button.panel-head:hover{background:#fafbfc}
-button.panel-head h2{flex:1;min-width:0}
-.panel-head .chev{margin-left:auto;transition:transform .18s ease}
-.panel.collapsed .panel-head{border-bottom:none}
-.panel.collapsed .panel-head .chev{transform:rotate(-90deg)}
-.panel.collapsed .panel-body{display:none}
-
-label{display:block;font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#667085;margin-bottom:8px}
-input[type=text],input[type=url],input[type=date],input[type=time],select,textarea{width:100%;border:1px solid #dfe3ea;background:#f8fafc;border-radius:12px;padding:12px 14px;outline:none;font-size:14px;color:var(--text);font-family:inherit}
+label,.lbl{display:block;font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#667085;margin-bottom:6px}
+input[type=text],input[type=date],select,textarea{width:100%;border:1px solid #dfe3ea;background-color:#fff;border-radius:10px;padding:10px 12px;outline:none;font-size:13px;color:var(--text);font-family:inherit}
 input:focus,select:focus,textarea:focus{border-color:var(--nav-active);box-shadow:0 0 0 3px rgba(27,30,58,.10)}
-input:disabled{opacity:.5;cursor:not-allowed}
-.field-row{margin-bottom:18px}
+.field-row{margin-bottom:14px}
 .field-row:last-child{margin-bottom:0}
-.hint{font-size:12px;color:#98a2b3;margin-top:7px}
-
-/* ── Orientation ── */
-.orientations{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.orientation{display:flex;flex-direction:column;align-items:center;gap:10px;padding:18px 10px;border:1px solid #dfe3ea;background:#fff;border-radius:12px;cursor:pointer;font:inherit;font-size:13px;font-weight:700;color:var(--muted);transition:border-color .15s,background .15s,color .15s}
-.orientation:hover{background:#f8fafc}
-.orientation.selected{border-color:var(--nav-active);border-width:2px;background:#f5f6fa;color:var(--text)}
-.orientation .glyph{width:34px;height:24px;border:2px solid currentColor;border-radius:4px;display:flex;align-items:center;justify-content:center}
-.orientation .glyph i{display:block;background:currentColor}
-.orientation.h .glyph i{width:22px;height:2px}
-.orientation.v .glyph{width:20px;height:26px}
-.orientation.v .glyph i{width:2px;height:14px}
+.field-row[hidden]{display:none}
+.hint{font-size:11px;color:#98a2b3;margin-top:6px}
+.three-up{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.media-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.media-error{display:none;font-size:12px;color:var(--brand);font-weight:700;margin-top:8px}
+.media-error.show{display:block}
 
 /* ── Description editor ── */
-.editor-toolbar{display:flex;gap:4px;align-items:center;flex-wrap:wrap;border:1px solid #dfe3ea;border-bottom:none;background:#f2f4f8;border-radius:12px 12px 0 0;padding:6px 8px;position:relative}
-.editor-toolbar button{width:30px;height:30px;border:none;background:transparent;border-radius:7px;cursor:pointer;color:#475467;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center}
-.editor-toolbar button:hover{background:#e3e7ee}
-.editor-toolbar svg{width:15px;height:15px}
-.editor-toolbar .sep{width:1px;height:18px;background:#dfe3ea;margin:0 4px}
-.editor{border:1px solid #dfe3ea;background:#f8fafc;border-radius:0 0 12px 12px;padding:14px;min-height:160px;font-size:14px;line-height:1.6;outline:none;overflow-y:auto}
+.editor-toolbar{display:flex;gap:2px;align-items:center;flex-wrap:wrap;border:1px solid #dfe3ea;border-bottom:none;background:#f8fafc;border-radius:10px 10px 0 0;padding:5px 6px}
+.editor-toolbar button{width:28px;height:28px;border:none;background:transparent;border-radius:6px;cursor:pointer;color:#475467;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.editor-toolbar button:hover{background:#e9edf3}
+.editor-toolbar svg{width:14px;height:14px}
+.editor-toolbar .sep{width:1px;height:16px;background:#dfe3ea;margin:0 4px}
+.editor{border:1px solid #dfe3ea;border-radius:0 0 10px 10px;padding:12px;min-height:90px;font-size:13px;line-height:1.6;outline:none;overflow-y:auto}
 .editor:focus{border-color:var(--nav-active);box-shadow:0 0 0 3px rgba(27,30,58,.10)}
 .editor:empty:before{content:attr(data-placeholder);color:#98a2b3}
 .editor ul,.editor ol{padding-left:22px;margin:6px 0}
-.counter{text-align:right;font-size:12px;color:#98a2b3;margin-top:8px}
+.counter{text-align:right;font-size:11px;color:#98a2b3;margin-top:6px}
 .counter.over{color:var(--brand);font-weight:800}
+#notes{border-radius:0 0 10px 10px;min-height:110px;resize:vertical;line-height:1.6}
+.label-row{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.label-row small{font-size:11px;color:#98a2b3}
 
-/* ── Media dropzone ── */
-.dropzone[hidden]{display:none}
-.dropzone{border:2px dashed #d5dbe6;border-radius:14px;background:#fbfcfe;padding:26px 16px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
-.dropzone:hover,.dropzone.dragging{border-color:var(--nav-active);background:#f5f6fa}
-.dropzone svg{width:24px;height:24px;color:var(--muted);margin-bottom:10px}
-.dropzone strong{display:block;font-size:13px;margin-bottom:4px}
-.dropzone span{font-size:11px;color:#98a2b3}
-.media-preview{display:none;position:relative}
-.media-preview.show{display:block}
-.media-preview .thumb{background:#f1f3f7 center/cover no-repeat;border-radius:12px}
-.media-preview.is-horizontal .thumb{aspect-ratio:2.4/1}
-.media-preview.is-vertical .thumb{aspect-ratio:9/16}
-.media-preview .remove{position:absolute;top:8px;right:8px;width:28px;height:28px;border:none;border-radius:50%;background:rgba(16,24,40,.75);color:#fff;font-size:16px;line-height:1;cursor:pointer}
-.media-error{display:none;font-size:12px;color:var(--brand);font-weight:700;margin-top:10px}
-.media-error.show{display:block}
-
-/* ── Complete switch (no switch component exists in this app) ── */
-.switch-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:4px}
+/* ── Complete switch ── */
+.switch-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .switch-row .label{font-size:13px;font-weight:700;color:var(--text)}
-.switch{position:relative;display:inline-block;width:44px;height:24px;flex:none}
+.switch{position:relative;display:inline-block;width:44px;height:24px;flex:none;margin:0}
 .switch input{position:absolute;opacity:0;width:0;height:0}
 .switch .track{position:absolute;inset:0;background:#dfe3ea;border-radius:20px;cursor:pointer;transition:background .15s}
 .switch .track:before{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .15s;box-shadow:0 1px 3px rgba(16,24,40,.2)}
 .switch input:checked + .track{background:var(--nav-active)}
 .switch input:checked + .track:before{transform:translateX(20px)}
 .switch input:focus-visible + .track{box-shadow:0 0 0 3px rgba(27,30,58,.15)}
-.note{margin-top:14px;background:#f4f6fa;border-radius:10px;padding:12px 14px;font-size:12px;line-height:1.5;color:var(--muted)}
 
-/* ── Actions ── */
-.actions{display:grid;gap:10px}
-.primary-btn{height:48px;border:none;border-radius:12px;background:var(--nav-active);color:#fff;font:inherit;font-size:14px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
-.primary-btn:hover{background:#282c52}
-.primary-btn:disabled{opacity:.6;cursor:not-allowed}
-.secondary-btn{height:48px;border:1px solid #dfe3ea;border-radius:12px;background:#fff;color:var(--text);font:inherit;font-size:14px;font-weight:800;cursor:pointer}
-.secondary-btn:hover{background:#f6f7f9}
-.secondary-btn:disabled{opacity:.6;cursor:not-allowed}
-.discard-btn{border:none;background:transparent;color:var(--brand);font:inherit;font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;padding:6px}
-.discard-btn:hover{text-decoration:underline}
+/* ── Teammates: admin-content-form.html's dropdown of checkboxes ── */
+.multi{position:relative}
+.multi-trigger{width:100%;display:flex;align-items:center;gap:10px;border:1px solid #dfe3ea;background:#fff;border-radius:10px;padding:10px 12px;font:inherit;font-size:13px;color:var(--text);text-align:left;cursor:pointer}
+.multi.open .multi-trigger{border-color:var(--nav-active);box-shadow:0 0 0 3px rgba(27,30,58,.1)}
+.multi-value{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.multi-value.placeholder{color:#98a2b3}
+.multi-chev{width:12px;height:12px;flex:none;color:var(--muted);transition:transform .18s ease}
+.multi.open .multi-chev{transform:rotate(180deg)}
+.multi-panel{display:none;position:absolute;z-index:60;top:calc(100% + 6px);left:0;right:0;background:#fff;border:1px solid #dfe3ea;border-radius:12px;box-shadow:0 16px 40px rgba(16,24,40,.14);padding:6px;max-height:260px;overflow-y:auto}
+.multi.open .multi-panel{display:block}
+.multi-panel label{display:flex;align-items:center;gap:10px;margin:0;padding:9px 10px;border-radius:9px;font-size:13px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--text);cursor:pointer}
+.multi-panel label:hover{background:#eef1f6}
+.multi-panel input{width:16px;height:16px;flex:none;accent-color:var(--nav-active)}
+.role-tag{margin-left:auto;font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#98a2b3}
+.multi-panel .none{padding:14px 10px;font-size:13px;color:var(--muted)}
 
-/* The two scheduling fields sit side by side until there is no room. */
-.two-up{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+/* ── Teammate checklist: each ticks their own box, everyone sees the rest ── */
+.checklist{border:1px solid #dfe3ea;border-radius:10px;overflow:hidden}
+.checklist label{display:flex;align-items:center;gap:10px;margin:0;padding:10px 12px;border-top:1px solid #eef1f5;font-size:13px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--text);background:#fcfcfd}
+.checklist label:first-child{border-top:none}
+.checklist label.mine{background:#fff;cursor:pointer}
+.checklist input{width:16px;height:16px;flex:none;accent-color:#20a95a}
+.checklist .who{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.checklist .state{flex:none;font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#98a2b3}
+.checklist .state.done{color:#20a95a}
 
-@media(max-width:1100px){.form-wrap{grid-template-columns:1fr}}
+/* ── Assigned: one row per person who worked on the phase ── */
+.assign-table{width:100%;border-collapse:collapse}
+.assign-table th{font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#98a2b3;text-align:left;padding:0 10px 10px;border-bottom:1px solid var(--line)}
+.assign-table td{padding:12px 10px;border-bottom:1px solid #f2f4f7;vertical-align:top;font-size:13px;white-space:normal}
+.assign-table tr:last-child td{border-bottom:none}
+/* shell.js wraps every table in .wz-tablewrap and stops its cells wrapping on a
+   phone; this one turns into cards there instead, so its text wraps. */
+.wz-tablewrap .assign-table td{white-space:normal}
+.assign-table th:first-child,.assign-table td:first-child{padding-left:0;width:30%}
+.assign-table th:nth-child(3){width:140px}
+.assign-table th:last-child{width:60px}
+/* Clear of the save bar, which would otherwise sit on top of every message. */
+.toast{bottom:84px}
+.assign-table th:last-child,.assign-table td:last-child{padding-right:0;text-align:right}
+.person{display:flex;align-items:center;gap:10px;min-width:150px}
+.person .av{width:30px;height:30px;border-radius:50%;background:#e0e8ff;color:#3745a4;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none}
+.person b{display:block;font-size:12px;font-weight:700}
+.person small{display:block;font-size:11px;color:var(--muted)}
+.person select{min-width:150px}
+.assign-table textarea{min-height:58px;resize:vertical;font-size:12px;line-height:1.5}
+.status-select{width:auto;min-width:118px;font-size:12px;font-weight:700;padding:7px 34px 7px 10px;border-radius:20px}
+.status-select.done{color:#17803d;background-color:#e8faef;border-color:#b8e7c8}
+.status-select.in_progress{color:#b45309;background-color:#fff7e6;border-color:#fde68a}
+.status-select.todo{color:#475467;background-color:#f2f4f7;border-color:#e4e7ec}
+.icon-btn{width:30px;height:30px;border:1px solid transparent;background:transparent;border-radius:8px;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.icon-btn:hover{background:#fff5f5;color:var(--brand)}
+.icon-btn svg{width:15px;height:15px}
+.assign-empty{font-size:13px;color:var(--muted);padding:14px 0 2px}
+
+/* ── The save bar, pinned to the foot of the viewport ── */
+.save-bar{position:fixed;left:var(--sidebar-w);right:0;bottom:0;z-index:90;background:#fff;border-top:1px solid var(--line);padding:12px 35px;display:flex;align-items:center;gap:12px;transition:left .18s ease}
+.save-bar[hidden]{display:none}
+.save-bar p{flex:1;min-width:0;font-size:12px;color:var(--muted)}
+.save-bar .btn{padding:10px 18px}
+.btn-link{background:none;border:none;color:var(--brand);font:inherit;font-size:12px;font-weight:800;cursor:pointer;padding:6px}
+.btn-link:hover{text-decoration:underline}
+.btn-link[hidden]{display:none}
+
 @media(max-width:950px){
   .admin-content{padding:24px 18px 40px}
-  .page-head{flex-direction:column;gap:16px}
+  .save-bar{padding:12px 18px}
+}
+@media(max-width:768px){
+  .save-bar{left:0}
 }
 @media(max-width:700px){
-  .two-up{grid-template-columns:1fr}
-  .orientations{grid-template-columns:1fr}
+  .three-up{grid-template-columns:1fr}
+  .hero{height:150px}
+  .card-pad{padding:16px}
+  /* The table becomes one card per person: a four-column row cannot be read
+     at this width. */
+  .assign-table thead{display:none}
+  .assign-table,.assign-table tbody,.assign-table tr,.assign-table td{display:block;width:100%}
+  .assign-table tr{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px;position:relative}
+  .assign-table td{padding:0 0 10px;border:none;text-align:left}
+  .assign-table td:last-child{position:absolute;top:10px;right:10px;padding:0;width:auto}
+  .person{padding-right:34px}
+  .save-bar p{display:none}
+  .save-bar{gap:8px}
+  .save-bar .btn{flex:1;white-space:nowrap;padding:10px 8px}
+  .card-title.row{flex-direction:column}
+  .card-title.row .btn{white-space:nowrap}
 }
 </style>
 
@@ -349,6 +387,10 @@ document.addEventListener("DOMContentLoaded", function () {
       </button>
     </div>
     <nav class="side-nav">
+      <a href="admin-dashboard.html" title="Dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+        <span>Dashboard</span>
+      </a>
       <a href="admin.html" title="Forms">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
         <span>Forms</span>
@@ -402,178 +444,182 @@ document.addEventListener("DOMContentLoaded", function () {
 <div class="admin-main">
   <div class="admin-content">
 
-    <div class="page-head">
-      <!-- Back sits to the left of the title, the same as the project pages -
-           on the right it read as an action on the form rather than a way out
-           of it. -->
-      <div class="page-title with-back">
-        <a class="back-link" id="backLink" href="project-management.html" title="Back to project" aria-label="Back to project">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M11 6l-6 6 6 6"/></svg>
-        </a>
-        <div class="title-text">
-          <!-- The project name comes from the API, never from the query string:
-               a title passed in a URL is not something to trust or to render. -->
-          <h1 id="formTitle">New Task</h1>
-          <div class="crumbs">
-            <a href="project-management.html">Projects</a>
-            <span>&rsaquo;</span>
-            <a id="crumbProject" href="#">&hellip;</a>
-          </div>
-        </div>
-      </div>
+    <div class="form-top">
+      <!-- The project name comes from the API, never from the query string. -->
+      <a class="pill-link" id="backLink" href="project-management.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M11 6l-6 6 6 6"/></svg>
+        Back to phases
+      </a>
+      <h1 id="formTitle">New Phase</h1>
     </div>
 
     <div id="blocked" class="empty" hidden></div>
 
     <form class="form-wrap" id="taskForm" hidden onsubmit="return false">
 
-      <div class="col">
+      <!-- The phase itself: cover, title, description, the four fields. -->
+      <section class="form-card">
+        <div class="hero" id="hero">
+          <span class="vis-badge" id="visBadge">Published</span>
+          <span class="ph">Phase image</span>
+          <button class="hero-remove" type="button" id="heroRemove" onclick="clearMedia()" aria-label="Remove image" hidden>&times;</button>
+        </div>
 
-        <section class="panel" id="panelOrientation">
-          <button class="panel-head" type="button" aria-expanded="true" onclick="togglePanel(this)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M3 9h18"/></svg>
-            <h2>Image Orientation</h2>
-            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <div class="panel-body">
-            <div class="orientations">
-              <button class="orientation h selected" type="button" data-orientation="horizontal" onclick="selectOrientation('horizontal')">
-                <span class="glyph"><i></i></span>
-                Horizontal
-              </button>
-              <button class="orientation v" type="button" data-orientation="vertical" onclick="selectOrientation('vertical')">
-                <span class="glyph"><i></i></span>
-                Vertical
-              </button>
-            </div>
-            <p class="hint">This decides how the task card is laid out on the project page.</p>
+        <div class="card-pad">
+          <div class="field-row">
+            <label for="taskName">Title</label>
+            <input type="text" id="taskName" maxlength="200" dir="auto" placeholder="Title">
           </div>
-        </section>
 
-        <section class="panel" id="panelDetails">
-          <button class="panel-head" type="button" aria-expanded="true" onclick="togglePanel(this)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            <h2>Task Details</h2>
-            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <div class="panel-body">
-
-            <div class="field-row">
-              <label for="taskName">Task name</label>
-              <input type="text" id="taskName" maxlength="200" dir="auto" placeholder="Task name">
+          <div class="field-row">
+            <label for="description">Description</label>
+            <div class="editor-toolbar">
+              <button type="button" title="Bold" onclick="format('bold')"><b>B</b></button>
+              <button type="button" title="Italic" onclick="format('italic')"><i>I</i></button>
+              <span class="sep"></span>
+              <button type="button" title="Bulleted list" onclick="format('insertUnorderedList')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1.4" fill="currentColor" stroke="none"/><circle cx="3.5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="3.5" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg>
+              </button>
+              <button type="button" title="Numbered list" onclick="format('insertOrderedList')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6h12M9 12h12M9 18h12M4 6h1v4M4 14h2v1H4v1h2"/></svg>
+              </button>
+              <span class="sep"></span>
+              <button type="button" title="Add a link" onclick="addLink()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.5-1.5"/></svg>
+              </button>
             </div>
-
-            <div class="field-row">
-              <label for="taskLink">Task link</label>
-              <input type="text" id="taskLink" maxlength="500" dir="ltr" placeholder="task link">
-              <p class="hint">Optional. Anything without http:// is saved as https://</p>
-            </div>
-
-            <div class="field-row">
-              <label for="description">Description</label>
-              <div class="editor-toolbar">
-                <button type="button" title="Bold" onclick="format('bold')"><b>B</b></button>
-                <button type="button" title="Italic" onclick="format('italic')"><i>I</i></button>
-                <span class="sep"></span>
-                <button type="button" title="Bulleted list" onclick="format('insertUnorderedList')">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1.4" fill="currentColor" stroke="none"/><circle cx="3.5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="3.5" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg>
-                </button>
-                <button type="button" title="Numbered list" onclick="format('insertOrderedList')">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6h12M9 12h12M9 18h12M4 6h1v4M4 14h2v1H4v1h2"/></svg>
-                </button>
-                <span class="sep"></span>
-                <button type="button" title="Add a link" onclick="addLink()">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.5-1.5"/></svg>
-                </button>
-                <button type="button" title="Clear formatting" onclick="format('removeFormat')">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg>
-                </button>
-              </div>
-              <div class="editor" id="description" contenteditable="true" dir="auto"
-                   data-placeholder="Write your description here..."></div>
-              <div class="counter" id="counter">0 / 2000 characters</div>
-            </div>
-
+            <div class="editor" id="description" contenteditable="true" dir="auto"
+                 data-placeholder="What this phase covers"></div>
+            <div class="counter" id="counter">0 / 2000 characters</div>
           </div>
-        </section>
 
-      </div>
-
-      <div class="col">
-
-        <section class="panel">
-          <div class="panel-head"><h2>Media Assets</h2></div>
-          <div class="panel-body">
-
-            <!-- One slot, one image: the dropzone is for putting an image
-                 there, so it steps aside once there is one. Removing the image
-                 with the x on the preview brings it back. -->
-            <div class="dropzone" id="dropzone" tabindex="0" role="button"
-                 aria-label="Upload an image">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-              <strong>Upload image</strong>
-              <!-- Written by the API's own cap, so the copy and the server
-                   rule cannot drift apart. -->
-              <span id="mediaHint">Optional. Maximum 3 MB</span>
+          <div class="field-row three-up">
+            <div>
+              <label for="phaseLabel">Phase</label>
+              <input type="text" id="phaseLabel" maxlength="80" dir="auto" placeholder="e.g. Planning">
             </div>
+            <div>
+              <label for="updateDate">Due date</label>
+              <input type="date" id="updateDate">
+            </div>
+            <div>
+              <label for="taskRole">Role</label>
+              <input type="text" id="taskRole" maxlength="80" dir="auto" placeholder="e.g. UI Designer">
+            </div>
+          </div>
 
+          <div class="field-row">
+            <label for="visibility">Visibility</label>
+            <select id="visibility" onchange="paintVisibility()">
+              <option value="published">Published</option>
+              <option value="draft">Draft</option>
+            </select>
+            <p class="hint" id="scheduleNote">A published phase dated in the future is shown to the client on that date.</p>
+          </div>
+
+          <div class="field-row switch-row">
+            <span class="label">Mark as completed</span>
+            <label class="switch">
+              <input type="checkbox" id="isComplete">
+              <span class="track"></span>
+            </label>
+          </div>
+
+          <div class="field-row">
+            <div class="media-row">
+              <button class="btn btn-ghost" type="button" id="replaceBtn" onclick="input.click()">Upload image</button>
+              <span class="hint" id="mediaHint" style="margin:0">Optional. Maximum 3 MB. Shown above.</span>
+            </div>
             <input type="file" id="mediaInput" accept="image/*" hidden>
-
-
-            <div class="media-preview is-horizontal" id="mediaPreview">
-              <div class="thumb" id="mediaThumb"></div>
-              <button class="remove" type="button" onclick="clearMedia()" aria-label="Remove image">&times;</button>
-            </div>
-
             <div class="media-error" id="mediaError"></div>
-
           </div>
-        </section>
+        </div>
+      </section>
 
-        <section class="panel">
-          <div class="panel-head"><h2>Scheduling</h2></div>
-          <div class="panel-body">
+      <!-- Who is on it, and how they work on it. Never shown to the client. -->
+      <section class="form-card card-pad">
+        <div class="card-title">
+          <h2>Teammates</h2>
+          <p>Choose the people. Their role shows next to their name.</p>
+        </div>
 
-            <div class="two-up">
-              <div>
-                <label for="updateDate">Update date</label>
-                <input type="date" id="updateDate">
-              </div>
-              <div>
-                <label for="updateTime">Update time</label>
-                <input type="time" id="updateTime">
-              </div>
-            </div>
-
-            <div class="switch-row" style="margin-top:18px">
-              <span class="label">Mark as complete</span>
-              <label class="switch">
-                <input type="checkbox" id="isComplete">
-                <span class="track"></span>
-              </label>
-            </div>
-
-            <p class="note" id="scheduleNote">
-              A published task dated in the future is saved now and shown to the
-              client on that date.
-            </p>
-
+        <div class="field-row">
+          <label id="memberLabel">Teammates</label>
+          <div class="multi" id="teammates">
+            <button class="multi-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="memberLabel">
+              <span class="multi-value placeholder">Select teammates...</span>
+              <svg class="multi-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="multi-panel" role="listbox" aria-multiselectable="true"></div>
           </div>
-        </section>
+          <p class="hint">Everyone listed here can open this phase, and gets a notification.</p>
+        </div>
 
-        <section class="panel">
-          <div class="panel-body">
-            <div class="actions">
-              <button class="primary-btn" type="button" id="publishBtn" onclick="save('published')">Publish</button>
-              <button class="secondary-btn" type="button" id="draftBtn" onclick="save('draft')">Save as Draft</button>
-              <button class="discard-btn" type="button" id="discardBtn" onclick="discard()">Discard task</button>
-            </div>
+        <div class="field-row" id="checklistRow" hidden>
+          <label>Teammate checklist</label>
+          <div class="checklist" id="teammateChecklist"></div>
+          <p class="hint">Each teammate ticks their own box.</p>
+        </div>
+
+        <div class="field-row">
+          <label for="priority">Priority</label>
+          <select id="priority">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+          </select>
+        </div>
+
+        <div class="field-row">
+          <div class="label-row">
+            <label for="notes">Notes</label>
+            <small>Markdown supported</small>
           </div>
-        </section>
+          <div class="editor-toolbar">
+            <button type="button" title="Bold" onclick="mdWrap('**')"><b>B</b></button>
+            <button type="button" title="Italic" onclick="mdWrap('_')"><i>I</i></button>
+            <span class="sep"></span>
+            <button type="button" title="Bulleted list" onclick="mdLines('- ')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1.4" fill="currentColor" stroke="none"/><circle cx="3.5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="3.5" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg>
+            </button>
+            <button type="button" title="Numbered list" onclick="mdLines('1. ')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6h12M9 12h12M9 18h12M4 6h1v4M4 14h2v1H4v1h2"/></svg>
+            </button>
+            <span class="sep"></span>
+            <button type="button" title="Add a link" onclick="mdLink()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.5-1.5"/></svg>
+            </button>
+          </div>
+          <textarea id="notes" maxlength="5000" dir="auto" placeholder="Write meeting notes, task requirements, links or additional details here..."></textarea>
+        </div>
+      </section>
 
-      </div>
+      <section class="form-card card-pad">
+        <div class="card-title row">
+          <div>
+            <h2>Assigned</h2>
+            <p>Everyone who worked on this phase, what they did and how far they got.</p>
+          </div>
+          <button class="btn btn-ghost" type="button" onclick="addAssignment()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            Add assignment
+          </button>
+        </div>
+        <table class="assign-table">
+          <thead><tr><th>Person</th><th>What they did &amp; details</th><th>Status</th><th>Action</th></tr></thead>
+          <tbody id="assignBody"></tbody>
+        </table>
+        <p class="assign-empty" id="assignEmpty">Nobody is assigned yet.</p>
+      </section>
 
     </form>
+
+    <div class="save-bar" id="saveBar" hidden>
+      <button class="btn-link" type="button" id="deleteBtn" onclick="removePhase()" hidden>Delete phase</button>
+      <p>Unsaved changes will be lost if you leave this page.</p>
+      <button class="btn btn-ghost" type="button" onclick="discard()">Discard</button>
+      <button class="btn btn-dark" type="button" id="saveBtn" onclick="save()">Save changes</button>
+    </div>
 
   </div>
 </div>
@@ -698,37 +744,27 @@ const params    = new URLSearchParams(location.search);
 const taskId    = params.get("id") || "";
 let   projectId = params.get("project") || "";
 
-let orientation = "horizontal";
 let mediaFile   = null;     // a File chosen this session, or null
 let removeMedia = false;    // the existing image was cleared
+let hasImage    = false;    // what the hero is showing right now
 let maxChars    = 2000;
 let maxBytes    = 3 * 1024 * 1024;
 let saving      = false;
+let dirty       = false;
+
+/* Fields the design leaves off the page but the task still carries. They go
+   back unchanged on save, so editing a phase here never wipes them. */
+let keep = { link:"", orientation:"horizontal", scheduled_time:"" };
+
+/* The client's team, who can go on the phase: [{id, name, role}]. */
+let candidates  = [];
+let teammates   = [];   // [{id, name, role, is_done}] as saved
+let statuses    = { todo:"To do", in_progress:"In progress", done:"Done" };
+
+const ROLE_LABELS = { owner:"Owner", super_admin:"Super Admin", account_manager:"Account Manager", seo_admin:"Admin" };
 
 if (!taskId && !projectId) {
   location.replace("project-management.html");
-}
-
-/* ── Panels ─────────────────────────────────────────────────────────────── */
-
-function togglePanel(head){
-  const panel = head.closest(".panel");
-  const open  = !panel.classList.toggle("collapsed");
-  head.setAttribute("aria-expanded", String(open));
-}
-
-/* ── Orientation ────────────────────────────────────────────────────────── */
-
-function selectOrientation(value){
-  orientation = value;
-
-  document.querySelectorAll("[data-orientation]").forEach(button => {
-    button.classList.toggle("selected", button.dataset.orientation === orientation);
-  });
-
-  const preview = document.getElementById("mediaPreview");
-  preview.classList.toggle("is-vertical", orientation === "vertical");
-  preview.classList.toggle("is-horizontal", orientation !== "vertical");
 }
 
 /* ── Editor ─────────────────────────────────────────────────────────────── */
@@ -771,38 +807,42 @@ editor.addEventListener("paste", function (event) {
   document.execCommand("insertText", false, text);
 });
 
-/* ── Media ──────────────────────────────────────────────────────────────── */
+/* ── Notes: plain Markdown, the toolbar only types the marks ────────────── */
 
-const dropzone = document.getElementById("dropzone");
-const input    = document.getElementById("mediaInput");
+const notes = document.getElementById("notes");
 
-dropzone.addEventListener("click", () => input.click());
+function mdReplace(start, end, text, caretFrom, caretTo){
+  notes.setRangeText(text, start, end, "end");
+  if (caretFrom != null) notes.setSelectionRange(caretFrom, caretTo);
+  notes.focus();
+  markDirty();
+}
 
-dropzone.addEventListener("keydown", function (event) {
-  if (event.key === "Enter" || event.key === " ") {
-    event.preventDefault();
-    input.click();
-  }
-});
+function mdWrap(mark){
+  const s = notes.selectionStart, e = notes.selectionEnd;
+  const picked = notes.value.slice(s, e) || "text";
+  mdReplace(s, e, mark + picked + mark, s + mark.length, s + mark.length + picked.length);
+}
 
-["dragenter", "dragover"].forEach(name => {
-  dropzone.addEventListener(name, function (event) {
-    event.preventDefault();
-    dropzone.classList.add("dragging");
-  });
-});
+function mdLines(prefix){
+  const s = notes.value.lastIndexOf("\n", notes.selectionStart - 1) + 1;
+  const e = notes.selectionEnd;
+  const lines = notes.value.slice(s, e).split("\n")
+    .map((line, i) => (prefix === "1. " ? (i + 1) + ". " : prefix) + line);
+  mdReplace(s, e, lines.join("\n"));
+}
 
-["dragleave", "drop"].forEach(name => {
-  dropzone.addEventListener(name, function (event) {
-    event.preventDefault();
-    dropzone.classList.remove("dragging");
-  });
-});
+function mdLink(){
+  const url = prompt("Link address", "https://");
+  if (!url) return;
+  const s = notes.selectionStart, e = notes.selectionEnd;
+  const label = notes.value.slice(s, e) || "link";
+  mdReplace(s, e, "[" + label + "](" + url + ")");
+}
 
-dropzone.addEventListener("drop", function (event) {
-  const file = event.dataTransfer.files && event.dataTransfer.files[0];
-  if (file) acceptMedia(file);
-});
+/* ── Media: one image, shown as the cover ───────────────────────────────── */
+
+const input = document.getElementById("mediaInput");
 
 input.addEventListener("change", function () {
   if (input.files && input.files[0]) acceptMedia(input.files[0]);
@@ -832,12 +872,15 @@ function acceptMedia(file){
   removeMedia = false;
 
   showMedia(URL.createObjectURL(file));
+  markDirty();
 }
 
 function showMedia(url){
-  document.getElementById("mediaThumb").style.backgroundImage = "url('" + url + "')";
-  document.getElementById("mediaPreview").classList.add("show");
-  document.getElementById("dropzone").hidden = true;
+  const hero = document.getElementById("hero");
+  hero.style.backgroundImage = "url('" + url + "')";
+  hero.classList.add("has-image");
+  hasImage = true;
+  paintMediaControls();
 }
 
 function clearMedia(){
@@ -845,9 +888,235 @@ function clearMedia(){
   removeMedia = true;
   input.value = "";
   mediaError("");
-  document.getElementById("mediaPreview").classList.remove("show");
-  document.getElementById("dropzone").hidden = false;
+  const hero = document.getElementById("hero");
+  hero.style.backgroundImage = "";
+  hero.classList.remove("has-image");
+  hasImage = false;
+  paintMediaControls();
+  markDirty();
 }
+
+function paintMediaControls(){
+  document.getElementById("heroRemove").hidden = !hasImage;
+  document.getElementById("replaceBtn").textContent = hasImage ? "Replace image" : "Upload image";
+}
+
+function paintVisibility(){
+  const draft = document.getElementById("visibility").value === "draft";
+  const badge = document.getElementById("visBadge");
+  badge.textContent = draft ? "Draft" : "Published";
+  badge.classList.toggle("draft", draft);
+}
+
+/* ── Teammates ──────────────────────────────────────────────────────────── */
+
+const multi = document.getElementById("teammates");
+
+function roleLabel(role){
+  return ROLE_LABELS[role] || role || "";
+}
+
+function chosenTeammates(){
+  return Array.from(multi.querySelectorAll(".multi-panel input:checked")).map(box => Number(box.value));
+}
+
+/* The pool is the client's team plus anyone already on the phase - someone
+   taken off the team since is kept rather than silently dropped. */
+function teamPool(){
+  const pool = candidates.slice();
+  teammates.forEach(t => {
+    if (!pool.some(c => c.id === t.id)) pool.push({ id:t.id, name:t.name, role:t.role });
+  });
+  return pool;
+}
+
+function paintTeammates(selected){
+  const pool  = teamPool();
+  const panel = multi.querySelector(".multi-panel");
+
+  panel.innerHTML = pool.length
+    ? pool.map(person =>
+        '<label><input type="checkbox" value="' + Number(person.id) + '"'
+        + (selected.includes(Number(person.id)) ? " checked" : "") + ">"
+        + '<span dir="auto">' + esc(person.name) + "</span>"
+        + '<span class="role-tag">' + esc(roleLabel(person.role)) + "</span></label>"
+      ).join("")
+    : '<div class="none">Nobody is on this client\'s team yet.</div>';
+
+  panel.querySelectorAll("input").forEach(box => box.addEventListener("change", function(){
+    paintTeamValue();
+    markDirty();
+  }));
+
+  paintTeamValue();
+}
+
+function paintTeamValue(){
+  const ids   = chosenTeammates();
+  const value = multi.querySelector(".multi-value");
+  const names = teamPool().filter(p => ids.includes(Number(p.id))).map(p => p.name);
+
+  value.classList.toggle("placeholder", !ids.length);
+  value.textContent = !ids.length ? "Select teammates..."
+    : ids.length <= 2 ? names.join(", ")
+    : ids.length + " teammates selected";
+}
+
+multi.querySelector(".multi-trigger").addEventListener("click", function (event) {
+  event.stopPropagation();
+  const open = multi.classList.toggle("open");
+  this.setAttribute("aria-expanded", String(open));
+});
+
+multi.querySelector(".multi-panel").addEventListener("click", event => event.stopPropagation());
+
+document.addEventListener("click", function(){
+  multi.classList.remove("open");
+  multi.querySelector(".multi-trigger").setAttribute("aria-expanded", "false");
+});
+
+/*
+| The checklist shows who is on the phase as saved. The signed-in admin's own
+| box saves straight away (set_done) - the same as the content form - and
+| everyone else's is read-only.
+*/
+function paintChecklist(){
+  const row = document.getElementById("checklistRow");
+  const box = document.getElementById("teammateChecklist");
+
+  row.hidden = !teammates.length;
+
+  box.innerHTML = teammates.map(t => {
+    const mine = Number(t.id) === Number(adminUser.id);
+    const done = !!Number(t.is_done);
+    return '<label class="' + (mine ? "mine" : "") + '">'
+      + '<input type="checkbox" data-id="' + Number(t.id) + '"' + (done ? " checked" : "") + (mine ? "" : " disabled") + ">"
+      + '<span class="who" dir="auto">' + esc(t.name) + (mine ? " (you)" : "") + "</span>"
+      + '<span class="state ' + (done ? "done" : "") + '">' + (done ? "Done" : "Not done") + "</span>"
+      + "</label>";
+  }).join("");
+
+  box.querySelectorAll("input:not([disabled])").forEach(input => {
+    input.addEventListener("change", () => setOwnDone(input));
+  });
+}
+
+async function setOwnDone(input){
+  const body = new FormData();
+  body.append("action", "set_done");
+  body.append("task_id", taskId);
+  body.append("done", input.checked ? "1" : "0");
+
+  const data = await api("api/project-tasks.php", { method:"POST", body });
+
+  if (!data.success) {
+    input.checked = !input.checked;
+    toast(data.message, true);
+    return;
+  }
+
+  const me = teammates.find(t => Number(t.id) === Number(adminUser.id));
+  if (me) me.is_done = data.done;
+  paintChecklist();
+}
+
+/* ── Assigned ───────────────────────────────────────────────────────────── */
+
+function initials(name){
+  return String(name || "").trim().split(/\s+/).slice(0, 2)
+    .map(part => part.charAt(0).toUpperCase()).join("") || "?";
+}
+
+function statusOptions(current){
+  return Object.keys(statuses).map(key =>
+    '<option value="' + key + '"' + (key === current ? " selected" : "") + ">" + esc(statuses[key]) + "</option>"
+  ).join("");
+}
+
+/*
+| One row per assignment. A saved row carries its id, so the server updates it
+| rather than adding a second one; a row added here has none, and picks its
+| person from the client's team.
+*/
+function assignmentRow(a){
+  const person = a.id
+    ? '<div class="person"><span class="av">' + esc(initials(a.name)) + "</span>"
+      + '<div><b dir="auto">' + esc(a.name) + "</b><small>" + esc(roleLabel(a.role)) + "</small></div></div>"
+    : '<div class="person"><select class="assign-person" aria-label="Person">'
+      + '<option value="">Pick a person...</option>'
+      + teamPool().map(p => '<option value="' + Number(p.id) + '">' + esc(p.name) + "</option>").join("")
+      + "</select></div>";
+
+  return '<tr data-id="' + (a.id ? Number(a.id) : "") + '" data-admin="' + (a.admin_id ? Number(a.admin_id) : "") + '">'
+    + "<td>" + person + "</td>"
+    + '<td><textarea class="assign-note" maxlength="2000" dir="auto" placeholder="What they did, and any details" aria-label="What they did">'
+    +   esc(a.work_note || "") + "</textarea></td>"
+    + '<td><select class="status-select ' + esc(a.status || "todo") + '" aria-label="Status">' + statusOptions(a.status || "todo") + "</select></td>"
+    + '<td><button class="icon-btn" type="button" title="Remove" aria-label="Remove this assignment" onclick="removeAssignment(this)">'
+    +   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>'
+    + "</button></td>"
+    + "</tr>";
+}
+
+function paintAssignments(list){
+  document.getElementById("assignBody").innerHTML = list.map(assignmentRow).join("");
+  syncAssignEmpty();
+}
+
+function syncAssignEmpty(){
+  document.getElementById("assignEmpty").hidden =
+    !!document.querySelector("#assignBody tr");
+}
+
+function addAssignment(){
+  document.getElementById("assignBody").insertAdjacentHTML("beforeend", assignmentRow({}));
+  syncAssignEmpty();
+  document.querySelector("#assignBody tr:last-child select").focus();
+  markDirty();
+}
+
+function removeAssignment(button){
+  button.closest("tr").remove();
+  syncAssignEmpty();
+  markDirty();
+}
+
+/* The pill's colour follows its value. */
+document.getElementById("assignBody").addEventListener("change", function (event) {
+  if (event.target.classList.contains("status-select")) {
+    event.target.className = "status-select " + event.target.value;
+  }
+});
+
+/* Rows that have a person, as the API takes them. */
+function collectAssignments(){
+  return Array.from(document.querySelectorAll("#assignBody tr")).map(row => {
+    const picker = row.querySelector(".assign-person");
+    return {
+      id       : row.dataset.id ? Number(row.dataset.id) : null,
+      admin_id : picker ? Number(picker.value) : Number(row.dataset.admin),
+      work_note: row.querySelector(".assign-note").value.trim(),
+      status   : row.querySelector(".status-select").value
+    };
+  }).filter(a => a.admin_id > 0);
+}
+
+/* ── Unsaved changes ────────────────────────────────────────────────────── */
+
+function markDirty(){ dirty = true; }
+
+document.getElementById("taskForm").addEventListener("input", markDirty);
+document.getElementById("taskForm").addEventListener("change", function (event) {
+  // The checklist saves itself, so ticking it leaves nothing unsaved.
+  if (!event.target.closest("#teammateChecklist")) markDirty();
+});
+
+window.addEventListener("beforeunload", function (event) {
+  if (dirty && !saving) {
+    event.preventDefault();
+    event.returnValue = "";
+  }
+});
 
 /* ── Load ───────────────────────────────────────────────────────────────── */
 
@@ -859,7 +1128,7 @@ function block(message){
 
 async function load(){
 
-  // Editing an existing task: the task carries its own project, so the query
+  // Editing an existing phase: the task carries its own project, so the query
   // string's `project` is only a hint and the row's own wins.
   const url = taskId
     ? "api/project-tasks.php?id=" + encodeURIComponent(taskId)
@@ -872,75 +1141,84 @@ async function load(){
     return;
   }
 
-  maxChars = Number(data.max_chars) || maxChars;
-  maxBytes = Number(data.max_bytes) || maxBytes;
+  maxChars   = Number(data.max_chars) || maxChars;
+  maxBytes   = Number(data.max_bytes) || maxBytes;
+  candidates = data.candidates || [];
+  statuses   = data.statuses || statuses;
+  teammates  = data.teammates || [];
 
   document.getElementById("mediaHint").textContent =
-    "Optional. Maximum " + Math.round(maxBytes / 1024 / 1024) + " MB";
+    "Optional. Maximum " + Math.round(maxBytes / 1024 / 1024) + " MB. Shown above.";
 
   const project = data.project;
   projectId = project.id;
 
-  const back = "project-details.html?id=" + encodeURIComponent(project.id);
-  document.getElementById("backLink").href = back;
-
-  const crumb = document.getElementById("crumbProject");
-  crumb.textContent = project.title;
-  crumb.href = back;
+  document.getElementById("backLink").href = "project-details.html?id=" + encodeURIComponent(project.id);
 
   if (!taskId && data.can_write === false) {
-    block("You are not on this project's team, so you cannot add tasks to it.");
+    block("You are not on this project's team, so you cannot add phases to it.");
     return;
   }
 
   if (taskId) {
 
     if (!data.can_edit) {
-      block("You can only edit tasks you created.");
+      block("You can only edit phases you created.");
       return;
     }
 
     fill(data.task);
-    document.getElementById("formTitle").textContent = "Edit Task";
-    document.title = "Edit Task - " + project.title;
+    paintAssignments(data.assignments || []);
+    document.getElementById("formTitle").textContent = "Edit Phase";
+    document.getElementById("deleteBtn").hidden = false;
+    document.title = "Edit Phase - " + project.title;
 
   } else {
-    document.getElementById("discardBtn").textContent = "Cancel";
-    document.title = "New Task - " + project.title;
+    paintAssignments([]);
+    document.title = "New Phase - " + project.title;
   }
 
+  paintTeammates(teammates.map(t => Number(t.id)));
+  paintChecklist();
+  paintVisibility();
+  paintMediaControls();
+
   document.getElementById("taskForm").hidden = false;
+  document.getElementById("saveBar").hidden  = false;
   updateCounter();
+  dirty = false;
 }
 
 function fill(task){
-  document.getElementById("taskName").value = task.title || "";
-  document.getElementById("taskLink").value = task.link || "";
+  document.getElementById("taskName").value   = task.title || "";
+  document.getElementById("phaseLabel").value = task.phase_label || "";
+  document.getElementById("taskRole").value   = task.role || "";
+  document.getElementById("updateDate").value = task.scheduled_date || "";
+  document.getElementById("visibility").value = task.status === "draft" ? "draft" : "published";
+  document.getElementById("priority").value   = task.priority || "medium";
+  document.getElementById("isComplete").checked = !!Number(task.is_complete);
+  notes.value = task.notes || "";
 
   editor.innerHTML = task.description || "";
 
-  selectOrientation(task.orientation === "vertical" ? "vertical" : "horizontal");
-
-  document.getElementById("updateDate").value = task.scheduled_date || "";
-
-  // The column is a TIME, so it round-trips with seconds the input rejects.
-  document.getElementById("updateTime").value =
-    task.scheduled_time ? String(task.scheduled_time).slice(0, 5) : "";
-
-  document.getElementById("isComplete").checked = !!Number(task.is_complete);
+  keep = {
+    link          : task.link || "",
+    orientation   : task.orientation === "vertical" ? "vertical" : "horizontal",
+    scheduled_time: task.scheduled_time ? String(task.scheduled_time).slice(0, 5) : ""
+  };
 
   if (task.image_path) showMedia(task.image_path);
 }
 
 /* ── Save ───────────────────────────────────────────────────────────────── */
 
-async function save(status){
+async function save(){
   if (saving) return;
 
   const title = document.getElementById("taskName").value.trim();
 
   if (!title) {
-    toast("Task name is required.", true);
+    toast("A title is required.", true);
     document.getElementById("taskName").focus();
     return;
   }
@@ -950,19 +1228,30 @@ async function save(status){
     return;
   }
 
+  if (Array.from(document.querySelectorAll("#assignBody .assign-person")).some(s => !s.value)) {
+    toast("Pick a person for each new assignment, or remove the row.", true);
+    return;
+  }
+
   const body = new FormData();
 
   if (taskId) body.append("id", taskId);
 
   body.append("project_id", projectId);
   body.append("title", title);
-  body.append("link", document.getElementById("taskLink").value.trim());
+  body.append("link", keep.link);
   body.append("description", editor.innerHTML.trim());
-  body.append("orientation", orientation);
+  body.append("orientation", keep.orientation);
   body.append("scheduled_date", document.getElementById("updateDate").value);
-  body.append("scheduled_time", document.getElementById("updateTime").value);
+  body.append("scheduled_time", keep.scheduled_time);
   body.append("is_complete", document.getElementById("isComplete").checked ? "1" : "0");
-  body.append("status", status);
+  body.append("status", document.getElementById("visibility").value);
+  body.append("phase_label", document.getElementById("phaseLabel").value.trim());
+  body.append("role", document.getElementById("taskRole").value.trim());
+  body.append("priority", document.getElementById("priority").value);
+  body.append("notes", notes.value);
+  body.append("teammates", JSON.stringify(chosenTeammates()));
+  body.append("assignments", JSON.stringify(collectAssignments()));
 
   if (mediaFile) body.append("image", mediaFile);
   if (removeMedia && !mediaFile) body.append("remove_image", "1");
@@ -972,40 +1261,44 @@ async function save(status){
   // No Content-Type header: the browser has to set the multipart boundary.
   const data = await api("api/project-tasks.php", { method:"POST", body });
 
-  setBusy(false);
-
   toast(data.message, !data.success);
 
-  if (!data.success) return;
+  if (!data.success) {
+    setBusy(false);
+    return;
+  }
+
+  dirty = false;
 
   setTimeout(function(){
-    location.href = "project-details.html?id=" + encodeURIComponent(projectId);
+    location.href = "project-task-details.html?project=" + encodeURIComponent(projectId)
+                  + "&id=" + encodeURIComponent(data.id);
   }, 700);
 }
 
 function setBusy(busy){
   saving = busy;
-  document.getElementById("publishBtn").disabled = busy;
-  document.getElementById("draftBtn").disabled   = busy;
-  document.getElementById("publishBtn").textContent = busy ? "Saving..." : "Publish";
+  const button = document.getElementById("saveBtn");
+  button.disabled = busy;
+  button.textContent = busy ? "Saving..." : "Save changes";
 }
 
-/* Discard means delete when there is something saved to delete, and simply
-   leave when there is not. */
-async function discard(){
+/* Discard drops what was typed: back to the phase, or to the project when
+   there is no phase yet. */
+function discard(){
+  dirty = false;
+  location.href = taskId
+    ? "project-task-details.html?project=" + encodeURIComponent(projectId) + "&id=" + encodeURIComponent(taskId)
+    : "project-details.html?id=" + encodeURIComponent(projectId);
+}
 
-  const back = "project-details.html?id=" + encodeURIComponent(projectId);
-
-  if (!taskId) {
-    location.href = back;
-    return;
-  }
+async function removePhase(){
 
   const ok = await askConfirm({
-    title : "Delete task",
-    text  : "This task will be removed from the project, along with anything the "
+    title : "Delete phase",
+    text  : "This phase will be removed from the project, along with anything the "
           + "client has already been shown of it. This cannot be undone.",
-    action: "Delete task",
+    action: "Delete phase",
     word  : "DELETE"
   });
 
@@ -1019,7 +1312,10 @@ async function discard(){
 
   if (!data.success) return;
 
-  setTimeout(function(){ location.href = back; }, 700);
+  dirty = false;
+  setTimeout(function(){
+    location.href = "project-details.html?id=" + encodeURIComponent(projectId);
+  }, 700);
 }
 
 load();
