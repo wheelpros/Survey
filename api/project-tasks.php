@@ -439,6 +439,34 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         );
     }
 
+    /*
+    | Your own status: moves the caller's own assignment between To do, In
+    | progress and Done, from the admin dashboard with no Save. Only the
+    | caller's own row changes (setOwnPhaseStatus() in task-writes.php).
+    */
+    if (($_POST["action"] ?? "") === "set_my_status") {
+
+        $taskId = (int) ($_POST["task_id"] ?? 0);
+
+        $stmt = $pdo->prepare("SELECT id, project_id FROM project_tasks WHERE id = ? LIMIT 1");
+        $stmt->execute([$taskId]);
+        $task = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$task || !loadScopedProject($pdo, $admin, $task["project_id"])) {
+            response(false, "Phase not found.", [], 404);
+        }
+
+        try {
+            $status = setOwnPhaseStatus($pdo, $taskId, $admin["id"], (string) ($_POST["status"] ?? ""));
+        } catch (PortalWriteError $e) {
+            response(false, $e->getMessage(), [], $e->status === 422 ? 400 : $e->status);
+        } catch (Throwable $e) {
+            response(false, "Could not save your status.", [], 500);
+        }
+
+        response(true, "Status set to " . TASK_ASSIGNMENT_STATUSES[$status] . ".", ["status" => $status]);
+    }
+
     $id = isset($_POST["id"]) ? (int) $_POST["id"] : 0;
 
     $existing = null;
@@ -617,6 +645,9 @@ if ($_SERVER["REQUEST_METHOD"] === "DELETE") {
     try {
         $stmt = $pdo->prepare("DELETE FROM project_tasks WHERE id = ?");
         $stmt->execute([$id]);
+
+        // Nobody stays assigned to a phase that is gone.
+        $pdo->prepare("DELETE FROM project_task_assignments WHERE task_id = ?")->execute([$id]);
     } catch (Throwable $e) {
         response(false, "Could not delete the task.", [], 500);
     }

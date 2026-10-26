@@ -1109,6 +1109,16 @@ if ($_SERVER["REQUEST_METHOD"] === "DELETE") {
         $stmt = $pdo->prepare("DELETE FROM project_members WHERE project_id = ?");
         $stmt->execute([$id]);
 
+        // The people on each phase, before the phases themselves.
+        foreach (["project_task_teammates", "project_task_assignments"] as $table) {
+            $stmt = $pdo->prepare("
+                DELETE x FROM $table x
+                JOIN project_tasks t ON t.id = x.task_id
+                WHERE t.project_id = ?
+            ");
+            $stmt->execute([$id]);
+        }
+
         $stmt = $pdo->prepare("DELETE FROM project_tasks WHERE project_id = ?");
         $stmt->execute([$id]);
 

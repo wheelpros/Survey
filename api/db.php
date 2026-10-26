@@ -1287,6 +1287,26 @@ const PROJECT_TASK_EXTRA_COLUMNS = [
        notification fire exactly once - comparing the old status with the new
        one would re-announce the task on every later edit. */
     "client_notified_at" => "DATETIME NULL",
+
+    /* The Phase and Edit Phase pages: a free-text stage ("Planning"), the role
+       the phase calls for, and the priority and notes the team works from -
+       the same pair content carries. None of it is shown to the client.
+       sql/project_task_phases.sql is the manual version. */
+    "phase_label"        => "VARCHAR(80) NULL",
+    "role"               => "VARCHAR(80) NULL",
+    "priority"           => "VARCHAR(10) NOT NULL DEFAULT 'medium'",
+    "notes"              => "TEXT NULL",
+];
+
+/* A phase's priority, the same three content uses. */
+const TASK_PRIORITIES = ["low", "medium", "high"];
+
+/* Where one person's assignment on a phase stands. The admin dashboard's
+   "My status" select and the Assigned table both read these. */
+const TASK_ASSIGNMENT_STATUSES = [
+    "todo"        => "To do",
+    "in_progress" => "In progress",
+    "done"        => "Done",
 ];
 
 /*
@@ -1428,6 +1448,38 @@ function ensureProjectTables(PDO $pdo)
               created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
               UNIQUE KEY uniq_member (project_id, admin_id),
               KEY idx_admin (admin_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+
+        /* The teammates on a phase, each ticking their own box done - the
+           project-task twin of content_assignees. */
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS project_task_teammates (
+              id         INT AUTO_INCREMENT PRIMARY KEY,
+              task_id    INT        NOT NULL,
+              admin_id   INT        NOT NULL,
+              is_done    TINYINT(1) NOT NULL DEFAULT 0,
+              done_at    DATETIME       NULL,
+              created_at TIMESTAMP  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              UNIQUE KEY uniq_teammate (task_id, admin_id),
+              KEY idx_admin (admin_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+
+        /* Who worked on a phase, what they did and how far they got: the
+           Assigned table, and the rows of the admin dashboard's My tasks. */
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS project_task_assignments (
+              id         INT AUTO_INCREMENT PRIMARY KEY,
+              task_id    INT         NOT NULL,
+              admin_id   INT         NOT NULL,
+              work_note  TEXT            NULL,
+              status     VARCHAR(12) NOT NULL DEFAULT 'todo',
+              created_at TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                              ON UPDATE CURRENT_TIMESTAMP,
+              KEY idx_task  (task_id),
+              KEY idx_admin (admin_id, status)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
 
