@@ -190,6 +190,72 @@ function saveProjectTask(PDO $pdo, array $actor, array $project, $existing, arra
 }
 
 /*
+| The admin dashboard: each person's assignments on phases
+| (project_task_assignments), and moving their own status. Only the caller's
+| own row ever changes - someone not assigned to a phase has nothing to move.
+*/
+function setOwnPhaseStatus(PDO $pdo, $taskId, $adminId, $status)
+{
+    if (!array_key_exists((string) $status, TASK_ASSIGNMENT_STATUSES)) {
+        throw new PortalWriteError("Pick To do, In progress or Done.");
+    }
+
+    $stmt = $pdo->prepare("SELECT 1 FROM project_task_assignments WHERE task_id = ? AND admin_id = ?");
+    $stmt->execute([(int) $taskId, (int) $adminId]);
+    if (!$stmt->fetchColumn()) {
+        throw new PortalWriteError("Only someone assigned to this phase can change their status.", 403);
+    }
+
+    $stmt = $pdo->prepare("UPDATE project_task_assignments SET status = ? WHERE task_id = ? AND admin_id = ?");
+    $stmt->execute([$status, (int) $taskId, (int) $adminId]);
+
+    return $status;
+}
+
+/**
+ * The caller's own assignments on phases of projects they can see, with the
+ * phase and project each belongs to, plus the counts by status and how many
+ * projects they can see. For admin-dashboard.php.
+ */
+function myPhaseAssignments(PDO $pdo, array $actor)
+{
+    [$scopeSql, $scopeParams] = projectScopeSql($actor);
+    $scope = $scopeSql !== "" ? " AND " . $scopeSql : "";
+
+    $stmt = $pdo->prepare("
+        SELECT
+            s.id          AS assignment_id,
+            s.status,
+            s.work_note,
+            t.id          AS task_id,
+            t.title,
+            t.scheduled_date,
+            t.phase_label,
+            p.id          AS project_id,
+            p.title       AS project_title
+        FROM project_task_assignments s
+        JOIN project_tasks t ON t.id = s.task_id
+        JOIN projects p      ON p.id = t.project_id
+        WHERE s.admin_id = ?" . $scope . "
+        ORDER BY t.scheduled_date IS NULL, t.scheduled_date ASC, s.id ASC
+    ");
+    $stmt->execute(array_merge([(int) $actor["id"]], $scopeParams));
+    $tasks = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $counts = array_fill_keys(array_keys(TASK_ASSIGNMENT_STATUSES), 0);
+    foreach ($tasks as $task) {
+        if (isset($counts[$task["status"]])) {
+            $counts[$task["status"]]++;
+        }
+    }
+
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM projects p WHERE 1 = 1" . $scope);
+    $stmt->execute($scopeParams);
+
+    return ["tasks" => $tasks, "counts" => $counts, "projects" => (int) $stmt->fetchColumn()];
+}
+
+/*
 |--------------------------------------------------------------------------
 | Tell the client an update landed
 |--------------------------------------------------------------------------
