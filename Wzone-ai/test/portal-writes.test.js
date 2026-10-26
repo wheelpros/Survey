@@ -89,7 +89,8 @@ describe("private server: confirmed changes", () => {
     const names = await toolNames(c);
     for (const n of [
       "create_form_draft", "update_form", "create_content_draft", "update_content_draft", "publish_content",
-      "list_content_teammates", "post_project_update", "update_task", "confirm_change", "mark_notifications_read",
+      "list_content_teammates", "post_project_update", "update_task", "list_phase_teammates", "set_my_phase_status",
+      "confirm_change", "mark_notifications_read",
     ]) {
       expect(names).toContain(n);
     }

@@ -5,6 +5,14 @@
 |
 |   GET projects.php?client=&status=&cursor=&limit=   list_projects
 |   GET projects.php?id=N                             get_project
+|   GET projects.php?id=N&teammates=1                 list_phase_teammates
+|   GET projects.php?mine=1                           list_my_phases
+|
+| A project's tasks are its phases. Each carries the people on it: teammates
+| (each ticks their own box done) and assignments (who worked on it, what
+| they did, todo / in_progress / done). Teammates for a project are its
+| client's team (task-writes.php taskTeamCandidates()); they are for changing
+| a phase, so they need projects:write as well.
 |
 | Scope projects:read. Same rule as projects.php projectScope(): the owner
 | sees every project; anyone else those of the clients assigned to them, the
@@ -17,6 +25,7 @@
 */
 
 require_once __DIR__ . "/_bootstrap.php";
+require_once __DIR__ . "/../task-writes.php";
 
 $p = v1Principal($pdo);
 v1RequireMethod("GET");
@@ -39,6 +48,55 @@ const PROJECT_SQL = "
     LEFT JOIN admins m ON m.id = p.account_manager_admin_id
 ";
 
+/** Teammates and assignments for $taskIds, keyed by task id. */
+function phasePeopleFor(PDO $pdo, array $taskIds)
+{
+    $out = ["teammates" => [], "assignments" => []];
+    if (!$taskIds) {
+        return $out;
+    }
+    $in = implode(",", array_fill(0, count($taskIds), "?"));
+
+    $stmt = $pdo->prepare("
+        SELECT m.task_id, m.admin_id, a.name, a.role, m.is_done
+        FROM project_task_teammates m
+        LEFT JOIN admins a ON a.id = m.admin_id
+        WHERE m.task_id IN ($in)
+        ORDER BY a.name ASC
+    ");
+    $stmt->execute($taskIds);
+    foreach ($stmt->fetchAll() as $r) {
+        $out["teammates"][(int) $r["task_id"]][] = [
+            "id" => (int) $r["admin_id"],
+            "name" => (string) $r["name"],
+            "role" => (string) $r["role"],
+            "is_done" => (int) $r["is_done"] === 1,
+        ];
+    }
+
+    $stmt = $pdo->prepare("
+        SELECT s.id, s.task_id, s.admin_id, a.name, a.role, s.status, s.work_note
+        FROM project_task_assignments s
+        LEFT JOIN admins a ON a.id = s.admin_id
+        WHERE s.task_id IN ($in)
+        ORDER BY s.id ASC
+    ");
+    $stmt->execute($taskIds);
+    foreach ($stmt->fetchAll() as $r) {
+        $out["assignments"][(int) $r["task_id"]][] = [
+            "id" => (int) $r["id"],
+            "admin_id" => (int) $r["admin_id"],
+            "name" => (string) $r["name"],
+            "role" => (string) $r["role"],
+            // todo | in_progress | done
+            "status" => (string) $r["status"],
+            "untrusted_content" => ["work_note" => (string) ($r["work_note"] ?? "")],
+        ];
+    }
+
+    return $out;
+}
+
 function projectItem(array $r)
 {
     return [
@@ -58,7 +116,51 @@ function projectItem(array $r)
     ];
 }
 
+/*
+| My phases: the assignments the admin dashboard lists, and the same query
+| (myPhaseAssignments()) - only projects this connection can see.
+*/
+if (!empty($_GET["mine"])) {
+    $mine = myPhaseAssignments($pdo, $p);
+    v1Reply(200, [
+        "items" => array_map(function ($r) {
+            return [
+                "assignment_id" => (int) $r["assignment_id"],
+                "phase" => ["id" => (int) $r["task_id"], "title" => (string) $r["title"]],
+                "project" => ["id" => (int) $r["project_id"], "title" => (string) $r["project_title"]],
+                "phase_label" => v1NullableString($r["phase_label"]),
+                "due_date" => v1NullableString($r["scheduled_date"]),
+                // todo | in_progress | done
+                "status" => (string) $r["status"],
+                "untrusted_content" => ["work_note" => (string) ($r["work_note"] ?? "")],
+            ];
+        }, $mine["tasks"]),
+        "counts" => $mine["counts"],
+        "projects" => $mine["projects"],
+    ]);
+}
+
 $id = v1IntParam("id");
+
+if ($id !== null && !empty($_GET["teammates"])) {
+    v1RequireScope($p, "projects:write");
+    $project = loadScopedProject($pdo, $p, $id);
+    if (!$project) {
+        v1Error(404, "not_found", "No project with that id among the projects you can see.");
+    }
+    v1Reply(200, [
+        "project" => ["id" => (int) $project["id"], "title" => (string) $project["title"]],
+        "client" => v1NullableString($project["company_name"] ?? null),
+        "items" => array_map(function ($c) use ($p) {
+            return [
+                "id" => $c["id"],
+                "name" => $c["name"],
+                "role" => $c["role"],
+                "is_you" => $c["id"] === (int) $p["id"],
+            ];
+        }, taskTeamCandidates($pdo, $project)),
+    ]);
+}
 
 if ($id !== null) {
     [$where, $params] = v1Where([["p.id = ?", [$id]], $scope]);
@@ -75,7 +177,8 @@ if ($id !== null) {
 
     $taskSql = "
         SELECT t.id, t.title, t.description, t.link, t.status, t.scheduled_date, t.scheduled_time,
-               t.is_complete, t.created_at, a.name AS created_by_name,
+               t.is_complete, t.phase_label, t.role, t.priority, t.notes, t.created_at,
+               a.name AS created_by_name,
                " . TASK_IS_LIVE_SQL . " AS is_live
         FROM project_tasks t
         LEFT JOIN admins a ON a.id = t.created_by_admin_id
@@ -90,7 +193,13 @@ if ($id !== null) {
 
     $stmt = $pdo->prepare($taskSql);
     $stmt->execute($taskParams);
-    $tasks = array_map(function ($r) {
+    $rows = $stmt->fetchAll();
+
+    // The people on every phase, one query per list rather than one per phase.
+    $people = phasePeopleFor($pdo, array_map("intval", array_column($rows, "id")));
+
+    $tasks = array_map(function ($r) use ($people) {
+        $taskId = (int) $r["id"];
         return [
             "id" => (int) $r["id"],
             "title" => (string) $r["title"],
@@ -103,9 +212,18 @@ if ($id !== null) {
             "link" => v1NullableString($r["link"]),
             "created_by_name" => v1NullableString($r["created_by_name"]),
             "created_at" => (string) $r["created_at"],
-            "untrusted_content" => ["description" => v1PlainText($r["description"] ?? "", 2000)],
+            "phase_label" => v1NullableString($r["phase_label"]),
+            "role" => v1NullableString($r["role"]),
+            // low | medium | high
+            "priority" => (string) $r["priority"],
+            "teammates" => $people["teammates"][$taskId] ?? [],
+            "assignments" => $people["assignments"][$taskId] ?? [],
+            "untrusted_content" => [
+                "description" => v1PlainText($r["description"] ?? "", 2000),
+                "notes" => (string) ($r["notes"] ?? ""),
+            ],
         ];
-    }, $stmt->fetchAll());
+    }, $rows);
 
     $stmt = $pdo->prepare("
         SELECT a.id, a.name, a.email, a.role

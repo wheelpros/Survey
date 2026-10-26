@@ -479,43 +479,18 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         try {
             if ($action === "set_done") {
-                $done = ($_POST["done"] ?? "") === "1" ? 1 : 0;
-
-                $stmt = $pdo->prepare("
-                    UPDATE project_task_teammates
-                    SET is_done = ?, done_at = IF(? = 1, NOW(), NULL)
-                    WHERE task_id = ? AND admin_id = ?
-                ");
-                $stmt->execute([$done, $done, $taskId, (int) $admin["id"]]);
-
-                $stmt = $pdo->prepare("SELECT 1 FROM project_task_teammates WHERE task_id = ? AND admin_id = ?");
-                $stmt->execute([$taskId, (int) $admin["id"]]);
-                if (!$stmt->fetchColumn()) {
-                    response(false, "Only a teammate on this phase can tick their box.", [], 403);
-                }
-
+                $done = setOwnPhaseDone($pdo, $taskId, $admin["id"], ($_POST["done"] ?? "") === "1");
                 response(true, $done ? "Marked as done." : "Marked as not done.", ["done" => $done]);
             }
 
-            $status = (string) ($_POST["status"] ?? "");
-            if (!array_key_exists($status, TASK_ASSIGNMENT_STATUSES)) {
-                response(false, "Pick To do, In progress or Done.", [], 400);
-            }
+            $status = setOwnPhaseStatus($pdo, $taskId, $admin["id"], (string) ($_POST["status"] ?? ""));
+            response(true, "Status set to " . TASK_ASSIGNMENT_STATUSES[$status] . ".", ["status" => $status]);
 
-            $stmt = $pdo->prepare("SELECT 1 FROM project_task_assignments WHERE task_id = ? AND admin_id = ?");
-            $stmt->execute([$taskId, (int) $admin["id"]]);
-            if (!$stmt->fetchColumn()) {
-                response(false, "Only someone assigned to this phase can change their status.", [], 403);
-            }
-
-            $stmt = $pdo->prepare("UPDATE project_task_assignments SET status = ? WHERE task_id = ? AND admin_id = ?");
-            $stmt->execute([$status, $taskId, (int) $admin["id"]]);
-
+        } catch (PortalWriteError $e) {
+            response(false, $e->getMessage(), [], $e->status === 422 ? 400 : $e->status);
         } catch (Throwable $e) {
             response(false, "Could not save your status.", [], 500);
         }
-
-        response(true, "Status set to " . TASK_ASSIGNMENT_STATUSES[$status] . ".", ["status" => $status]);
     }
 
     $id = isset($_POST["id"]) ? (int) $_POST["id"] : 0;
@@ -638,10 +613,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         $newcomers = [];
         if ($teammateIds !== null) {
-            $newcomers = saveTaskTeammates($pdo, $admin, $project, $id, $title, $teammateIds);
+            $newcomers = saveTaskTeammates($pdo, $project, $id, $teammateIds);
         }
         if ($assignments !== null) {
-            $newcomers = array_merge($newcomers, saveTaskAssignments($pdo, $admin, $project, $id, $title, $assignments));
+            $newcomers = array_merge($newcomers, saveTaskAssignments($pdo, $project, $id, $assignments));
         }
         notifyAddedToPhase($pdo, $admin, $project, $id, $title, $newcomers);
     } catch (Throwable $e) {

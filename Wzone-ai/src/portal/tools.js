@@ -313,11 +313,38 @@ export const READ_TOOLS = [
     scope: "projects:read",
     title: "Get a project",
     description:
-      "One project with its members and task updates. is_live says whether the client " +
-      "can see a task yet.",
+      "One project with its members and its phases (the task updates). is_live says whether the " +
+      "client can see a phase yet. Each phase carries its stage, role, priority, the team's notes, " +
+      "its teammates (and who has ticked their part done) and its assignments (who worked on it, " +
+      "what they did, todo / in_progress / done).",
     input: { id: recordId("The project's id") },
     output: S.projectDetail,
     path: "projects.php",
+  },
+  {
+    name: "list_phase_teammates",
+    scope: "projects:write",
+    title: "Who can work on a phase",
+    description:
+      "The people who can be put on a project's phases: its client's team. Use their ids for " +
+      "team and assignments in post_project_update or update_task.",
+    input: { id: recordId("The project's id - from list_projects") },
+    output: S.phaseTeammates,
+    path: "projects.php",
+    query: (args) => ({ ...args, teammates: 1 }),
+  },
+  {
+    name: "list_my_phases",
+    scope: "projects:read",
+    title: "My phases",
+    description:
+      "The phases you are assigned to, across every project you can see, with your status on " +
+      "each (todo, in_progress, done) and the counts - the portal's admin dashboard. Change your " +
+      "own status with set_my_phase_status.",
+    input: {},
+    output: S.myPhases,
+    path: "projects.php",
+    query: () => ({ mine: 1 }),
   },
 
   // ── Notifications ─────────────────────────────────────────────────────

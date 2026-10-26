@@ -293,27 +293,78 @@ export const projectItem = z.object({
   task_count: id,
 });
 
+const assignmentStatus = z.string().describe("todo, in_progress or done");
+
 export const projectDetail = {
   ...projectItem.shape,
   created_at: dateTime,
   updated_at: dateTime,
   members: z.array(staffMember),
-  tasks: z.array(
+  tasks: z
+    .array(
+      z.object({
+        id,
+        title: text,
+        status: z.string().describe("draft or published"),
+        is_live: z.boolean().describe("The client can see it now"),
+        is_complete: z.boolean(),
+        scheduled_date: maybe.describe("The due date"),
+        scheduled_time: maybe,
+        link: maybe,
+        created_by_name: maybe,
+        created_at: dateTime,
+        phase_label: maybe.describe("The stage it belongs to, e.g. Planning"),
+        role: maybe.describe("The role the phase calls for"),
+        priority: z.string().describe("low, medium or high"),
+        teammates: z
+          .array(z.object({ id, name: text, role: text, is_done: z.boolean().describe("They ticked their part done") }))
+          .describe("Who is on the phase"),
+        assignments: z
+          .array(
+            z.object({
+              id,
+              admin_id: id,
+              name: text,
+              role: text,
+              status: assignmentStatus,
+              untrusted_content: untrusted({ work_note: text.describe("What they did") }),
+            })
+          )
+          .describe("Who worked on it and how far they got"),
+        untrusted_content: untrusted({ description: text, notes: text.describe("The team's notes - staff only") }),
+      })
+    )
+    .describe("The project's phases (project updates)"),
+  untrusted_content: untrusted({ description: text }),
+};
+
+export const phaseTeammates = {
+  project: z.object({ id, title: text }),
+  client: maybe.describe("The client's company name"),
+  items: z.array(
     z.object({
       id,
-      title: text,
-      status: z.string().describe("draft or published"),
-      is_live: z.boolean().describe("The client can see it now"),
-      is_complete: z.boolean(),
-      scheduled_date: maybe,
-      scheduled_time: maybe,
-      link: maybe,
-      created_by_name: maybe,
-      created_at: dateTime,
-      untrusted_content: untrusted({ description: text }),
+      name: text,
+      role: z.string().describe("account_manager, super_admin or seo_admin"),
+      is_you: z.boolean().describe("This connection's own account"),
     })
   ),
-  untrusted_content: untrusted({ description: text }),
+};
+
+export const myPhases = {
+  items: z.array(
+    z.object({
+      assignment_id: id,
+      phase: z.object({ id, title: text }),
+      project: z.object({ id, title: text }),
+      phase_label: maybe,
+      due_date: maybe,
+      status: assignmentStatus,
+      untrusted_content: untrusted({ work_note: text }),
+    })
+  ),
+  counts: z.object({ todo: id, in_progress: id, done: id }),
+  projects: id.describe("How many projects you can see"),
 };
 
 // ── Notifications ───────────────────────────────────────────────────────

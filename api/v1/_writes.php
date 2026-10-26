@@ -385,6 +385,168 @@ function loadEditableTask(PDO $pdo, array $p, $id)
     return [$task, $project];
 }
 
+/*
+|--------------------------------------------------------------------------
+| A phase's own fields and people
+|--------------------------------------------------------------------------
+|
+| What post_project_update and update_task carry beyond the update itself,
+| the same as project-task-form.html: phase, role, priority, notes (staff
+| only), team (teammate ids) and assignments ([{admin_id, work_note, status}],
+| one row per person). Only the ones given. People come from the client's
+| team plus anyone already on the phase (task-writes.php allowedTaskPeople()),
+| and someone else is refused at prepare rather than dropped at apply.
+|
+*/
+
+/** The ids from $ids that $project's phase can't take, given who is on it now. */
+function phasePeopleRefused(PDO $pdo, array $project, array $ids, array $current)
+{
+    return array_values(array_diff($ids, allowedTaskPeople($pdo, $project, $ids, $current)));
+}
+
+function phasePeopleError(array $project, array $bad)
+{
+    $company = trim((string) ($project["company_name"] ?? ""));
+    return new PortalWriteError(
+        "Not on " . ($company !== "" ? "$company's" : "the client's") . " team: id " . implode(", ", $bad)
+        . ". list_phase_teammates shows who can go on a phase."
+    );
+}
+
+/** "Nour (in progress), Sam (to do)" - an assignment list, for a summary. */
+function assignmentsLabel(PDO $pdo, array $rows)
+{
+    if (!$rows) {
+        return "(nobody)";
+    }
+    $names = explode(", ", adminNames($pdo, array_column($rows, "admin_id")));
+    return implode(", ", array_map(function ($row, $i) use ($names) {
+        return ($names[$i] ?? "#" . $row["admin_id"]) . " (" . strtolower(TASK_ASSIGNMENT_STATUSES[$row["status"]]) . ")";
+    }, $rows, array_keys($rows)));
+}
+
+/**
+ * Checks the phase fields in $a and adds each to $args and, when it changes,
+ * to $changes. $task is the phase being edited, or null for a new one.
+ */
+function phaseArgs(PDO $pdo, array $a, array &$args, array &$changes, array $project, ?array $task = null)
+{
+    foreach (["phase" => "phase_label", "role" => "role"] as $key => $column) {
+        if (array_key_exists($key, $a)) {
+            $args[$key] = argText($a, $key, 80, false);
+            noteChange($changes, $key, $task ? (string) ($task[$column] ?? "") : null, $args[$key]);
+        }
+    }
+    if (array_key_exists("priority", $a)) {
+        $args["priority"] = argEnum($a, "priority", TASK_PRIORITIES);
+        noteChange($changes, "priority", $task["priority"] ?? null, $args["priority"]);
+    }
+    if (array_key_exists("notes", $a)) {
+        $args["notes"] = argText($a, "notes", TASK_NOTES_MAX_CHARS, false);
+        noteChange($changes, "team notes", $task ? (string) ($task["notes"] ?? "") : null, $args["notes"]);
+    }
+
+    $people = $task ? taskTeamPayload($pdo, $task["id"]) : ["teammates" => [], "assignments" => []];
+
+    if (array_key_exists("team", $a) && $a["team"] !== null) {
+        $list = $a["team"];
+        if (!is_array($list) || array_values($list) !== $list) {
+            throw new PortalWriteError("team must be a list of teammate ids - from list_phase_teammates.");
+        }
+        foreach ($list as $id) {
+            if (!is_int($id) || $id <= 0) {
+                throw new PortalWriteError("team must be a list of teammate ids - from list_phase_teammates.");
+            }
+        }
+        $ids = array_values(array_unique($list));
+        $current = array_column($people["teammates"], "id");
+        if ($bad = phasePeopleRefused($pdo, $project, $ids, $current)) {
+            throw phasePeopleError($project, $bad);
+        }
+        $args["team"] = $ids;
+        $before = $current;
+        $after = $ids;
+        sort($before);
+        sort($after);
+        if ($before !== $after) {
+            noteChange($changes, "team", $task ? adminNames($pdo, $current) : null, adminNames($pdo, $ids));
+        }
+    }
+
+    if (array_key_exists("assignments", $a) && $a["assignments"] !== null) {
+        $list = $a["assignments"];
+        if (!is_array($list) || array_values($list) !== $list) {
+            throw new PortalWriteError("assignments must be a list of {admin_id, work_note, status}.");
+        }
+        $rows = [];
+        foreach ($list as $i => $row) {
+            $n = $i + 1;
+            if (!is_array($row) || !is_int($row["admin_id"] ?? null) || $row["admin_id"] <= 0) {
+                throw new PortalWriteError("assignments item $n needs an admin_id - from list_phase_teammates.");
+            }
+            if (isset($rows[$row["admin_id"]])) {
+                throw new PortalWriteError("assignments lists admin $row[admin_id] twice - one row per person.");
+            }
+            $rows[$row["admin_id"]] = [
+                "admin_id" => $row["admin_id"],
+                "work_note" => argText($row, "work_note", 2000, false),
+                "status" => argEnum($row, "status", array_keys(TASK_ASSIGNMENT_STATUSES), "todo"),
+            ];
+        }
+        $rows = array_values($rows);
+        $current = array_column($people["assignments"], "admin_id");
+        if ($bad = phasePeopleRefused($pdo, $project, array_column($rows, "admin_id"), $current)) {
+            throw phasePeopleError($project, $bad);
+        }
+        $args["assignments"] = $rows;
+        $was = array_map(function ($r) {
+            return ["admin_id" => $r["admin_id"], "work_note" => $r["work_note"], "status" => $r["status"]];
+        }, $people["assignments"]);
+        if ($was !== $rows) {
+            noteChange($changes, "assignments", $task ? assignmentsLabel($pdo, $was) : null, assignmentsLabel($pdo, $rows));
+        }
+    }
+}
+
+/** The phase columns from prepared $a, for saveProjectTask() - only those given. */
+function phaseColumnsFrom(array $a)
+{
+    $f = [];
+    if (array_key_exists("phase", $a)) {
+        $f["phase_label"] = $a["phase"];
+    }
+    foreach (["role", "priority", "notes"] as $key) {
+        if (array_key_exists($key, $a)) {
+            $f[$key] = $a[$key];
+        }
+    }
+    return $f;
+}
+
+/**
+ * Saves prepared team and assignments, then tells each newcomer once. An
+ * assignment keeps its row (and what the person set on it) when the same
+ * person is listed again.
+ */
+function savePhasePeople(PDO $pdo, array $p, array $project, $taskId, $title, array $a)
+{
+    $newcomers = [];
+    if (array_key_exists("team", $a)) {
+        $newcomers = saveTaskTeammates($pdo, $project, $taskId, $a["team"]);
+    }
+    if (array_key_exists("assignments", $a)) {
+        $stmt = $pdo->prepare("SELECT admin_id, id FROM project_task_assignments WHERE task_id = ?");
+        $stmt->execute([(int) $taskId]);
+        $rowIds = array_column($stmt->fetchAll(), "id", "admin_id");
+        $rows = array_map(function ($r) use ($rowIds) {
+            return $r + ["id" => $rowIds[$r["admin_id"]] ?? null];
+        }, $a["assignments"]);
+        $newcomers = array_merge($newcomers, saveTaskAssignments($pdo, $project, $taskId, $rows));
+    }
+    notifyAddedToPhase($pdo, $p, $project, $taskId, $title, $newcomers);
+}
+
 /** A client's own users row, for the shared writes that name them. */
 function clientRow(PDO $pdo, array $p)
 {
@@ -1344,21 +1506,40 @@ function v1WriteHandlers()
                 }
                 $client = clientLabelFor(["name" => $project["client_name"] ?? "the client", "company_name" => $project["company_name"]]);
                 $later = $date !== null && $date > date("Y-m-d");
+                $args = ["project" => $projectId, "title" => $title, "body" => $body, "date" => $date, "time" => $time,
+                         "link" => $link, "publish" => $publish];
+                $extras = [];
+                phaseArgs($pdo, $a, $args, $extras, $project);
+                // What the phase carries for the team, after what the client sees.
+                $forTeam = $extras ? " For the team: " . implode("; ", array_map(function ($c) {
+                    return $c["field"] . " " . quoteFor($c["to"], 80);
+                }, $extras)) . (array_key_exists("team", $args) || array_key_exists("assignments", $args)
+                    ? " (each person added is notified)." : ".") : "";
                 return [
-                    "args" => ["project" => $projectId, "title" => $title, "body" => $body, "date" => $date, "time" => $time,
-                               "link" => $link, "publish" => $publish],
-                    "summary" => $publish
+                    "args" => $args,
+                    "summary" => ($publish
                         ? "Publish the update " . quoteFor($title) . " on the project " . quoteFor($project["title"]) . ". "
                           . ($later ? "$client can see it from $date, and is notified once it is live there."
                                     : "$client can see it straight away, and is notified.")
                         : "Save the update " . quoteFor($title) . " on " . quoteFor($project["title"])
-                          . " as a draft. Only the project team can see it.",
+                          . " as a draft. Only the project team can see it.") . $forTeam,
                     "preview" => [
                         "project" => ["id" => (int) $project["id"], "title" => (string) $project["title"]],
                         "client" => $client,
                         "title" => $title, "date" => $date, "time" => $time, "link" => $link,
                         "status" => $publish ? "published" : "draft",
-                        "untrusted_content" => ["body" => $body],
+                        "phase" => $args["phase"] ?? null,
+                        "role" => $args["role"] ?? null,
+                        "priority" => $args["priority"] ?? "medium",
+                        "team" => $args["team"] ?? [],
+                        "assignments" => array_map(function ($r) {
+                            return ["admin_id" => $r["admin_id"], "status" => $r["status"]];
+                        }, $args["assignments"] ?? []),
+                        "untrusted_content" => [
+                            "body" => $body,
+                            "notes" => $args["notes"] ?? null,
+                            "work_notes" => array_column($args["assignments"] ?? [], "work_note"),
+                        ],
                     ],
                 ];
             },
@@ -1373,7 +1554,8 @@ function v1WriteHandlers()
                     "scheduled_date" => $a["date"],
                     "scheduled_time" => $a["time"] !== null ? $a["time"] . ":00" : null,
                     "status" => $a["publish"] ? "published" : "draft",
-                ]);
+                ] + phaseColumnsFrom($a));
+                savePhasePeople($pdo, $p, $project, $id, $a["title"], $a);
                 return [
                     "task_id" => $id,
                     "status" => $a["publish"] ? "published" : "draft",
@@ -1420,6 +1602,7 @@ function v1WriteHandlers()
                     $args["is_complete"] = argBool($a, "is_complete", false);
                     $change("is_complete", (int) $task["is_complete"] === 1 ? "true" : "false", $args["is_complete"] ? "true" : "false");
                 }
+                phaseArgs($pdo, $a, $args, $changes, $project, $task);
                 if (!$changes) {
                     throw new PortalWriteError("Nothing to change - every value given is what the task already has.");
                 }
@@ -1428,7 +1611,8 @@ function v1WriteHandlers()
                 return [
                     "args" => $args,
                     "summary" => "Change the update " . quoteFor($task["title"]) . " on " . quoteFor($project["title"]) . ": "
-                        . describeChanges($changes) . ". " . ($nowDraft ? "It stays a draft only the team sees." : "$client can see it once its date has come."),
+                        . describeChanges($changes) . ". " . ($nowDraft ? "It stays a draft only the team sees." : "$client can see it once its date has come.")
+                        . (array_key_exists("team", $args) || array_key_exists("assignments", $args) ? " Each person added is notified." : ""),
                     "preview" => [
                         "task_id" => $id,
                         "project" => ["id" => (int) $project["id"], "title" => (string) $project["title"]],
@@ -1455,11 +1639,78 @@ function v1WriteHandlers()
                         : $task["scheduled_time"],
                     "is_complete" => $a["is_complete"] ?? ((int) $task["is_complete"] === 1),
                     "status" => $a["status"] ?? $task["status"],
-                ]);
+                ] + phaseColumnsFrom($a));
+                savePhasePeople($pdo, $p, $project, $a["id"], $title, $a);
                 return [
                     "task_id" => (int) $a["id"],
                     "client_notified" => announceTaskIfLive($pdo, $p, $project, $a["id"], $title),
                 ];
+            },
+        ],
+
+        "set_my_phase_status" => [
+            "scope" => "projects:write",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                $id = argInt($a, "id");
+                $stmt = $pdo->prepare("SELECT * FROM project_tasks WHERE id = ? LIMIT 1");
+                $stmt->execute([$id]);
+                $task = $stmt->fetch();
+                $project = $task ? loadScopedProject($pdo, $p, $task["project_id"]) : null;
+                if (!$task || !$project) {
+                    throw new PortalWriteError("No phase with that id on the projects you can see.", 404);
+                }
+                $args = ["id" => $id];
+                $changes = [];
+                $people = taskTeamPayload($pdo, $id);
+                if (array_key_exists("status", $a)) {
+                    $args["status"] = argEnum($a, "status", array_keys(TASK_ASSIGNMENT_STATUSES));
+                    $mine = array_values(array_filter($people["assignments"], function ($r) use ($p) {
+                        return $r["admin_id"] === (int) $p["id"];
+                    }));
+                    if (!$mine) {
+                        throw new PortalWriteError("Only someone assigned to this phase can change their status.", 403);
+                    }
+                    noteChange($changes, "your status", strtolower(TASK_ASSIGNMENT_STATUSES[$mine[0]["status"]] ?? $mine[0]["status"]),
+                        strtolower(TASK_ASSIGNMENT_STATUSES[$args["status"]]));
+                }
+                if (array_key_exists("done", $a)) {
+                    $args["done"] = argBool($a, "done", false);
+                    $mine = array_values(array_filter($people["teammates"], function ($r) use ($p) {
+                        return $r["id"] === (int) $p["id"];
+                    }));
+                    if (!$mine) {
+                        throw new PortalWriteError("Only a teammate on this phase can tick their box.", 403);
+                    }
+                    noteChange($changes, "your box", $mine[0]["is_done"] ? "done" : "not done", $args["done"] ? "done" : "not done");
+                }
+                if (count($args) === 1) {
+                    throw new PortalWriteError("Give status, done or both.");
+                }
+                if (!$changes) {
+                    throw new PortalWriteError("Nothing to change - that is already where you stand on this phase.");
+                }
+                return [
+                    "args" => $args,
+                    "summary" => "On the phase " . quoteFor($task["title"]) . " of " . quoteFor($project["title"]) . ": "
+                        . describeChanges($changes) . ". Only your own part changes; the team sees it.",
+                    "preview" => [
+                        "phase_id" => $id,
+                        "project" => ["id" => (int) $project["id"], "title" => (string) $project["title"]],
+                        "status" => $args["status"] ?? null,
+                        "done" => $args["done"] ?? null,
+                    ],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                ensureProjectTables($pdo);
+                $result = ["phase_id" => (int) $a["id"]];
+                if (array_key_exists("status", $a)) {
+                    $result["status"] = setOwnPhaseStatus($pdo, $a["id"], $p["id"], $a["status"]);
+                }
+                if (array_key_exists("done", $a)) {
+                    $result["done"] = setOwnPhaseDone($pdo, $a["id"], $p["id"], $a["done"]) === 1;
+                }
+                return $result;
             },
         ],
 

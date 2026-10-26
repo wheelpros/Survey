@@ -106,3 +106,63 @@ $r = json_decode((string) @file_get_contents("http://127.0.0.1:$port/api/project
 check("phases: deleting a phase takes its people with it", ($r["success"] ?? false)
     && phasePeople($pdo, "project_task_teammates", $phaseId) === []
     && phasePeople($pdo, "project_task_assignments", $phaseId) === [], json_encode($r));
+
+// ── The same over api/v1 (MCP) ──────────────────────────────────────────
+
+$samBefore  = notes($pdo, "admin", 2, "project_assigned");
+$seanBefore = notes($pdo, "admin", 5, "project_assigned");
+
+[$prep, $done] = change("v1 phases: post a phase with its people", $owner, "post_project_update", [
+    "project" => 500, "title" => "AI phase", "publish" => false,
+    "phase" => "Design", "role" => "UI Designer", "priority" => "high", "notes" => "Use the new palette",
+    "team" => [2, 5],
+    "assignments" => [["admin_id" => 5, "work_note" => "Mockups", "status" => "in_progress"]],
+]);
+$v1Phase = (int) ($done["data"]["result"]["task_id"] ?? 0);
+$row = one($pdo, "SELECT * FROM project_tasks WHERE id = ?", [$v1Phase]);
+check("v1 phases: the summary names the team", strpos($prep["data"]["summary"] ?? "", "For the team:") !== false, json_encode($prep));
+check("v1 phases: fields and people are saved", $row && $row["phase_label"] === "Design" && $row["priority"] === "high"
+    && phasePeople($pdo, "project_task_teammates", $v1Phase) === [2, 5]
+    && phasePeople($pdo, "project_task_assignments", $v1Phase) === [5], json_encode($done));
+check("v1 phases: each newcomer is told once", notes($pdo, "admin", 2, "project_assigned") === $samBefore + 1
+    && notes($pdo, "admin", 5, "project_assigned") === $seanBefore + 1);
+
+refusedChange("v1 phases: someone off the client's team is refused", $owner, "post_project_update",
+    ["project" => 500, "title" => "x", "team" => [4]], 422);
+refusedChange("v1 phases: one row per person", $owner, "update_task",
+    ["id" => $v1Phase, "assignments" => [["admin_id" => 5], ["admin_id" => 5]]], 422);
+
+$rowId = (int) one($pdo, "SELECT id FROM project_task_assignments WHERE task_id = ?", [$v1Phase])["id"];
+change("v1 phases: change only the priority", $owner, "update_task", ["id" => $v1Phase, "priority" => "low"]);
+check("v1 phases: the people are left alone", phasePeople($pdo, "project_task_teammates", $v1Phase) === [2, 5]
+    && (int) one($pdo, "SELECT id FROM project_task_assignments WHERE task_id = ?", [$v1Phase])["id"] === $rowId
+    && one($pdo, "SELECT priority FROM project_tasks WHERE id = ?", [$v1Phase])["priority"] === "low");
+
+change("v1 phases: listing someone again keeps their row", $owner, "update_task", ["id" => $v1Phase,
+    "assignments" => [["admin_id" => 5, "work_note" => "Mockups signed off", "status" => "done"], ["admin_id" => 3]]]);
+$kept = one($pdo, "SELECT id, work_note, status FROM project_task_assignments WHERE task_id = ? AND admin_id = 5", [$v1Phase]);
+check("v1 phases: same row, new values", (int) $kept["id"] === $rowId && $kept["status"] === "done"
+    && phasePeople($pdo, "project_task_assignments", $v1Phase) === [3, 5]);
+
+[$status, $got] = get("projects.php?id=500", $owner);
+$found = array_values(array_filter($got["data"]["tasks"] ?? [], function ($t) use ($v1Phase) { return $t["id"] === $v1Phase; }));
+check("v1 phases: get_project shows the people", $found && $found[0]["phase_label"] === "Design"
+    && count($found[0]["teammates"]) === 2 && count($found[0]["assignments"]) === 2
+    && $found[0]["untrusted_content"]["notes"] === "Use the new palette", json_encode($found));
+
+[$status, $got] = get("projects.php?id=500&teammates=1", $owner);
+$pool = array_column($got["data"]["items"] ?? [], "id");
+sort($pool);
+check("v1 phases: list_phase_teammates is the client's team", $status === 200 && $pool === [2, 3, 5], json_encode($got));
+
+[$status, $got] = get("projects.php?mine=1", $am);
+check("v1 phases: list_my_phases is mine", $status === 200 && array_column(array_column($got["data"]["items"] ?? [], "phase"), "id") === [$v1Phase]
+    && ($got["data"]["counts"]["todo"] ?? null) === 1, json_encode($got));
+
+change("v1 phases: I move my own status", $am, "set_my_phase_status", ["id" => $v1Phase, "status" => "in_progress"]);
+check("v1 phases: my row moved", one($pdo, "SELECT status FROM project_task_assignments WHERE task_id = ? AND admin_id = 3", [$v1Phase])["status"] === "in_progress");
+refusedChange("v1 phases: not on the phase, no status to move", $sa, "set_my_phase_status", ["id" => $v1Phase, "status" => "done"], 403);
+refusedChange("v1 phases: no box when not a teammate", $am, "set_my_phase_status", ["id" => $v1Phase, "done" => true], 403);
+change("v1 phases: a teammate ticks their box", $sa, "set_my_phase_status", ["id" => $v1Phase, "done" => true]);
+refusedChange("v1 phases: status or done is needed", $sa, "set_my_phase_status", ["id" => $v1Phase], 422);
+refusedChange("v1 phases: a project out of scope", $am2, "set_my_phase_status", ["id" => $v1Phase, "status" => "done"], 404);

@@ -10,15 +10,16 @@
 | counts the donut and stat cards show, and how many projects they can see.
 |
 | Read-only: changing "My status" posts action=set_my_status to
-| api/project-tasks.php, the one place an assignment's status is written.
+| api/project-tasks.php.
 |
-| Only projects inside projectScopeSql() are listed, the same rule the
-| project pages use - an assignment on a project the admin cannot open is
-| not something to link to.
+| The query is myPhaseAssignments() in task-writes.php, shared with api/v1's
+| list_my_phases: only projects inside projectScopeSql(), the same rule the
+| project pages use.
 |
 */
 
 require_once "db.php";
+require_once "task-writes.php";
 
 header("Content-Type: application/json; charset=UTF-8");
 
@@ -76,48 +77,15 @@ if ($_SERVER["REQUEST_METHOD"] !== "GET") {
 ensureProjectTables($pdo);
 
 try {
-    [$scopeSql, $scopeParams] = projectScopeSql($admin);
-    $scope = $scopeSql !== "" ? " AND " . $scopeSql : "";
-
-    $stmt = $pdo->prepare("
-        SELECT
-            s.id          AS assignment_id,
-            s.status,
-            s.work_note,
-            t.id          AS task_id,
-            t.title,
-            t.scheduled_date,
-            t.phase_label,
-            p.id          AS project_id,
-            p.title       AS project_title
-        FROM project_task_assignments s
-        JOIN project_tasks t ON t.id = s.task_id
-        JOIN projects p      ON p.id = t.project_id
-        WHERE s.admin_id = ?" . $scope . "
-        ORDER BY t.scheduled_date IS NULL, t.scheduled_date ASC, s.id ASC
-    ");
-    $stmt->execute(array_merge([(int) $admin["id"]], $scopeParams));
-    $tasks = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    $counts = array_fill_keys(array_keys(TASK_ASSIGNMENT_STATUSES), 0);
-    foreach ($tasks as $task) {
-        if (isset($counts[$task["status"]])) {
-            $counts[$task["status"]]++;
-        }
-    }
-
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM projects p WHERE 1 = 1" . $scope);
-    $stmt->execute($scopeParams);
-    $projects = (int) $stmt->fetchColumn();
-
+    $mine = myPhaseAssignments($pdo, $admin);
 } catch (Throwable $e) {
     response(false, "Could not load your dashboard.", [], 500);
 }
 
 response(true, "Dashboard loaded.", [
-    "tasks"    => $tasks,
-    "counts"   => $counts,
-    "projects" => $projects,
+    "tasks"    => $mine["tasks"],
+    "counts"   => $mine["counts"],
+    "projects" => $mine["projects"],
     "statuses" => TASK_ASSIGNMENT_STATUSES,
     "today"    => date("Y-m-d"),
 ]);
