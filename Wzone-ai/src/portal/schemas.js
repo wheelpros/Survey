@@ -409,7 +409,12 @@ export const settings = {
         role_name: text,
         active: z.boolean().describe("false: they can't sign in"),
         managed_by: id.nullable().describe("The manager's admin id"),
-        untrusted_content: untrusted({ name: text, email: text, managed_by_name: maybe }),
+        untrusted_content: untrusted({
+          name: text,
+          email: text,
+          position: maybe.describe("Shown in their sidebar instead of their name; null for the admins added before positions"),
+          managed_by_name: maybe,
+        }),
       })
     )
     .describe("Everyone on the team but the owner"),

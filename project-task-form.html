@@ -192,7 +192,7 @@ select.client-filter{
 .pill-link svg{width:13px;height:13px}
 .form-top h1{font-size:15px;font-weight:800;color:var(--muted)}
 
-.form-wrap{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;max-width:880px;padding-bottom:96px}
+.form-wrap{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;padding-bottom:96px}
 .form-card{background:#fff;border:1px solid var(--line);border-radius:16px}
 .form-card[hidden]{display:none}
 .card-pad{padding:20px 22px}
@@ -219,6 +219,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--nav-active);box-shado
 .field-row[hidden]{display:none}
 .hint{font-size:11px;color:#98a2b3;margin-top:6px}
 .three-up{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+/* Title takes the room; Visibility sits beside it. */
+.title-row{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:12px}
 .media-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .media-error{display:none;font-size:12px;color:var(--brand);font-weight:700;margin-top:8px}
 .media-error.show{display:block}
@@ -322,7 +324,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--nav-active);box-shado
   .save-bar{left:0}
 }
 @media(max-width:700px){
-  .three-up{grid-template-columns:1fr}
+  .three-up,.title-row{grid-template-columns:1fr}
   .hero{height:150px}
   .card-pad{padding:16px}
   /* The table becomes one card per person: a four-column row cannot be read
@@ -373,7 +375,7 @@ document.addEventListener("DOMContentLoaded", function () {
   set("adminName", name);  set("adminRole", label);  set("adminAvatar", initial);
   set("acctRole", label);
 });
-</script><link rel="stylesheet" href="assets/shell.css?v=5" />
+</script><link rel="stylesheet" href="assets/shell.css?v=6" />
 
 </head><body>
 <aside class="admin-sidebar">
@@ -466,9 +468,18 @@ document.addEventListener("DOMContentLoaded", function () {
         </div>
 
         <div class="card-pad">
-          <div class="field-row">
-            <label for="taskName">Title</label>
-            <input type="text" id="taskName" maxlength="200" dir="auto" placeholder="Title">
+          <div class="field-row title-row">
+            <div>
+              <label for="taskName">Title</label>
+              <input type="text" id="taskName" maxlength="200" dir="auto" placeholder="Title">
+            </div>
+            <div>
+              <label for="visibility">Visibility</label>
+              <select id="visibility" onchange="paintVisibility()">
+                <option value="published">Published</option>
+                <option value="draft">Draft</option>
+              </select>
+            </div>
           </div>
 
           <div class="field-row">
@@ -508,14 +519,7 @@ document.addEventListener("DOMContentLoaded", function () {
             </div>
           </div>
 
-          <div class="field-row">
-            <label for="visibility">Visibility</label>
-            <select id="visibility" onchange="paintVisibility()">
-              <option value="published">Published</option>
-              <option value="draft">Draft</option>
-            </select>
-            <p class="hint" id="scheduleNote">A published phase dated in the future is shown to the client on that date.</p>
-          </div>
+          <p class="hint" id="scheduleNote" style="margin-top:-6px">A published phase dated in the future is shown to the client on that date.</p>
 
           <div class="field-row switch-row">
             <span class="label">Mark as completed</span>
@@ -632,10 +636,9 @@ document.addEventListener("DOMContentLoaded", function () {
       <button type="button" onclick="closeAccount()" aria-label="Close">&times;</button>
     </div>
     <div class="acct-body">
-      <div class="acct-who">
-        <span class="acct-label">Your role</span>
-        <strong class="acct-role" id="acctRole"></strong>
-      </div>
+      <div class="acct-avatar" id="acctAvatar">A</div>
+      <strong id="acctName">Admin</strong>
+      <div class="acct-role" id="acctRole"></div>
       <button class="acct-logout" type="button" onclick="logoutAdmin()">&#8617; Log out</button>
     </div>
   </div>
@@ -1322,7 +1325,7 @@ load();
 </script>
 <script src="assets/notifications.js?v=1"></script>
 <script src="assets/confirm.js?v=1"></script>
-<script src="assets/shell.js?v=4"></script>
+<script src="assets/shell.js?v=5"></script>
 <script src="assets/sources-lock.js?v=1"></script>
-<script src="assets/role-nav.js?v=2"></script>
+<script src="assets/role-nav.js?v=3"></script>
 </body></html>

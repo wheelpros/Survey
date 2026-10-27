@@ -45,8 +45,10 @@ function adminLabel(array $row)
 
 function findAdminRow(PDO $pdo, $id)
 {
+    ensureAdminColumns($pdo);
+
     $stmt = $pdo->prepare("
-        SELECT id, name, email, role, active, managed_by_admin_id
+        SELECT id, name, email, role, active, managed_by_admin_id, position
         FROM admins
         WHERE id = ?
         LIMIT 1
@@ -435,10 +437,12 @@ function removeLoginSlide(PDO $pdo, $id)
 /** Every admin but the owner, with who manages them - the Available Admins panel. */
 function listTeamAdmins(PDO $pdo)
 {
+    ensureAdminColumns($pdo);
+
     return $pdo->query("
         SELECT
             admins.id, admins.name, admins.email, admins.role, admins.active,
-            admins.managed_by_admin_id,
+            admins.managed_by_admin_id, admins.position,
             manager.name AS managed_by_name
         FROM admins
         LEFT JOIN admins manager ON manager.id = admins.managed_by_admin_id
@@ -587,15 +591,45 @@ function checkNewAdmin(PDO $pdo, $name, $email, $role)
     return [$name, $email];
 }
 
-/** $password is the plain password, or null for one nobody knows. Returns the id. */
-function createAdmin(PDO $pdo, $name, $email, $role, $password = null)
+/**
+ * An admin's position, trimmed: what the sidebar and the popup show in place
+ * of their name. Required when adding someone; at most 100 characters.
+ */
+function checkAdminPosition($position)
 {
+    $position = trim(preg_replace('/\s+/', " ", (string) $position));
+
+    if ($position === "") {
+        throw new PortalWriteError("Position is required, e.g. SEO Specialist.");
+    }
+
+    if (mb_strlen($position) > 100) {
+        throw new PortalWriteError("Position must be 100 characters or fewer.");
+    }
+
+    return $position;
+}
+
+/** $password is the plain password, or null for one nobody knows. Returns the id. */
+function createAdmin(PDO $pdo, $name, $email, $role, $password = null, $position = null)
+{
+    ensureAdminColumns($pdo);
+
     $hash = password_hash($password ?? bin2hex(random_bytes(32)), PASSWORD_DEFAULT);
 
-    $pdo->prepare("INSERT INTO admins (name, email, password, role, active) VALUES (?, ?, ?, ?, 1)")
-        ->execute([$name, $email, $hash, $role]);
+    $pdo->prepare("INSERT INTO admins (name, email, password, role, active, position) VALUES (?, ?, ?, ?, 1, ?)")
+        ->execute([$name, $email, $hash, $role, $position]);
 
     return (int) $pdo->lastInsertId();
+}
+
+/** Sets an existing admin's position. Nobody is signed out - it is only a label. */
+function setAdminPosition(PDO $pdo, $adminId, $position)
+{
+    ensureAdminColumns($pdo);
+
+    $pdo->prepare("UPDATE admins SET position = ? WHERE id = ?")
+        ->execute([checkAdminPosition($position), (int) $adminId]);
 }
 
 /**

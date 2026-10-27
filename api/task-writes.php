@@ -486,6 +486,124 @@ function myPhaseAssignments(PDO $pdo, array $actor)
     return ["tasks" => $tasks, "counts" => $counts, "projects" => (int) $stmt->fetchColumn()];
 }
 
+/**
+ * Everything on the admin dashboard's "My tasks", as one list. Each item has
+ * a `kind` and a `status` of todo, in_progress or done:
+ *
+ *   assignment  a phase I am assigned to (project_task_assignments): all
+ *               three statuses, moved with set_my_status
+ *   teammate    a phase I am a teammate on but not assigned to: todo or done,
+ *               my own box (project-tasks.php set_done)
+ *   content     a content post I am a teammate on (content_assignees): todo or
+ *               done, my own box (admin-content.php set_done)
+ *
+ * A phase I am both assigned to and a teammate on shows once, as the
+ * assignment. Phases follow projectScopeSql(), as everywhere; a post is mine
+ * by being on it. Returns the items soonest-due first, the counts by status
+ * over all of them, and how many projects I can see.
+ */
+function myDashboardItems(PDO $pdo, array $actor)
+{
+    $mine = myPhaseAssignments($pdo, $actor);
+
+    $items = [];
+
+    foreach ($mine["tasks"] as $r) {
+        $items[] = [
+            "kind" => "assignment",
+            "id" => (int) $r["task_id"],
+            "assignment_id" => (int) $r["assignment_id"],
+            "title" => (string) $r["title"],
+            "chip" => (string) $r["project_title"],
+            "due_date" => $r["scheduled_date"],
+            "label" => $r["phase_label"],
+            "status" => (string) $r["status"],
+            "href" => "project-task-details.html?project=" . (int) $r["project_id"] . "&id=" . (int) $r["task_id"],
+        ];
+    }
+
+    [$scopeSql, $scopeParams] = projectScopeSql($actor);
+    $scope = $scopeSql !== "" ? " AND " . $scopeSql : "";
+
+    $stmt = $pdo->prepare("
+        SELECT t.id AS task_id, t.title, t.scheduled_date, t.phase_label, m.is_done,
+               p.id AS project_id, p.title AS project_title
+        FROM project_task_teammates m
+        JOIN project_tasks t ON t.id = m.task_id
+        JOIN projects p      ON p.id = t.project_id
+        WHERE m.admin_id = ?" . $scope . "
+          AND NOT EXISTS (
+              SELECT 1 FROM project_task_assignments s
+              WHERE s.task_id = t.id AND s.admin_id = m.admin_id
+          )
+    ");
+    $stmt->execute(array_merge([(int) $actor["id"]], $scopeParams));
+
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        $items[] = [
+            "kind" => "teammate",
+            "id" => (int) $r["task_id"],
+            "title" => (string) $r["title"],
+            "chip" => (string) $r["project_title"],
+            "due_date" => $r["scheduled_date"],
+            "label" => $r["phase_label"],
+            "status" => (int) $r["is_done"] === 1 ? "done" : "todo",
+            "href" => "project-task-details.html?project=" . (int) $r["project_id"] . "&id=" . (int) $r["task_id"],
+        ];
+    }
+
+    // A database without the content tables costs the dashboard its posts, not itself.
+    try {
+        ensureContentColumns($pdo);
+
+        $stmt = $pdo->prepare("
+            SELECT c.id, c.title, c.client, c.type_label, c.content_type, c.post_date, a.is_done
+            FROM content_assignees a
+            JOIN content c ON c.id = a.content_id
+            WHERE a.admin_id = ?
+        ");
+        $stmt->execute([(int) $actor["id"]]);
+
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $items[] = [
+                "kind" => "content",
+                "id" => (int) $r["id"],
+                "title" => (string) $r["title"],
+                "chip" => trim((string) $r["client"]) !== "" ? (string) $r["client"] : "Content",
+                "due_date" => $r["post_date"],
+                "label" => $r["type_label"] ?: $r["content_type"],
+                "status" => (int) $r["is_done"] === 1 ? "done" : "todo",
+                "href" => "admin-content-form.html?id=" . (int) $r["id"],
+            ];
+        }
+    } catch (Throwable $e) {
+        // Left out.
+    }
+
+    // Soonest due first, undated last; ties keep the order they were found in.
+    foreach ($items as $i => &$item) {
+        $item["order"] = $i;
+    }
+    unset($item);
+
+    usort($items, function ($a, $b) {
+        $da = $a["due_date"] ?: "9999-12-31";
+        $db = $b["due_date"] ?: "9999-12-31";
+        return $da === $db ? $a["order"] <=> $b["order"] : strcmp($da, $db);
+    });
+
+    $counts = array_fill_keys(array_keys(TASK_ASSIGNMENT_STATUSES), 0);
+    foreach ($items as &$item) {
+        unset($item["order"]);
+        if (isset($counts[$item["status"]])) {
+            $counts[$item["status"]]++;
+        }
+    }
+    unset($item);
+
+    return ["tasks" => $items, "counts" => $counts, "projects" => $mine["projects"]];
+}
+
 /*
 |--------------------------------------------------------------------------
 | Tell the client an update landed

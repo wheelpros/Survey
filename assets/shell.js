@@ -235,9 +235,39 @@
     });
   }
 
+  /* What the account card and the popup call this admin: their position
+     (set by the owner on Settings, e.g. "SEO Specialist"), or their name when
+     they have none. The avatar keeps the initial of the name. Pages paint the
+     name themselves, from the same stored admin_user; this runs after them and
+     is what role-nav.js calls again when a session check finds the position
+     has changed. Admin pages only - the client pages have no #adminName. */
+  function paintAccount() {
+
+    var admin = {};
+
+    try {
+      admin = JSON.parse(localStorage.getItem("admin_user") || "{}") || {};
+    } catch (error) {
+      admin = {};
+    }
+
+    var name = String(admin.name || "").trim();
+    var position = String(admin.position || "").trim();
+    var shown = position || name || "Admin";
+
+    [["adminName", shown], ["acctName", shown], ["adminAvatar", (name || shown).charAt(0).toUpperCase()],
+     ["acctAvatar", (name || shown).charAt(0).toUpperCase()]].forEach(function (pair) {
+      var el = document.getElementById(pair[0]);
+      if (el) el.textContent = pair[1];
+    });
+  }
+
+  window.wzPaintAccount = paintAccount;
+
   function ready() {
     start();
     accountPopup();
+    paintAccount();
   }
 
   if (document.readyState === "loading") {

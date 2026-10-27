@@ -31,8 +31,10 @@ if ($token === "") {
     exit;
 }
 
+ensureAdminColumns($pdo);
+
 $stmt = $pdo->prepare("
-    SELECT id, name, email, role, active
+    SELECT id, name, email, role, active, position
     FROM admins
     WHERE session_token = ?
     LIMIT 1
@@ -54,6 +56,7 @@ echo json_encode([
         "id"    => (int) $admin["id"],
         "name"  => $admin["name"],
         "email" => $admin["email"],
-        "role"  => $admin["role"]
+        "role"  => $admin["role"],
+        "position" => $admin["position"]
     ]
 ]);

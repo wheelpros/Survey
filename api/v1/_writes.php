@@ -1858,15 +1858,17 @@ function v1WriteHandlers()
             "prepare" => function (PDO $pdo, array $p, array $a) {
                 $role = argEnum($a, "role", ASSIGNABLE_ADMIN_ROLES);
                 [$name, $email] = checkNewAdmin($pdo, argText($a, "name", 100), argText($a, "email", 190), $role);
+                $position = checkAdminPosition($a["position"] ?? "");
                 return [
-                    "args" => ["name" => $name, "email" => $email, "role" => $role],
+                    "args" => ["name" => $name, "email" => $email, "role" => $role, "position" => $position],
                     "summary" => "Add " . quoteFor($name) . " (" . $email . ") to the admin team as " . adminRoleName($role)
+                        . ", with the position " . quoteFor($position) . " - shown in their sidebar instead of their name"
                         . ". They are emailed a link to choose their password, good for 3 days.",
-                    "preview" => ["role" => $role, "untrusted_content" => ["name" => $name, "email" => $email]],
+                    "preview" => ["role" => $role, "untrusted_content" => ["name" => $name, "email" => $email, "position" => $position]],
                 ];
             },
             "apply" => function (PDO $pdo, array $p, array $a) {
-                $id = createAdmin($pdo, $a["name"], $a["email"], $a["role"]);
+                $id = createAdmin($pdo, $a["name"], $a["email"], $a["role"], null, $a["position"]);
                 $emailed = emailNewAdminWelcome($pdo, $id, $a["name"], $a["email"], $a["role"], $p["name"]);
                 return [
                     "admin_id" => $id,
@@ -1874,6 +1876,34 @@ function v1WriteHandlers()
                     "note" => $emailed ? null
                         : "The email didn't go out. They can use \"Forgot password\" on the admin sign-in page with this address.",
                 ];
+            },
+        ],
+
+        "set_admin_position" => [
+            "scope" => "admins:write",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                $adminId = argInt($a, "admin");
+                $position = checkAdminPosition($a["position"] ?? "");
+                $target = findAdminRow($pdo, $adminId);
+                if (trim((string) ($target["position"] ?? "")) === $position) {
+                    throw new PortalWriteError(adminLabel($target) . " already has that position.", 409);
+                }
+                $now = trim((string) ($target["position"] ?? ""));
+                return [
+                    "args" => ["admin" => $adminId, "position" => $position],
+                    "summary" => "Set " . adminLabel($target) . "'s position to " . quoteFor($position)
+                        . ($now !== "" ? " (it is " . quoteFor($now) . ")" : " (they have none, so their name shows)")
+                        . ". It replaces their name in their sidebar and account popup. Nobody is signed out.",
+                    "preview" => [
+                        "admin_id" => $adminId,
+                        "untrusted_content" => ["name" => $target["name"], "email" => $target["email"],
+                                                "position_now" => $now !== "" ? $now : null, "position_after" => $position],
+                    ],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                setAdminPosition($pdo, $a["admin"], $a["position"]);
+                return ["admin_id" => $a["admin"], "position" => $a["position"]];
             },
         ],
 

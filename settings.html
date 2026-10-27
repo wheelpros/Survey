@@ -258,6 +258,57 @@ body{padding:0}
     font-weight: 700;
 }
 
+/* The position under the name - what the sidebar shows for this admin - with
+   its edit control. A div, not a span: .admin-info span is the block style
+   for the lines above. */
+.admin-info .admin-position {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #344054;
+}
+
+.admin-position.is-empty .position-text {
+    color: #98a2b3;
+    font-weight: 500;
+}
+
+.position-link {
+    border: none;
+    background: none;
+    padding: 2px 4px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    color: #3745a4;
+    cursor: pointer;
+    border-radius: 6px;
+}
+
+.position-link:hover {
+    background: #eef0f6;
+}
+
+.admin-position input {
+    width: 220px;
+    max-width: 100%;
+    padding: 7px 10px;
+    border: 1px solid #dfe3ea;
+    border-radius: 9px;
+    font: inherit;
+    font-size: 13px;
+}
+
+.admin-position input:focus {
+    outline: none;
+    border-color: #1b1e3a;
+    box-shadow: 0 0 0 3px rgba(27, 30, 58, .10);
+}
+
 .remove-admin-btn {
     flex: none;
     border: 1px solid #f0d2d4;
@@ -809,7 +860,7 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 </script>
-<link rel="stylesheet" href="assets/shell.css?v=5" />
+<link rel="stylesheet" href="assets/shell.css?v=6" />
 </head>
 
 <body>
@@ -1086,6 +1137,10 @@ document.addEventListener("DOMContentLoaded", function () {
     
     <label>Name</label>
     <input type="text" id="name" placeholder="Enter name">
+
+    <label>Position</label>
+    <input type="text" id="position" maxlength="100" placeholder="e.g. SEO Specialist">
+    <p style="font-size:12px;color:#98a2b3;margin:-6px 0 22px;">Shown in the sidebar and the account popup instead of their name.</p>
 
     <label>Email</label>
     <input type="email" id="email" placeholder="Enter email">
@@ -1995,6 +2050,14 @@ async function saveSlideOrder() {
 }
 
 async function addUser() {
+  const position = document.getElementById("position").value.trim();
+
+  if (!position) {
+    alert("Enter a position, e.g. SEO Specialist.");
+    document.getElementById("position").focus();
+    return;
+  }
+
   try {
     const res = await fetch("api/add-user.php", {
       method: "POST",
@@ -2004,6 +2067,7 @@ async function addUser() {
       },
       body: JSON.stringify({
         name: document.getElementById("name").value,
+        position: position,
         email: document.getElementById("email").value,
         password: document.getElementById("password").value,
         role: document.getElementById("role").value
@@ -2022,7 +2086,12 @@ async function addUser() {
       return;
     }
 
-    alert(data.message || "Done");
+    alert(data.message || (data.success ? "Admin added." : "Done"));
+
+    if (data.success) {
+      document.getElementById("position").value = "";
+      loadAdmins();
+    }
 
   } catch (err) {
     console.error(err);
@@ -2179,6 +2248,100 @@ async function changeAdminRole(adminId, select){
     }
 }
 
+/*
+| The position line under an admin's name: the position (or "No position yet"
+| - the sidebar shows their name until there is one) and an Edit control. Edit
+| swaps it for an input in place; Save posts to api/admin-position.php, the
+| owner's alone, like the role dropdown beside it.
+*/
+function adminPositionView(admin){
+    const has = !!(admin.position && String(admin.position).trim());
+
+    return `
+        <div class="admin-position ${has ? "" : "is-empty"}" id="admin-position-${admin.id}">
+            <span class="position-text">${has ? escapeHtml(admin.position) : "No position yet"}</span>
+            <button type="button" class="position-link" onclick="editAdminPosition(${admin.id})">
+                ${has ? "Edit" : "Set"}
+            </button>
+        </div>
+    `;
+}
+
+function editAdminPosition(adminId){
+    const admin = allAdmins.find(a => Number(a.id) === Number(adminId));
+    const box = document.getElementById("admin-position-" + adminId);
+
+    if(!admin || !box) return;
+
+    box.classList.remove("is-empty");
+    box.innerHTML = `
+        <input type="text" maxlength="100" value="${escapeHtml(admin.position || "")}"
+               placeholder="e.g. SEO Specialist" aria-label="Position for ${escapeHtml(admin.name)}"
+               onkeydown="if(event.key === 'Enter'){ saveAdminPosition(${adminId}); } if(event.key === 'Escape'){ cancelAdminPosition(${adminId}); }">
+        <button type="button" class="position-link" onclick="saveAdminPosition(${adminId})">Save</button>
+        <button type="button" class="position-link" onclick="cancelAdminPosition(${adminId})">Cancel</button>
+    `;
+
+    const input = box.querySelector("input");
+    input.focus();
+    input.select();
+}
+
+function cancelAdminPosition(adminId){
+    const admin = allAdmins.find(a => Number(a.id) === Number(adminId));
+    const box = document.getElementById("admin-position-" + adminId);
+
+    if(!admin || !box) return;
+
+    box.outerHTML = adminPositionView(admin);
+}
+
+async function saveAdminPosition(adminId){
+    const box = document.getElementById("admin-position-" + adminId);
+    const input = box && box.querySelector("input");
+
+    if(!input) return;
+
+    const position = input.value.trim();
+
+    if(!position){
+        alert("Enter a position, e.g. SEO Specialist.");
+        input.focus();
+        return;
+    }
+
+    input.disabled = true;
+
+    try{
+        const res = await fetch("api/admin-position.php", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: "Bearer " + adminToken
+            },
+            body: JSON.stringify({ admin_id: adminId, position: position })
+        });
+
+        const data = await res.json();
+
+        if(!data.success){
+            alert(data.message);
+            input.disabled = false;
+            input.focus();
+            return;
+        }
+
+        const admin = allAdmins.find(a => Number(a.id) === Number(adminId));
+        if(admin) admin.position = data.position;
+
+        box.outerHTML = adminPositionView(admin);
+
+    }catch(error){
+        alert("Connection error.");
+        input.disabled = false;
+    }
+}
+
 function renderAdmins() {
     const list = document.getElementById("adminsList");
 
@@ -2210,6 +2373,7 @@ function renderAdmins() {
 
             <div class="admin-info">
                 <strong>${escapeHtml(admin.name)}</strong>
+                ${adminPositionView(admin)}
                 <span>${escapeHtml(admin.email)}</span>
                 ${adminRoleControl(admin)}
                 <span class="admin-status ${isActive ? "is-active" : "is-inactive"}">
@@ -2523,10 +2687,9 @@ window.onload = loadSettings;
       <button type="button" onclick="closeAccount()" aria-label="Close">&times;</button>
     </div>
     <div class="acct-body">
-      <div class="acct-who">
-        <span class="acct-label">Your role</span>
-        <strong class="acct-role" id="acctRole"></strong>
-      </div>
+      <div class="acct-avatar" id="acctAvatar">A</div>
+      <strong id="acctName">Admin</strong>
+      <div class="acct-role" id="acctRole"></div>
       <button class="acct-logout" type="button" onclick="logoutAdmin()">&#8617; Log out</button>
     </div>
   </div>
@@ -2535,9 +2698,9 @@ window.onload = loadSettings;
 
 <script src="assets/notifications.js?v=1"></script>
 <script src="assets/confirm.js?v=1"></script>
-<script src="assets/shell.js?v=4"></script>
+<script src="assets/shell.js?v=5"></script>
 <script src="assets/sources-lock.js?v=1"></script>
-<script src="assets/role-nav.js?v=2"></script>
+<script src="assets/role-nav.js?v=3"></script>
 <script>
 /* The calendar belongs to the roles that deal with clients. A plain seo_admin
    works on content, so the link comes out of their sidebar. api/calendar.php

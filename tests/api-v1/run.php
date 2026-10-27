@@ -49,6 +49,7 @@ foreach (array_filter(array_map("trim", explode(";", $schema))) as $sql) {
 }
 
 ensureUserProfileColumns($pdo);
+ensureAdminColumns($pdo);
 ensureSurveyColumns($pdo);
 ensureContentColumns($pdo);
 ensureAppointmentTables($pdo);
@@ -601,6 +602,7 @@ if (in_array("--fixtures", $argv, true)) {
 
 require __DIR__ . "/writes.php";
 require __DIR__ . "/phases.php";
+require __DIR__ . "/positions.php";
 require __DIR__ . "/clients.php";
 require __DIR__ . "/settings.php";
 

@@ -38,7 +38,7 @@ foreach (["super admin" => $sa, "account manager" => $am, "admin" => $seo] as $w
 }
 $fixtures["get_settings"] = $s["data"] ?? null;
 
-foreach (["update_website_address" => ["address" => "x.test"], "change_admin_role" => ["admin" => 7, "role" => "super_admin"]] as $tool => $args) {
+foreach (["update_website_address" => ["address" => "x.test"], "change_admin_role" => ["admin" => 7, "role" => "super_admin"], "set_admin_position" => ["admin" => 7, "position" => "x"]] as $tool => $args) {
     refusedChange("settings: only the owner may $tool", $am, $tool, $args, 403);
 }
 
@@ -144,17 +144,22 @@ check("manager: nobody under Max", admin($pdo, 5)["managed_by_admin_id"] === nul
 check("manager: the page still assigns, dropping who can't be", ($r["success"] ?? false) === true
     && (int) admin($pdo, 5)["managed_by_admin_id"] === 2 && admin($pdo, 1)["managed_by_admin_id"] === null, json_encode($r));
 
-refusedChange("add admin: a real email", $owner, "add_admin", ["name" => "Nia", "email" => "nope", "role" => "seo_admin"], 422);
-refusedChange("add admin: not an owner", $owner, "add_admin", ["name" => "Nia", "email" => "n@w.test", "role" => "owner"], 422);
-refusedChange("add admin: not someone already here", $owner, "add_admin", ["name" => "Sam 2", "email" => "S@w.test", "role" => "seo_admin"], 409);
-[$prep, $done] = change("add admin: added", $owner, "add_admin", ["name" => "Nia", "email" => "n@w.test", "role" => "super_admin"]);
+refusedChange("add admin: a real email", $owner, "add_admin", ["name" => "Nia", "position" => "SEO Specialist", "email" => "nope", "role" => "seo_admin"], 422);
+refusedChange("add admin: not an owner", $owner, "add_admin", ["name" => "Nia", "position" => "SEO Specialist", "email" => "n@w.test", "role" => "owner"], 422);
+refusedChange("add admin: not someone already here", $owner, "add_admin", ["name" => "Sam 2", "position" => "SEO Specialist", "email" => "S@w.test", "role" => "seo_admin"], 409);
+refusedChange("add admin: a position is required", $owner, "add_admin", ["name" => "Nia", "email" => "n@w.test", "role" => "seo_admin"], 422);
+[$prep, $done] = change("add admin: added", $owner, "add_admin", ["name" => "Nia", "position" => "SEO Specialist", "email" => "n@w.test", "role" => "super_admin"]);
 $nia = one($pdo, "SELECT id, role, active, password, reset_token, reset_expires FROM admins WHERE email = 'n@w.test'");
 check("add admin: saved, with a set-your-password link", $nia && $nia["role"] === "super_admin" && (int) $nia["active"] === 1
     && strlen((string) $nia["reset_token"]) === 64 && strtotime($nia["reset_expires"]) > time() + 71 * 3600, json_encode($nia));
 check("add admin: says when the email didn't go out", ($done["data"]["result"]["emailed"] ?? null) === false
     && ($done["data"]["result"]["note"] ?? "") !== "", json_encode($done));
 [, $r] = post("api/add-user.php", $owner, ["name" => "Page", "email" => "p@w.test", "password" => "secret1", "role" => "account_manager"]);
+check("add admin: the page needs a position", ($r["success"] ?? true) === false
+    && one($pdo, "SELECT COUNT(*) AS n FROM admins WHERE email = 'p@w.test'")["n"] == 0, json_encode($r));
+[, $r] = post("api/add-user.php", $owner, ["name" => "Page", "position" => "Account Lead", "email" => "p@w.test", "password" => "secret1", "role" => "account_manager"]);
 check("add admin: the page still adds one", ($r["success"] ?? false) === true
-    && password_verify("secret1", one($pdo, "SELECT password FROM admins WHERE email = 'p@w.test'")["password"]), json_encode($r));
-[, $r] = post("api/add-user.php", $owner, ["name" => "Page", "email" => "p@w.test", "password" => "secret1"]);
+    && password_verify("secret1", one($pdo, "SELECT password FROM admins WHERE email = 'p@w.test'")["password"])
+    && one($pdo, "SELECT position FROM admins WHERE email = 'p@w.test'")["position"] === "Account Lead", json_encode($r));
+[, $r] = post("api/add-user.php", $owner, ["name" => "Page", "position" => "Account Lead", "email" => "p@w.test", "password" => "secret1"]);
 check("add admin: the page refuses a repeat", ($r["success"] ?? true) === false, json_encode($r));
