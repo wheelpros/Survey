@@ -139,61 +139,292 @@ function saveProjectTask(PDO $pdo, array $actor, array $project, $existing, arra
        draft server-side rather than trusted. */
     $status = in_array($f["status"] ?? "", ["draft", "published"], true) ? $f["status"] : "draft";
 
-    $values = [
-        $title,
-        $link,
-        $description ?: null,
-        $orientation,
-        $f["image_path"] ?? null,
-        $f["scheduled_date"] ?? null,
-        $f["scheduled_time"] ?? null,
-        !empty($f["is_complete"]) ? 1 : 0,
-        $status,
+    $columns = [
+        "title"          => $title,
+        "link"           => $link,
+        "description"    => $description ?: null,
+        "orientation"    => $orientation,
+        "image_path"     => $f["image_path"] ?? null,
+        "scheduled_date" => $f["scheduled_date"] ?? null,
+        "scheduled_time" => $f["scheduled_time"] ?? null,
+        "is_complete"    => !empty($f["is_complete"]) ? 1 : 0,
+        "status"         => $status,
     ];
 
+    /* The phase fields are written only when the caller sent them, so an
+       api/v1 save - which knows nothing of them - leaves them as they were. */
+    $columns += phaseFieldColumns($f);
+
     if ($existing) {
-        $stmt = $pdo->prepare("
-            UPDATE project_tasks SET
-                title          = ?,
-                link           = ?,
-                description    = ?,
-                orientation    = ?,
-                image_path     = ?,
-                scheduled_date = ?,
-                scheduled_time = ?,
-                is_complete    = ?,
-                status         = ?
-            WHERE id = ?
-        ");
-        $stmt->execute(array_merge($values, [(int) $existing["id"]]));
+        $sets = implode(", ", array_map(function ($c) { return "`$c` = ?"; }, array_keys($columns)));
+        $stmt = $pdo->prepare("UPDATE project_tasks SET $sets WHERE id = ?");
+        $stmt->execute(array_merge(array_values($columns), [(int) $existing["id"]]));
         return (int) $existing["id"];
     }
 
-    $stmt = $pdo->prepare("
-        INSERT INTO project_tasks (
-            title,
-            link,
-            description,
-            orientation,
-            image_path,
-            scheduled_date,
-            scheduled_time,
-            is_complete,
-            status,
-            project_id,
-            created_by_admin_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ");
-    $stmt->execute(array_merge($values, [(int) $project["id"], (int) $actor["id"]]));
+    $columns["project_id"]          = (int) $project["id"];
+    $columns["created_by_admin_id"] = (int) $actor["id"];
+
+    $names  = implode(", ", array_map(function ($c) { return "`$c`"; }, array_keys($columns)));
+    $marks  = implode(", ", array_fill(0, count($columns), "?"));
+    $stmt = $pdo->prepare("INSERT INTO project_tasks ($names) VALUES ($marks)");
+    $stmt->execute(array_values($columns));
 
     return (int) $pdo->lastInsertId();
 }
 
+/* Notes are a working space for the team, not an essay. */
+const TASK_NOTES_MAX_CHARS = 5000;
+
+/**
+ * The phase fields present in $f, checked: phase_label and role (free text,
+ * 80 characters), priority (TASK_PRIORITIES) and notes (Markdown text).
+ */
+function phaseFieldColumns(array $f)
+{
+    $out = [];
+
+    foreach (["phase_label" => "Phase", "role" => "Role"] as $key => $label) {
+        if (!array_key_exists($key, $f)) {
+            continue;
+        }
+        $value = trim((string) $f[$key]);
+        if (mb_strlen($value) > 80) {
+            throw new PortalWriteError("$label must be 80 characters or fewer.");
+        }
+        $out[$key] = $value === "" ? null : $value;
+    }
+
+    if (array_key_exists("priority", $f)) {
+        $out["priority"] = in_array($f["priority"], TASK_PRIORITIES, true) ? $f["priority"] : "medium";
+    }
+
+    if (array_key_exists("notes", $f)) {
+        $notes = trim((string) $f["notes"]);
+        if (mb_strlen($notes) > TASK_NOTES_MAX_CHARS) {
+            throw new PortalWriteError("Notes must be " . TASK_NOTES_MAX_CHARS . " characters or fewer.");
+        }
+        $out["notes"] = $notes === "" ? null : $notes;
+    }
+
+    return $out;
+}
+
 /*
-| The admin dashboard: each person's assignments on phases
-| (project_task_assignments), and moving their own status. Only the caller's
-| own row ever changes - someone not assigned to a phase has nothing to move.
+|--------------------------------------------------------------------------
+| The people on a phase
+|--------------------------------------------------------------------------
+|
+| Two lists, both drawn from the client's team - the same pool a content
+| post picks from (contentAssigneeCandidates):
+|
+|   teammates     who is on the phase; each ticks their own box done
+|   assignments   who worked on it, what they did, and how far they got -
+|                 the rows the admin dashboard lists as "My tasks"
+|
+| Only someone who may edit the task changes either list. Each person moves
+| only their own box and their own status, with no Save needed.
+|
 */
+
+require_once __DIR__ . "/content-writes.php";
+
+/** Who can go on a phase of $project: [{id, name, email, role}], by name. */
+function taskTeamCandidates(PDO $pdo, array $project)
+{
+    return contentAssigneeCandidates($pdo, $project["company_name"] ?? "");
+}
+
+/** The ids from $ids that may go on a phase: candidates, plus anyone already on it. */
+function allowedTaskPeople(PDO $pdo, array $project, array $ids, array $current)
+{
+    $allowed = array_merge(
+        array_column(taskTeamCandidates($pdo, $project), "id"),
+        array_map("intval", $current)
+    );
+
+    return array_values(array_filter(
+        array_unique(array_map("intval", $ids)),
+        function ($id) use ($allowed) {
+            return $id > 0 && in_array($id, $allowed, true);
+        }
+    ));
+}
+
+/** Teammates and assignments of a phase, with names, for the pages. */
+function taskTeamPayload(PDO $pdo, $taskId)
+{
+    $stmt = $pdo->prepare("
+        SELECT m.admin_id AS id, a.name, a.role, m.is_done
+        FROM project_task_teammates m
+        LEFT JOIN admins a ON a.id = m.admin_id
+        WHERE m.task_id = ?
+        ORDER BY a.name ASC
+    ");
+    $stmt->execute([(int) $taskId]);
+    $teammates = array_map(function ($r) {
+        return ["id" => (int) $r["id"], "name" => (string) $r["name"],
+                "role" => (string) $r["role"], "is_done" => (int) $r["is_done"]];
+    }, $stmt->fetchAll(PDO::FETCH_ASSOC));
+
+    $stmt = $pdo->prepare("
+        SELECT s.id, s.admin_id, a.name, a.role, s.work_note, s.status
+        FROM project_task_assignments s
+        LEFT JOIN admins a ON a.id = s.admin_id
+        WHERE s.task_id = ?
+        ORDER BY s.id ASC
+    ");
+    $stmt->execute([(int) $taskId]);
+    $assignments = array_map(function ($r) {
+        return ["id" => (int) $r["id"], "admin_id" => (int) $r["admin_id"],
+                "name" => (string) $r["name"], "role" => (string) $r["role"],
+                "work_note" => (string) $r["work_note"], "status" => (string) $r["status"]];
+    }, $stmt->fetchAll(PDO::FETCH_ASSOC));
+
+    return ["teammates" => $teammates, "assignments" => $assignments];
+}
+
+/**
+ * Puts exactly $ids on the phase as teammates. Boxes already ticked stay
+ * ticked for the people who stay on. Returns the ids new to the list, for
+ * notifyAddedToPhase().
+ */
+function saveTaskTeammates(PDO $pdo, array $project, $taskId, array $ids)
+{
+    $stmt = $pdo->prepare("SELECT admin_id FROM project_task_teammates WHERE task_id = ?");
+    $stmt->execute([(int) $taskId]);
+    $before = array_map("intval", $stmt->fetchAll(PDO::FETCH_COLUMN));
+
+    $after   = allowedTaskPeople($pdo, $project, $ids, $before);
+    $added   = array_values(array_diff($after, $before));
+    $removed = array_values(array_diff($before, $after));
+
+    if ($removed) {
+        $marks = implode(",", array_fill(0, count($removed), "?"));
+        $pdo->prepare("DELETE FROM project_task_teammates WHERE task_id = ? AND admin_id IN ($marks)")
+            ->execute(array_merge([(int) $taskId], $removed));
+    }
+
+    $insert = $pdo->prepare("INSERT IGNORE INTO project_task_teammates (task_id, admin_id) VALUES (?, ?)");
+    foreach ($added as $adminId) {
+        $insert->execute([(int) $taskId, $adminId]);
+    }
+
+    return $added;
+}
+
+/**
+ * Makes the phase's assignments exactly $rows: [{id?, admin_id, work_note,
+ * status}]. A row with an id that belongs to this phase is updated, a row
+ * without one is added, and an existing row left out is removed. Returns
+ * the people new to the phase's assignments.
+ */
+function saveTaskAssignments(PDO $pdo, array $project, $taskId, array $rows)
+{
+    $stmt = $pdo->prepare("SELECT id, admin_id FROM project_task_assignments WHERE task_id = ?");
+    $stmt->execute([(int) $taskId]);
+    $existing = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        $existing[(int) $r["id"]] = (int) $r["admin_id"];
+    }
+
+    $allowed = allowedTaskPeople($pdo, $project, array_column($rows, "admin_id"), array_values($existing));
+
+    $keep  = [];
+    $added = [];
+
+    $update = $pdo->prepare("UPDATE project_task_assignments SET admin_id = ?, work_note = ?, status = ? WHERE id = ? AND task_id = ?");
+    $insert = $pdo->prepare("INSERT INTO project_task_assignments (task_id, admin_id, work_note, status) VALUES (?, ?, ?, ?)");
+
+    foreach ($rows as $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+        $adminId = (int) ($row["admin_id"] ?? 0);
+        if (!in_array($adminId, $allowed, true)) {
+            continue;
+        }
+
+        $note = trim((string) ($row["work_note"] ?? ""));
+        if (mb_strlen($note) > 2000) {
+            throw new PortalWriteError("What they did must be 2000 characters or fewer.");
+        }
+        $status = array_key_exists((string) ($row["status"] ?? ""), TASK_ASSIGNMENT_STATUSES) ? $row["status"] : "todo";
+        $id = (int) ($row["id"] ?? 0);
+
+        if ($id && isset($existing[$id])) {
+            $update->execute([$adminId, $note ?: null, $status, $id, (int) $taskId]);
+            $keep[] = $id;
+            if ($existing[$id] !== $adminId) {
+                $added[] = $adminId;
+            }
+        } else {
+            $insert->execute([(int) $taskId, $adminId, $note ?: null, $status]);
+            $keep[] = (int) $pdo->lastInsertId();
+            if (!in_array($adminId, $existing, true)) {
+                $added[] = $adminId;
+            }
+        }
+    }
+
+    $gone = array_values(array_diff(array_keys($existing), $keep));
+    if ($gone) {
+        $marks = implode(",", array_fill(0, count($gone), "?"));
+        $pdo->prepare("DELETE FROM project_task_assignments WHERE task_id = ? AND id IN ($marks)")
+            ->execute(array_merge([(int) $taskId], $gone));
+    }
+
+    return array_values(array_unique($added));
+}
+
+/* Never inside a transaction (notify.php rule 2). One notification per
+   person however many lists they were added to, and nobody is told about a
+   phase they put themselves on. */
+function notifyAddedToPhase(PDO $pdo, array $actor, array $project, $taskId, $title, array $adminIds)
+{
+    foreach (array_unique(array_map("intval", $adminIds)) as $adminId) {
+        if ($adminId === (int) $actor["id"]) {
+            continue;
+        }
+        notify(
+            $pdo,
+            "admin",
+            (int) $adminId,
+            NOTIFY_PROJECT_ASSIGNED,
+            "You were added to a phase on " . $project["title"],
+            (string) $title,
+            "project-task-details.html?project=" . (int) $project["id"] . "&id=" . (int) $taskId,
+            "admin",
+            (int) $actor["id"]
+        );
+    }
+}
+
+/*
+| Each person moves only their own row: the teammate box (set_done) and the
+| assignment status (set_my_status). Shared by api/project-tasks.php and
+| api/v1's set_my_phase_status. Both throw a 403 when the caller has no row
+| on the phase - someone not on it has nothing to move.
+*/
+function setOwnPhaseDone(PDO $pdo, $taskId, $adminId, $done)
+{
+    $stmt = $pdo->prepare("SELECT 1 FROM project_task_teammates WHERE task_id = ? AND admin_id = ?");
+    $stmt->execute([(int) $taskId, (int) $adminId]);
+    if (!$stmt->fetchColumn()) {
+        throw new PortalWriteError("Only a teammate on this phase can tick their box.", 403);
+    }
+
+    $done = $done ? 1 : 0;
+    $stmt = $pdo->prepare("
+        UPDATE project_task_teammates
+        SET is_done = ?, done_at = IF(? = 1, NOW(), NULL)
+        WHERE task_id = ? AND admin_id = ?
+    ");
+    $stmt->execute([$done, $done, (int) $taskId, (int) $adminId]);
+
+    return $done;
+}
+
 function setOwnPhaseStatus(PDO $pdo, $taskId, $adminId, $status)
 {
     if (!array_key_exists((string) $status, TASK_ASSIGNMENT_STATUSES)) {
@@ -215,7 +446,7 @@ function setOwnPhaseStatus(PDO $pdo, $taskId, $adminId, $status)
 /**
  * The caller's own assignments on phases of projects they can see, with the
  * phase and project each belongs to, plus the counts by status and how many
- * projects they can see. For admin-dashboard.php.
+ * projects they can see. admin-dashboard.php and api/v1's list_my_phases.
  */
 function myPhaseAssignments(PDO $pdo, array $actor)
 {

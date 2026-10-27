@@ -663,8 +663,8 @@ function paintGroups(){
 }
 
 function rowFor(task, group){
-  // The phase's own page is not here yet, so a row opens its project.
-  const href = "project-details.html?id=" + encodeURIComponent(task.project_id);
+  const href = "project-task-details.html?project=" + encodeURIComponent(task.project_id)
+             + "&id=" + encodeURIComponent(task.task_id);
   const date = task.scheduled_date ? String(task.scheduled_date).slice(0, 10) : "";
   const late = date && date < today && task.status !== "done";
 

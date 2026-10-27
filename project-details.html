@@ -218,14 +218,50 @@ select.client-filter{
    their alignment to the right. The page is left-to-right, so they keep their
    text direction and align left like every other title here. */
 #projectTitle,#detailTitle,#taskTitle,.card-client,h3[dir="auto"]{text-align:left}
-.detail-head p{font-size:13px;color:var(--muted)}
-/* Edit and New Task, in the corner inquiry-details.html puts its Edit in. The
-   summary tiles that used to open the page are gone - the three numbers on them
-   were start, end and progress, all of which the project panel below already
-   prints in full. */
+.detail-head{align-items:center}
+.detail-head h1{margin-bottom:0}
+/* New Phase, in the corner inquiry-details.html puts its Edit in. */
 .head-actions{display:flex;align-items:center;gap:10px;flex:none}
-.btn-lg{padding:13px 20px;font-size:13px}
-.btn-lg svg{width:15px;height:15px}
+
+/* ── Three counts over the phases: all, finished, still going ── */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:22px}
+.stat{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.stat span{display:block;font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.stat strong{font-size:24px;font-weight:800}
+
+/* ── Project Details: a titled card, the text, then four tiles ── */
+.proj-card{background:#fff;border:1px solid var(--line);border-radius:16px;margin-bottom:22px;overflow:hidden}
+.proj-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 20px;border-bottom:1px solid var(--line);background:#fcfcfd}
+.proj-card-head h2{font-size:14px;font-weight:800}
+.proj-card-body{padding:20px}
+.proj-card-body h3{font-size:18px;margin-bottom:6px;word-break:break-word}
+.desc-label{display:block;font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.proj-card-body .desc{font-size:13px;line-height:1.7;color:#475467;margin-bottom:20px;white-space:pre-wrap;word-break:break-word}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.tile{border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:0}
+.tile > span{display:block;font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.tile-val{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;min-width:0}
+.tile-val b{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* A date range is worth more than one line of ellipsis. */
+#detailTimeline b{white-space:normal}
+.tile-val small{font-size:11px;font-weight:600;color:var(--muted);flex:none}
+.tile-val svg{width:15px;height:15px;flex:none}
+.av{width:24px;height:24px;border-radius:50%;background:var(--nav-active);color:#fff;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none}
+/* The project's status as a pill, coloured by the key rather than the label. */
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:800;border:1px solid}
+.pill i{width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill.blue{color:#2563eb;background:#eff4ff;border-color:#c7d7fe}
+.pill.green{color:#17803d;background:#e8faef;border-color:#b8e7c8}
+.pill.amber{color:#b45309;background:#fff7e6;border-color:#fde68a}
+.pill.grey{color:#475467;background:#f2f4f7;border-color:#e4e7ec}
+@media(max-width:950px){.tiles{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:520px){
+  .tiles{grid-template-columns:1fr}
+  .stats{gap:8px}
+  .stat{padding:12px}
+  .stat span{font-size:9px}
+  .stat strong{font-size:20px}
+}
 
 /* ── Month grid, lifted from admin-calendar.html ── */
 .cal-card{background:#fff;border-radius:18px;box-shadow:0 14px 30px rgba(0,0,0,.05);padding:22px;margin-bottom:26px}
@@ -242,7 +278,7 @@ select.client-filter{
    sliding sideways in a scroll box. */
 .cal-scroll{overflow:visible}
 .calendar-grid{
-  display:grid;grid-template-columns:repeat(7,1fr);min-width:0;
+  display:grid;grid-template-columns:repeat(7,minmax(0,1fr));min-width:0;
   border-top:1px solid var(--line);border-left:1px solid var(--line);
   border-radius:12px;overflow:hidden;
 }
@@ -268,6 +304,15 @@ select.client-filter{
 .day-cell.today-cell > span{background:#0284c7;color:#fff;padding:2px 6px;border-radius:12px;width:max-content}
 /* Same marker admin-calendar.html uses for the day its panel is describing. */
 .day-cell.selected-cell{box-shadow:inset 0 0 0 2px var(--nav-active);background:#f5f6fa}
+/* The two ends of the timeline: the date in a dark disc, a caption under it,
+   and a tint - blue where it opens, red where it closes. */
+.day-cell.start-cell{background:#f3f6ff}
+.day-cell.end-cell{background:#fff5f5}
+.day-cell.start-cell > span,.day-cell.end-cell > span{
+  background:var(--nav-active);color:#fff;width:22px;height:22px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;padding:0;font-size:11px;
+}
+.cal-mark{font-size:10px;font-weight:700;color:#475467}
 
 /* ── A task, in the day it is scheduled for ──
    The grid used to carry one dot per task, which told you a day was busy and
@@ -326,125 +371,32 @@ select.client-filter{
    grey slab, and the box keeps its size so the card grid stays uniform. */
 .card-img.empty{background:linear-gradient(135deg,#f5f7fa 0%,#e8edf4 100%)}
 .card-img.empty .ph{color:#c3cad7}
-/* The badge answers one question only - has this been published to the client
-   yet. Whether the work behind it is finished is a different question with a
-   different answer, and it has its own line at the foot of the card. Reading
-   both off one chip meant a completed task stopped saying it was published. */
-.badge{position:absolute;top:10px;right:10px;padding:5px 10px;border-radius:20px;font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase}
-.badge.published{background:#e8faef;color:#20a95a}
-.badge.draft{background:#eef1f5;color:#667085}
-.badge.scheduled{background:#fff3e5;color:#d97706}
+/* ACTIVE while the work is still going, COMPLETED once it is done - the
+   reading the design gives the badge. Whether the client can see the phase yet
+   is a separate fact, carried by the small tag beside the client name. */
+.badge{position:absolute;top:10px;right:10px;padding:4px 10px;border-radius:20px;font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;background:#fff}
+.badge.active{color:#17803d;background:#e8faef;border:1px solid #b8e7c8}
+.badge.completed{color:var(--text);border:1px solid #d0d5dd}
 
-.card-body{padding:14px 16px;flex:1;display:flex;flex-direction:column;gap:4px}
-.card-client{font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
+.card{position:relative;border:1px solid var(--line);box-shadow:none;transition:box-shadow .15s,border-color .15s}
+.card:hover{border-color:#d0d5dd;box-shadow:0 10px 24px rgba(16,24,40,.07)}
+.card-body{padding:14px 16px 6px;flex:1;display:flex;flex-direction:column;gap:4px}
+.card-meta{display:flex;align-items:center;gap:8px;min-width:0}
+.card-client{font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pub-tag{flex:none;font-size:9px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#667085;background:#f2f4f7;border-radius:6px;padding:2px 6px}
 .card-body h3{font-size:14px;font-weight:700;word-break:break-word}
-.card-when{font-size:11px;color:var(--muted);margin-top:6px}
-/* Two lines of the description, so a card says what the task is without having
-   to be opened, and every card in the row still ends at the same height. */
-.card-desc{
-  font-size:12px;line-height:1.6;color:var(--muted);margin-top:4px;
-  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
-  overflow:hidden;word-break:break-word;
-}
-
-/* The text and the menu share a row, so the three dots sit against the title
-   and description rather than under them. */
-.card-head{display:flex;align-items:flex-start;gap:8px}
-.card-head-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
-
-/* ── Progress, at the foot and on its own ──
-   Published is about the client seeing it; this is about the work being done.
-   Keeping them apart is the whole point of the row. */
-.card-foot{
-  display:flex;align-items:center;gap:8px;
-  padding:12px 16px;margin-top:auto;border-top:1px solid #eef1f5;
-}
-.prog{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:800;letter-spacing:.3px}
-.prog i{width:8px;height:8px;border-radius:50%;background:currentColor;flex:none}
-.prog.done{color:#20a95a}
-.prog.doing{color:#d97706}
-
-/* ── Cards open the panel below ────────────────────────────────────────────
-   Clicking a card opens that task in the panel at the foot of the page. The
-   trigger is an empty button stretched over the whole card rather than a
-   wrapper around the content, because the three-dot menu now lives inside that
-   content and a button cannot be nested in a button. The menu is lifted above
-   it on z-index so its own clicks land on it. */
-.card{position:relative}
+/* Edit and Delete as two equal buttons, the way the design draws them. They
+   sit above the stretched open-the-phase button on z-index. */
+.card-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px 16px 16px;position:relative;z-index:2}
+.card-actions .btn{padding:8px 10px}
 .card-open{
   position:absolute;inset:0;z-index:1;
   width:100%;padding:0;border:none;background:none;
-  font:inherit;color:inherit;cursor:pointer;
+  font:inherit;color:inherit;cursor:pointer;border-radius:16px;
 }
-.card-open:focus-visible{outline:2px solid var(--nav-active);outline-offset:-2px;border-radius:16px}
-.card-menu{position:relative;z-index:2}
-.card:hover .card-img{filter:brightness(.97)}
-.card.selected{box-shadow:0 0 0 2px var(--nav-active),0 12px 26px rgba(0,0,0,.05)}
-
-/* ── The three-dot menu, on the task cards and nowhere else on this page ── */
-.kebab-wrap{position:relative;display:inline-block}
-.kebab{
-  width:30px;height:30px;border:1px solid #dfe3ea;background:#fff;border-radius:8px;
-  color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;
-}
-.kebab:hover{background:#f6f7f9;color:var(--text)}
-.kebab svg{width:15px;height:15px}
-.kebab-menu{
-  display:none;position:absolute;right:0;top:calc(100% + 6px);z-index:70;
-  min-width:172px;background:#fff;border:1px solid #dfe3ea;border-radius:12px;
-  box-shadow:0 16px 40px rgba(16,24,40,.16);padding:6px;
-}
-.kebab-wrap.open .kebab-menu{display:block}
-.kebab-wrap.open .kebab{background:#f2f4f8;color:var(--text)}
-.kebab-menu a,.kebab-menu button{
-  width:100%;font:inherit;background:none;border:none;cursor:pointer;
-  display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:8px;
-  font-size:13px;font-weight:700;color:var(--text);text-decoration:none;white-space:nowrap;
-}
-.kebab-menu a:hover,.kebab-menu button:hover{background:#f2f4f8}
-.kebab-menu svg{width:15px;height:15px;flex:none;color:var(--muted)}
-/* The one item that destroys something reads as such, and is divided off so it
-   is not the neighbour of Edit by accident. */
-.kebab-menu .danger{color:var(--brand);margin-top:5px;padding-top:12px;border-top:1px solid #eef1f5;border-radius:0}
-.kebab-menu .danger svg{color:var(--brand)}
-.kebab-menu .danger:hover{background:#fff5f5}
+.card-open:focus-visible{outline:2px solid var(--nav-active);outline-offset:-2px}
 
 
-/* ── Project Details panel, on admin-content.html's .detail block ──
-   It no longer shares a slot with the task panel: the project is the fixed
-   header block at the top of the page, and a task opens its own panel at the
-   foot. Two things that describe different subjects should not take turns in
-   one box. */
-.detail{background:#fff;border-radius:18px;padding:26px;box-shadow:0 14px 30px rgba(0,0,0,.04);margin-top:12px}
-#projectPanel{margin-top:0;margin-bottom:26px}
-/* Progress came off the tiles with them, so it lands in the meta grid as a
-   field with the bar underneath its own number. */
-.field .bar{height:6px;border-radius:4px;background:#eef1f5;margin-top:8px;overflow:hidden;max-width:260px}
-.field .bar i{display:block;height:100%;background:var(--nav-active);border-radius:4px}
-
-/* A grid cell like the fields beside it: bottom-aligned so the button sits
-   level with the progress bar, and starting at the column's own left edge so
-   it lines up under Status rather than drifting off to the panel's corner. */
-.panel-actions{display:flex;gap:10px;align-items:flex-end;justify-content:flex-start}
-/* An admin who cannot edit gets no empty cell holding the space. */
-.panel-actions:has(.btn[hidden]){display:none}
-.detail-img{width:100%;max-height:320px;border-radius:14px;background:#eef1f5 center/cover no-repeat;aspect-ratio:16/7;margin-bottom:22px;display:flex;align-items:center;justify-content:center;color:#aeb6c4}
-.detail-img svg{width:40px;height:40px}
-/* A project with no image hides the block outright rather than showing a
-   320px empty rectangle above the title. Nothing else needs it to be there. */
-.detail-img[hidden]{display:none}
-.detail h3{font-size:19px;margin-bottom:18px}
-.detail .desc-label,.field span{display:block;font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
-.detail .desc{font-size:13px;line-height:1.7;color:#475467;margin-bottom:26px;white-space:pre-wrap}
-/* Two columns, the pairing the design asks for: client beside timeline,
-   manager beside status. Four across put each label over a sliver of text. */
-.detail-meta{display:grid;grid-template-columns:repeat(2,1fr);gap:24px 40px}
-/* Scheduled, Published and Progress answer "when, is it out, is it done" - the
-   three readings of the same task, so they belong on one line together with
-   Added by and Link underneath. */
-#taskPanel .detail-meta{grid-template-columns:repeat(3,1fr)}
-.field strong{display:block;font-size:13px;font-weight:700;word-break:break-word}
-.field .link{color:#2563eb}
 
 /* ── Delete confirmation ───────────────────────────────────────────────────
    window.confirm() gives a destructive action the same one-click dismissal as
@@ -482,9 +434,6 @@ select.client-filter{
 @media(max-width:1100px){.grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:768px){
   .grid{grid-template-columns:1fr}
-  .detail-meta,#taskPanel .detail-meta{grid-template-columns:1fr}
-  .panel-actions{justify-content:stretch;margin-top:4px}
-  .panel-actions .btn{width:100%}
   /* Same treatment as admin-calendar.html at this width: seven columns still
      fit a phone, but a named task does not fit a column that narrow - so the
      cards collapse into the dots they used to be everywhere, keeping their
@@ -503,7 +452,10 @@ select.client-filter{
   .day-cell .event-card *{display:none}
   .event-more{display:none}
   .cal-head h2{font-size:15px}
-  .detail{padding:20px}
+  /* The disc keeps its shape in a narrow cell; the caption has no room. */
+  .day-cell.start-cell > span,.day-cell.end-cell > span{width:20px;height:20px;margin:0 auto}
+  .cal-mark{display:none}
+  .proj-card-body{padding:16px}
 }
 @media(max-width:700px){
   .detail-head{flex-wrap:wrap}
@@ -638,10 +590,12 @@ document.addEventListener("DOMContentLoaded", function () {
       </a>
       <div class="page-title">
         <h1 id="projectTitle" dir="auto">Loading...</h1>
-        <p id="projectSubtitle">&nbsp;</p>
       </div>
       <div class="head-actions">
-        <a class="create-btn" id="newTaskBtn" href="#" hidden>New Task</a>
+        <a class="create-btn" id="newTaskBtn" href="#" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+          New Phase
+        </a>
       </div>
     </div>
 
@@ -649,47 +603,36 @@ document.addEventListener("DOMContentLoaded", function () {
 
     <div id="projectBody" hidden>
 
-      <!-- The project itself, fixed at the top of the page. It used to sit at
-           the foot sharing a slot with the task panel, which meant opening a
-           task hid the thing the task belongs to. -->
-      <div class="section-head">
-        <h2>Project Details</h2>
+      <!-- Counted from the phases that came down with the project. -->
+      <div class="stats">
+        <div class="stat"><span>Total tasks</span><strong id="statTotal">0</strong></div>
+        <div class="stat"><span>Completed</span><strong id="statDone">0</strong></div>
+        <div class="stat"><span>In progress</span><strong id="statDoing">0</strong></div>
       </div>
 
-      <div class="detail" id="projectPanel">
-        <!-- Click to open it full size. See assets/lightbox.js. -->
-        <div class="detail-img" id="detailImg"
-             data-lightbox data-lightbox-alt="Project image">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+      <div class="proj-card">
+        <div class="proj-card-head">
+          <h2>Project Details</h2>
+          <a class="btn btn-ghost" id="editProjectBtn" href="#" hidden>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+            Edit details
+          </a>
         </div>
-        <h3 id="detailTitle" dir="auto">—</h3>
-        <span class="desc-label">Description</span>
-        <p class="desc" id="detailDesc" dir="auto">—</p>
-        <div class="detail-meta">
-          <div class="field"><span>Client</span><strong id="detailClient">—</strong></div>
-          <div class="field"><span>Timeline</span><strong id="detailTimeline">—</strong></div>
-          <div class="field"><span>Manager</span><strong id="detailManager">—</strong></div>
-          <div class="field"><span>Status</span><strong class="link" id="detailStatus">—</strong></div>
-          <div class="field">
-            <span>Progress</span>
-            <strong id="detailProgress">0%</strong>
-            <div class="bar"><i id="detailBar" style="width:0%"></i></div>
-          </div>
-
-          <!-- Editing the project belongs to the panel that describes it, not
-               to a page corner that also carries New Task. It takes the cell
-               the last field leaves empty, so it costs the panel no height. -->
-          <div class="panel-actions">
-            <a class="btn btn-ghost btn-lg" id="editProjectBtn" href="#" hidden>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
-              Edit project
-            </a>
+        <div class="proj-card-body">
+          <h3 id="detailTitle" dir="auto">—</h3>
+          <span class="desc-label">Description</span>
+          <p class="desc" id="detailDesc" dir="auto">—</p>
+          <div class="tiles">
+            <div class="tile"><span>Client</span><div class="tile-val" id="detailClient">—</div></div>
+            <div class="tile"><span>Timeline</span><div class="tile-val" id="detailTimeline">—</div></div>
+            <div class="tile"><span>Manager</span><div class="tile-val" id="detailManager">—</div></div>
+            <div class="tile"><span>Status</span><div class="tile-val" id="detailStatus">—</div></div>
           </div>
         </div>
       </div>
 
-      <!-- The month the tasks are scheduled in. Paging it is pure client
-           state - every task came down with the project. -->
+      <!-- The month the phases are scheduled in. Paging it is pure client
+           state - every phase came down with the project. -->
       <div class="cal-card">
         <div class="cal-head">
           <h2 id="calLabel">—</h2>
@@ -708,9 +651,9 @@ document.addEventListener("DOMContentLoaded", function () {
       </div>
 
       <div class="section-head">
-        <h2 id="tasksHeading">Tasks</h2>
+        <h2 id="tasksHeading">Phases</h2>
         <div class="section-actions">
-          <button class="btn btn-ghost" type="button" id="clearDayBtn" onclick="clearDay()" hidden>Show all tasks</button>
+          <button class="btn btn-ghost" type="button" id="clearDayBtn" onclick="clearDay()" hidden>Show all phases</button>
         </div>
       </div>
       <div class="grid" id="taskGrid"></div>
@@ -718,31 +661,6 @@ document.addEventListener("DOMContentLoaded", function () {
       <div class="pager" id="pager" hidden>
         <div class="pager-info" id="pagerInfo"></div>
         <div class="pager-pages" id="pagerPages"></div>
-      </div>
-
-      <!-- Opened by a card above, and by nothing else: with the project fixed
-           at the top of the page, this slot only ever holds a task. -->
-      <div class="section-head" id="taskDetailHead" style="margin-top:26px" hidden>
-        <h2>Task Details</h2>
-        <button class="btn btn-ghost" type="button" id="closeTaskBtn"
-                onclick="closeTaskPanel()">Close</button>
-      </div>
-
-      <div class="detail" id="taskPanel" hidden>
-        <div class="detail-img" id="taskImg"
-             data-lightbox data-lightbox-alt="Task image">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-        </div>
-        <h3 id="taskTitle" dir="auto">—</h3>
-        <span class="desc-label">Description</span>
-        <p class="desc" id="taskDesc" dir="auto">—</p>
-        <div class="detail-meta">
-          <div class="field"><span>Scheduled</span><strong id="taskWhen">—</strong></div>
-          <div class="field"><span>Published</span><strong id="taskStatus">—</strong></div>
-          <div class="field"><span>Progress</span><strong id="taskProgress">—</strong></div>
-          <div class="field"><span>Added by</span><strong id="taskAuthor">—</strong></div>
-          <div class="field"><span>Link</span><strong id="taskLink">—</strong></div>
-        </div>
       </div>
 
     </div>
@@ -879,16 +797,14 @@ function todayISO(){
 
 const projectId = new URLSearchParams(location.search).get("id");
 
-const TASK_PAGE_SIZE = 3;
+const TASK_PAGE_SIZE = 6;
 
 let project = null;
 let tasks   = [];
 let canEdit = false;
 let page    = 1;
-/* The day the task grid below is scoped to, or null for the whole project. */
+/* The day the phase grid below is scoped to, or null for the whole project. */
 let selectedDate = null;
-/* The task showing in the panel at the foot, or null when the project is. */
-let openTaskId = null;
 
 /* The month on screen. Opens on the month the project starts in, not on the
    real today - a project that ran last quarter should not open on an empty
@@ -905,7 +821,6 @@ async function load(){
 
   if (!data.success) {
     document.getElementById("projectTitle").textContent = "Project not found";
-    document.getElementById("projectSubtitle").textContent = data.message || "";
     document.getElementById("notFound").hidden = false;
     return;
   }
@@ -917,6 +832,7 @@ async function load(){
   document.getElementById("projectBody").hidden = false;
 
   paintHead();
+  paintStats();
 
   const start = new Date(project.start_date + "T00:00:00");
   calYear  = start.getFullYear();
@@ -930,20 +846,24 @@ async function load(){
 function paintHead(){
   document.title = project.title + " - Project Management";
   document.getElementById("projectTitle").textContent = project.title;
-  document.getElementById("projectSubtitle").textContent =
-    (project.company_name || project.client_name || "No client") + " · " + project.status_label;
 
-  /* Lives in the Tasks section head now, but it is still the project's id it
-     needs, so it is still filled in here. */
   const button = document.getElementById("newTaskBtn");
   button.href = "project-task-form.html?project=" + encodeURIComponent(project.id);
   button.hidden = false;
 
-  /* Same corner, and the same rule, as inquiry-details.html: the button is only
-     there for an admin the API says may edit this project. */
+  /* Only there for an admin the API says may edit this project. */
   const edit = document.getElementById("editProjectBtn");
   edit.href   = "project-form.html?id=" + encodeURIComponent(project.id);
   edit.hidden = !canEdit;
+}
+
+/* The three counts over the grid. A phase is either finished or still going -
+   there is no third state on a task - so the two always add up to the total. */
+function paintStats(){
+  const done = tasks.filter(t => Number(t.is_complete)).length;
+  document.getElementById("statTotal").textContent = tasks.length;
+  document.getElementById("statDone").textContent  = done;
+  document.getElementById("statDoing").textContent = tasks.length - done;
 }
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -1013,6 +933,12 @@ function paintCalendar(){
       if (iso === today) classes.push("today-cell");
       if (iso >= project.start_date && iso <= project.end_date) classes.push("in-range");
       if (iso === selectedDate) classes.push("selected-cell");
+      if (iso === project.start_date) classes.push("start-cell");
+      if (iso === project.end_date)   classes.push("end-cell");
+
+      /* A one-day project starts and ends on the same cell; it says Start. */
+      const mark = iso === project.start_date ? "Project Start"
+                 : iso === project.end_date   ? "Project End" : "";
 
       const cards = dayTasks.slice(0, CAL_MAX_CARDS).map(task => {
         const time = calTime(task);
@@ -1043,9 +969,11 @@ function paintCalendar(){
                   + ' data-date="' + iso + '"'
                   + ' aria-pressed="' + (iso === selectedDate) + '"'
                   + ' aria-label="' + esc(fmtDate(iso)) + ", "
-                  +   (count ? count + (count === 1 ? " task" : " tasks") : "no tasks") + '"')
+                  +   (mark ? mark + ", " : "")
+                  +   (count ? count + (count === 1 ? " phase" : " phases") : "no phases") + '"')
             + ">"
             + "<span>" + cursor.getDate() + "</span>"
+            + (mark ? '<small class="cal-mark">' + mark + "</small>" : "")
             + cards
             + more
             + "</div>";
@@ -1089,92 +1017,6 @@ function clearDay(){
   renderTasks();
 }
 
-/*
-|------------------------------------------------------------------------------
-| The task panel at the foot of the page
-|------------------------------------------------------------------------------
-|
-| It holds a task and nothing else. The project has its own panel pinned to the
-| top of the page, so opening a task no longer hides the project it belongs to -
-| the two are read together, which is the point of being on this page.
-|
-| Nothing is open by default: the panel and its heading appear when a card is
-| clicked and go away again when it is closed.
-|
-| The panel carries no buttons. Edit and Delete are on the card's own menu, one
-| click from anywhere in the grid, and repeating them at the foot of the page
-| gave the same task two places to be acted on and two places to keep in sync.
-|
-*/
-
-function showTaskPanel(id){
-  const task = tasks.find(t => Number(t.id) === Number(id));
-
-  if (!task) return;
-
-  openTaskId = Number(task.id);
-
-  paintTaskPanel(task);
-
-  document.getElementById("taskDetailHead").hidden = false;
-  document.getElementById("taskPanel").hidden      = false;
-
-  // Re-render so the card that was clicked picks up the selected outline.
-  renderTasks();
-
-  document.getElementById("taskDetailHead")
-    .scrollIntoView({ behavior: "smooth", block: "start" });
-}
-
-function closeTaskPanel(){
-  openTaskId = null;
-
-  document.getElementById("taskDetailHead").hidden = true;
-  document.getElementById("taskPanel").hidden      = true;
-
-  renderTasks();
-}
-
-function paintTaskPanel(task){
-  const image = document.getElementById("taskImg");
-
-  /* Same rule the project panel uses: no image is not something to draw. */
-  if (task.image_path) {
-    image.style.backgroundImage = "url('" + task.image_path + "')";
-    image.innerHTML = "";
-    image.hidden = false;
-  } else {
-    image.hidden = true;
-  }
-
-  document.getElementById("taskTitle").textContent = task.title;
-  document.getElementById("taskDesc").textContent  =
-    task.description || "No description was added.";
-
-  /* The time is optional against a date that is itself optional. */
-  const when = task.scheduled_date
-    ? fmtDate(task.scheduled_date) +
-      (task.scheduled_time ? " at " + String(task.scheduled_time).slice(0, 5) : "")
-    : "No date set";
-
-  document.getElementById("taskWhen").textContent     = when;
-  document.getElementById("taskStatus").textContent   = badgeFor(task).text;
-  document.getElementById("taskProgress").textContent = progressFor(task).text;
-  document.getElementById("taskAuthor").textContent   = task.created_by_name || "—";
-
-  const link = document.getElementById("taskLink");
-
-  /* Only http(s) becomes a clickable link - a `javascript:` or `data:` value
-     stored on the task would otherwise run from a click here. Anything else is
-     shown as the text it is. */
-  if (/^https?:\/\//i.test(task.link || "")) {
-    link.innerHTML = '<a class="link" target="_blank" rel="noopener noreferrer" href="'
-      + esc(task.link) + '">' + esc(task.link) + "</a>";
-  } else {
-    link.textContent = task.link || "—";
-  }
-
-}
 
 /* What the grid below is currently showing. */
 function visibleTasks(){
@@ -1203,28 +1045,23 @@ document.getElementById("calToday").addEventListener("click", function(){
 });
 
 /*
-| Two independent readings of a task, and they used to be crushed into one chip.
+| Two independent readings of a phase, kept apart on the card.
 |
-| badgeFor answers "can the client see this yet": a draft is not published at
-| all, a published task dated ahead is waiting for its date, and one whose date
-| has arrived is Published. `status` and `is_live` are the two columns behind
-| it.
-|
-| progressFor answers "is the work done", which `is_complete` tracks on its own
-| and which has nothing to do with publishing. Under the old single chip a
-| completed task stopped reporting that it was published, and a published one
-| never said whether it was finished.
+| stateFor answers "is the work done" (is_complete): ACTIVE or COMPLETED, the
+| badge the design draws. publishTagFor answers "can the client see it yet"
+| from `status` and `is_live`: a draft, or a published phase dated ahead, gets
+| a small tag beside the client name; a live one needs none.
 */
-function badgeFor(task){
-  if (task.status === "draft") return { cls:"draft",     text:"Draft" };
-  if (!Number(task.is_live))   return { cls:"scheduled", text:"Scheduled" };
-  return { cls:"published", text:"Published" };
+function stateFor(task){
+  return Number(task.is_complete)
+    ? { cls:"completed", text:"Completed" }
+    : { cls:"active",    text:"Active" };
 }
 
-function progressFor(task){
-  return Number(task.is_complete)
-    ? { cls:"done",  text:"Completed" }
-    : { cls:"doing", text:"In Progress" };
+function publishTagFor(task){
+  if (task.status === "draft") return "Draft";
+  if (!Number(task.is_live))   return "Scheduled";
+  return "";
 }
 
 function renderTasks(){
@@ -1237,40 +1074,40 @@ function renderTasks(){
 
   // The heading says which day is being shown, and carries the way back out.
   document.getElementById("tasksHeading").textContent =
-    selectedDate ? "Tasks on " + fmtDate(selectedDate) : "Tasks";
+    selectedDate ? "Phases on " + fmtDate(selectedDate) : "Phases";
   document.getElementById("clearDayBtn").hidden = !selectedDate;
 
   if (!total) {
-    /* A project with no tasks at all needs pointing at the form. A day with
-       none only needs telling, because the tasks are still there behind the
+    /* A project with no phases at all needs pointing at the form. A day with
+       none only needs telling, because the phases are still there behind the
        filter the calendar just applied. */
     grid.innerHTML = selectedDate
       ? '<div class="empty-state" style="grid-column:1/-1">'
         +   '<div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>'
         +   "<h3>Nothing scheduled for this day</h3>"
-        +   "<p>No task on this project is dated " + esc(fmtDate(selectedDate)) + ".</p>"
-        +   '<button class="btn btn-ghost" type="button" onclick="clearDay()">Show all tasks</button>'
+        +   "<p>No phase of this project is dated " + esc(fmtDate(selectedDate)) + ".</p>"
+        +   '<button class="btn btn-ghost" type="button" onclick="clearDay()">Show all phases</button>'
         + "</div>"
       : '<div class="empty-state" style="grid-column:1/-1">'
         +   '<div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15h6"/></svg></div>'
-        +   "<h3>No tasks yet</h3>"
-        +   "<p>Tasks are the updates published against this project - what was done, when, and what the client gets to see.</p>"
+        +   "<h3>No phases yet</h3>"
+        +   "<p>Phases are the stages of this project - what is being done, when, and what the client gets to see.</p>"
         +   '<a class="create-btn" href="project-task-form.html?project='
-        +     encodeURIComponent(project.id) + '">New Task</a>'
+        +     encodeURIComponent(project.id) + '">New Phase</a>'
         + "</div>";
 
     document.getElementById("pager").hidden = true;
     return;
   }
 
-  const start = (page - 1) * TASK_PAGE_SIZE;
-  const slice = shown.slice(start, start + TASK_PAGE_SIZE);
+  const start  = (page - 1) * TASK_PAGE_SIZE;
+  const slice  = shown.slice(start, start + TASK_PAGE_SIZE);
+  const client = project.company_name || project.client_name || "";
 
   grid.innerHTML = slice.map(task => {
 
-    const badge = badgeFor(task);
-    const prog  = progressFor(task);
-    const when  = task.scheduled_date ? fmtDate(task.scheduled_date) : "No date set";
+    const state = stateFor(task);
+    const tag   = publishTagFor(task);
 
     const image = task.image_path
       ? "style=\"background-image:url('" + esc(task.image_path) + "')\""
@@ -1279,104 +1116,37 @@ function renderTasks(){
     const placeholder = task.image_path ? "" :
       '<span class="ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></span>';
 
+    const view = "project-task-details.html?project=" + encodeURIComponent(project.id)
+               + "&id=" + encodeURIComponent(task.id);
+    const edit = "project-task-form.html?project=" + encodeURIComponent(project.id)
+               + "&id=" + encodeURIComponent(task.id);
+
     return ''
-      + '<div class="card ' + (task.orientation === "vertical" ? "is-vertical" : "")
-      +      (Number(task.id) === openTaskId ? " selected" : "") + '">'
+      + '<div class="card">'
       +   '<div class="card-img ' + (task.image_path ? "" : "empty") + '" ' + image + '>'
       +     placeholder
-      +     '<span class="badge ' + badge.cls + '">' + badge.text + '</span>'
+      +     '<span class="badge ' + state.cls + '">' + state.text + '</span>'
       +   '</div>'
       +   '<div class="card-body">'
-      +     '<div class="card-head">'
-      +       '<div class="card-head-text">'
-      +         '<span class="card-client" dir="auto">' + esc(project.company_name || project.client_name || "") + '</span>'
-      +         '<h3 dir="auto">' + esc(task.title) + '</h3>'
-      +         '<p class="card-desc" dir="auto">' + esc(task.description || "No description was added.") + '</p>'
-      +       '</div>'
-      +       taskMenu(task)
+      +     '<div class="card-meta">'
+      +       '<span class="card-client" dir="auto">' + esc(client) + '</span>'
+      +       (tag ? '<span class="pub-tag">' + tag + '</span>' : "")
       +     '</div>'
-      +     '<span class="card-when">' + esc(when)
-      +       (task.created_by_name ? " · " + esc(task.created_by_name) : "")
-      +     '</span>'
+      +     '<h3 dir="auto">' + esc(task.title) + '</h3>'
       +   '</div>'
-      /* The state of the work itself, kept away from the publish badge. */
-      +   '<div class="card-foot">'
-      +     '<span class="prog ' + prog.cls + '"><i></i>' + prog.text + '</span>'
+      /* Stretched over the card under Edit and Delete, so a click anywhere
+         else on it opens the phase. */
+      +   '<a class="card-open" href="' + esc(view) + '" aria-label="Open ' + esc(task.title) + '"></a>'
+      +   '<div class="card-actions">'
+      +     '<a class="btn btn-ghost" href="' + esc(edit) + '">Edit</a>'
+      +     '<button class="btn btn-danger" type="button" onclick="removeTask(' + Number(task.id) + ')">Delete</button>'
       +   '</div>'
-      /* Last in the markup and stretched over the card behind the menu, so a
-         click anywhere that is not the menu opens the panel below. */
-      +   '<button class="card-open" type="button" onclick="showTaskPanel(' + Number(task.id) + ')"'
-      +          ' aria-label="Show details for ' + esc(task.title) + '"></button>'
       + '</div>';
   }).join("");
 
-  wireKebabs();
   renderPager(total, pages, start, slice.length);
 }
 
-/*
-| The three dots beside a card's title. Everything the card used to spend a
-| two-button row on now lives in here, plus the View details the stretched hit
-| area offers silently - a menu that leaves its own affordance out is a menu
-| people do not find.
-*/
-function taskMenu(task){
-  const editHref = "project-task-form.html?project=" + encodeURIComponent(project.id)
-                 + "&id=" + encodeURIComponent(task.id);
-
-  return ''
-    + '<div class="kebab-wrap card-menu">'
-    +   '<button class="kebab" type="button" aria-haspopup="menu" aria-expanded="false"'
-    +          ' aria-label="More actions for ' + esc(task.title) + '">'
-    +     '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>'
-    +   '</button>'
-    +   '<div class="kebab-menu" role="menu">'
-    +     '<button role="menuitem" type="button" onclick="showTaskPanel(' + Number(task.id) + ')">'
-    +       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg>'
-    +       'View details'
-    +     '</button>'
-    +     '<a role="menuitem" href="' + esc(editHref) + '">'
-    +       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>'
-    +       'Edit'
-    +     '</a>'
-    +     '<button class="danger" role="menuitem" type="button" onclick="removeTask(' + Number(task.id) + ')">'
-    +       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>'
-    +       'Delete'
-    +     '</button>'
-    +   '</div>'
-    + '</div>';
-}
-
-/*
-| The menus are re-bound on every render because the grid is replaced wholesale,
-| and opening one closes any other - two menus open at once is never what was
-| meant.
-*/
-function closeKebabs(){
-  document.querySelectorAll(".kebab-wrap.open").forEach(wrap => {
-    wrap.classList.remove("open");
-    wrap.querySelector(".kebab").setAttribute("aria-expanded", "false");
-  });
-}
-
-function wireKebabs(){
-  document.querySelectorAll(".kebab-wrap").forEach(wrap => {
-    wrap.querySelector(".kebab").addEventListener("click", function (event) {
-      event.stopPropagation();
-      const open = wrap.classList.contains("open");
-      closeKebabs();
-      if (!open) {
-        wrap.classList.add("open");
-        this.setAttribute("aria-expanded", "true");
-      }
-    });
-  });
-}
-
-document.addEventListener("click", closeKebabs);
-document.addEventListener("keydown", function (event) {
-  if (event.key === "Escape") closeKebabs();
-});
 
 function renderPager(total, pages, start, shown){
   document.getElementById("pagerInfo").textContent =
@@ -1410,13 +1180,11 @@ async function removeTask(id){
 
   if (!task) return;
 
-  closeKebabs();
-
   const ok = await askConfirm({
-    title : "Delete task",
+    title : "Delete phase",
     text  : '"' + task.title + '" will be removed from this project, along with '
           + "anything the client has already been shown of it. This cannot be undone.",
-    action: "Delete task"
+    action: "Delete phase"
   });
 
   if (!ok) return;
@@ -1433,42 +1201,41 @@ async function removeTask(id){
   const pages = Math.max(1, Math.ceil(visibleTasks().length / TASK_PAGE_SIZE));
   if (page > pages) page = pages;
 
-  /* The panel cannot go on describing a task that is no longer there, so it
-     closes. closeTaskPanel renders the grid itself. */
-  if (openTaskId === Number(id)) {
-    closeTaskPanel();
-  } else {
-    renderTasks();
-  }
-
+  renderTasks();
+  paintStats();
   paintCalendar();
 }
 
+/* "Aml Mostafa" -> "AM", for the round avatars on the tiles. */
+function initials(name){
+  return String(name || "").trim().split(/\s+/).slice(0, 2)
+    .map(part => part.charAt(0).toUpperCase()).join("") || "?";
+}
+
+/* Pill colour by status key; an unknown key falls back to grey. */
+const STATUS_TONES = { planning:"grey", active:"blue", review:"amber", completed:"green" };
+
 function paintDetail(){
-  const image = document.getElementById("detailImg");
+  document.getElementById("detailTitle").textContent = project.title;
+  document.getElementById("detailDesc").textContent  = project.description || "No description was added.";
 
-  /* The image is optional, so its absence is not something to draw. Showing a
-     placeholder here would put a 320px empty rectangle above the title on
-     every project that has not had one uploaded. */
-  if (project.image_path) {
-    image.style.backgroundImage = "url('" + project.image_path + "')";
-    image.innerHTML = "";
-    image.hidden = false;
-  } else {
-    image.hidden = true;
-  }
+  const client = project.company_name || project.client_name || "";
+  document.getElementById("detailClient").innerHTML = client
+    ? '<span class="av">' + esc(initials(client)) + '</span><b dir="auto">' + esc(client) + "</b>"
+    : "<b>No client</b>";
 
-  document.getElementById("detailTitle").textContent  = project.title;
-  document.getElementById("detailDesc").textContent   = project.description || "No description was added.";
-  document.getElementById("detailClient").textContent = project.company_name || project.client_name || "—";
-  document.getElementById("detailTimeline").textContent =
-    fmtDate(project.start_date) + " – " + fmtDate(project.end_date);
-  document.getElementById("detailManager").textContent = project.account_manager_name || "Unassigned";
-  document.getElementById("detailStatus").textContent  = project.status_label;
+  document.getElementById("detailTimeline").innerHTML =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>'
+    + "<b>" + esc(fmtDate(project.start_date) + " – " + fmtDate(project.end_date)) + "</b>";
 
-  const progress = Number(project.progress || 0);
-  document.getElementById("detailProgress").textContent = progress + "%";
-  document.getElementById("detailBar").style.width      = progress + "%";
+  const manager = project.account_manager_name || "";
+  document.getElementById("detailManager").innerHTML = manager
+    ? '<span class="av">' + esc(initials(manager)) + '</span><b dir="auto">' + esc(manager) + "</b><small>Lead</small>"
+    : "<b>Unassigned</b>";
+
+  const tone = STATUS_TONES[project.status] || "grey";
+  document.getElementById("detailStatus").innerHTML =
+    '<span class="pill ' + tone + '"><i></i>' + esc(project.status_label) + "</span>";
 }
 
 /*

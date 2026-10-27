@@ -43,7 +43,8 @@ const PROMPTS = [
         "2. For each section the overview includes, look closer where it helps:",
         `   - responses submitted since ${weekAgo}: get_form_response for each;`,
         `   - meetings and content from ${weekAgo} to ${nextWeek}: get_calendar with that range and client ${client};`,
-        "   - each active project: get_project, and note tasks that went live this week.",
+        "   - each active project: get_project, and note phases that went live or were finished this week,",
+        "     and assignments still in progress past their due date.",
         "   Skip any tool you don't have; mention sections listed in not_included as not covered.",
         "3. Report under these headings, briefly, with dates:",
         "   Summary · Done this week · Coming up · Waiting on the client · Waiting on us · Risks.",
@@ -150,6 +151,30 @@ const PROMPTS = [
               "   review_form with my decision (and the comment, for Return). " + CONFIRM_RULE,
             ]
           : ["The decision itself is made in the portal."]),
+        DATA_RULE,
+      ].join("\n"),
+  },
+  {
+    name: "my_phases",
+    needs: ["projects:read"],
+    title: "Where I stand on my phases",
+    description: "The phases you're assigned to: what's due, what's late, and what to update.",
+    args: {},
+    text: (_args, scopes) =>
+      [
+        "Go through the phases I'm assigned to.",
+        "",
+        "1. Call list_my_phases. If it's empty, say so and stop.",
+        "2. Group them: late (due before today and not done) · due this week · the rest in",
+        "   progress · not started · done. Give each its project, due date and my note.",
+        "3. For anything late or due this week, call get_project for its project and say who",
+        "   else is on the phase and how far they've got.",
+        ...(scopes.includes("projects:write")
+          ? [
+              "4. Then ask me which statuses to move. For each one I give, call set_my_phase_status.",
+              "   " + CONFIRM_RULE,
+            ]
+          : ["Statuses are changed in the portal's dashboard."]),
         DATA_RULE,
       ].join("\n"),
   },

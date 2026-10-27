@@ -83,6 +83,41 @@ const postTeamFields = {
     ),
 };
 
+// What a phase (a project update) carries for the team working on it, the
+// same as the portal's Edit Phase page: never shown to the client.
+const phaseTeamFields = {
+  phase: z.string().max(80).optional().describe("The stage it belongs to, e.g. Planning; \"\" clears it"),
+  role: z.string().max(80).optional().describe("The role the phase calls for, e.g. UI Designer; \"\" clears it"),
+  priority: z.enum(["low", "medium", "high"]).optional(),
+  notes: z
+    .string()
+    .max(5000)
+    .optional()
+    .describe("Notes for the team - meeting notes, requirements, links. Markdown; staff only, never shown to the client"),
+  team: z
+    .array(recordId("A teammate's id"))
+    .max(50)
+    .optional()
+    .describe(
+      "Everyone to put on the phase, from list_phase_teammates (the client's team). Replaces who is on it " +
+        "([] takes everyone off); each person newly added is notified."
+    ),
+  assignments: z
+    .array(
+      z.object({
+        admin_id: recordId("The person's id - from list_phase_teammates"),
+        work_note: z.string().max(2000).optional().describe("What they did, and any details"),
+        status: z.enum(["todo", "in_progress", "done"]).optional().describe("Default todo"),
+      })
+    )
+    .max(50)
+    .optional()
+    .describe(
+      "Who worked on the phase, one row per person. Replaces the whole list ([] clears it); someone listed " +
+        "again keeps their row. Each person newly added is notified."
+    ),
+};
+
 const TWO_STEP =
   " Step 1 of 2: nothing changes yet. Show the person the summary this returns, " +
   "exactly, and call confirm_change only after they say yes.";
@@ -295,7 +330,9 @@ export const WRITE_TOOLS = [
     description:
       "Adds an update to a project. Published (the default), the client sees it - from `date` if " +
       "one is given - and is notified once it is live. With publish false it is a draft only the " +
-      "project team sees. The body is plain text; blank lines start new paragraphs." + TWO_STEP,
+      "project team sees. The body is plain text; blank lines start new paragraphs. In the portal " +
+      "these are the project's phases: phase, role, priority, notes, team and assignments are set " +
+      "here too (people from list_phase_teammates)." + TWO_STEP,
     input: {
       project: recordId("The project's id - from list_projects"),
       title: z.string().min(1).max(200),
@@ -304,6 +341,7 @@ export const WRITE_TOOLS = [
       time: time("Time shown with the update").optional(),
       link: z.string().max(500).optional().describe("An http(s) link shown with the update"),
       publish: z.boolean().optional().describe("Default true; false saves a draft"),
+      ...phaseTeamFields,
     },
   },
   {
@@ -311,8 +349,9 @@ export const WRITE_TOOLS = [
     scope: "projects:write",
     title: "Change a project update",
     description:
-      "Changes a project update (a task). Give only the fields to change; \"\" clears date, time " +
-      "or link. Publishing a draft makes it visible to the client once its date has come." + TWO_STEP,
+      "Changes a project update - a phase in the portal. Give only the fields to change; \"\" clears " +
+      "date, time, link, phase, role or notes. Publishing a draft makes it visible to the client once " +
+      "its date has come. team and assignments replace their whole list." + TWO_STEP,
     input: {
       id: recordId("The task's id - from get_project"),
       title: z.string().min(1).max(200).optional(),
@@ -322,6 +361,20 @@ export const WRITE_TOOLS = [
       link: z.string().max(500).optional(),
       status: z.enum(["draft", "published"]).optional(),
       is_complete: z.boolean().optional(),
+      ...phaseTeamFields,
+    },
+  },
+  {
+    name: "set_my_phase_status",
+    scope: "projects:write",
+    title: "Set my status on a phase",
+    description:
+      "Moves your own part of a phase: status is your assignment (todo, in_progress, done), done ticks " +
+      "your teammate box. Only your own row changes - list_my_phases shows where you stand." + TWO_STEP,
+    input: {
+      id: recordId("The phase's id - from list_my_phases or get_project"),
+      status: z.enum(["todo", "in_progress", "done"]).optional(),
+      done: z.boolean().optional(),
     },
   },
 

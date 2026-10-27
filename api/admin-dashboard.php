@@ -12,8 +12,9 @@
 | Read-only: changing "My status" posts action=set_my_status to
 | api/project-tasks.php.
 |
-| The query is myPhaseAssignments() in task-writes.php: only projects inside
-| projectScopeSql(), the same rule the project pages use.
+| The query is myPhaseAssignments() in task-writes.php, shared with api/v1's
+| list_my_phases: only projects inside projectScopeSql(), the same rule the
+| project pages use.
 |
 */
 
