@@ -563,7 +563,7 @@ body{padding:0}
     cursor: not-allowed;
 }
 
-/* A phone: the header row has nothing to head, and each admin is a card. */
+/* Narrow, whatever the screen: the popup's footer and the panel head stack. */
 @media (max-width: 700px) {
 
     .panel-head.with-action {
@@ -573,6 +573,29 @@ body{padding:0}
     .add-admin-btn {
         width: 100%;
     }
+
+    .admin-form-foot {
+        flex-wrap: wrap;
+    }
+
+    .admin-form-foot .status {
+        flex: 1 0 100%;
+        margin: 0 0 4px;
+    }
+
+    .admin-form-foot button {
+        flex: 1;
+    }
+}
+
+/* The five columns need about 780px. Whether there is that much depends on
+   the list - a collapsed sidebar, a tablet, a phone - not on the screen, so the
+   header row goes and each admin becomes a card by the list's own width. */
+.team-wrap {
+    container-type: inline-size;
+}
+
+@container (max-width: 780px) {
 
     .team-list {
         display: flex;
@@ -610,19 +633,13 @@ body{padding:0}
     .team-email   { grid-area: email; }
     .team-role    { grid-area: role; }
     .team-status  { grid-area: status; justify-self: end; }
-    .team-actions { grid-area: actions; display: grid; grid-template-columns: 1fr 1fr; margin-top: 4px; }
 
-    .admin-form-foot {
-        flex-wrap: wrap;
-    }
-
-    .admin-form-foot .status {
-        flex: 1 0 100%;
-        margin: 0 0 4px;
-    }
-
-    .admin-form-foot button {
-        flex: 1;
+    .team-actions {
+        grid-area: actions;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        max-width: 420px;
+        margin-top: 4px;
     }
 }
 
@@ -1445,9 +1462,11 @@ document.addEventListener("DOMContentLoaded", function () {
         </div>
 
         <div class="panel-body">
-            <div id="adminsList" class="team-list">
-                <div class="no-admins">
-                    Loading admins...
+            <div class="team-wrap">
+                <div id="adminsList" class="team-list">
+                    <div class="no-admins">
+                        Loading admins...
+                    </div>
                 </div>
             </div>
 
@@ -2353,7 +2372,7 @@ async function saveSlideOrder() {
 let allAdmins = [];
 
 // Eight rows to a page; the rest live behind the pager under the list.
-const ADMINS_PAGE_SIZE = 8;
+const ADMINS_PAGE_SIZE = 5;
 let adminsPage = 1;
 
 function hideAdminsPager() {

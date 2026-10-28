@@ -15,6 +15,11 @@ body{background:#f6f7fb;color:#101828}
 .pager button:hover:not(:disabled){background:#f6f7f9}
 .pager button.current{background:var(--nav-active);border-color:var(--nav-active);color:#fff}
 .pager button:disabled{opacity:.45;cursor:not-allowed}
+/* On a phone the count adds nothing the buttons do not already say. */
+@media(max-width:700px){
+  .pager-info{display:none}
+  .pager{justify-content:center}
+}
 
 /* ── Back link, above the page title on every sub-page ── */
 .back-link{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;flex:none;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--text);text-decoration:none;transition:background .15s}
@@ -397,6 +402,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
       <div id="groups"></div>
 
+      <div class="pager" id="pager" hidden>
+        <div class="pager-info" id="pagerInfo"></div>
+        <div class="pager-pages" id="pagerPages"></div>
+      </div>
+
     </div>
 
   </div>
@@ -523,6 +533,11 @@ let projects = 0;
 let today    = todayISO();
 let filter   = "all";
 
+/* Six tasks to a page, over the whole filtered list; the groups are drawn
+   within each page. */
+const TASKS_PAGE_SIZE = 6;
+let tasksPage = 1;
+
 async function load(){
   const data = await api("api/admin-dashboard.php");
 
@@ -602,7 +617,7 @@ function paintFilters(){
   }).join("");
 
   document.querySelectorAll("#filters button").forEach(button => {
-    button.addEventListener("click", () => { filter = button.dataset.filter; paintFilters(); paintGroups(); });
+    button.addEventListener("click", () => { filter = button.dataset.filter; tasksPage = 1; paintFilters(); paintGroups(); });
   });
 }
 
@@ -622,7 +637,12 @@ const GROUPS = [
 ];
 
 function paintGroups(){
-  const shown = tasks.filter(t => filter === "all" || t.status === filter);
+  // New, then In progress, then Done - so a page reads in the order work moves.
+  // The sort is stable: inside a group the soonest-due stays first.
+  const order = GROUPS.map(g => g[0]);
+  const shown = tasks
+    .filter(t => filter === "all" || t.status === filter)
+    .sort((a, b) => order.indexOf(groupOf(a)) - order.indexOf(groupOf(b)));
   const box   = document.getElementById("groups");
 
   if (!shown.length) {
@@ -632,11 +652,19 @@ function paintGroups(){
           ? "<h3>Nothing here</h3><p>None of your tasks is " + esc((statuses[filter] || "").toLowerCase()) + ".</p>"
           : "<h3>Nothing on your plate</h3><p>When you are put on a phase or a content post, it shows up here with its due date and your status.</p>")
       + "</div>";
+    document.getElementById("pager").hidden = true;
     return;
   }
 
+  const pages = Math.max(1, Math.ceil(shown.length / TASKS_PAGE_SIZE));
+
+  if (tasksPage > pages) tasksPage = pages;
+
+  const start = (tasksPage - 1) * TASKS_PAGE_SIZE;
+  const slice = shown.slice(start, start + TASKS_PAGE_SIZE);
+
   box.innerHTML = GROUPS.map(([key, label, colour]) => {
-    const rows = shown.filter(t => groupOf(t) === key);
+    const rows = slice.filter(t => groupOf(t) === key);
     if (!rows.length) return "";
 
     return '<section class="group">'
@@ -648,6 +676,41 @@ function paintGroups(){
   box.querySelectorAll("select[data-kind]").forEach(select => {
     select.addEventListener("change", () => setMyStatus(select));
   });
+
+  paintPager(shown.length, pages, start, slice.length);
+}
+
+function paintPager(total, pages, start, shown){
+  const pager = document.getElementById("pager");
+
+  if (total <= TASKS_PAGE_SIZE) {
+    pager.hidden = true;
+    return;
+  }
+
+  pager.hidden = false;
+
+  document.getElementById("pagerInfo").textContent =
+    "Showing " + (start + 1) + " to " + (start + shown) + " of " + total + " tasks";
+
+  const buttons = ['<button type="button" onclick="goToTasksPage(' + (tasksPage - 1) + ')" '
+    + (tasksPage === 1 ? "disabled" : "") + ">Prev</button>"];
+
+  for (let n = 1; n <= pages; n++) {
+    buttons.push('<button type="button" class="' + (n === tasksPage ? "current" : "") + '"'
+      + (n === tasksPage ? ' aria-current="page"' : "") + ' onclick="goToTasksPage(' + n + ')">' + n + "</button>");
+  }
+
+  buttons.push('<button type="button" onclick="goToTasksPage(' + (tasksPage + 1) + ')" '
+    + (tasksPage === pages ? "disabled" : "") + ">Next</button>");
+
+  document.getElementById("pagerPages").innerHTML = buttons.join("");
+}
+
+function goToTasksPage(n){
+  tasksPage = n;
+  paintGroups();
+  document.querySelector(".mine-head").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 /* What each kind of row can be set to: only an assignment has a middle step;
