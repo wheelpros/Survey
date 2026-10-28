@@ -351,6 +351,23 @@ export const phaseTeammates = {
   ),
 };
 
+export const myTasks = {
+  items: z.array(
+    z.object({
+      kind: z.string().describe("assignment (a phase you are assigned to), teammate (a phase you are on) or content (a post you are on)"),
+      id: id.describe("The phase's id, or the post's for content"),
+      title: text,
+      belongs_to: text.describe("The project, or the client for a post"),
+      due_date: maybe,
+      label: maybe.describe("The phase's stage, or the post's type"),
+      status: z.string().describe("todo, in_progress or done - a teammate box or a post is todo or done"),
+      link: text.describe("The portal page it opens"),
+    })
+  ),
+  counts: z.object({ todo: id, in_progress: id, done: id }),
+  projects: id.describe("How many projects you can see"),
+};
+
 export const myPhases = {
   items: z.array(
     z.object({
@@ -434,6 +451,7 @@ export const whoami = {
   visible_clients: z.enum(["all", "assigned"]).optional(),
   visible_client_count: id.optional(),
   company_name: maybe.optional(),
+  position: maybe.optional().describe("Staff: what the portal shows in place of your name, e.g. SEO Specialist"),
 };
 
 // ── Changes (api/v1/changes.php) ────────────────────────────────────────

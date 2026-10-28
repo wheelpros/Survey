@@ -30,6 +30,12 @@ if ($p["via"] === "mcp") {
 }
 
 if ($p["kind"] === "admin") {
+    // What the sidebar calls them; null for an admin without one.
+    ensureAdminColumns($pdo);
+    $stmt = $pdo->prepare("SELECT position FROM admins WHERE id = ? LIMIT 1");
+    $stmt->execute([(int) $p["id"]]);
+    $data["position"] = v1NullableString($stmt->fetchColumn() ?: null);
+
     // How many clients this admin can see - all of them for the owner.
     $ids = assignedClientIds($pdo, $p);
     if ($ids === null) {

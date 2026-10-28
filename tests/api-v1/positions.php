@@ -113,3 +113,30 @@ foreach (["super admin" => $sa, "account manager" => $am, "admin" => $seo] as $w
     check("edit: a $who can't", ($r["success"] ?? true) === false && adminRowOf($pdo, 5)["name"] === "Sean", json_encode($r));
 }
 post("api/admin-update.php", $owner, ["admin_id" => 5, "name" => "Sean", "email" => "se@w.test", "position" => "SEO Specialist", "role" => "seo_admin"]);
+
+// ── update_admin (api/v1): the Edit popup's save ────────────────────────
+
+refusedChange("update_admin v1: only the owner", $am, "update_admin", ["admin" => 5, "name" => "Hacked"], 403);
+refusedChange("update_admin v1: something to change", $owner, "update_admin", ["admin" => 5], 422);
+refusedChange("update_admin v1: nothing new", $owner, "update_admin", ["admin" => 5, "name" => "Sean"], 409);
+refusedChange("update_admin v1: not another admin's email", $owner, "update_admin", ["admin" => 5, "email" => "a@w.test"], 409);
+refusedChange("update_admin v1: never the owner's row", $owner, "update_admin", ["admin" => 1, "name" => "Olivia 2"], 403);
+refusedChange("update_admin v1: never the owner role", $owner, "update_admin", ["admin" => 5, "role" => "owner"], 422);
+
+[$prep] = change("update_admin v1: name and email", $owner, "update_admin", ["admin" => 5, "name" => "Sean Q", "email" => "sean.q@w.test"]);
+$sean = adminRowOf($pdo, 5);
+check("update_admin v1: saved, nobody signed out", $sean["name"] === "Sean Q" && $sean["email"] === "sean.q@w.test"
+    && $sean["position"] === "SEO Specialist" && $sean["session_token"] === "tok-seo"
+    && strpos($prep["data"]["summary"] ?? "", "Nobody is signed out") !== false, json_encode($prep));
+
+[$prep] = change("update_admin v1: a role change", $owner, "update_admin", ["admin" => 5, "role" => "super_admin"]);
+check("update_admin v1: a role change signs them out", adminRowOf($pdo, 5)["role"] === "super_admin" && adminRowOf($pdo, 5)["session_token"] === null
+    && strpos($prep["data"]["summary"] ?? "", "signed out") !== false, json_encode($prep));
+
+// Put Sean back as the files after this one expect him.
+$pdo->exec("UPDATE admins SET name = 'Sean', email = 'se@w.test', role = 'seo_admin', session_token = 'tok-seo' WHERE id = 5");
+
+[, $me] = get("me.php", $seo);
+check("whoami: my position", ($me["data"]["position"] ?? null) === "SEO Specialist", json_encode($me));
+[, $me] = get("me.php", $am);
+check("whoami: null without one", array_key_exists("position", $me["data"] ?? []) && $me["data"]["position"] === null, json_encode($me));

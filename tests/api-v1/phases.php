@@ -200,3 +200,35 @@ refusedChange("v1 phases: no box when not a teammate", $am, "set_my_phase_status
 change("v1 phases: a teammate ticks their box", $sa, "set_my_phase_status", ["id" => $v1Phase, "done" => true]);
 refusedChange("v1 phases: status or done is needed", $sa, "set_my_phase_status", ["id" => $v1Phase], 422);
 refusedChange("v1 phases: a project out of scope", $am2, "set_my_phase_status", ["id" => $v1Phase, "status" => "done"], 404);
+
+// ── list_my_tasks and set_my_post_done (api/v1) ─────────────────────────
+
+/** The v1 task items of $kind about $id. */
+function v1TaskItems(array $d, $kind, $id)
+{
+    return array_values(array_filter($d["data"]["items"] ?? [], function ($t) use ($kind, $id) {
+        return $t["kind"] === $kind && (int) $t["id"] === (int) $id;
+    }));
+}
+
+[$status, $v1] = get("projects.php?tasks=1", $seo);
+[, $page] = pageGet("api/admin-dashboard.php", $seo);
+$v1Keys = array_map(function ($t) { return $t["kind"] . ":" . $t["id"]; }, $v1["data"]["items"] ?? []);
+$pageKeys = array_map(function ($t) { return $t["kind"] . ":" . $t["id"]; }, $page["tasks"] ?? []);
+check("my tasks v1: the dashboard's own list and counts", $status === 200 && $v1Keys === $pageKeys
+    && ($v1["data"]["counts"] ?? null) === ($page["counts"] ?? null) && ($v1["data"]["projects"] ?? 0) === ($page["projects"] ?? -1), json_encode([$v1, $page]));
+$post = v1TaskItems($v1, "content", 302);
+check("my tasks v1: a post I am on, with its link", count($post) === 1 && $post[0]["belongs_to"] === "Acme Ltd"
+    && $post[0]["link"] === "admin-content-form.html?id=302" && in_array($post[0]["status"], ["todo", "done"], true), json_encode($post));
+check("my tasks v1: a phase I am assigned to", count(v1TaskItems($v1, "assignment", 601)) === 1, json_encode($v1));
+
+// Posts are content:write, which an Admin (seo_admin) doesn't hold - the same
+// rule as editing a post over v1. Sam (Super Admin) is on post 303.
+$before = (int) one($pdo, "SELECT is_done FROM content_assignees WHERE content_id = 303 AND admin_id = 2")["is_done"];
+[$prep] = change("my post v1: tick my box", $sa, "set_my_post_done", ["id" => 303, "done" => $before !== 1]);
+check("my post v1: only my box moved", (int) one($pdo, "SELECT is_done FROM content_assignees WHERE content_id = 303 AND admin_id = 2")["is_done"] === ($before === 1 ? 0 : 1)
+    && strpos($prep["data"]["summary"] ?? "", "Only your own box changes") !== false, json_encode($prep));
+refusedChange("my post v1: nothing to change", $sa, "set_my_post_done", ["id" => 303, "done" => $before !== 1], 409);
+refusedChange("my post v1: not a post I am on", $sa, "set_my_post_done", ["id" => 300, "done" => true], 403);
+refusedChange("my post v1: done is required", $sa, "set_my_post_done", ["id" => 303], 422);
+refusedChange("my post v1: an Admin has no content:write", $seo, "set_my_post_done", ["id" => 302, "done" => true], 403);

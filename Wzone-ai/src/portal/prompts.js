@@ -157,21 +157,21 @@ const PROMPTS = [
   {
     name: "my_phases",
     needs: ["projects:read"],
-    title: "Where I stand on my phases",
-    description: "The phases you're assigned to: what's due, what's late, and what to update.",
+    title: "Where I stand on my tasks",
+    description: "Your dashboard's tasks - phases and content posts: what's due, what's late, and what to update.",
     args: {},
     text: (_args, scopes) =>
       [
-        "Go through the phases I'm assigned to.",
+        "Go through my tasks.",
         "",
-        "1. Call list_my_phases. If it's empty, say so and stop.",
+        "1. Call list_my_tasks. If it's empty, say so and stop.",
         "2. Group them: late (due before today and not done) · due this week · the rest in",
-        "   progress · not started · done. Give each its project, due date and my note.",
-        "3. For anything late or due this week, call get_project for its project and say who",
-        "   else is on the phase and how far they've got.",
+        "   progress · not started · done. Give each its project or client and due date.",
+        "3. For a phase that is late or due this week, call get_project for its project and say",
+        "   who else is on the phase and how far they've got.",
         ...(scopes.includes("projects:write")
           ? [
-              "4. Then ask me which statuses to move. For each one I give, call set_my_phase_status.",
+              "4. Then ask me which to move. For a phase call set_my_phase_status, for a post set_my_post_done.",
               "   " + CONFIRM_RULE,
             ]
           : ["Statuses are changed in the portal's dashboard."]),

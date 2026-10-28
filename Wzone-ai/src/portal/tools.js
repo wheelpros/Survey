@@ -338,13 +338,27 @@ export const READ_TOOLS = [
     scope: "projects:read",
     title: "My phases",
     description:
-      "The phases you are assigned to, across every project you can see, with your status on " +
-      "each (todo, in_progress, done) and the counts - the portal's admin dashboard. Change your " +
-      "own status with set_my_phase_status.",
+      "Only the phases you are assigned to, with your status on each (todo, in_progress, done) and " +
+      "what you noted. For everything on the admin dashboard - teammate phases and content posts " +
+      "too - use list_my_tasks. Change your own status with set_my_phase_status.",
     input: {},
     output: S.myPhases,
     path: "projects.php",
     query: () => ({ mine: 1 }),
+  },
+  {
+    name: "list_my_tasks",
+    scope: "projects:read",
+    title: "My tasks",
+    description:
+      "Everything on your admin dashboard's My tasks: phases you are assigned to, phases you are a " +
+      "teammate on, and content posts you are on (when this connection can read content), each " +
+      "with your own status and due date, soonest first, plus the counts. Change a phase with " +
+      "set_my_phase_status and a post with set_my_post_done.",
+    input: {},
+    output: S.myTasks,
+    path: "projects.php",
+    query: () => ({ tasks: 1 }),
   },
 
   // ── Notifications ─────────────────────────────────────────────────────

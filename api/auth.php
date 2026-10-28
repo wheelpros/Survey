@@ -82,6 +82,7 @@ function bearerToken()
 |   settings:*       O         settings.php, upload-logo.php,
 |                              admin-login-slides.php
 |   admins:write     O         add-user.php, admin-role.php,
+|                              admin-position.php, admin-update.php,
 |                              admin-manager-assignments.php
 |
 | O owner, SA super_admin, AM account_manager. Which *records* a role sees

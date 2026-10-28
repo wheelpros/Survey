@@ -1346,6 +1346,43 @@ function v1WriteHandlers()
             },
         ],
 
+        "set_my_post_done" => [
+            "scope" => "content:write",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                $id = argInt($a, "id");
+                $done = argBool($a, "done", null);
+                if ($done === null) {
+                    throw new PortalWriteError("done is required.");
+                }
+                $stmt = $pdo->prepare("
+                    SELECT c.title, c.client, ca.is_done
+                    FROM content_assignees ca
+                    JOIN content c ON c.id = ca.content_id
+                    WHERE ca.content_id = ? AND ca.admin_id = ?
+                    LIMIT 1
+                ");
+                $stmt->execute([$id, (int) $p["id"]]);
+                $mine = $stmt->fetch();
+                if (!$mine) {
+                    throw new PortalWriteError("You aren't on a post with that id - list_my_tasks shows yours.", 403);
+                }
+                if (((int) $mine["is_done"] === 1) === $done) {
+                    throw new PortalWriteError("Nothing to change - your box on that post is already " . ($done ? "ticked." : "unticked."), 409);
+                }
+                return [
+                    "args" => ["id" => $id, "done" => $done],
+                    "summary" => ($done ? "Tick" : "Untick") . " your box on the post " . quoteFor($mine["title"])
+                        . (trim((string) $mine["client"]) !== "" ? " for " . trim((string) $mine["client"]) : "")
+                        . ". Only your own box changes; the team sees it.",
+                    "preview" => ["post_id" => $id, "done" => $done, "untrusted_content" => ["title" => (string) $mine["title"]]],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                ensureContentColumns($pdo);
+                return ["post_id" => $a["id"], "done" => setOwnContentDone($pdo, $a["id"], $p["id"], $a["done"]) === 1];
+            },
+        ],
+
         "publish_content" => [
             "scope" => "content:write",
             "prepare" => function (PDO $pdo, array $p, array $a) {
@@ -1876,6 +1913,56 @@ function v1WriteHandlers()
                     "note" => $emailed ? null
                         : "The email didn't go out. They can use \"Forgot password\" on the admin sign-in page with this address.",
                 ];
+            },
+        ],
+
+        "update_admin" => [
+            "scope" => "admins:write",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                $adminId = argInt($a, "admin");
+                $target = findAdminRow($pdo, $adminId);
+                $given = [];
+                foreach (["name" => 100, "email" => 190, "position" => 100] as $key => $max) {
+                    if (array_key_exists($key, $a)) {
+                        $given[$key] = argText($a, $key, $max, false);
+                    }
+                }
+                if (array_key_exists("role", $a)) {
+                    $given["role"] = argEnum($a, "role", ASSIGNABLE_ADMIN_ROLES);
+                }
+                if (!$given) {
+                    throw new PortalWriteError("Give at least one of name, email, position or role.");
+                }
+                // The Settings popup's rules, on the row as it would be after.
+                [$target, $clean] = checkAdminUpdate($pdo, $p, $adminId, $given + [
+                    "name" => $target["name"],
+                    "email" => $target["email"],
+                    "position" => $target["position"] ?? "",
+                    "role" => $target["role"],
+                ]);
+                $changes = [];
+                noteChange($changes, "name", $target["name"], $clean["name"]);
+                noteChange($changes, "email", $target["email"], $clean["email"]);
+                noteChange($changes, "position", $target["position"] ?? "", $clean["position"]);
+                noteChange($changes, "role", adminRoleName($target["role"]), adminRoleName($clean["role"]));
+                if (!$changes) {
+                    throw new PortalWriteError("Nothing to change - " . adminLabel($target) . " already has those details.", 409);
+                }
+                $roleChanges = $clean["role"] !== $target["role"];
+                return [
+                    "args" => ["admin" => $adminId] + $clean,
+                    "summary" => "Change " . adminLabel($target) . ": " . describeChanges($changes) . "."
+                        . ($roleChanges ? " They are signed out and pick up the new role when they next sign in." : " Nobody is signed out."),
+                    "preview" => [
+                        "admin_id" => $adminId,
+                        "signs_out" => $roleChanges,
+                        "untrusted_content" => ["changes" => $changes],
+                    ],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                [$target, $clean] = checkAdminUpdate($pdo, $p, $a["admin"], $a);
+                return ["admin_id" => $a["admin"], "signed_out" => updateAdmin($pdo, $target, $clean)];
             },
         ],
 

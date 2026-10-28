@@ -584,32 +584,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             response(false, "Invalid content ID.", [], 400);
         }
 
+        // The rules are setOwnContentDone()'s (content-writes.php), shared with api/v1.
         try {
-            $stmt = $pdo->prepare("SELECT id FROM content WHERE id = ? LIMIT 1");
-            $stmt->execute([$contentId]);
-
-            if (!$stmt->fetch()) {
-                response(false, "Content not found.", [], 404);
-            }
-
-            if (!isContentAssignee($pdo, $contentId, $admin["id"])) {
-                response(
-                    false,
-                    "Only a teammate assigned to this post can tick their box.",
-                    [],
-                    403
-                );
-            }
-
-            $stmt = $pdo->prepare("
-                UPDATE content_assignees
-                SET is_done = ?, done_at = IF(? = 1, NOW(), NULL)
-                WHERE content_id = ? AND admin_id = ?
-            ");
-            $stmt->execute([$done, $done, $contentId, (int) $admin["id"]]);
-
+            setOwnContentDone($pdo, $contentId, $admin["id"], $done);
+        } catch (PortalWriteError $e) {
+            response(false, $e->getMessage(), [], $e->status === 422 ? 400 : $e->status);
         } catch (Throwable $e) {
-
             response(false, "Could not save your checkbox.", [], 500);
         }
 

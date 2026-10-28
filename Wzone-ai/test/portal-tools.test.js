@@ -46,7 +46,7 @@ function fakePortal({ scopes, v1 } = {}) {
       "me.php": "whoami",
       "clients.php": q.get("part") === "team" ? "get_client_team" : q.get("part") === "note" ? "get_my_client_note" : q.has("id") ? "get_client_overview" : "search_clients",
       "forms.php": q.has("id") ? "get_form" : q.has("queue") ? "list_forms_awaiting_review" : "list_forms",
-      "projects.php": q.has("teammates") ? "list_phase_teammates" : q.has("mine") ? "list_my_phases" : q.has("id") ? "get_project" : "list_projects",
+      "projects.php": q.has("teammates") ? "list_phase_teammates" : q.has("mine") ? "list_my_phases" : q.has("tasks") ? "list_my_tasks" : q.has("id") ? "get_project" : "list_projects",
       "notifications.php": "list_my_notifications",
       "calendar.php": q.has("id") ? "get_meeting" : q.has("pending") ? "list_pending_approvals" : "get_calendar",
     }[path];
@@ -146,6 +146,7 @@ describe("private server: per-person tools", () => {
     await c.callTool({ name: "get_calendar", arguments: { from: "2026-10-01", client: 10 } });
     await c.callTool({ name: "list_phase_teammates", arguments: { id: 500 } });
     await c.callTool({ name: "list_my_phases", arguments: {} });
+    await c.callTool({ name: "list_my_tasks", arguments: {} });
 
     const calls = v1Calls(upstream).map(({ url }) => `${url.pathname.replace("/api/v1/", "")}?${url.searchParams}`);
     expect(calls).toEqual([
@@ -156,6 +157,7 @@ describe("private server: per-person tools", () => {
       "calendar.php?from=2026-10-01&client=10",
       "projects.php?id=500&teammates=1",
       "projects.php?mine=1",
+      "projects.php?tasks=1",
     ]);
     const { init } = v1Calls(upstream)[0];
     expect(init.headers["X-MCP-Tool"]).toBe("get_client_team");
