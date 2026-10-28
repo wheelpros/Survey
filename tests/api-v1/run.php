@@ -58,6 +58,7 @@ ensureProjectTables($pdo);
 ensureInquiryTables($pdo);
 ensureClientNotes($pdo);
 ensureOAuthTables($pdo);
+ensureAdminMessageTables($pdo);
 
 /*
 |--------------------------------------------------------------------------
@@ -606,6 +607,7 @@ require __DIR__ . "/phases.php";
 require __DIR__ . "/positions.php";
 require __DIR__ . "/clients.php";
 require __DIR__ . "/settings.php";
+require __DIR__ . "/messages.php";
 
 if (in_array("--fixtures", $argv, true)) {
     file_put_contents(

@@ -1272,6 +1272,62 @@ function ensureNotificationsTable(PDO $pdo)
 }
 
 /**
+ * Direct messages between admins - admin-messages.html, through
+ * api/admin-messages.php.
+ *
+ * One conversation per pair of admins: the two ids are stored smaller first
+ * (admin_low, admin_high) under a unique key, so "Sam to Amy" and "Amy to
+ * Sam" are always the same row. Each side's read marker is the id of the
+ * last message they have seen; unread is everything after it that the other
+ * person sent.
+ *
+ * Private by design: only the two admins in a conversation ever read it -
+ * the Director included - and nothing about it reaches notifications or the
+ * MCP.
+ *
+ * sql/admin_messages.sql is the same tables to run by hand.
+ */
+function ensureAdminMessageTables(PDO $pdo)
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    try {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS admin_conversations (
+              id                INT AUTO_INCREMENT PRIMARY KEY,
+              admin_low         INT       NOT NULL,
+              admin_high        INT       NOT NULL,
+              low_last_read_id  BIGINT    NOT NULL DEFAULT 0,
+              high_last_read_id BIGINT    NOT NULL DEFAULT 0,
+              last_message_id   BIGINT    NOT NULL DEFAULT 0,
+              created_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              updated_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              UNIQUE KEY uniq_pair (admin_low, admin_high),
+              KEY idx_low (admin_low, updated_at),
+              KEY idx_high (admin_high, updated_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS admin_messages (
+              id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+              conversation_id INT       NOT NULL,
+              sender_id       INT       NOT NULL,
+              body            TEXT      NOT NULL,
+              created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              KEY idx_conversation (conversation_id, id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+    } catch (PDOException $e) {
+        // Read-only DB user: run sql/admin_messages.sql by hand. Until then
+        // the Messages page says it can't load.
+    }
+}
+
+/**
  * The announcements the owner writes by hand, plus the notifications column
  * that points back at them.
  *
