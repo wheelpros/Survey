@@ -89,7 +89,7 @@ describe("private server: confirmed changes", () => {
     const names = await toolNames(c);
     for (const n of [
       "create_form_draft", "update_form", "create_content_draft", "update_content_draft", "publish_content",
-      "list_content_teammates", "post_project_update", "update_task", "list_phase_teammates", "set_my_phase_status",
+      "list_content_teammates", "post_project_update", "update_task", "list_phase_teammates", "set_my_phase_status", "set_my_post_done",
       "confirm_change", "mark_notifications_read",
     ]) {
       expect(names).toContain(n);
@@ -109,7 +109,7 @@ describe("private server: confirmed changes", () => {
                      "reorder_login_slides", "remove_login_slide", "confirm_change"]) {
       expect(names).toContain(n);
     }
-    for (const n of ["add_admin", "set_admin_position", "change_admin_role", "set_admin_active", "assign_admins_to_manager"]) {
+    for (const n of ["add_admin", "update_admin", "set_admin_position", "change_admin_role", "set_admin_active", "assign_admins_to_manager"]) {
       expect(names).not.toContain(n);
     }
     await c.close();

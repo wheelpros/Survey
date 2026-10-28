@@ -206,6 +206,37 @@ function saveContentAssignees(PDO $pdo, $contentId, array $before, array $after,
     }
 }
 
+/**
+ * Ticks (or unticks) the caller's own box on a post - the teammate checklist
+ * on admin-content-form.html, the admin dashboard and api/v1's
+ * set_my_post_done. Only their own content_assignees row changes; someone not
+ * on the post has no box (403). Returns 1 or 0.
+ */
+function setOwnContentDone(PDO $pdo, $contentId, $adminId, $done)
+{
+    $stmt = $pdo->prepare("SELECT id FROM content WHERE id = ? LIMIT 1");
+    $stmt->execute([(int) $contentId]);
+
+    if (!$stmt->fetch()) {
+        throw new PortalWriteError("Content not found.", 404);
+    }
+
+    if (!isContentAssignee($pdo, $contentId, $adminId)) {
+        throw new PortalWriteError("Only a teammate assigned to this post can tick their box.", 403);
+    }
+
+    $done = $done ? 1 : 0;
+
+    $stmt = $pdo->prepare("
+        UPDATE content_assignees
+        SET is_done = ?, done_at = IF(? = 1, NOW(), NULL)
+        WHERE content_id = ? AND admin_id = ?
+    ");
+    $stmt->execute([$done, $done, (int) $contentId, (int) $adminId]);
+
+    return $done;
+}
+
 /** The admin ids on a post now. */
 function currentAssigneeIds(PDO $pdo, $contentId)
 {

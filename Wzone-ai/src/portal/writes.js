@@ -370,6 +370,18 @@ export const WRITE_TOOLS = [
     },
   },
   {
+    name: "set_my_post_done",
+    scope: "content:write",
+    title: "Tick my box on a post",
+    description:
+      "Ticks (or unticks) your own box on a content post you are on - the teammate checklist. Only " +
+      "your box changes. list_my_tasks shows the posts you are on." + TWO_STEP,
+    input: {
+      id: recordId("The post's id - from list_my_tasks or list_content"),
+      done: z.boolean().describe("true ticks it, false unticks it"),
+    },
+  },
+  {
     name: "set_my_phase_status",
     scope: "projects:write",
     title: "Set my status on a phase",
@@ -454,6 +466,23 @@ export const WRITE_TOOLS = [
       position: adminPosition,
       email: z.string().email().max(190),
       role: adminRole,
+    },
+  },
+  {
+    name: "update_admin",
+    scope: "admins:write",
+    title: "Edit an admin",
+    description:
+      "Changes an admin's name, email, position and/or role in one go - what the Edit popup on Settings " +
+      "does. Give only what changes. The email must not belong to another admin, and someone without a " +
+      "position needs one. A role change signs them out; the rest doesn't. The owner's account can't be " +
+      "edited here." + TWO_STEP,
+    input: {
+      admin: adminId,
+      name: z.string().min(1).max(100).optional(),
+      email: z.string().email().max(190).optional(),
+      position: adminPosition.optional(),
+      role: adminRole.optional(),
     },
   },
   {

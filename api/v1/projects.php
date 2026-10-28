@@ -7,6 +7,7 @@
 |   GET projects.php?id=N                             get_project
 |   GET projects.php?id=N&teammates=1                 list_phase_teammates
 |   GET projects.php?mine=1                           list_my_phases
+|   GET projects.php?tasks=1                          list_my_tasks
 |
 | A project's tasks are its phases. Each carries the people on it: teammates
 | (each ticks their own box done) and assignments (who worked on it, what
@@ -114,6 +115,47 @@ function projectItem(array $r)
         "account_manager_name" => v1NullableString($r["account_manager_name"]),
         "task_count" => (int) $r["task_count"],
     ];
+}
+
+/*
+| My tasks: the admin dashboard's whole "My tasks" list (myDashboardItems()) -
+| phases I am assigned to, phases I am a teammate on, and content posts I am
+| on, each with my own status. Posts only for a connection that may read
+| content; the counts are over what is returned.
+*/
+if (!empty($_GET["tasks"])) {
+    $mine = myDashboardItems($pdo, $p);
+    $withPosts = hasScope($p, "content:read");
+
+    $items = array_values(array_filter($mine["tasks"], function ($t) use ($withPosts) {
+        return $t["kind"] !== "content" || $withPosts;
+    }));
+
+    $counts = array_fill_keys(array_keys(TASK_ASSIGNMENT_STATUSES), 0);
+    foreach ($items as $t) {
+        if (isset($counts[$t["status"]])) {
+            $counts[$t["status"]]++;
+        }
+    }
+
+    v1Reply(200, [
+        "items" => array_map(function ($t) {
+            return [
+                // assignment | teammate | content
+                "kind" => $t["kind"],
+                "id" => (int) $t["id"],
+                "title" => (string) $t["title"],
+                "belongs_to" => (string) $t["chip"],
+                "due_date" => v1NullableString($t["due_date"]),
+                "label" => v1NullableString($t["label"]),
+                // todo | in_progress | done; a teammate box or a post is todo or done
+                "status" => (string) $t["status"],
+                "link" => (string) $t["href"],
+            ];
+        }, $items),
+        "counts" => $counts,
+        "projects" => $mine["projects"],
+    ]);
 }
 
 /*
