@@ -94,10 +94,11 @@ function contentAssigneeCandidates(PDO $pdo, $company)
 {
     $company = trim((string) $company);
     $roles = implode(",", array_fill(0, count(CONTENT_ASSIGNEE_ROLES), "?"));
+    ensureAdminColumns($pdo);
 
     if ($company === "") {
         $stmt = $pdo->prepare("
-            SELECT id, name, email, role
+            SELECT id, name, email, role, avatar_path
             FROM admins
             WHERE active = 1 AND role IN ($roles)
             ORDER BY name ASC
@@ -106,7 +107,7 @@ function contentAssigneeCandidates(PDO $pdo, $company)
     } else {
         ensureUserProfileColumns($pdo);
         $stmt = $pdo->prepare("
-            SELECT DISTINCT a.id, a.name, a.email, a.role
+            SELECT DISTINCT a.id, a.name, a.email, a.role, a.avatar_path
             FROM admin_user_assignments aua
             JOIN admins a ON a.id = aua.admin_id
             JOIN users u ON u.id = aua.user_id
@@ -118,7 +119,8 @@ function contentAssigneeCandidates(PDO $pdo, $company)
 
     return array_map(function ($r) {
         return ["id" => (int) $r["id"], "name" => (string) $r["name"],
-                "email" => (string) $r["email"], "role" => (string) $r["role"]];
+                "email" => (string) $r["email"], "role" => (string) $r["role"],
+                "avatar_path" => $r["avatar_path"] ?: null];
     }, $stmt->fetchAll(PDO::FETCH_ASSOC));
 }
 
@@ -227,14 +229,60 @@ function setOwnContentDone(PDO $pdo, $contentId, $adminId, $done)
 
     $done = $done ? 1 : 0;
 
-    $stmt = $pdo->prepare("
-        UPDATE content_assignees
-        SET is_done = ?, done_at = IF(? = 1, NOW(), NULL)
-        WHERE content_id = ? AND admin_id = ?
-    ");
-    $stmt->execute([$done, $done, (int) $contentId, (int) $adminId]);
+    // The box is the status now: ticked is done, unticked is to do.
+    setOwnContentStatus($pdo, $contentId, $adminId, $done ? "done" : "todo");
 
     return $done;
+}
+
+/**
+ * Sets what each teammate does on the post, from $notes: admin_id => text.
+ * Only people on the post are touched; anyone else in the map is ignored,
+ * since the team itself is saved by saveContentAssignees(). Status is not
+ * set here - each person moves their own (setOwnContentStatus).
+ */
+function saveContentWorkNotes(PDO $pdo, $contentId, array $notes)
+{
+    $onPost = currentAssigneeIds($pdo, $contentId);
+
+    $stmt = $pdo->prepare("UPDATE content_assignees SET work_note = ? WHERE content_id = ? AND admin_id = ?");
+
+    foreach ($notes as $adminId => $note) {
+        $adminId = (int) $adminId;
+        if (!in_array($adminId, $onPost, true)) {
+            continue;
+        }
+        $note = trim((string) $note);
+        if (mb_strlen($note) > 2000) {
+            throw new PortalWriteError("What they do must be 2000 characters or fewer.");
+        }
+        $stmt->execute([$note !== "" ? $note : null, (int) $contentId, $adminId]);
+    }
+}
+
+/**
+ * Moves the caller's own row on a post to $status (TASK_ASSIGNMENT_STATUSES),
+ * keeping is_done in step. Throws a 403 when the caller is not on the post.
+ * Shared by admin-content.php (set_my_status, and set_done) and api/v1.
+ */
+function setOwnContentStatus(PDO $pdo, $contentId, $adminId, $status)
+{
+    if (!array_key_exists((string) $status, TASK_ASSIGNMENT_STATUSES)) {
+        throw new PortalWriteError("Pick To do, In progress or Done.");
+    }
+    if (!isContentAssignee($pdo, $contentId, $adminId)) {
+        throw new PortalWriteError("Only a teammate assigned to this post can change their status.", 403);
+    }
+
+    $done = $status === "done" ? 1 : 0;
+    $stmt = $pdo->prepare("
+        UPDATE content_assignees
+        SET status = ?, is_done = ?, done_at = IF(? = 1, COALESCE(done_at, NOW()), NULL)
+        WHERE content_id = ? AND admin_id = ?
+    ");
+    $stmt->execute([$status, $done, $done, (int) $contentId, (int) $adminId]);
+
+    return $status;
 }
 
 /** The admin ids on a post now. */

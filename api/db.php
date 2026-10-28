@@ -83,6 +83,10 @@ const USER_PROFILE_COLUMNS = [
 */
 const ADMIN_EXTRA_COLUMNS = [
     "position" => "VARCHAR(100) NULL",
+
+    /* The admin's photo (uploads/avatars/), set by the Director when adding
+       or editing them; shown in the admin list and the sidebar. */
+    "avatar_path" => "VARCHAR(255) NULL",
 ];
 
 function ensureAdminColumns(PDO $pdo)
@@ -859,6 +863,17 @@ function ensureContentColumns(PDO $pdo)
         if ($existing && !in_array("done_at", $existing, true)) {
             $pdo->exec("ALTER TABLE content_assignees ADD COLUMN done_at DATETIME NULL AFTER is_done");
         }
+
+        /* The Assigned table: what each teammate does on the post, and how far
+           they got - the same three statuses as a phase. is_done stays in step
+           with status = 'done' for the older set_done callers. */
+        if ($existing && !in_array("work_note", $existing, true)) {
+            $pdo->exec("ALTER TABLE content_assignees ADD COLUMN work_note TEXT NULL");
+        }
+        if ($existing && !in_array("status", $existing, true)) {
+            $pdo->exec("ALTER TABLE content_assignees ADD COLUMN status VARCHAR(12) NOT NULL DEFAULT 'todo'");
+            $pdo->exec("UPDATE content_assignees SET status = 'done' WHERE is_done = 1");
+        }
     } catch (PDOException $e) {
         // Read-only DB user: contentAssignees() reads every box as not done.
     }
@@ -1001,7 +1016,7 @@ function contentVisibleSql(string $alias, int $adminId): array
 
 /**
  * The teammates on each of $contentIds:
- * content_id => [{id, name, email, role, is_done, done_at}].
+ * content_id => [{id, name, email, role, is_done, done_at, work_note, status, avatar_path}].
  * Posts with nobody assigned are absent.
  */
 function contentAssignees(PDO $pdo, array $contentIds): array
@@ -1026,12 +1041,14 @@ function contentAssignees(PDO $pdo, array $contentIds): array
         return $stmt;
     };
 
+    ensureAdminColumns($pdo);
+
     try {
-        $stmt = $select("ca.is_done, ca.done_at");
+        $stmt = $select("ca.is_done, ca.done_at, ca.work_note, ca.status, a.avatar_path");
     } catch (PDOException $e) {
-        // A table from before is_done, which a read-only DB user can't add.
+        // A table from before is_done or status, which a read-only DB user can't add.
         try {
-            $stmt = $select("0 AS is_done, NULL AS done_at");
+            $stmt = $select("0 AS is_done, NULL AS done_at, NULL AS work_note, 'todo' AS status, NULL AS avatar_path");
         } catch (PDOException $e) {
             return [];
         }
@@ -1047,6 +1064,9 @@ function contentAssignees(PDO $pdo, array $contentIds): array
             "role"    => (string) $row["role"],
             "is_done" => (bool) $row["is_done"],
             "done_at" => $row["done_at"] !== null ? (string) $row["done_at"] : null,
+            "work_note" => (string) ($row["work_note"] ?? ""),
+            "status"  => array_key_exists((string) $row["status"], TASK_ASSIGNMENT_STATUSES) ? (string) $row["status"] : "todo",
+            "avatar_path" => $row["avatar_path"] ?: null,
         ];
     }
 
@@ -1332,6 +1352,10 @@ const PROJECT_TASK_EXTRA_COLUMNS = [
     "role"               => "VARCHAR(80) NULL",
     "priority"           => "VARCHAR(10) NOT NULL DEFAULT 'medium'",
     "notes"              => "TEXT NULL",
+
+    /* Up to five images beside the cover, shown on the phase page only -
+       a JSON list, the same shape as content.media_paths. */
+    "gallery_paths"      => "TEXT NULL",
 ];
 
 /* A phase's priority, the same three content uses. */
@@ -1540,6 +1564,25 @@ function ensureProjectTables(PDO $pdo)
                     $pdo->exec("ALTER TABLE `$table` ADD COLUMN `$column` $type");
                 }
             }
+        }
+
+        /* One assignment per person per phase: the Assigned table only offers
+           the phase's teammates, each once. A table from before keeps each
+           person's latest row. */
+        $stmt = $pdo->query("
+            SELECT 1 FROM information_schema.STATISTICS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'project_task_assignments'
+              AND INDEX_NAME = 'uniq_assignment'
+            LIMIT 1
+        ");
+        if (!$stmt->fetchColumn()) {
+            $pdo->exec("
+                DELETE s FROM project_task_assignments s
+                JOIN project_task_assignments newer
+                  ON newer.task_id = s.task_id AND newer.admin_id = s.admin_id AND newer.id > s.id
+            ");
+            $pdo->exec("ALTER TABLE project_task_assignments ADD UNIQUE KEY uniq_assignment (task_id, admin_id)");
         }
     } catch (PDOException $e) {
         // Read-only DB user: the endpoints below fail on the first query with

@@ -41,7 +41,7 @@ if ($method === "GET") {
     if (isset($_GET["managers"])) {
 
         if (!$isOwner) {
-            echo json_encode(["success" => false, "message" => "Only the owner can manage inquiries"]);
+            echo json_encode(["success" => false, "message" => "Only the Director can manage inquiries"]);
             exit;
         }
 
@@ -147,7 +147,7 @@ if ($method === "POST") {
     // Creating, editing and deleting are all the owner's - an access-granted
     // account manager can only view inquiries and what came back from them.
     if (!$isOwner) {
-        echo json_encode(["success" => false, "message" => "Only the owner can create inquiries"]);
+        echo json_encode(["success" => false, "message" => "Only the Director can create inquiries"]);
         exit;
     }
 
@@ -184,7 +184,7 @@ if ($method === "POST") {
 if ($method === "PUT") {
 
     if (!$isOwner) {
-        echo json_encode(["success" => false, "message" => "Only the owner can edit inquiries"]);
+        echo json_encode(["success" => false, "message" => "Only the Director can edit inquiries"]);
         exit;
     }
 
@@ -229,7 +229,7 @@ if ($method === "PUT") {
 if ($method === "DELETE") {
 
     if (!$isOwner) {
-        echo json_encode(["success" => false, "message" => "Only the owner can delete inquiries"]);
+        echo json_encode(["success" => false, "message" => "Only the Director can delete inquiries"]);
         exit;
     }
 

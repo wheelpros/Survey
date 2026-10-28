@@ -323,7 +323,7 @@ document.addEventListener("DOMContentLoaded", function () {
   var a = {};
   try { a = JSON.parse(localStorage.getItem("admin_user") || "{}"); } catch (e) {}
   var name = a.name || "Admin";
-  var label = ({ owner: "Owner", super_admin: "Super Admin", account_manager: "Account Manager", seo_admin: "Admin" })[a.role] || "";
+  var label = ({ owner: "Director", super_admin: "Super Admin", account_manager: "Account Manager", seo_admin: "Admin" })[a.role] || "";
   var initial = name.charAt(0).toUpperCase();
   function set(id, v){ var el = document.getElementById(id); if (el) el.textContent = v; }
   set("adminName", name);  set("adminRole", label);  set("adminAvatar", initial);
@@ -742,7 +742,7 @@ function fillSelect(id, rows, valueKey, labelFn){
 }
 
 const ROLE_LABELS = {
-  owner: "Owner",
+  owner: "Director",
   super_admin: "Super Admin",
   account_manager: "Account Manager",
   seo_admin: "Admin"
@@ -770,7 +770,7 @@ async function load(){
   }
 
   if (!editId && !data.can_create) {
-    block("Your role cannot create projects. Ask an account manager or the owner.");
+    block("Your role cannot create projects. Ask an account manager or the Director.");
     return;
   }
 
@@ -964,7 +964,7 @@ function setBusy(busy){
 load();
 </script>
 <script src="assets/notifications.js?v=1"></script>
-<script src="assets/shell.js?v=5"></script>
+<script src="assets/shell.js?v=6"></script>
 <script src="assets/sources-lock.js?v=1"></script>
-<script src="assets/role-nav.js?v=3"></script>
+<script src="assets/role-nav.js?v=4"></script>
 </body></html>

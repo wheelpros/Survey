@@ -20,6 +20,7 @@
 
 require_once "db.php";
 require_once "task-writes.php";
+require_once "upload-helpers.php";
 
 header("Content-Type: application/json; charset=UTF-8");
 
@@ -128,6 +129,7 @@ ensureProjectTables($pdo);
    MySQL commits implicitly around it. The POST branch below announces a task
    the first time it goes live. */
 ensureNotificationsTable($pdo);
+ensureAttachmentsTable($pdo);
 
 /*
 |--------------------------------------------------------------------------
@@ -201,8 +203,8 @@ function deleteTaskImage($relativePath)
 |--------------------------------------------------------------------------
 |
 | uploadContentImage() from admin-content.php with the announcements.php
-| refinement - an empty file input returns null rather than an error - and a
-| 1 MB cap instead of 3 MB, because there are a dozen of these per project.
+| refinement - an empty file input returns null rather than an error - and
+| the same 3 MB cap as every other image in Project Management.
 |
 | The type is sniffed from the file itself, never the name or the browser's
 | claim, and the stored name is random so nothing is guessable or overwritable.
@@ -239,7 +241,7 @@ function uploadTaskImage($file, $uploadDir)
     }
 
     if (($file["size"] ?? 0) > TASK_IMAGE_MAX_BYTES) {
-        response(false, "Image must be 1 MB or smaller.", [], 400);
+        response(false, "Image must be 3 MB or smaller.", [], 400);
     }
 
     $finfo = new finfo(FILEINFO_MIME_TYPE);
@@ -352,18 +354,28 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
 
             $canEdit = canEditTask($admin, $task);
 
+            $task["gallery"] = taskGallery($task);
+            unset($task["gallery_paths"]);
+
             response(true, "Task loaded.", array_merge(taskTeamPayload($pdo, $task["id"]), [
                 "task"        => $task,
                 "project"     => $project,
+                "attachments" => attachmentsFor($pdo, "task", [$task["id"]])[(int) $task["id"]] ?? [],
                 "admin_id"    => (int) $admin["id"],
                 "admin_role"  => $admin["role"],
                 "can_edit"    => $canEdit,
+                // Who may delete is who may edit: the Director, an account
+                // manager, or the phase's creator.
+                "can_delete"  => $canEdit,
                 // Only the form needs the pool, and only someone who can edit uses it.
                 "candidates"  => $canEdit ? taskTeamCandidates($pdo, $project) : [],
                 "statuses"    => TASK_ASSIGNMENT_STATUSES,
                 "priorities"  => TASK_PRIORITIES,
                 "max_bytes"   => TASK_IMAGE_MAX_BYTES,
                 "max_chars"   => TASK_DESCRIPTION_MAX_CHARS,
+                "max_gallery" => TASK_GALLERY_MAX_IMAGES,
+                "max_files"   => ATTACHMENT_MAX_FILES,
+                "max_file_bytes" => ATTACHMENT_MAX_BYTES,
             ]));
         }
 
@@ -424,6 +436,9 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
             "priorities"  => TASK_PRIORITIES,
             "max_bytes"   => TASK_IMAGE_MAX_BYTES,
             "max_chars"   => TASK_DESCRIPTION_MAX_CHARS,
+            "max_gallery" => TASK_GALLERY_MAX_IMAGES,
+            "max_files"   => ATTACHMENT_MAX_FILES,
+            "max_file_bytes" => ATTACHMENT_MAX_BYTES,
         ]);
 
     } catch (Throwable $e) {
@@ -456,9 +471,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     | Your own box, your own status
     |--------------------------------------------------------------------------
     |
-    | set_done ticks the caller's teammate box on a phase; set_my_status moves
-    | the caller's own assignment between To do, In progress and Done - from
-    | the phase page or the admin dashboard, with no Save. Only the caller's
+    | set_my_status moves the caller's own assignment between To do, In
+    | progress and Done - from the phase page or the admin dashboard, with no
+    | Save - and the phase completes once everyone assigned is done. set_done,
+    | the old teammate box, is kept for older clients. Only the caller's
     | own row changes, so nobody moves someone else's work, and someone not on
     | the phase has no row to move.
     |
@@ -484,7 +500,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             }
 
             $status = setOwnPhaseStatus($pdo, $taskId, $admin["id"], (string) ($_POST["status"] ?? ""));
-            response(true, "Status set to " . TASK_ASSIGNMENT_STATUSES[$status] . ".", ["status" => $status]);
+
+            $stmt = $pdo->prepare("SELECT is_complete FROM project_tasks WHERE id = ?");
+            $stmt->execute([$taskId]);
+
+            response(true, "Status set to " . TASK_ASSIGNMENT_STATUSES[$status] . ".", [
+                "status"      => $status,
+                "is_complete" => (int) $stmt->fetchColumn() === 1,
+            ]);
 
         } catch (PortalWriteError $e) {
             response(false, $e->getMessage(), [], $e->status === 422 ? 400 : $e->status);
@@ -560,6 +583,33 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     |--------------------------------------------------------------------------
     */
 
+    /* Gallery and attachment files are checked before the cover is saved, so
+       a bad file refuses the whole save with nothing left behind. The gallery
+       works like a post's images: keep_gallery[] is what stays, in order, and
+       gallery[] the new ones; keep_gallery_sent marks that the list was sent,
+       so keeping none is not read as keeping all. A kept path is honoured
+       only when the phase already has it. */
+    $hadGallery  = $existing ? taskGallery($existing) : [];
+    $keptGallery = ($_POST["keep_gallery_sent"] ?? "") === "1"
+        ? array_values(array_intersect(array_unique(array_map("strval", (array) ($_POST["keep_gallery"] ?? []))), $hadGallery))
+        : $hadGallery;
+    $galleryUploads = uploadedFiles("gallery");
+
+    if (count($keptGallery) + count($galleryUploads) > TASK_GALLERY_MAX_IMAGES) {
+        response(false, "A phase can have up to " . TASK_GALLERY_MAX_IMAGES . " gallery images.", [], 400);
+    }
+
+    $fileUploads = uploadedFiles("attachments");
+    $keepFiles   = ($_POST["keep_attachments_sent"] ?? "") === "1"
+        ? (array) ($_POST["keep_attachments"] ?? [])
+        : null;
+
+    try {
+        array_map("checkAttachment", $fileUploads);
+    } catch (PortalWriteError $e) {
+        response(false, $e->getMessage(), [], 400);
+    }
+
     $imagePath   = $existing["image_path"] ?? null;
     $uploaded    = uploadTaskImage($_FILES["image"] ?? null, $uploadDir);
     $removeImage = !empty($_POST["remove_image"]);
@@ -569,6 +619,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     } elseif ($removeImage) {
         $imagePath = null;
     }
+
+    try {
+        $newGallery = saveTaskGalleryImages($galleryUploads);
+    } catch (PortalWriteError $e) {
+        deleteUploadedFiles(array_filter([$uploaded]));
+        response(false, $e->getMessage(), [], $e->status === 422 ? 400 : $e->status);
+    }
+    $gallery = array_merge($keptGallery, $newGallery);
 
     $title = trim((string) ($_POST["title"] ?? ""));
     $status = trim((string) ($_POST["status"] ?? "draft"));
@@ -581,8 +639,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         "image_path"     => $imagePath,
         "scheduled_date" => $scheduledDate,
         "scheduled_time" => $scheduledTime,
-        "is_complete"    => !empty($_POST["is_complete"]),
         "status"         => $status,
+        "gallery_paths"  => $gallery,
     ];
 
     // Only the ones the form sent: an absent field is left as it was.
@@ -599,17 +657,18 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     if ((isset($_POST["teammates"]) && !is_array($teammateIds))
         || (isset($_POST["assignments"]) && !is_array($assignments))) {
-        if ($uploaded) {
-            deleteTaskImage($uploaded);
-        }
+        deleteUploadedFiles(array_merge(array_filter([$uploaded]), $newGallery));
         response(false, "The team list could not be read.", [], 400);
     }
 
     $taskSaved = false;
+    $removedFiles = [];
 
     try {
         $id = saveProjectTask($pdo, $admin, $project, $existing, $fields);
         $taskSaved = true;
+
+        $removedFiles = saveAttachments($pdo, "task", $id, $keepFiles, $fileUploads, $admin["id"]);
 
         $newcomers = [];
         if ($teammateIds !== null) {
@@ -622,11 +681,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     } catch (Throwable $e) {
         // The row was never written, so the file just uploaded is an orphan.
         // Once it was, the row points at the file and it has to stay.
-        if ($uploaded && !$taskSaved) {
-            deleteTaskImage($uploaded);
+        if (!$taskSaved) {
+            deleteUploadedFiles(array_merge(array_filter([$uploaded]), $newGallery));
         }
         $message = $taskSaved
-            ? "The phase was saved, but its team was not: "
+            ? "The phase was saved, but its files or team were not: "
             : "";
         if ($e instanceof PortalWriteError) {
             response(false, $message . $e->getMessage(), $taskSaved ? ["id" => $id] : [], $e->status === 422 ? 400 : $e->status);
@@ -641,6 +700,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             deleteTaskImage($existing["image_path"]);
         }
     }
+    deleteUploadedFiles(array_merge($removedFiles, array_diff($hadGallery, $gallery)));
 
     if (!in_array($status, ["draft", "published"], true)) {
         $status = "draft";
@@ -708,17 +768,11 @@ if ($_SERVER["REQUEST_METHOD"] === "DELETE") {
     }
 
     try {
-        $stmt = $pdo->prepare("DELETE FROM project_tasks WHERE id = ?");
-        $stmt->execute([$id]);
-
-        // The phase's people go with it.
-        $pdo->prepare("DELETE FROM project_task_teammates WHERE task_id = ?")->execute([$id]);
-        $pdo->prepare("DELETE FROM project_task_assignments WHERE task_id = ?")->execute([$id]);
+        // The phase's people, files and images go with it.
+        deleteProjectTask($pdo, $task);
     } catch (Throwable $e) {
         response(false, "Could not delete the task.", [], 500);
     }
-
-    deleteTaskImage($task["image_path"] ?? null);
 
     response(true, "Task deleted.");
 }

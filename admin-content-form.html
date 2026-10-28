@@ -535,69 +535,234 @@
         color: var(--muted);
       }
 
-      /* ── Teammate checklist ──────────────────────────────────────────────────
-   One row per teammate on the post. Each teammate ticks only their own box;
-   everyone else's is shown read-only, so the whole team sees who is done. */
-      .checklist {
+      /* ── Assigned ────────────────────────────────────────────────────────────
+   One row per teammate on the post: what they do, and how far they got. The
+   note is set by whoever sets the team; each teammate moves only their own
+   status, and everyone else's is shown read-only. */
+      .assigned {
         border: 1px solid #dfe3ea;
         border-radius: 12px;
-        background: #f8fafc;
         overflow: hidden;
       }
-      .checklist label {
+      .assigned-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px 12px;
+        padding: 12px 14px;
+        border-top: 1px solid #eef1f5;
+        background: #fff;
+      }
+      .assigned-row:first-child {
+        border-top: none;
+      }
+      /* The same row as a phase's: photo or initials, name, role; then the
+         status and the delete icon. */
+      .assigned-row .who {
         display: flex;
         align-items: center;
         gap: 10px;
-        margin: 0;
-        padding: 11px 14px;
-        border-top: 1px solid #eef1f5;
+        min-width: 0;
         font-size: 13px;
+        font-weight: 700;
+        color: var(--text);
+        align-self: center;
+      }
+      .assigned-row .who .name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .assigned-row .who small {
+        font-size: 11px;
         font-weight: 600;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .assigned-row .you {
+        font-weight: 700;
+        color: var(--muted);
+      }
+      .assigned-row .av {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: #e0e8ff center / cover no-repeat;
+        color: #3745a4;
+        font-size: 10px;
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: none;
+      }
+      .assigned-row .row-end {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .assigned-row .icon-btn {
+        width: 30px;
+        height: 30px;
+        border: 1px solid transparent;
+        background: transparent;
+        border-radius: 8px;
+        color: var(--muted);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .assigned-row .icon-btn:hover {
+        background: #fff5f5;
+        color: var(--brand);
+      }
+      .assigned-row .icon-btn svg {
+        width: 15px;
+        height: 15px;
+      }
+      .panel-sub {
+        font-size: 12px;
+        color: var(--muted);
+        margin: -4px 0 14px;
+      }
+      .assigned-row textarea,
+      .assigned-row .note {
+        grid-column: 1 / -1;
+      }
+      .assigned-row textarea {
+        min-height: 54px;
+        resize: vertical;
+        font: inherit;
+        font-size: 13px;
+      }
+      .assigned-row .note {
+        font-size: 12px;
+        color: #475467;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .assigned-row .note.empty {
+        color: #98a2b3;
+      }
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 10px;
+        border-radius: 20px;
+        border: 1px solid;
+        font-size: 11px;
+        font-weight: 800;
+        white-space: nowrap;
+        align-self: center;
+      }
+      .status-select {
+        width: auto;
+        min-width: 120px;
+        font: inherit;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 6px 30px 6px 10px;
+        border-radius: 20px;
+        border: 1px solid;
+        cursor: pointer;
+        align-self: center;
+      }
+      .status-pill.done, .status-select.done { color: #17803d; background-color: #e8faef; border-color: #b8e7c8; }
+      .status-pill.in_progress, .status-select.in_progress { color: #b45309; background-color: #fff7e6; border-color: #fde68a; }
+      .status-pill.todo, .status-select.todo { color: #475467; background-color: #f2f4f7; border-color: #e4e7ec; }
+      .assigned-count {
+        float: right;
+        font-size: 11px;
+        font-weight: 800;
+        color: var(--muted);
         letter-spacing: 0;
         text-transform: none;
-        color: var(--text);
       }
-      .checklist label:first-child {
+
+      /* ── Attachments ── */
+      .file-list {
+        list-style: none;
+        margin: 0 0 10px;
+        padding: 0;
+        border: 1px solid #dfe3ea;
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      .file-list:empty {
+        display: none;
+      }
+      .file-list li {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 12px;
+        border-top: 1px solid #eef1f5;
+        font-size: 13px;
+      }
+      .file-list li:first-child {
         border-top: none;
       }
-      .checklist label.mine {
-        background: #fff;
-        cursor: pointer;
-      }
-      .checklist input {
-        width: 16px;
-        height: 16px;
+      .file-list .ext {
         flex: none;
-        accent-color: #20a95a;
+        min-width: 38px;
+        text-align: center;
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        color: #3745a4;
+        background: #e0e8ff;
+        border-radius: 6px;
+        padding: 4px 5px;
       }
-      .checklist input:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-      }
-      .checklist .who {
+      .file-list .fname {
         flex: 1;
         min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        font-weight: 600;
       }
-      .checklist .you {
-        font-weight: 700;
-        color: var(--muted);
-      }
-      .checklist .state {
+      .file-list small {
         flex: none;
+        color: var(--muted);
         font-size: 11px;
-        font-weight: 800;
-        letter-spacing: 0.5px;
-        text-transform: uppercase;
-        color: #98a2b3;
       }
-      .checklist .state.done {
-        color: #20a95a;
+      .file-list button {
+        flex: none;
+        width: 26px;
+        height: 26px;
+        border: none;
+        background: transparent;
+        border-radius: 6px;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 16px;
+        line-height: 1;
       }
-      .checklist .state.error {
+      .file-list button:hover {
+        background: #fff5f5;
         color: var(--brand);
+      }
+      .file-add {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid #dfe3ea;
+        background: #fff;
+        border-radius: 9px;
+        padding: 8px 12px;
+        font: inherit;
+        font-size: 12px;
+        font-weight: 800;
+        color: var(--text);
+        cursor: pointer;
+      }
+      .file-add:hover {
+        background: #f6f7f9;
+      }
+      .file-add[hidden] {
+        display: none;
       }
       #notes {
         min-height: 96px;
@@ -1820,7 +1985,7 @@
                   <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
                   <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                 </svg>
-                <h2>Team</h2>
+                <h2>Teammates</h2>
                 <svg
                   class="chev"
                   viewBox="0 0 24 24"
@@ -1834,23 +1999,7 @@
                 </svg>
               </button>
               <div class="panel-body" id="panelTeamBody">
-                <div class="field-row">
-                  <label for="priority">Priority</label>
-                  <select id="priority">
-                    <option value="low">Low</option>
-                    <option value="medium" selected>Medium</option>
-                    <option value="high">High</option>
-                  </select>
-                </div>
-
-                <div class="field-row">
-                  <label for="notes">Notes</label>
-                  <textarea
-                    id="notes"
-                    maxlength="5000"
-                    placeholder="e.g. Use the July product shots, keep the caption short"
-                  ></textarea>
-                </div>
+                <p class="panel-sub">Choose the people. Their role shows next to their name.</p>
 
                 <!-- Shown to whoever may change the team: anyone creating a
                      post, and on an existing one its author, the owner and the
@@ -1896,18 +2045,37 @@
                   </p>
                 </div>
 
-                <!-- One box per teammate on the post. Shown whenever the post
-                     has teammates - to them too, even when the picker above is
-                     hidden. See renderChecklist(). -->
+                <!-- One row per teammate on the post: what they do and how far
+                     they got. Shown whenever the post has teammates - to them
+                     too, even when the picker above is hidden. See
+                     renderChecklist(). -->
                 <div class="field-row" id="checklistRow" hidden>
-                  <label id="checklistLabel">Teammate checklist</label>
+                  <label id="checklistLabel">Assigned <span class="assigned-count" id="assignedCount"></span></label>
                   <div
-                    class="checklist"
+                    class="assigned"
                     id="teammateChecklist"
                     role="group"
                     aria-labelledby="checklistLabel"
                   ></div>
                   <p class="hint" id="checklistHint"></p>
+                </div>
+
+                <div class="field-row">
+                  <label for="priority">Priority</label>
+                  <select id="priority">
+                    <option value="low">Low</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
+
+                <div class="field-row">
+                  <label for="notes">Notes</label>
+                  <textarea
+                    id="notes"
+                    maxlength="5000"
+                    placeholder="e.g. Use the July product shots, keep the caption short"
+                  ></textarea>
                 </div>
               </div>
             </section>
@@ -1946,6 +2114,22 @@
                 <input type="file" id="mediaInput" accept="image/*" multiple hidden />
                 <div class="media-count" id="mediaCount"></div>
                 <div class="media-error" id="mediaError"></div>
+              </div>
+            </section>
+
+            <!-- Files for the team. Never shown to the client. -->
+            <section class="panel">
+              <div class="panel-head"><h2>Attachments</h2></div>
+              <div class="panel-body">
+                <ul class="file-list" id="fileList"></ul>
+                <button class="file-add" type="button" id="fileAddBtn"
+                  onclick="document.getElementById('fileInput').click()">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                  Attach files
+                </button>
+                <input type="file" id="fileInput" accept=".pdf,.txt,.md,.doc,.docx,.xls,.xlsx" multiple hidden />
+                <div class="media-count" id="fileCount">PDF, TXT, MD, Word or Excel · up to 5 files · max 8 MB each</div>
+                <div class="media-error" id="fileError"></div>
               </div>
             </section>
 
@@ -2045,7 +2229,7 @@
       (function () {
         const name = adminUser.name || "Admin";
         const label =
-          ({ owner: "Owner", super_admin: "Super Admin", account_manager: "Account Manager", seo_admin: "Admin" })[adminUser.role] || "";
+          ({ owner: "Director", super_admin: "Super Admin", account_manager: "Account Manager", seo_admin: "Admin" })[adminUser.role] || "";
         const initial = name.charAt(0).toUpperCase();
         const set = (id, value) => {
           const el = document.getElementById(id);
@@ -2762,6 +2946,15 @@
         if (!document.getElementById("teammatesRow").hidden) {
           form.append("member_ids_sent", "1");
           selectedTeammateIds().forEach((id) => form.append("member_ids[]", id));
+          // What each teammate does: the Assigned table's notes.
+          form.append("assignee_notes", JSON.stringify(collectWorkNotes()));
+        }
+
+        // Sent only when changed, so a save that never touched them keeps them all.
+        if (filesTouched) {
+          form.append("keep_attachments_sent", "1");
+          filesKept.forEach((f) => form.append("keep_attachments[]", f.id));
+          filesNew.forEach((file) => form.append("attachments[]", file));
         }
 
         let uploads;
@@ -2888,7 +3081,12 @@
           // Before selectTeammates(): its updateMemberSummary() renders the
           // checklist, which needs to know whose box is whose.
           viewerId = String(data.admin_id);
+          if (data.statuses) statuses = data.statuses;
           setSavedAssignees(item.assignees || []);
+          filesKept = (item.attachments || []).slice();
+          maxFiles = Number(data.max_files) || maxFiles;
+          maxFileBytes = Number(data.max_file_bytes) || maxFileBytes;
+          paintFiles();
 
           showTeammates(Boolean(data.can_assign));
           await selectTeammates(item.assignees || []);
@@ -3054,6 +3252,7 @@
    gets a notification. */
 
       const ROLE_LABELS = {
+        owner: "Director",
         account_manager: "Account Manager",
         super_admin: "Super Admin",
         seo_admin: "Admin",
@@ -3076,6 +3275,9 @@
         return (
           '<label><input type="checkbox" name="member" value="' +
           Number(person.id) +
+          // The role and photo travel with the box, for the Assigned rows.
+          '" data-role="' + esc(person.role || "") +
+          '" data-avatar="' + esc(person.avatar_path || "") +
           '"><span>' +
           esc(person.name || person.email || "Unnamed") +
           '</span><span class="role">' +
@@ -3207,19 +3409,113 @@
         renderChecklist();
       }
 
-      /* ── Teammate checklist ──────────────────────────────────────────────────────
-   One "done" box per teammate. While a post is being created nobody is on it
-   yet, so the rows follow the picker and every box is disabled. On a saved
-   post the rows are the saved team (savedAssignees); only the viewer's own box
-   is live, and ticking it saves at once through action=set_done - no Save
-   needed. Someone ticked in the picker but not saved yet gets a disabled row
-   until the post is saved. */
+      /* ── Assigned ────────────────────────────────────────────────────────────────
+   One row per teammate: what they do, and their status. While a post is being
+   created nobody is on it yet, so the rows follow the picker and show To do.
+   On a saved post the rows are the saved team (savedAssignees); only the
+   viewer's own status is live, and changing it saves at once through
+   action=set_my_status - no Save needed. Whoever may set the team writes
+   each person's note, sent with Save as assignee_notes. */
 
       // The admin looking at the form, from the API in edit mode.
       let viewerId = String(adminUser.id || "");
 
-      // id => {id, name, email, role, is_done, done_at} as the server has them.
+      // id => {id, name, email, role, is_done, done_at, work_note, status} as the server has them.
       let savedAssignees = new Map();
+
+      let statuses = { todo: "To do", in_progress: "In progress", done: "Done" };
+
+      // Notes typed this session, by admin id, so a redraw keeps them.
+      const draftNotes = new Map();
+
+      /* ── Attachments ── */
+      let maxFiles = 5;
+      let maxFileBytes = 8 * 1024 * 1024;
+      let filesKept = []; // [{id, name, ext, size}] from the server
+      let filesNew = []; // [File]
+      let filesTouched = false;
+      const FILE_EXTS = ["pdf", "txt", "md", "doc", "docx", "xls", "xlsx"];
+
+      function fileSize(bytes) {
+        bytes = Number(bytes) || 0;
+        return bytes >= 1024 * 1024
+          ? (bytes / 1024 / 1024).toFixed(1) + " MB"
+          : Math.max(1, Math.round(bytes / 1024)) + " KB";
+      }
+
+      function extOf(name) {
+        const m = /\.([a-z0-9]+)$/i.exec(name || "");
+        return m ? m[1].toLowerCase() : "";
+      }
+
+      function fileError(message) {
+        const box = document.getElementById("fileError");
+        box.textContent = message || "";
+        box.classList.toggle("show", Boolean(message));
+      }
+
+      function addFiles(files) {
+        fileError("");
+        const room = maxFiles - filesKept.length - filesNew.length;
+        if (files.length > room) {
+          fileError("Up to " + maxFiles + " files can be attached.");
+          files = files.slice(0, Math.max(room, 0));
+        }
+        for (const file of files) {
+          if (!FILE_EXTS.includes(extOf(file.name))) {
+            fileError("Only PDF, TXT, MD, Word and Excel files can be attached.");
+            continue;
+          }
+          if (file.size > maxFileBytes) {
+            fileError('"' + file.name + '" is larger than ' + Math.round(maxFileBytes / 1024 / 1024) + " MB.");
+            continue;
+          }
+          filesNew.push(file);
+          filesTouched = true;
+        }
+        paintFiles();
+      }
+
+      function removeFile(kind, index) {
+        if (kind === "kept") filesKept.splice(index, 1);
+        else filesNew.splice(index, 1);
+        filesTouched = true;
+        fileError("");
+        paintFiles();
+      }
+
+      function paintFiles() {
+        const rows = filesKept
+          .map((f, i) => ({ name: f.name, size: f.size, kind: "kept", i }))
+          .concat(filesNew.map((f, i) => ({ name: f.name, size: f.size, kind: "new", i })));
+
+        document.getElementById("fileList").innerHTML = rows
+          .map(
+            (r) =>
+              '<li><span class="ext">' + esc(extOf(r.name) || "file") + "</span>" +
+              '<span class="fname" dir="auto" title="' + esc(r.name) + '">' + esc(r.name) + "</span>" +
+              "<small>" + fileSize(r.size) + "</small>" +
+              '<button type="button" aria-label="Remove ' + esc(r.name) + '" onclick="removeFile(\'' +
+              r.kind + "'," + r.i + ')">&times;</button></li>',
+          )
+          .join("");
+
+        document.getElementById("fileAddBtn").hidden = rows.length >= maxFiles;
+      }
+
+      document.getElementById("fileInput").addEventListener("change", function () {
+        addFiles(Array.from(this.files || []));
+        this.value = "";
+      });
+
+      /** {admin_id: note} for every row on the table, as the API takes it. */
+      function collectWorkNotes() {
+        const out = {};
+        document.querySelectorAll("#teammateChecklist textarea[data-id]").forEach((box) => {
+          out[box.dataset.id] = box.value.trim();
+        });
+        return out;
+      }
 
       function setSavedAssignees(people) {
         savedAssignees = new Map(
@@ -3235,17 +3531,24 @@
           return Array.from(savedAssignees.values()).map((person) => ({
             id: String(person.id),
             name: person.name || person.email || "Unnamed",
+            role: person.role || "",
+            avatar: person.avatar_path || "",
             saved: person,
           }));
         }
 
         return memberBoxes()
           .filter((box) => box.checked)
-          .map((box) => ({
-            id: box.value,
-            name: box.closest("label").querySelector("span").textContent,
-            saved: editId ? savedAssignees.get(box.value) || null : null,
-          }));
+          .map((box) => {
+            const saved = editId ? savedAssignees.get(box.value) || null : null;
+            return {
+              id: box.value,
+              name: box.closest("label").querySelector("span").textContent,
+              role: box.dataset.role || (saved && saved.role) || "",
+              avatar: box.dataset.avatar || (saved && saved.avatar_path) || "",
+              saved,
+            };
+          });
       }
 
       function renderChecklist() {
@@ -3254,36 +3557,77 @@
         const hint = document.getElementById("checklistHint");
         const people = checklistPeople();
 
+        // Keep what was typed before the redraw.
+        list.querySelectorAll("textarea[data-id]").forEach((box) => {
+          draftNotes.set(box.dataset.id, box.value);
+        });
+
         row.hidden = !people.length;
         if (!people.length) {
           list.innerHTML = "";
+          document.getElementById("assignedCount").textContent = "";
           return;
         }
+
+        // The notes are editable by whoever may set the team.
+        const writesNotes = !document.getElementById("teammatesRow").hidden;
 
         list.innerHTML = people
           .map((person) => {
             const mine = Boolean(person.saved) && person.id === viewerId;
-            const done = Boolean(person.saved && person.saved.is_done);
+            const status = (person.saved && person.saved.status) || "todo";
+            const note = draftNotes.has(person.id)
+              ? draftNotes.get(person.id)
+              : (person.saved && person.saved.work_note) || "";
+
+            const statusHtml = mine
+              ? '<select class="status-select ' + esc(status) + '" data-id="' + esc(person.id) +
+                '" aria-label="My status">' +
+                Object.keys(statuses)
+                  .map((k) => '<option value="' + k + '"' + (k === status ? " selected" : "") + ">" + esc(statuses[k]) + "</option>")
+                  .join("") +
+                "</select>"
+              : '<span class="status-pill ' + esc(status) + '">' + esc(statuses[status] || status) + "</span>";
+
+            const noteHtml = writesNotes
+              ? '<textarea data-id="' + esc(person.id) + '" maxlength="2000" dir="auto" placeholder="What they do, and any details" aria-label="What ' +
+                esc(person.name) + ' does">' + esc(note) + "</textarea>"
+              : '<div class="note' + (note ? "" : " empty") + '" dir="auto">' + (note ? esc(note) : "Nothing noted yet.") + "</div>";
+
+            // Their photo when the Director gave them one, otherwise their initials.
+            const initials = String(person.name || "").trim().split(/\s+/).slice(0, 2)
+              .map((part) => part.charAt(0).toUpperCase()).join("") || "?";
+            const avatar = person.avatar
+              ? '<span class="av" style="background-image:url(\'' + esc(person.avatar) + '\')" aria-hidden="true"></span>'
+              : '<span class="av" aria-hidden="true">' + esc(initials) + "</span>";
+
+            // Whoever sets the team can take someone off from here too.
+            const remove = writesNotes
+              ? '<button class="icon-btn" type="button" title="Remove from this post" aria-label="Remove ' +
+                esc(person.name) + ' from this post" onclick="removeTeammate(\'' + esc(person.id) + '\')">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>' +
+                "</button>"
+              : "";
 
             return (
-              '<label class="' + (mine ? "mine" : "") + '">' +
-              '<input type="checkbox" data-id="' + esc(person.id) + '"' +
-              (done ? " checked" : "") +
-              (mine ? "" : " disabled") +
-              ' aria-label="' + esc(person.name) + ' done">' +
-              '<span class="who">' + esc(person.name) +
-              (mine ? ' <span class="you">(you)</span>' : "") +
-              "</span>" +
-              '<span class="state' + (done ? " done" : "") + '">' +
-              (done ? "Done" : "Not done") +
-              "</span></label>"
+              '<div class="assigned-row">' +
+              '<div class="who">' + avatar +
+              '<span class="name" dir="auto">' + esc(person.name) +
+              (mine ? ' <span class="you">(you)</span>' : "") + "</span>" +
+              "<small>" + esc(ROLE_LABELS[person.role] || person.role || "") + "</small></div>" +
+              '<div class="row-end">' + statusHtml + remove + "</div>" +
+              noteHtml +
+              "</div>"
             );
           })
           .join("");
 
-        list.querySelectorAll("label.mine input").forEach((box) => {
-          box.addEventListener("change", () => setDone(box));
+        list.querySelectorAll("select.status-select").forEach((select) => {
+          select.addEventListener("change", () => setMyStatus(select));
         });
+
+        const done = people.filter((p) => p.saved && p.saved.status === "done").length;
+        document.getElementById("assignedCount").textContent = editId ? done + " of " + people.length + " done" : "";
 
         const unsaved = people.some((person) => !person.saved);
         const isMine = people.some(
@@ -3291,26 +3635,31 @@
         );
 
         hint.textContent = !editId
-          ? "Teammates tick these once the task is saved."
+          ? "Each teammate sets their own status once the post is saved."
           : isMine
-            ? "Tick your box when your part is done. It saves straight away."
+            ? "Set your status as you go. It saves straight away."
             : unsaved
-              ? "Teammates tick these once the task is saved."
-              : "Each teammate ticks their own box.";
+              ? "New teammates set their status once the post is saved."
+              : "Each teammate sets their own status.";
       }
 
-      async function setDone(box) {
-        const state = box.closest("label").querySelector(".state");
-        const done = box.checked;
+      /* The row's delete icon: takes them off the post, the same as unticking
+         them in Teammates above. Nothing is saved until Save. */
+      function removeTeammate(id) {
+        const box = memberBoxes().find((b) => b.value === String(id));
+        if (box) box.checked = false;
+        draftNotes.delete(String(id));
+        updateMemberSummary();
+      }
 
-        box.disabled = true;
-        state.className = "state";
-        state.textContent = "Saving...";
+      async function setMyStatus(select) {
+        const status = select.value;
+        select.disabled = true;
 
         const form = new FormData();
-        form.append("action", "set_done");
+        form.append("action", "set_my_status");
         form.append("content_id", editId);
-        form.append("done", done ? "1" : "0");
+        form.append("status", status);
 
         try {
           const response = await fetch("api/admin-content.php", {
@@ -3321,18 +3670,15 @@
 
           const data = await response.json();
           if (!response.ok || !data.success) {
-            throw new Error(data.message || "Could not save your box.");
+            throw new Error(data.message || "Could not save your status.");
           }
 
           setSavedAssignees(data.assignees || []);
           renderChecklist();
         } catch (error) {
           console.error(error);
-          box.checked = !done;
-          box.disabled = false;
-          state.className = "state error";
-          state.textContent = "Not saved - try again";
-          state.title = error.message || "";
+          setStatus(error.message || "Could not save your status.", "error");
+          renderChecklist();
         }
       }
 
@@ -3635,8 +3981,8 @@
 
     <script src="assets/notifications.js?v=1"></script>
     <script src="assets/confirm.js?v=1"></script>
-    <script src="assets/shell.js?v=5"></script>
+    <script src="assets/shell.js?v=6"></script>
     <script src="assets/sources-lock.js?v=1"></script>
-    <script src="assets/role-nav.js?v=3"></script>
+    <script src="assets/role-nav.js?v=4"></script>
   </body>
 </html>

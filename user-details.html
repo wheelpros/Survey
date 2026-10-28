@@ -549,7 +549,7 @@ if(adminUser.role === "seo_admin"){
 
 (function(){
   const name = adminUser.name || "Admin";
-  const label = ({ owner: "Owner", super_admin: "Super Admin", account_manager: "Account Manager", seo_admin: "Admin" })[adminUser.role] || "";
+  const label = ({ owner: "Director", super_admin: "Super Admin", account_manager: "Account Manager", seo_admin: "Admin" })[adminUser.role] || "";
   const initial = name.charAt(0).toUpperCase();
   const set = (id,value) => { const el = document.getElementById(id); if(el) el.textContent = value; };
   set("adminName",name);  set("adminRole",label);  set("adminAvatar",initial);
@@ -1699,7 +1699,7 @@ function render(data){
            This registration has not been approved yet, so there is nothing
            assigned to it. ${isOwner
               ? "Approve it above and their surveys, meetings and files appear here."
-              : "Once the owner approves it, their surveys, meetings and files appear here."}
+              : "Once the Director approves it, their surveys, meetings and files appear here."}
          </div>`
       + details
     );
@@ -1771,9 +1771,9 @@ loadUser();
 </script>
 
 <script src="assets/notifications.js?v=1"></script>
-<script src="assets/shell.js?v=5"></script>
+<script src="assets/shell.js?v=6"></script>
 <script src="assets/sources-lock.js?v=1"></script>
-<script src="assets/role-nav.js?v=3"></script>
+<script src="assets/role-nav.js?v=4"></script>
 <script src="assets/confirm.js?v=1"></script>
 </body>
 </html>

@@ -291,9 +291,180 @@ body{padding:0}
 .team-list {
     border: 1px solid #eaecf0;
     border-radius: 14px;
-    overflow: hidden;
+    /* Visible, not hidden: a row's action menu opens past the list's edge.
+       The header and the last row round their own corners instead. */
+    overflow: visible;
     background: #fff;
 }
+.team-head { border-radius: 14px 14px 0 0; }
+.team-row:last-child { border-radius: 0 0 14px 14px; }
+
+/* A photo in place of the initial. */
+.team-avatar.has-photo,
+.av-lg.has-photo {
+    background-size: cover;
+    background-position: center;
+    color: transparent;
+}
+
+/* Row actions: one 3-dot button holding Edit and Activate / Deactivate. */
+.row-menu-wrap { position: relative; }
+.row-kebab {
+    width: 36px;
+    height: 36px;
+    padding: 0 !important;
+    border: 1px solid #eaecf0;
+    background: #fff;
+    border-radius: 10px;
+    color: #475467;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.row-kebab:hover, .row-kebab[aria-expanded="true"] { background: #f6f7f9; }
+.row-kebab:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(27,30,58,.15); }
+.row-kebab svg { width: 16px; height: 16px; }
+.row-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    z-index: 50;
+    min-width: 170px;
+    background: #fff;
+    border: 1px solid #eaecf0;
+    border-radius: 12px;
+    box-shadow: 0 16px 40px rgba(16,24,40,.14);
+    padding: 6px;
+}
+.row-menu.open { display: block; }
+.row-menu.up { top: auto; bottom: calc(100% + 6px); }
+.team-actions .row-menu button {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    border: none;
+    background: none;
+    text-align: left;
+    padding: 9px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #101828;
+    cursor: pointer;
+}
+.row-menu button:hover, .row-menu button:focus-visible { background: #f2f4f7; outline: none; }
+.row-menu button.danger { color: #c9000b; }
+.row-menu button.positive { color: #1a9a53; }
+.row-menu hr { border: none; border-top: 1px solid #f2f4f7; margin: 4px 0; }
+
+/* Click-to-upload photo, at the top of the Add / Edit admin popup. */
+.avatar-field {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.avatar-pick {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    border: 1.5px dashed #cfd5df;
+    background: #fafbfc center/cover no-repeat;
+    color: #98a2b3;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    padding: 0;
+}
+.avatar-pick:hover, .avatar-pick:focus-visible { border-color: #1b1e3a; outline: none; }
+.avatar-pick svg { width: 20px; height: 20px; }
+.avatar-pick.has-photo { border-style: solid; }
+.avatar-pick.has-photo svg { display: none; }
+.avatar-field .hint { margin: 0 0 4px; }
+.link-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    color: #c9000b;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.link-btn[hidden] { display: none; }
+
+/* ── Director card: the owner's own details, top of the page ── */
+.director-card {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+}
+.av-lg {
+    flex: none;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: #dce3ff;
+    color: #3745a4;
+    font-size: 22px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.director-meta {
+    flex: 1;
+    min-width: 220px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 12px 24px;
+}
+.director-meta .k {
+    display: block;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .6px;
+    text-transform: uppercase;
+    color: #98a2b3;
+    margin-bottom: 4px;
+}
+.director-meta .v {
+    font-size: 14px;
+    font-weight: 700;
+    color: #101828;
+    overflow-wrap: anywhere;
+}
+.director-meta .v.muted { color: #98a2b3; font-weight: 600; }
+.director-meta input[type="text"] {
+    padding: 9px 11px;
+    font-size: 14px;
+}
+.director-meta [hidden] { display: none; }
+.director-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+}
+.director-actions[hidden] { display: none; }
+.director-btn {
+    border: 1px solid #dfe3ea;
+    background: #fff;
+    color: #101828;
+    padding: 10px 16px;
+    border-radius: 10px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.director-btn:hover { background: #f6f7f9; }
+.director-btn[hidden] { display: none; }
+.director-btn.dark { background: #1b1e3a; border-color: #1b1e3a; color: #fff; }
+.director-btn.dark:hover { background: #282c52; }
 
 /* "Loading" and "No admins" are not rows. */
 .team-list:has(> .no-admins) {
@@ -304,7 +475,7 @@ body{padding:0}
 .team-head,
 .team-row {
     display: grid;
-    grid-template-columns: minmax(0, 2.4fr) minmax(0, 2fr) 150px 96px 212px;
+    grid-template-columns: minmax(0, 2.4fr) minmax(0, 2fr) 150px 96px 48px;
     gap: 16px;
     align-items: center;
     padding: 14px 20px;
@@ -635,11 +806,9 @@ body{padding:0}
     .team-status  { grid-area: status; justify-self: end; }
 
     .team-actions {
-        grid-area: actions;
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        max-width: 420px;
-        margin-top: 4px;
+        grid-area: who;
+        justify-self: end;
+        align-self: start;
     }
 }
 
@@ -1140,7 +1309,7 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
 // Shared role -> label mapping, also used when rendering the admins list below.
 function adminRoleLabel(role){
   switch(role){
-    case "owner": return "Owner";
+    case "owner": return "Director";
     case "super_admin": return "Super Admin";
     case "account_manager": return "Account Manager";
     case "seo_admin": return "Admin";
@@ -1238,6 +1407,48 @@ document.addEventListener("DOMContentLoaded", function () {
         <p>Passwords, branding and admin accounts for the platform.</p>
       </div>
     </div>
+
+<!-- The Director's own details. Only name and position change here: the
+     email is what they sign in with, and the role is fixed. -->
+<div id="directorSection" style="display:none;">
+<div class="panel">
+  <div class="panel-head">
+    <h1>Director</h1>
+    <p>Your details as the Director of the portal.</p>
+  </div>
+  <div class="panel-body">
+    <div class="director-card">
+      <div class="av-lg" id="directorAvatar" aria-hidden="true">D</div>
+      <div class="director-meta">
+        <div>
+          <span class="k">Name</span>
+          <div class="v" id="directorName" dir="auto">—</div>
+          <input type="text" id="directorNameInput" maxlength="100" aria-label="Name" hidden>
+        </div>
+        <div>
+          <span class="k">Position</span>
+          <div class="v" id="directorPosition" dir="auto">—</div>
+          <input type="text" id="directorPositionInput" maxlength="100" placeholder="e.g. Managing Director" aria-label="Position" hidden>
+        </div>
+        <div>
+          <span class="k">Role</span>
+          <div class="v" id="directorRole">Director</div>
+        </div>
+        <div>
+          <span class="k">Email</span>
+          <div class="v" id="directorEmail">—</div>
+        </div>
+      </div>
+      <button class="director-btn" type="button" id="directorEditBtn" onclick="editDirector(true)">Edit</button>
+    </div>
+    <div class="director-actions" id="directorActions" hidden>
+      <button class="director-btn dark" type="button" id="directorSaveBtn" onclick="saveDirector()">Save</button>
+      <button class="director-btn" type="button" onclick="editDirector(false)">Cancel</button>
+    </div>
+    <div id="directorStatus" class="status" role="status"></div>
+  </div>
+</div>
+</div>
 
 <!-- Branding comes first: the logo and the login slideshow are what anybody
      visiting the site can actually see. The password and the account panels
@@ -1393,7 +1604,7 @@ document.addEventListener("DOMContentLoaded", function () {
 <div class="panel">
   <div class="panel-head">
     <h1>Connected apps</h1>
-    <p>AI assistants you've allowed to use your W|ZONE account. The owner also controls whether clients may connect one, and sees recent AI activity.</p>
+    <p>AI assistants you've allowed to use your W|ZONE account. The Director also controls whether clients may connect one, and sees recent AI activity.</p>
   </div>
   <div class="panel-body">
     <a class="primary" href="connected-apps.html" style="display:inline-flex;align-items:center;padding:0 18px;height:44px;border-radius:12px;text-decoration:none;">Manage connected apps</a>
@@ -1428,7 +1639,7 @@ document.addEventListener("DOMContentLoaded", function () {
 <div id="distributeAdminsSection" style="display:none;">
 <div class="panel">
   <div class="panel-head">
-    <h1>Owner Assignments to Team Management</h1>
+    <h1>Director Assignments to Team Management</h1>
     <p>Choose which Admin accounts each Super Admin or Account Manager can manage.</p>
   </div>
 
@@ -1490,6 +1701,19 @@ document.addEventListener("DOMContentLoaded", function () {
 
             <form id="adminForm" onsubmit="saveAdmin(event)" novalidate>
                 <div class="admin-form">
+
+                    <label for="adminAvatarPick">Photo</label>
+                    <div class="avatar-field">
+                        <button type="button" class="avatar-pick" id="adminAvatarPick" aria-label="Upload photo"
+                                onclick="document.getElementById('adminAvatarFile').click()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+                        </button>
+                        <div>
+                            <p class="hint">Optional. JPG, PNG or WEBP, max 3 MB.</p>
+                            <button type="button" class="link-btn" id="adminAvatarClear" onclick="clearAdminAvatar()" hidden>Remove photo</button>
+                        </div>
+                        <input type="file" id="adminAvatarFile" accept="image/jpeg,image/png,image/webp" hidden>
+                    </div>
 
                     <label for="adminFormName">Name</label>
                     <input type="text" id="adminFormName" maxlength="100" autocomplete="off" placeholder="Full name">
@@ -2459,6 +2683,7 @@ function openAddAdmin() {
         document.getElementById("adminForm" + field).value = "";
     });
     document.getElementById("adminFormRole").value = "seo_admin";
+    resetAdminAvatar(null);
 
     showAdminModal();
 }
@@ -2480,6 +2705,7 @@ function openEditAdmin(adminId) {
     document.getElementById("adminFormEmail").value = admin.email || "";
     document.getElementById("adminFormPassword").value = "";
     document.getElementById("adminFormRole").value = admin.role;
+    resetAdminAvatar(admin.avatar_path || null);
 
     showAdminModal();
 }
@@ -2533,15 +2759,19 @@ async function saveAdmin(event) {
     button.disabled = true;
 
     try {
+        // Multipart, so the photo travels with the rest; no Content-Type
+        // header - the browser sets the boundary.
+        const body = new FormData();
+        Object.keys(fields).forEach(key => body.append(key, fields[key]));
+        if (adding) body.append("password", password);
+        else body.append("admin_id", adminFormId);
+        if (adminAvatar.file) body.append("avatar", adminAvatar.file);
+        else if (adminAvatar.remove && !adding) body.append("remove_avatar", "1");
+
         const res = await fetch(adding ? "api/add-user.php" : "api/admin-update.php", {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": "Bearer " + adminToken
-            },
-            body: JSON.stringify(adding
-                ? Object.assign({ password }, fields)
-                : Object.assign({ admin_id: adminFormId }, fields))
+            headers: { "Authorization": "Bearer " + adminToken },
+            body
         });
 
         let data = null;
@@ -2574,6 +2804,97 @@ adminModal().addEventListener("click", function (event) {
 
 document.addEventListener("keydown", function (event) {
     if (event.key === "Escape" && adminModal().classList.contains("show")) closeAdminModal();
+});
+
+/* ── The photo in the popup ── */
+
+const ADMIN_AVATAR_MAX_BYTES = 3 * 1024 * 1024;
+const adminAvatar = { file: null, remove: false };
+
+function paintAdminAvatar(url){
+    const pick = document.getElementById("adminAvatarPick");
+    pick.style.backgroundImage = url ? "url('" + url + "')" : "";
+    pick.classList.toggle("has-photo", !!url);
+    pick.setAttribute("aria-label", url ? "Change photo" : "Upload photo");
+    document.getElementById("adminAvatarClear").hidden = !url;
+}
+
+function resetAdminAvatar(path){
+    adminAvatar.file = null;
+    adminAvatar.remove = false;
+    document.getElementById("adminAvatarFile").value = "";
+    paintAdminAvatar(path);
+}
+
+function clearAdminAvatar(){
+    adminAvatar.file = null;
+    adminAvatar.remove = true;
+    document.getElementById("adminAvatarFile").value = "";
+    paintAdminAvatar(null);
+}
+
+document.getElementById("adminAvatarFile").addEventListener("change", function () {
+    const file = this.files && this.files[0];
+    this.value = "";
+    if (!file) return;
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) return adminFormError("Only JPG, PNG and WEBP photos are allowed.");
+    if (file.size > ADMIN_AVATAR_MAX_BYTES) return adminFormError("Photo must be 3 MB or smaller.");
+    adminAvatar.file = file;
+    adminAvatar.remove = false;
+    paintAdminAvatar(URL.createObjectURL(file));
+});
+
+/* ── Row menu: Edit and Activate / Deactivate behind one 3-dot button ── */
+
+function closeRowMenus(except){
+    document.querySelectorAll(".row-menu.open").forEach(menu => {
+        if (menu === except) return;
+        menu.classList.remove("open", "up");
+        const button = menu.parentElement.querySelector(".row-kebab");
+        if (button) button.setAttribute("aria-expanded", "false");
+    });
+}
+
+function toggleRowMenu(button){
+    const menu = button.parentElement.querySelector(".row-menu");
+    const open = !menu.classList.contains("open");
+    closeRowMenus(menu);
+    menu.classList.toggle("open", open);
+    button.setAttribute("aria-expanded", String(open));
+
+    if (open) {
+        // Opens upward when there is no room below it.
+        menu.classList.remove("up");
+        if (menu.getBoundingClientRect().bottom > window.innerHeight - 8) menu.classList.add("up");
+        const first = menu.querySelector("button");
+        if (first) first.focus();
+    }
+}
+
+document.addEventListener("click", function (event) {
+    if (!event.target.closest(".row-menu-wrap")) closeRowMenus();
+});
+
+document.addEventListener("keydown", function (event) {
+    const menu = document.querySelector(".row-menu.open");
+    if (!menu) return;
+
+    const items = Array.from(menu.querySelectorAll("button"));
+    const at = items.indexOf(document.activeElement);
+
+    if (event.key === "Escape") {
+        const button = menu.parentElement.querySelector(".row-kebab");
+        closeRowMenus();
+        if (button) button.focus();
+    } else if (event.key === "ArrowDown") {
+        event.preventDefault();
+        items[(at + 1) % items.length].focus();
+    } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        items[(at - 1 + items.length) % items.length].focus();
+    } else if (event.key === "Tab") {
+        closeRowMenus();
+    }
 });
 
 function renderAdmins() {
@@ -2612,7 +2933,9 @@ function renderAdmins() {
         <div class="team-row ${isActive ? "" : "is-inactive"}" id="admin-row-${admin.id}">
 
             <div class="team-who">
-                <span class="team-avatar" aria-hidden="true">${escapeHtml(initial)}</span>
+                ${admin.avatar_path
+                    ? `<span class="team-avatar has-photo" style="background-image:url('${escapeHtml(admin.avatar_path)}')" aria-hidden="true">${escapeHtml(initial)}</span>`
+                    : `<span class="team-avatar" aria-hidden="true">${escapeHtml(initial)}</span>`}
                 <div class="team-name">
                     <strong dir="auto">${escapeHtml(admin.name)}</strong>
                     <span class="${position ? "" : "is-empty"}" dir="auto">${position ? escapeHtml(position) : "No position yet"}</span>
@@ -2629,13 +2952,20 @@ function renderAdmins() {
                 <span class="status-pill ${isActive ? "is-active" : "is-inactive"}">${isActive ? "Active" : "Inactive"}</span>
             </div>
 
-            <div class="team-actions">
-                <button type="button" class="edit-admin-btn" onclick="openEditAdmin(${Number(admin.id)})">Edit</button>
-                ${
-                    isActive
-                    ? `<button type="button" class="deactivate-admin-btn" onclick="setAdminActive(${Number(admin.id)}, false)">Deactivate</button>`
-                    : `<button type="button" class="activate-admin-btn" onclick="setAdminActive(${Number(admin.id)}, true)">Activate</button>`
-                }
+            <div class="team-actions row-menu-wrap">
+                <button type="button" class="row-kebab" aria-haspopup="menu" aria-expanded="false"
+                        aria-label="Actions for ${escapeHtml(admin.name)}" onclick="toggleRowMenu(this)">
+                    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
+                </button>
+                <div class="row-menu" role="menu">
+                    <button type="button" role="menuitem" onclick="closeRowMenus(); openEditAdmin(${Number(admin.id)})">Edit</button>
+                    <hr>
+                    ${
+                        isActive
+                        ? `<button type="button" role="menuitem" class="danger" onclick="closeRowMenus(); setAdminActive(${Number(admin.id)}, false)">Deactivate</button>`
+                        : `<button type="button" role="menuitem" class="positive" onclick="closeRowMenus(); setAdminActive(${Number(admin.id)}, true)">Activate</button>`
+                    }
+                </div>
             </div>
 
         </div>
@@ -2896,26 +3226,108 @@ function escapeHtml(value) {
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
 }
-async function loadSettings() {
+/* ── Director card ── */
+
+let director = null;
+
+function paintDirector(){
+  if (!director) return;
+
+  const avatar = document.getElementById("directorAvatar");
+  avatar.textContent = (director.name || "D").trim().charAt(0).toUpperCase();
+  avatar.style.backgroundImage = director.avatar_path ? "url('" + director.avatar_path + "')" : "";
+  avatar.classList.toggle("has-photo", !!director.avatar_path);
+
+  document.getElementById("directorName").innerText = director.name || "—";
+  const position = document.getElementById("directorPosition");
+  position.innerText = director.position || "Not set";
+  position.classList.toggle("muted", !director.position);
+  document.getElementById("directorRole").innerText = director.role_label || "Director";
+  document.getElementById("directorEmail").innerText = director.email || "—";
+}
+
+async function loadDirector(){
   try {
-    const res = await fetch("api/settings.php", {
-      headers: {
-        "Authorization": "Bearer " + adminToken
-      }
+    const res = await fetch("api/update-my-profile.php", {
+      headers: { Authorization: "Bearer " + adminToken }
     });
-
-    const response = await res.json();
-
-    if (response.role === "super_admin") {
-      document.getElementById("superAdminSection").style.display = "block";
-    }
-
-  } catch (err) {
-    console.log("Error loading settings");
+    const data = await res.json();
+    if (!data.success) return;
+    director = data.profile;
+    paintDirector();
+  } catch (e) {
+    document.getElementById("directorStatus").innerText = "Could not load your details.";
   }
 }
 
-window.onload = loadSettings;
+function editDirector(on){
+  ["directorName", "directorPosition"].forEach(id => {
+    document.getElementById(id).hidden = on;
+    document.getElementById(id + "Input").hidden = !on;
+  });
+  document.getElementById("directorActions").hidden = !on;
+  document.getElementById("directorEditBtn").hidden = on;
+  document.getElementById("directorStatus").innerText = "";
+  document.getElementById("directorStatus").className = "status";
+
+  if (on && director) {
+    document.getElementById("directorNameInput").value = director.name || "";
+    document.getElementById("directorPositionInput").value = director.position || "";
+    document.getElementById("directorNameInput").focus();
+  }
+}
+
+async function saveDirector(){
+  const status = document.getElementById("directorStatus");
+  const button = document.getElementById("directorSaveBtn");
+  const name = document.getElementById("directorNameInput").value.trim();
+  const position = document.getElementById("directorPositionInput").value.trim();
+
+  status.className = "status error";
+  if (!name) { status.innerText = "Enter your name."; return; }
+  if (!position) { status.innerText = "Enter your position, e.g. Managing Director."; return; }
+
+  button.disabled = true;
+  status.className = "status";
+  status.innerText = "Saving...";
+
+  try {
+    const res = await fetch("api/update-my-profile.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + adminToken },
+      body: JSON.stringify({ name, position })
+    });
+    const data = await res.json();
+
+    if (!data.success) {
+      status.className = "status error";
+      status.innerText = data.message || "Could not save.";
+      return;
+    }
+
+    director = data.profile;
+    paintDirector();
+    editDirector(false);
+    status.innerText = "Saved.";
+
+    // The sidebar card and the popup read the stored copy (assets/shell.js).
+    adminUser.name = director.name;
+    adminUser.position = director.position;
+    localStorage.setItem("admin_user", JSON.stringify(adminUser));
+    if (window.wzPaintAccount) window.wzPaintAccount();
+
+  } catch (e) {
+    status.className = "status error";
+    status.innerText = "Connection error.";
+  } finally {
+    button.disabled = false;
+  }
+}
+
+if (adminUser.role === "owner") {
+  document.getElementById("directorSection").style.display = "block";
+  loadDirector();
+}
 </script>
 
   </div>
@@ -2940,9 +3352,9 @@ window.onload = loadSettings;
 
 <script src="assets/notifications.js?v=1"></script>
 <script src="assets/confirm.js?v=1"></script>
-<script src="assets/shell.js?v=5"></script>
+<script src="assets/shell.js?v=6"></script>
 <script src="assets/sources-lock.js?v=1"></script>
-<script src="assets/role-nav.js?v=3"></script>
+<script src="assets/role-nav.js?v=4"></script>
 <script>
 /* The calendar belongs to the roles that deal with clients. A plain seo_admin
    works on content, so the link comes out of their sidebar. api/calendar.php

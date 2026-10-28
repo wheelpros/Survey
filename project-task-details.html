@@ -199,7 +199,9 @@ select.client-filter{
 .view-nav .btn{margin-left:6px}
 .btn[hidden]{display:none}
 
-.view-wrap{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;max-width:880px}
+/* Full width of the content area, like the other admin pages; running text
+   keeps a readable measure inside it. */
+.view-wrap{display:grid;grid-template-columns:minmax(0,1fr);gap:18px}
 .view-card{background:#fff;border:1px solid var(--line);border-radius:16px}
 .card-pad{padding:20px 22px}
 .card-title{margin-bottom:16px}
@@ -218,7 +220,7 @@ select.client-filter{
 .eyebrow{font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
 .title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .title-row h1{font-size:24px;word-break:break-word}
-.desc{font-size:13px;line-height:1.7;color:#475467;margin-top:6px;word-break:break-word}
+.desc{font-size:13px;line-height:1.7;color:#475467;margin-top:6px;word-break:break-word;max-width:80ch}
 .desc ul,.desc ol{padding-left:22px}
 .facts{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:22px;padding-top:16px;border-top:1px solid #f2f4f7}
 .facts > div > span{display:block;font-size:10px;font-weight:700;color:#98a2b3;margin-bottom:5px}
@@ -239,18 +241,24 @@ select.client-filter{
 .chip .av{width:20px;height:20px;font-size:8px}
 .muted{font-size:13px;color:var(--muted)}
 
-.checklist{border:1px solid #dfe3ea;border-radius:10px;overflow:hidden}
-.checklist label{display:flex;align-items:center;gap:10px;margin:0;padding:10px 12px;border-top:1px solid #eef1f5;font-size:13px;font-weight:600;color:var(--text);background:#fcfcfd}
-.checklist label:first-child{border-top:none}
-.checklist label.mine{background:#fff;cursor:pointer}
-.checklist input{width:16px;height:16px;flex:none;accent-color:#20a95a}
-.checklist .who{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.checklist .state{flex:none;font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#98a2b3}
-.checklist .state.done{color:#20a95a}
+/* The gallery: thumbnails that open full size (assets/lightbox.js). */
+.gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.gallery-grid img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px;border:1px solid var(--line);display:block;background:#f2f4f7}
+
+/* Attachments: download links, fetched with the token rather than linked
+   directly - the files are for the team only. */
+.files{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.files a{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid #dfe3ea;border-radius:10px;color:var(--text);text-decoration:none;font-size:13px;max-width:560px}
+.files a:hover{background:#f8fafc;border-color:#cfd5df}
+.files a:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(27,30,58,.15)}
+.files .ext{flex:none;min-width:38px;text-align:center;font-size:9px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#3745a4;background:#e0e8ff;border-radius:6px;padding:4px 5px}
+.files .fname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700;color:#2563eb}
+.files small{flex:none;color:var(--muted);font-size:11px}
+.files svg{width:15px;height:15px;flex:none;color:var(--muted)}
 
 /* Notes are stored as Markdown and drawn by renderMarkdown(): escaped first,
    then a handful of marks, so nothing typed into them runs as HTML. */
-.notes-box{border:1px solid #dfe3ea;border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.7;color:#344054;word-break:break-word}
+.notes-box{border:1px solid #dfe3ea;border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.7;color:#344054;word-break:break-word;max-width:100ch}
 .notes-box ul,.notes-box ol{padding-left:22px}
 .notes-box a{color:#2563eb}
 
@@ -313,7 +321,7 @@ document.addEventListener("DOMContentLoaded", function () {
   var a = {};
   try { a = JSON.parse(localStorage.getItem("admin_user") || "{}"); } catch (e) {}
   var name = a.name || "Admin";
-  var label = ({ owner: "Owner", super_admin: "Super Admin", account_manager: "Account Manager", seo_admin: "Admin" })[a.role] || "";
+  var label = ({ owner: "Director", super_admin: "Super Admin", account_manager: "Account Manager", seo_admin: "Admin" })[a.role] || "";
   var initial = name.charAt(0).toUpperCase();
   function set(id, v){ var el = document.getElementById(id); if (el) el.textContent = v; }
   set("adminName", name);  set("adminRole", label);  set("adminAvatar", initial);
@@ -399,6 +407,7 @@ document.addEventListener("DOMContentLoaded", function () {
         <span class="count" id="posCount"></span>
         <a class="sq-btn off" id="prevBtn" href="#" aria-label="Previous phase"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></a>
         <a class="sq-btn off" id="nextBtn" href="#" aria-label="Next phase"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></a>
+        <button class="btn btn-danger" type="button" id="deleteBtn" onclick="removePhase()" hidden>Delete</button>
         <a class="btn btn-dark" id="editBtn" href="#" hidden>Edit Phase</a>
       </div>
     </div>
@@ -420,6 +429,10 @@ document.addEventListener("DOMContentLoaded", function () {
             <span class="pill" id="statePill"></span>
           </div>
           <div class="desc" id="phaseDesc" dir="auto"></div>
+          <div class="block" id="filesBlock" style="margin-top:16px" hidden>
+            <span class="lbl">Attachments</span>
+            <ul class="files" id="fileList"></ul>
+          </div>
           <div class="facts">
             <div><span>Phase</span><strong id="factPhase">—</strong></div>
             <div><span>Due date</span><strong id="factDue">—</strong></div>
@@ -429,18 +442,22 @@ document.addEventListener("DOMContentLoaded", function () {
         </div>
       </section>
 
+      <section class="view-card card-pad" id="galleryCard" hidden>
+        <div class="card-title">
+          <h2>Gallery</h2>
+          <p>Images for the team. Click one to see it full size.</p>
+        </div>
+        <div class="gallery-grid" id="galleryGrid"></div>
+      </section>
+
       <section class="view-card card-pad">
         <div class="card-title">
           <h2>Teammates</h2>
-          <p>The people on this phase, and who has finished their part.</p>
+          <p>The people on this phase.</p>
         </div>
         <div class="block">
           <span class="lbl">Teammates</span>
           <div class="chips" id="teamChips"></div>
-        </div>
-        <div class="block" id="checklistBlock" hidden>
-          <span class="lbl">Teammate checklist</span>
-          <div class="checklist" id="teammateChecklist"></div>
         </div>
         <div class="block">
           <span class="lbl">Priority</span>
@@ -456,15 +473,15 @@ document.addEventListener("DOMContentLoaded", function () {
         <div class="card-title row">
           <div>
             <h2>Assigned</h2>
-            <p>Everyone who worked on this phase, what they did and how far they got.</p>
+            <p>The teammates working on this phase, what they do and how far they got. The phase completes when everyone is done.</p>
           </div>
           <span class="done-count" id="doneCount"></span>
         </div>
         <table class="assign-table" id="assignTable">
-          <thead><tr><th>Person</th><th>What they did</th><th>Status</th></tr></thead>
+          <thead><tr><th>Person</th><th>What they do</th><th>Status</th></tr></thead>
           <tbody id="assignBody"></tbody>
         </table>
-        <p class="muted" id="assignEmpty" hidden>Nobody is assigned yet.</p>
+        <p class="muted" id="assignEmpty" hidden>Nobody is assigned yet. Add people under Assigned in Edit Phase to track completion.</p>
       </section>
 
     </div>
@@ -647,12 +664,13 @@ const params    = new URLSearchParams(location.search);
 const taskId    = params.get("id") || "";
 const projectId = params.get("project") || "";
 
-const ROLE_LABELS = { owner:"Owner", super_admin:"Super Admin", account_manager:"Account Manager", seo_admin:"Admin" };
+const ROLE_LABELS = { owner:"Director", super_admin:"Super Admin", account_manager:"Account Manager", seo_admin:"Admin" };
 const PRIORITY_TONES = { low:"grey", medium:"amber", high:"red" };
 
 let task        = null;
 let teammates   = [];
 let assignments = [];
+let attachments = [];
 let statuses    = { todo:"To do", in_progress:"In progress", done:"Done" };
 
 if (!taskId) {
@@ -722,6 +740,7 @@ async function load(){
   task        = data.task;
   teammates   = data.teammates || [];
   assignments = data.assignments || [];
+  attachments = data.attachments || [];
   statuses    = data.statuses || statuses;
 
   const project = data.project;
@@ -734,6 +753,9 @@ async function load(){
   edit.href   = "project-task-form.html?project=" + encodeURIComponent(project.id) + "&id=" + encodeURIComponent(task.id);
   edit.hidden = !data.can_edit;
 
+  // The Director, an account manager or the phase's creator.
+  document.getElementById("deleteBtn").hidden = !data.can_delete;
+
   /* Position among the project's phases, in the order the project page lists
      them. The project the task belongs to wins over the query string. */
   const list = (siblings && siblings.success && Number(siblings.project.id) === Number(project.id))
@@ -742,10 +764,92 @@ async function load(){
 
   paintNav(project.id, list, at);
   paintPhase(project, at);
+  paintFiles();
+  paintGallery();
   paintTeam();
   paintAssignments();
 
   document.getElementById("view").hidden = false;
+}
+
+function paintGallery(){
+  const images = task.gallery || [];
+  document.getElementById("galleryCard").hidden = !images.length;
+  document.getElementById("galleryGrid").innerHTML = images.map((src, i) =>
+    '<img src="' + esc(src) + '" alt="Gallery image ' + (i + 1) + '" loading="lazy" data-lightbox data-lightbox-alt="Gallery image ' + (i + 1) + '">'
+  ).join("");
+}
+
+function fileSize(bytes){
+  bytes = Number(bytes) || 0;
+  return bytes >= 1024 * 1024 ? (bytes / 1024 / 1024).toFixed(1) + " MB"
+       : Math.max(1, Math.round(bytes / 1024)) + " KB";
+}
+
+function paintFiles(){
+  document.getElementById("filesBlock").hidden = !attachments.length;
+  document.getElementById("fileList").innerHTML = attachments.map(f =>
+    '<li><a href="#" data-file="' + Number(f.id) + '" data-name="' + esc(f.name) + '" title="Download ' + esc(f.name) + '">'
+    + '<span class="ext">' + esc(f.ext) + "</span>"
+    + '<span class="fname" dir="auto">' + esc(f.name) + "</span>"
+    + "<small>" + fileSize(f.size) + "</small>"
+    + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12"/><path d="M7 11l5 5 5-5"/><path d="M4 20h16"/></svg>'
+    + "</a></li>"
+  ).join("");
+}
+
+/* The download needs the admin token, which a plain link cannot carry, so
+   the file is fetched and handed to the browser as a blob. */
+document.getElementById("fileList").addEventListener("click", async function (event) {
+  const link = event.target.closest("a[data-file]");
+  if (!link) return;
+  event.preventDefault();
+  await downloadAttachment(link.dataset.file, link.dataset.name);
+});
+
+async function downloadAttachment(id, name){
+  try {
+    const res = await fetch("api/attachment.php?id=" + encodeURIComponent(id), {
+      headers: { Authorization: "Bearer " + adminToken }
+    });
+    if (!res.ok) {
+      let message = "Could not download the file.";
+      try { message = (await res.json()).message || message; } catch (e) {}
+      toast(message, true);
+      return;
+    }
+    const url = URL.createObjectURL(await res.blob());
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name || "file";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  } catch (e) {
+    toast("Could not download the file.", true);
+  }
+}
+
+async function removePhase(){
+  const ok = await askConfirm({
+    title : "Delete phase",
+    text  : "This phase will be removed from the project, along with its images, files "
+          + "and anything the client has already been shown of it. This cannot be undone.",
+    action: "Delete phase",
+    word  : "DELETE"
+  });
+
+  if (!ok) return;
+
+  const data = await api("api/project-tasks.php?id=" + encodeURIComponent(taskId), { method: "DELETE" });
+
+  toast(data.message, !data.success);
+  if (!data.success) return;
+
+  setTimeout(function(){
+    location.href = "project-details.html?id=" + encodeURIComponent(task.project_id);
+  }, 700);
 }
 
 function paintNav(pid, list, at){
@@ -788,9 +892,7 @@ function paintPhase(project, at){
 
   document.getElementById("phaseTitle").textContent = task.title;
 
-  const pill = document.getElementById("statePill");
-  pill.className   = "pill " + (Number(task.is_complete) ? "green" : "amber");
-  pill.textContent = Number(task.is_complete) ? "Completed" : "In progress";
+  paintStatePill();
 
   /* The editor's HTML, through the same sanitiser the client page uses. */
   document.getElementById("phaseDesc").innerHTML =
@@ -804,14 +906,19 @@ function paintPhase(project, at){
   document.getElementById("factVis").textContent  = vis.text;
 }
 
+/* Complete is worked out from the Assigned table: everyone done. */
+function paintStatePill(){
+  const pill = document.getElementById("statePill");
+  pill.className   = "pill " + (Number(task.is_complete) ? "green" : "amber");
+  pill.textContent = Number(task.is_complete) ? "Completed" : "In progress";
+}
+
 function paintTeam(){
   document.getElementById("teamChips").innerHTML = teammates.length
     ? teammates.map(t =>
         '<span class="chip" title="' + esc(roleLabel(t.role)) + '"><span class="av">' + esc(initials(t.name)) + "</span>"
         + '<span dir="auto">' + esc(t.name) + "</span></span>").join("")
     : '<span class="muted">Nobody is on this phase yet.</span>';
-
-  paintChecklist();
 
   const priority = task.priority || "medium";
   const pill = document.getElementById("priorityPill");
@@ -823,50 +930,12 @@ function paintTeam(){
     : '<span class="muted">No notes yet.</span>';
 }
 
-/* Your own box saves at once; everyone else's is read-only. */
-function paintChecklist(){
-  const box = document.getElementById("teammateChecklist");
-  document.getElementById("checklistBlock").hidden = !teammates.length;
-
-  box.innerHTML = teammates.map(t => {
-    const mine = Number(t.id) === Number(adminUser.id);
-    const done = !!Number(t.is_done);
-    return '<label class="' + (mine ? "mine" : "") + '">'
-      + '<input type="checkbox"' + (done ? " checked" : "") + (mine ? "" : " disabled") + ">"
-      + '<span class="who" dir="auto">' + esc(t.name) + (mine ? " (you)" : "") + "</span>"
-      + '<span class="state ' + (done ? "done" : "") + '">' + (done ? "Done" : "Not done") + "</span>"
-      + "</label>";
-  }).join("");
-
-  const mine = box.querySelector("input:not([disabled])");
-  if (mine) mine.addEventListener("change", () => setOwnDone(mine));
-}
-
-async function setOwnDone(input){
-  const body = new FormData();
-  body.append("action", "set_done");
-  body.append("task_id", taskId);
-  body.append("done", input.checked ? "1" : "0");
-
-  const data = await api("api/project-tasks.php", { method:"POST", body });
-
-  if (!data.success) {
-    input.checked = !input.checked;
-    toast(data.message, true);
-    return;
-  }
-
-  const me = teammates.find(t => Number(t.id) === Number(adminUser.id));
-  if (me) me.is_done = data.done;
-  paintChecklist();
-}
-
 const STATUS_TONES = { done:"green", in_progress:"amber", todo:"grey" };
 
 /*
 | The signed-in admin's own row carries a status select that saves straight
-| away; every other row is a pill. Changing what someone did is Edit Phase's
-| job.
+| away - whatever their role, nobody moves anyone else's - and every other row
+| is a pill. Changing what someone does is Edit Phase's job.
 */
 function paintAssignments(){
   const done = assignments.filter(a => a.status === "done").length;
@@ -909,14 +978,19 @@ async function setMyStatus(select){
   toast(data.message, !data.success);
 
   if (data.success && before) before.status = data.status;
+  if (data.success && "is_complete" in data) {
+    task.is_complete = data.is_complete ? 1 : 0;
+    paintStatePill();
+  }
   paintAssignments();
 }
 
 load();
 </script>
 <script src="assets/notifications.js?v=1"></script>
-<script src="assets/shell.js?v=5"></script>
+<script src="assets/confirm.js?v=1"></script>
+<script src="assets/shell.js?v=6"></script>
 <script src="assets/lightbox.js?v=1"></script>
 <script src="assets/sources-lock.js?v=1"></script>
-<script src="assets/role-nav.js?v=3"></script>
+<script src="assets/role-nav.js?v=4"></script>
 </body></html>

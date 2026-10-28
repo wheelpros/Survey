@@ -101,7 +101,7 @@ $action = $_GET["action"] ?? $_POST["action"] ?? "";
 function requireOwner($isOwner)
 {
     if (!$isOwner) {
-        reply(false, "Only the owner can send announcements.", [], 403);
+        reply(false, "Only the Director can send announcements.", [], 403);
     }
 }
 

@@ -329,7 +329,7 @@ function reviewSurveyForm(PDO $pdo, array $actor, $surveyId, $action, $note)
     $note = trim((string) $note);
 
     if (!isSurveyReviewer($actor)) {
-        throw new PortalWriteError("Only an account manager or the owner can approve or reject a form", 403);
+        throw new PortalWriteError("Only an account manager or the Director can approve or reject a form", 403);
     }
 
     if (!$surveyId || !in_array($action, ["approve", "reject"], true)) {

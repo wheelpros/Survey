@@ -30,7 +30,11 @@ check("settings: the owner reads them", $status === 200 && count($s["data"]["adm
     && $s["data"]["login_slides"] === [] && $s["data"]["clients_may_use_ai"] === clientsMayUseMcp($pdo), "HTTP $status " . json_encode($s));
 $flat = json_encode($s);
 check("settings: no secrets", strpos($flat, "tok-") === false && strpos($flat, "password") === false
-    && strpos($flat, "reset_token") === false && strpos($flat, "Olivia") === false, $flat);
+    && strpos($flat, "reset_token") === false
+    // The Director is the card, never one of the team listed under it.
+    && strpos(json_encode($s["data"]["admins"] ?? []), "Olivia") === false
+    && ($s["data"]["director"]["role_name"] ?? null) === "Director"
+    && ($s["data"]["director"]["untrusted_content"]["name"] ?? null) === "Olivia", $flat);
 check("settings: names are untrusted", ($s["data"]["admins"][0]["untrusted_content"]["name"] ?? null) === "Max"
     && !array_key_exists("name", $s["data"]["admins"][0]), $flat);
 foreach (["super admin" => $sa, "account manager" => $am, "admin" => $seo] as $who => $token) {

@@ -71,7 +71,7 @@ function v1Principal(PDO $pdo)
 function v1RequireScope(array $p, $scope)
 {
     if (!hasScope($p, $scope)) {
-        v1Error(403, "insufficient_scope", "This connection isn't allowed to do that ($scope). Reconnect and approve it, or ask the owner about your role.");
+        v1Error(403, "insufficient_scope", "This connection isn't allowed to do that ($scope). Reconnect and approve it, or ask the Director about your role.");
     }
 }
 

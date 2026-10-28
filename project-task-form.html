@@ -30,6 +30,7 @@ body{background:#f6f7fb;color:#101828}
 .btn-danger{background:#fff;color:var(--brand);border:1px solid #f0d2d4}
 .btn-danger:hover{background:#fff5f5}
 .btn[disabled]{opacity:.5;cursor:not-allowed}
+.btn[hidden]{display:none}
 
 /* ── Toast: the only feedback channel these pages have ── */
 .toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,20px);background:var(--nav-active);color:#fff;padding:13px 20px;border-radius:12px;font-size:13px;font-weight:700;box-shadow:0 16px 40px rgba(0,0,0,.22);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:99999;max-width:min(460px,92vw)}
@@ -115,7 +116,6 @@ body{padding:0}
   .admin-content{padding:24px 18px}
 }
 
-
 /* ── Shell refresh: the collapse control lives in the sidebar head ── */
 .side-head{
   display:flex;align-items:center;justify-content:space-between;gap:8px;
@@ -144,7 +144,6 @@ body{padding:0}
   width:38px;height:38px;padding:0;margin:0 auto 4px;
   border-radius:10px;justify-content:center;
 }
-
 
 @media(max-width:950px){
   /* Force-collapsed below this width, so the head has nothing left to show. */
@@ -201,11 +200,33 @@ select.client-filter{
 .card-title{margin-bottom:16px}
 .card-title.row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 
-/* The cover: the phase's image, or a calm block holding its place. The badge
-   says whether the client can see the phase. */
-.hero{position:relative;height:200px;border-radius:16px 16px 0 0;background:#5a7de8 center/cover no-repeat;display:flex;align-items:center;justify-content:center}
-.hero .ph{font-size:11px;font-weight:700;color:#fff;background:rgba(255,255,255,.22);padding:5px 12px;border-radius:20px}
-.hero.has-image .ph{display:none}
+/* The cover: the phase's image, or a calm block holding its place. Clicking
+   it uploads or replaces the image. The badge says whether the client can
+   see the phase. */
+.hero{position:relative;height:200px;border-radius:16px 16px 0 0;background:#5a7de8 center/cover no-repeat;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.hero:focus-visible{outline:3px solid rgba(27,30,58,.35);outline-offset:-3px}
+.hero .ph{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#fff;background:rgba(255,255,255,.22);padding:6px 12px;border-radius:20px;transition:background .15s}
+.hero .ph svg{width:13px;height:13px}
+.hero:hover .ph{background:rgba(255,255,255,.32)}
+.hero.has-image .ph{opacity:0;background:rgba(16,24,40,.65);transition:opacity .15s}
+.hero.has-image:hover .ph,.hero.has-image:focus-visible .ph{opacity:1}
+@media (hover:none){.hero.has-image .ph{opacity:1}}
+
+/* ── Gallery and files ── */
+.gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px}
+.gallery-grid .thumb{position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;background:#f2f4f7 center/cover no-repeat;border:1px solid var(--line)}
+.gallery-grid .thumb button{position:absolute;top:5px;right:5px;width:24px;height:24px;border:none;border-radius:50%;background:rgba(16,24,40,.7);color:#fff;font-size:15px;line-height:1;cursor:pointer}
+.add-tile{aspect-ratio:1;border:1.5px dashed #cfd5df;border-radius:10px;background:#fafbfc;color:var(--muted);font:inherit;font-size:11px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.add-tile:hover{border-color:var(--nav-active);color:var(--text)}
+.add-tile svg{width:16px;height:16px}
+.add-tile[hidden]{display:none}
+.file-list{list-style:none;margin:0 0 10px;padding:0;border:1px solid #dfe3ea;border-radius:10px;overflow:hidden}
+.file-list:empty{display:none}
+.file-list li{display:flex;align-items:center;gap:10px;padding:9px 12px;border-top:1px solid #eef1f5;font-size:13px}
+.file-list li:first-child{border-top:none}
+.file-list .ext{flex:none;min-width:38px;text-align:center;font-size:9px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#3745a4;background:#e0e8ff;border-radius:6px;padding:4px 5px}
+.file-list .fname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.file-list small{flex:none;color:var(--muted);font-size:11px}
 .vis-badge{position:absolute;top:12px;left:12px;background:#fff;color:#17803d;border:1px solid #b8e7c8;border-radius:20px;padding:4px 10px;font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase}
 .vis-badge.draft{color:#667085;border-color:#e4e7ec}
 .hero-remove{position:absolute;top:10px;right:10px;width:28px;height:28px;border:none;border-radius:50%;background:rgba(16,24,40,.7);color:#fff;font-size:16px;line-height:1;cursor:pointer}
@@ -241,17 +262,6 @@ input:focus,select:focus,textarea:focus{border-color:var(--nav-active);box-shado
 .label-row{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
 .label-row small{font-size:11px;color:#98a2b3}
 
-/* ── Complete switch ── */
-.switch-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.switch-row .label{font-size:13px;font-weight:700;color:var(--text)}
-.switch{position:relative;display:inline-block;width:44px;height:24px;flex:none;margin:0}
-.switch input{position:absolute;opacity:0;width:0;height:0}
-.switch .track{position:absolute;inset:0;background:#dfe3ea;border-radius:20px;cursor:pointer;transition:background .15s}
-.switch .track:before{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .15s;box-shadow:0 1px 3px rgba(16,24,40,.2)}
-.switch input:checked + .track{background:var(--nav-active)}
-.switch input:checked + .track:before{transform:translateX(20px)}
-.switch input:focus-visible + .track{box-shadow:0 0 0 3px rgba(27,30,58,.15)}
-
 /* ── Teammates: admin-content-form.html's dropdown of checkboxes ── */
 .multi{position:relative}
 .multi-trigger{width:100%;display:flex;align-items:center;gap:10px;border:1px solid #dfe3ea;background:#fff;border-radius:10px;padding:10px 12px;font:inherit;font-size:13px;color:var(--text);text-align:left;cursor:pointer}
@@ -268,44 +278,28 @@ input:focus,select:focus,textarea:focus{border-color:var(--nav-active);box-shado
 .role-tag{margin-left:auto;font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#98a2b3}
 .multi-panel .none{padding:14px 10px;font-size:13px;color:var(--muted)}
 
-/* ── Teammate checklist: each ticks their own box, everyone sees the rest ── */
-.checklist{border:1px solid #dfe3ea;border-radius:10px;overflow:hidden}
-.checklist label{display:flex;align-items:center;gap:10px;margin:0;padding:10px 12px;border-top:1px solid #eef1f5;font-size:13px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--text);background:#fcfcfd}
-.checklist label:first-child{border-top:none}
-.checklist label.mine{background:#fff;cursor:pointer}
-.checklist input{width:16px;height:16px;flex:none;accent-color:#20a95a}
-.checklist .who{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.checklist .state{flex:none;font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#98a2b3}
-.checklist .state.done{color:#20a95a}
-
-/* ── Assigned: one row per person who worked on the phase ── */
-.assign-table{width:100%;border-collapse:collapse}
-.assign-table th{font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#98a2b3;text-align:left;padding:0 10px 10px;border-bottom:1px solid var(--line)}
-.assign-table td{padding:12px 10px;border-bottom:1px solid #f2f4f7;vertical-align:top;font-size:13px;white-space:normal}
-.assign-table tr:last-child td{border-bottom:none}
-/* shell.js wraps every table in .wz-tablewrap and stops its cells wrapping on a
-   phone; this one turns into cards there instead, so its text wraps. */
-.wz-tablewrap .assign-table td{white-space:normal}
-.assign-table th:first-child,.assign-table td:first-child{padding-left:0;width:30%}
-.assign-table th:nth-child(3){width:140px}
-.assign-table th:last-child{width:60px}
+/* ── Assigned: one row per teammate, under the picker - as on a content post.
+   The note is written here; each person moves only their own status. ── */
+.assigned{border:1px solid #dfe3ea;border-radius:12px;overflow:hidden}
+.assigned-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;padding:12px 14px;border-top:1px solid #eef1f5;background:#fff}
+.assigned-row:first-child{border-top:none}
+.assigned-row .who{display:flex;align-items:center;gap:10px;min-width:0;font-size:13px;font-weight:700;color:var(--text)}
+.assigned-row .who span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.assigned-row .who small{font-size:11px;font-weight:600;color:var(--muted)}
+.assigned-row .av{width:32px;height:32px;border-radius:50%;background:#e0e8ff center/cover no-repeat;color:#3745a4;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none}
+.assigned-row .row-end{display:flex;align-items:center;gap:6px}
+.assigned-row textarea{grid-column:1/-1;min-height:54px;resize:vertical;font-size:13px;line-height:1.5}
+.status-pill{display:inline-flex;align-items:center;align-self:center;padding:4px 10px;border-radius:20px;border:1px solid;font-size:11px;font-weight:800;white-space:nowrap}
+.status-select{width:auto;align-self:center;min-width:120px;font-size:12px;font-weight:700;padding:6px 30px 6px 10px;border-radius:20px;cursor:pointer}
+.status-pill.done,.status-select.done{color:#17803d;background-color:#e8faef;border-color:#b8e7c8}
+.status-pill.in_progress,.status-select.in_progress{color:#b45309;background-color:#fff7e6;border-color:#fde68a}
+.status-pill.todo,.status-select.todo{color:#475467;background-color:#f2f4f7;border-color:#e4e7ec}
+.assigned-count{float:right;font-size:11px;font-weight:800;color:var(--muted);letter-spacing:0;text-transform:none}
 /* Clear of the save bar, which would otherwise sit on top of every message. */
 .toast{bottom:84px}
-.assign-table th:last-child,.assign-table td:last-child{padding-right:0;text-align:right}
-.person{display:flex;align-items:center;gap:10px;min-width:150px}
-.person .av{width:30px;height:30px;border-radius:50%;background:#e0e8ff;color:#3745a4;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none}
-.person b{display:block;font-size:12px;font-weight:700}
-.person small{display:block;font-size:11px;color:var(--muted)}
-.person select{min-width:150px}
-.assign-table textarea{min-height:58px;resize:vertical;font-size:12px;line-height:1.5}
-.status-select{width:auto;min-width:118px;font-size:12px;font-weight:700;padding:7px 34px 7px 10px;border-radius:20px}
-.status-select.done{color:#17803d;background-color:#e8faef;border-color:#b8e7c8}
-.status-select.in_progress{color:#b45309;background-color:#fff7e6;border-color:#fde68a}
-.status-select.todo{color:#475467;background-color:#f2f4f7;border-color:#e4e7ec}
 .icon-btn{width:30px;height:30px;border:1px solid transparent;background:transparent;border-radius:8px;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
 .icon-btn:hover{background:#fff5f5;color:var(--brand)}
 .icon-btn svg{width:15px;height:15px}
-.assign-empty{font-size:13px;color:var(--muted);padding:14px 0 2px}
 
 /* ── The save bar, pinned to the foot of the viewport ── */
 .save-bar{position:fixed;left:var(--sidebar-w);right:0;bottom:0;z-index:90;background:#fff;border-top:1px solid var(--line);padding:12px 35px;display:flex;align-items:center;gap:12px;transition:left .18s ease}
@@ -327,14 +321,6 @@ input:focus,select:focus,textarea:focus{border-color:var(--nav-active);box-shado
   .three-up,.title-row{grid-template-columns:1fr}
   .hero{height:150px}
   .card-pad{padding:16px}
-  /* The table becomes one card per person: a four-column row cannot be read
-     at this width. */
-  .assign-table thead{display:none}
-  .assign-table,.assign-table tbody,.assign-table tr,.assign-table td{display:block;width:100%}
-  .assign-table tr{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px;position:relative}
-  .assign-table td{padding:0 0 10px;border:none;text-align:left}
-  .assign-table td:last-child{position:absolute;top:10px;right:10px;padding:0;width:auto}
-  .person{padding-right:34px}
   .save-bar p{display:none}
   .save-bar{gap:8px}
   .save-bar .btn{flex:1;white-space:nowrap;padding:10px 8px}
@@ -369,7 +355,7 @@ document.addEventListener("DOMContentLoaded", function () {
   var a = {};
   try { a = JSON.parse(localStorage.getItem("admin_user") || "{}"); } catch (e) {}
   var name = a.name || "Admin";
-  var label = ({ owner: "Owner", super_admin: "Super Admin", account_manager: "Account Manager", seo_admin: "Admin" })[a.role] || "";
+  var label = ({ owner: "Director", super_admin: "Super Admin", account_manager: "Account Manager", seo_admin: "Admin" })[a.role] || "";
   var initial = name.charAt(0).toUpperCase();
   function set(id, v){ var el = document.getElementById(id); if (el) el.textContent = v; }
   set("adminName", name);  set("adminRole", label);  set("adminAvatar", initial);
@@ -461,10 +447,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
       <!-- The phase itself: cover, title, description, the four fields. -->
       <section class="form-card">
-        <div class="hero" id="hero">
+        <div class="hero" id="hero" role="button" tabindex="0" aria-label="Upload cover image">
           <span class="vis-badge" id="visBadge">Published</span>
-          <span class="ph">Phase image</span>
-          <button class="hero-remove" type="button" id="heroRemove" onclick="clearMedia()" aria-label="Remove image" hidden>&times;</button>
+          <span class="ph" id="heroLabel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+            <span id="heroText">Upload cover image</span>
+          </span>
+          <button class="hero-remove" type="button" id="heroRemove" onclick="event.stopPropagation(); clearMedia()" aria-label="Remove cover image" hidden>&times;</button>
         </div>
 
         <div class="card-pad">
@@ -521,22 +510,45 @@ document.addEventListener("DOMContentLoaded", function () {
 
           <p class="hint" id="scheduleNote" style="margin-top:-6px">A published phase dated in the future is shown to the client on that date.</p>
 
-          <div class="field-row switch-row">
-            <span class="label">Mark as completed</span>
-            <label class="switch">
-              <input type="checkbox" id="isComplete">
-              <span class="track"></span>
-            </label>
-          </div>
-
           <div class="field-row">
-            <div class="media-row">
-              <button class="btn btn-ghost" type="button" id="replaceBtn" onclick="input.click()">Upload image</button>
-              <span class="hint" id="mediaHint" style="margin:0">Optional. Maximum 3 MB. Shown above.</span>
-            </div>
-            <input type="file" id="mediaInput" accept="image/*" hidden>
+            <p class="hint" id="mediaHint" style="margin:0">Cover image is optional. Click the cover to upload it. Maximum 3 MB.</p>
+            <input type="file" id="mediaInput" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
             <div class="media-error" id="mediaError"></div>
           </div>
+        </div>
+      </section>
+
+      <!-- Gallery and files: for the team, on the phase page only. -->
+      <section class="form-card card-pad">
+        <div class="card-title">
+          <h2>Images &amp; files</h2>
+          <p>Shown on the phase page for the team. Never shown to the client.</p>
+        </div>
+
+        <div class="field-row">
+          <div class="label-row">
+            <label>Gallery</label>
+            <small id="galleryCount">0 / 5</small>
+          </div>
+          <div class="gallery-grid" id="galleryGrid"></div>
+          <input type="file" id="galleryInput" accept="image/jpeg,image/png,image/webp,image/gif" multiple hidden>
+          <p class="hint">Up to 5 images, 3 MB each.</p>
+          <div class="media-error" id="galleryError"></div>
+        </div>
+
+        <div class="field-row">
+          <div class="label-row">
+            <label>Attachments</label>
+            <small id="fileCount">0 / 5</small>
+          </div>
+          <ul class="file-list" id="fileList"></ul>
+          <button class="btn btn-ghost" type="button" id="fileAddBtn" onclick="document.getElementById('fileInput').click()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            Attach files
+          </button>
+          <input type="file" id="fileInput" accept=".pdf,.txt,.md,.doc,.docx,.xls,.xlsx" multiple hidden>
+          <p class="hint">PDF, TXT, MD, Word or Excel. Up to 5 files, 8 MB each.</p>
+          <div class="media-error" id="fileError"></div>
         </div>
       </section>
 
@@ -559,10 +571,12 @@ document.addEventListener("DOMContentLoaded", function () {
           <p class="hint">Everyone listed here can open this phase, and gets a notification.</p>
         </div>
 
-        <div class="field-row" id="checklistRow" hidden>
-          <label>Teammate checklist</label>
-          <div class="checklist" id="teammateChecklist"></div>
-          <p class="hint">Each teammate ticks their own box.</p>
+        <!-- One row per teammate: what they do and how far they got - the
+             same as a content post's Assigned. See paintAssigned(). -->
+        <div class="field-row" id="assignedRow" hidden>
+          <label id="assignedLabel">Assigned <span class="assigned-count" id="assignedCount"></span></label>
+          <div class="assigned" id="assignedList" role="group" aria-labelledby="assignedLabel"></div>
+          <p class="hint" id="assignedHint"></p>
         </div>
 
         <div class="field-row">
@@ -596,24 +610,6 @@ document.addEventListener("DOMContentLoaded", function () {
           </div>
           <textarea id="notes" maxlength="5000" dir="auto" placeholder="Write meeting notes, task requirements, links or additional details here..."></textarea>
         </div>
-      </section>
-
-      <section class="form-card card-pad">
-        <div class="card-title row">
-          <div>
-            <h2>Assigned</h2>
-            <p>Everyone who worked on this phase, what they did and how far they got.</p>
-          </div>
-          <button class="btn btn-ghost" type="button" onclick="addAssignment()">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-            Add assignment
-          </button>
-        </div>
-        <table class="assign-table">
-          <thead><tr><th>Person</th><th>What they did &amp; details</th><th>Status</th><th>Action</th></tr></thead>
-          <tbody id="assignBody"></tbody>
-        </table>
-        <p class="assign-empty" id="assignEmpty">Nobody is assigned yet.</p>
       </section>
 
     </form>
@@ -761,10 +757,23 @@ let keep = { link:"", orientation:"horizontal", scheduled_time:"" };
 
 /* The client's team, who can go on the phase: [{id, name, role}]. */
 let candidates  = [];
-let teammates   = [];   // [{id, name, role, is_done}] as saved
-let statuses    = { todo:"To do", in_progress:"In progress", done:"Done" };
+let teammates   = [];   // [{id, name, role}] as saved
 
-const ROLE_LABELS = { owner:"Owner", super_admin:"Super Admin", account_manager:"Account Manager", seo_admin:"Admin" };
+/* The gallery: paths kept from the saved phase, then files chosen here. */
+let maxGallery     = 5;
+let galleryKept    = [];
+let galleryNew     = [];   // [{file, url}]
+let galleryTouched = false;
+
+/* Attachments: the saved ones kept, then files chosen here. */
+let maxFiles     = 5;
+let maxFileBytes = 8 * 1024 * 1024;
+let filesKept    = [];     // [{id, name, ext, size}]
+let filesNew     = [];     // [File]
+let filesTouched = false;
+const FILE_EXTS  = ["pdf", "txt", "md", "doc", "docx", "xls", "xlsx"];
+
+const ROLE_LABELS = { owner:"Director", super_admin:"Super Admin", account_manager:"Account Manager", seo_admin:"Admin" };
 
 if (!taskId && !projectId) {
   location.replace("project-management.html");
@@ -843,12 +852,23 @@ function mdLink(){
   mdReplace(s, e, "[" + label + "](" + url + ")");
 }
 
-/* ── Media: one image, shown as the cover ───────────────────────────────── */
+/* ── Media: one image, shown as the cover; the cover itself is the button ── */
 
 const input = document.getElementById("mediaInput");
+const hero  = document.getElementById("hero");
 
 input.addEventListener("change", function () {
   if (input.files && input.files[0]) acceptMedia(input.files[0]);
+  input.value = "";
+});
+
+hero.addEventListener("click", function () { input.click(); });
+hero.addEventListener("keydown", function (event) {
+  if (event.target !== hero) return;
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    input.click();
+  }
 });
 
 function mediaError(message){
@@ -901,7 +921,147 @@ function clearMedia(){
 
 function paintMediaControls(){
   document.getElementById("heroRemove").hidden = !hasImage;
-  document.getElementById("replaceBtn").textContent = hasImage ? "Replace image" : "Upload image";
+  const label = hasImage ? "Change cover image" : "Upload cover image";
+  document.getElementById("heroText").textContent = label;
+  hero.setAttribute("aria-label", label);
+}
+
+/* ── Gallery: up to maxGallery images beside the cover ──────────────────── */
+
+const galleryInput = document.getElementById("galleryInput");
+
+galleryInput.addEventListener("change", function () {
+  addGalleryFiles(Array.from(galleryInput.files || []));
+  galleryInput.value = "";
+});
+
+function showError(id, message){
+  const box = document.getElementById(id);
+  box.textContent = message || "";
+  box.classList.toggle("show", !!message);
+}
+
+function addGalleryFiles(files){
+  showError("galleryError", "");
+  const room = maxGallery - galleryKept.length - galleryNew.length;
+
+  if (files.length > room) {
+    showError("galleryError", "A phase can have up to " + maxGallery + " gallery images.");
+    files = files.slice(0, Math.max(room, 0));
+  }
+
+  for (const file of files) {
+    if (!/^image\/(jpeg|png|webp|gif)$/.test(file.type)) {
+      showError("galleryError", "Only JPG, PNG, WEBP and GIF images are allowed.");
+      continue;
+    }
+    if (file.size > maxBytes) {
+      showError("galleryError", "Each image must be " + Math.round(maxBytes / 1024 / 1024) + " MB or smaller.");
+      continue;
+    }
+    galleryNew.push({ file, url: URL.createObjectURL(file) });
+    galleryTouched = true;
+    markDirty();
+  }
+
+  paintGallery();
+}
+
+function removeGalleryImage(kind, index){
+  if (kind === "kept") galleryKept.splice(index, 1);
+  else URL.revokeObjectURL(galleryNew.splice(index, 1)[0].url);
+  galleryTouched = true;
+  showError("galleryError", "");
+  markDirty();
+  paintGallery();
+}
+
+function paintGallery(){
+  const tiles = galleryKept.map((path, i) => ({ url: path, kind: "kept", i }))
+    .concat(galleryNew.map((item, i) => ({ url: item.url, kind: "new", i })));
+
+  const grid = document.getElementById("galleryGrid");
+  grid.innerHTML = tiles.map(t =>
+    '<div class="thumb" style="background-image:url(\'' + esc(t.url) + '\')">'
+    + '<button type="button" aria-label="Remove image ' + (tiles.indexOf(t) + 1) + '" '
+    + 'onclick="removeGalleryImage(\'' + t.kind + '\',' + t.i + ')">&times;</button></div>'
+  ).join("")
+    + '<button type="button" class="add-tile" onclick="galleryInput.click()"' + (tiles.length >= maxGallery ? " hidden" : "") + ">"
+    + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>Add image</button>';
+
+  document.getElementById("galleryCount").textContent = tiles.length + " / " + maxGallery;
+}
+
+/* ── Attachments ─────────────────────────────────────────────────────────── */
+
+const fileInput = document.getElementById("fileInput");
+
+fileInput.addEventListener("change", function () {
+  addFiles(Array.from(fileInput.files || []));
+  fileInput.value = "";
+});
+
+function fileSize(bytes){
+  bytes = Number(bytes) || 0;
+  return bytes >= 1024 * 1024 ? (bytes / 1024 / 1024).toFixed(1) + " MB"
+       : Math.max(1, Math.round(bytes / 1024)) + " KB";
+}
+
+function extOf(name){
+  const m = /\.([a-z0-9]+)$/i.exec(name || "");
+  return m ? m[1].toLowerCase() : "";
+}
+
+function addFiles(files){
+  showError("fileError", "");
+  const room = maxFiles - filesKept.length - filesNew.length;
+
+  if (files.length > room) {
+    showError("fileError", "Up to " + maxFiles + " files can be attached.");
+    files = files.slice(0, Math.max(room, 0));
+  }
+
+  for (const file of files) {
+    if (!FILE_EXTS.includes(extOf(file.name))) {
+      showError("fileError", "Only PDF, TXT, MD, Word and Excel files can be attached.");
+      continue;
+    }
+    if (file.size > maxFileBytes) {
+      showError("fileError", "\"" + file.name + "\" is larger than " + Math.round(maxFileBytes / 1024 / 1024) + " MB.");
+      continue;
+    }
+    filesNew.push(file);
+    filesTouched = true;
+    markDirty();
+  }
+
+  paintFiles();
+}
+
+function removeFile(kind, index){
+  if (kind === "kept") filesKept.splice(index, 1);
+  else filesNew.splice(index, 1);
+  filesTouched = true;
+  showError("fileError", "");
+  markDirty();
+  paintFiles();
+}
+
+function paintFiles(){
+  const rows = filesKept.map((f, i) => ({ name: f.name, size: f.size, kind: "kept", i }))
+    .concat(filesNew.map((f, i) => ({ name: f.name, size: f.size, kind: "new", i })));
+
+  document.getElementById("fileList").innerHTML = rows.map(r =>
+    '<li><span class="ext">' + esc(extOf(r.name) || "file") + "</span>"
+    + '<span class="fname" dir="auto" title="' + esc(r.name) + '">' + esc(r.name) + "</span>"
+    + "<small>" + fileSize(r.size) + "</small>"
+    + '<button class="icon-btn" type="button" aria-label="Remove ' + esc(r.name) + '" onclick="removeFile(\'' + r.kind + "'," + r.i + ')">'
+    + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>'
+    + "</button></li>"
+  ).join("");
+
+  document.getElementById("fileCount").textContent = rows.length + " / " + maxFiles;
+  document.getElementById("fileAddBtn").hidden = rows.length >= maxFiles;
 }
 
 function paintVisibility(){
@@ -928,7 +1088,7 @@ function chosenTeammates(){
 function teamPool(){
   const pool = candidates.slice();
   teammates.forEach(t => {
-    if (!pool.some(c => c.id === t.id)) pool.push({ id:t.id, name:t.name, role:t.role });
+    if (!pool.some(c => c.id === t.id)) pool.push({ id:t.id, name:t.name, role:t.role, avatar_path:t.avatar_path });
   });
   return pool;
 }
@@ -948,6 +1108,7 @@ function paintTeammates(selected){
 
   panel.querySelectorAll("input").forEach(box => box.addEventListener("change", function(){
     paintTeamValue();
+    paintAssigned();
     markDirty();
   }));
 
@@ -978,130 +1139,124 @@ document.addEventListener("click", function(){
   multi.querySelector(".multi-trigger").setAttribute("aria-expanded", "false");
 });
 
-/*
-| The checklist shows who is on the phase as saved. The signed-in admin's own
-| box saves straight away (set_done) - the same as the content form - and
-| everyone else's is read-only.
-*/
-function paintChecklist(){
-  const row = document.getElementById("checklistRow");
-  const box = document.getElementById("teammateChecklist");
+/* ── Assigned: one row per teammate chosen above ─────────────────────────────
+   The same as a content post's Assigned. Ticking a teammate gives them a row
+   with what they do; unticking takes it away. On a saved phase the viewer's
+   own status is live and saves at once (set_my_status) - everyone else's is
+   read-only, and a teammate not saved yet starts at To do. */
 
-  row.hidden = !teammates.length;
+let statuses = { todo:"To do", in_progress:"In progress", done:"Done" };
 
-  box.innerHTML = teammates.map(t => {
-    const mine = Number(t.id) === Number(adminUser.id);
-    const done = !!Number(t.is_done);
-    return '<label class="' + (mine ? "mine" : "") + '">'
-      + '<input type="checkbox" data-id="' + Number(t.id) + '"' + (done ? " checked" : "") + (mine ? "" : " disabled") + ">"
-      + '<span class="who" dir="auto">' + esc(t.name) + (mine ? " (you)" : "") + "</span>"
-      + '<span class="state ' + (done ? "done" : "") + '">' + (done ? "Done" : "Not done") + "</span>"
-      + "</label>";
-  }).join("");
+// admin_id => {status, work_note} as the server has them.
+let savedAssignments = new Map();
 
-  box.querySelectorAll("input:not([disabled])").forEach(input => {
-    input.addEventListener("change", () => setOwnDone(input));
-  });
-}
-
-async function setOwnDone(input){
-  const body = new FormData();
-  body.append("action", "set_done");
-  body.append("task_id", taskId);
-  body.append("done", input.checked ? "1" : "0");
-
-  const data = await api("api/project-tasks.php", { method:"POST", body });
-
-  if (!data.success) {
-    input.checked = !input.checked;
-    toast(data.message, true);
-    return;
-  }
-
-  const me = teammates.find(t => Number(t.id) === Number(adminUser.id));
-  if (me) me.is_done = data.done;
-  paintChecklist();
-}
-
-/* ── Assigned ───────────────────────────────────────────────────────────── */
+// Notes typed this session, by admin id, so a redraw keeps them.
+const draftNotes = new Map();
 
 function initials(name){
   return String(name || "").trim().split(/\s+/).slice(0, 2)
     .map(part => part.charAt(0).toUpperCase()).join("") || "?";
 }
 
-function statusOptions(current){
-  return Object.keys(statuses).map(key =>
-    '<option value="' + key + '"' + (key === current ? " selected" : "") + ">" + esc(statuses[key]) + "</option>"
-  ).join("");
+/* The chosen teammates as people. */
+function chosenPeople(){
+  const ids = chosenTeammates();
+  return teamPool().filter(p => ids.includes(Number(p.id)));
 }
 
-/*
-| One row per assignment. A saved row carries its id, so the server updates it
-| rather than adding a second one; a row added here has none, and picks its
-| person from the client's team.
-*/
-function assignmentRow(a){
-  const person = a.id
-    ? '<div class="person"><span class="av">' + esc(initials(a.name)) + "</span>"
-      + '<div><b dir="auto">' + esc(a.name) + "</b><small>" + esc(roleLabel(a.role)) + "</small></div></div>"
-    : '<div class="person"><select class="assign-person" aria-label="Person">'
-      + '<option value="">Pick a person...</option>'
-      + teamPool().map(p => '<option value="' + Number(p.id) + '">' + esc(p.name) + "</option>").join("")
-      + "</select></div>";
-
-  return '<tr data-id="' + (a.id ? Number(a.id) : "") + '" data-admin="' + (a.admin_id ? Number(a.admin_id) : "") + '">'
-    + "<td>" + person + "</td>"
-    + '<td><textarea class="assign-note" maxlength="2000" dir="auto" placeholder="What they did, and any details" aria-label="What they did">'
-    +   esc(a.work_note || "") + "</textarea></td>"
-    + '<td><select class="status-select ' + esc(a.status || "todo") + '" aria-label="Status">' + statusOptions(a.status || "todo") + "</select></td>"
-    + '<td><button class="icon-btn" type="button" title="Remove" aria-label="Remove this assignment" onclick="removeAssignment(this)">'
-    +   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>'
-    + "</button></td>"
-    + "</tr>";
+function setSavedAssignments(list){
+  savedAssignments = new Map((list || []).map(a => [Number(a.admin_id), a]));
 }
 
-function paintAssignments(list){
-  document.getElementById("assignBody").innerHTML = list.map(assignmentRow).join("");
-  syncAssignEmpty();
+function paintAssigned(){
+  const list = document.getElementById("assignedList");
+
+  // Keep what was typed before the redraw.
+  list.querySelectorAll("textarea[data-id]").forEach(box => draftNotes.set(Number(box.dataset.id), box.value));
+
+  const people = chosenPeople();
+  document.getElementById("assignedRow").hidden = !people.length;
+
+  list.innerHTML = people.map(person => {
+    const id     = Number(person.id);
+    const saved  = taskId ? savedAssignments.get(id) : null;
+    const mine   = !!saved && id === Number(adminUser.id);
+    const status = (saved && saved.status) || "todo";
+    const note   = draftNotes.has(id) ? draftNotes.get(id) : (saved && saved.work_note) || "";
+
+    const statusHtml = mine
+      ? '<select class="status-select ' + esc(status) + '" data-id="' + id + '" aria-label="My status">'
+        + Object.keys(statuses).map(k => '<option value="' + k + '"' + (k === status ? " selected" : "") + ">" + esc(statuses[k]) + "</option>").join("")
+        + "</select>"
+      : '<span class="status-pill ' + esc(status) + '">' + esc(statuses[status] || status) + "</span>";
+
+    // Their photo when the Director gave them one, otherwise their initials.
+    const avatar = person.avatar_path
+      ? '<span class="av has-photo" style="background-image:url(\'' + esc(person.avatar_path) + '\')" aria-hidden="true"></span>'
+      : '<span class="av" aria-hidden="true">' + esc(initials(person.name)) + "</span>";
+
+    return '<div class="assigned-row">'
+      + '<div class="who">' + avatar
+      +   '<span dir="auto">' + esc(person.name) + (mine ? " <small>(you)</small>" : "") + "</span>"
+      +   "<small>" + esc(roleLabel(person.role)) + "</small></div>"
+      + '<div class="row-end">' + statusHtml
+      +   '<button class="icon-btn" type="button" title="Remove from this phase" aria-label="Remove '
+      +     esc(person.name) + ' from this phase" onclick="removeTeammate(' + id + ')">'
+      +   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>'
+      +   "</button></div>"
+      + '<textarea data-id="' + id + '" maxlength="2000" dir="auto" placeholder="What they do, and any details" aria-label="What '
+      +   esc(person.name) + ' does">' + esc(note) + "</textarea>"
+      + "</div>";
+  }).join("");
+
+  list.querySelectorAll("select.status-select").forEach(select => {
+    select.addEventListener("change", () => setMyStatus(select));
+  });
+
+  const done = people.filter(p => (savedAssignments.get(Number(p.id)) || {}).status === "done").length;
+  document.getElementById("assignedCount").textContent = taskId && people.length ? done + " of " + people.length + " done" : "";
+
+  const isMine = taskId && people.some(p => Number(p.id) === Number(adminUser.id) && savedAssignments.has(Number(p.id)));
+  document.getElementById("assignedHint").textContent = isMine
+    ? "Set your status as you go. It saves straight away. The phase completes when everyone is done."
+    : "Each teammate sets their own status once the phase is saved. The phase completes when everyone is done.";
 }
 
-function syncAssignEmpty(){
-  document.getElementById("assignEmpty").hidden =
-    !!document.querySelector("#assignBody tr");
-}
+async function setMyStatus(select){
+  select.disabled = true;
 
-function addAssignment(){
-  document.getElementById("assignBody").insertAdjacentHTML("beforeend", assignmentRow({}));
-  syncAssignEmpty();
-  document.querySelector("#assignBody tr:last-child select").focus();
-  markDirty();
-}
+  const body = new FormData();
+  body.append("action", "set_my_status");
+  body.append("task_id", taskId);
+  body.append("status", select.value);
 
-function removeAssignment(button){
-  button.closest("tr").remove();
-  syncAssignEmpty();
-  markDirty();
-}
+  const data = await api("api/project-tasks.php", { method:"POST", body });
+  toast(data.message, !data.success);
 
-/* The pill's colour follows its value. */
-document.getElementById("assignBody").addEventListener("change", function (event) {
-  if (event.target.classList.contains("status-select")) {
-    event.target.className = "status-select " + event.target.value;
+  if (data.success) {
+    const mine = savedAssignments.get(Number(adminUser.id));
+    if (mine) mine.status = data.status;
   }
-});
+  paintAssigned();
+}
 
-/* Rows that have a person, as the API takes them. */
+/* The row's delete icon: takes them off the phase, the same as unticking
+   them in Teammates above. Nothing is saved until Save. */
+function removeTeammate(id){
+  const box = multi.querySelector('.multi-panel input[value="' + Number(id) + '"]');
+  if (box) box.checked = false;
+  draftNotes.delete(Number(id));
+  paintTeamValue();
+  paintAssigned();
+  markDirty();
+}
+
+/* Every teammate with what they do, as the API takes it. */
 function collectAssignments(){
-  return Array.from(document.querySelectorAll("#assignBody tr")).map(row => {
-    const picker = row.querySelector(".assign-person");
-    return {
-      id       : row.dataset.id ? Number(row.dataset.id) : null,
-      admin_id : picker ? Number(picker.value) : Number(row.dataset.admin),
-      work_note: row.querySelector(".assign-note").value.trim(),
-      status   : row.querySelector(".status-select").value
-    };
-  }).filter(a => a.admin_id > 0);
+  return Array.from(document.querySelectorAll("#assignedList textarea[data-id]")).map(box => ({
+    admin_id : Number(box.dataset.id),
+    work_note: box.value.trim()
+  }));
 }
 
 /* ── Unsaved changes ────────────────────────────────────────────────────── */
@@ -1110,8 +1265,8 @@ function markDirty(){ dirty = true; }
 
 document.getElementById("taskForm").addEventListener("input", markDirty);
 document.getElementById("taskForm").addEventListener("change", function (event) {
-  // The checklist saves itself, so ticking it leaves nothing unsaved.
-  if (!event.target.closest("#teammateChecklist")) markDirty();
+  // Your own status saves itself, so changing it leaves nothing unsaved.
+  if (!event.target.classList.contains("status-select")) markDirty();
 });
 
 window.addEventListener("beforeunload", function (event) {
@@ -1147,11 +1302,13 @@ async function load(){
   maxChars   = Number(data.max_chars) || maxChars;
   maxBytes   = Number(data.max_bytes) || maxBytes;
   candidates = data.candidates || [];
-  statuses   = data.statuses || statuses;
   teammates  = data.teammates || [];
+  maxGallery   = Number(data.max_gallery) || maxGallery;
+  maxFiles     = Number(data.max_files) || maxFiles;
+  maxFileBytes = Number(data.max_file_bytes) || maxFileBytes;
 
   document.getElementById("mediaHint").textContent =
-    "Optional. Maximum " + Math.round(maxBytes / 1024 / 1024) + " MB. Shown above.";
+    "Cover image is optional. Click the cover to upload it. Maximum " + Math.round(maxBytes / 1024 / 1024) + " MB.";
 
   const project = data.project;
   projectId = project.id;
@@ -1171,18 +1328,24 @@ async function load(){
     }
 
     fill(data.task);
-    paintAssignments(data.assignments || []);
+    galleryKept = (data.task.gallery || []).slice();
+    filesKept   = (data.attachments || []).slice();
     document.getElementById("formTitle").textContent = "Edit Phase";
-    document.getElementById("deleteBtn").hidden = false;
+    // The Director, an account manager or the phase's creator.
+    document.getElementById("deleteBtn").hidden = !data.can_delete;
     document.title = "Edit Phase - " + project.title;
 
   } else {
-    paintAssignments([]);
     document.title = "New Phase - " + project.title;
   }
 
+  // The teammates first: the Assigned rows are drawn from them.
   paintTeammates(teammates.map(t => Number(t.id)));
-  paintChecklist();
+  if (data.statuses) statuses = data.statuses;
+  setSavedAssignments(taskId ? (data.assignments || []) : []);
+  paintAssigned();
+  paintGallery();
+  paintFiles();
   paintVisibility();
   paintMediaControls();
 
@@ -1199,7 +1362,6 @@ function fill(task){
   document.getElementById("updateDate").value = task.scheduled_date || "";
   document.getElementById("visibility").value = task.status === "draft" ? "draft" : "published";
   document.getElementById("priority").value   = task.priority || "medium";
-  document.getElementById("isComplete").checked = !!Number(task.is_complete);
   notes.value = task.notes || "";
 
   editor.innerHTML = task.description || "";
@@ -1231,11 +1393,6 @@ async function save(){
     return;
   }
 
-  if (Array.from(document.querySelectorAll("#assignBody .assign-person")).some(s => !s.value)) {
-    toast("Pick a person for each new assignment, or remove the row.", true);
-    return;
-  }
-
   const body = new FormData();
 
   if (taskId) body.append("id", taskId);
@@ -1247,7 +1404,6 @@ async function save(){
   body.append("orientation", keep.orientation);
   body.append("scheduled_date", document.getElementById("updateDate").value);
   body.append("scheduled_time", keep.scheduled_time);
-  body.append("is_complete", document.getElementById("isComplete").checked ? "1" : "0");
   body.append("status", document.getElementById("visibility").value);
   body.append("phase_label", document.getElementById("phaseLabel").value.trim());
   body.append("role", document.getElementById("taskRole").value.trim());
@@ -1258,6 +1414,18 @@ async function save(){
 
   if (mediaFile) body.append("image", mediaFile);
   if (removeMedia && !mediaFile) body.append("remove_image", "1");
+
+  // Sent only when changed, so a save that never touched them keeps them all.
+  if (galleryTouched) {
+    body.append("keep_gallery_sent", "1");
+    galleryKept.forEach(path => body.append("keep_gallery[]", path));
+    galleryNew.forEach(item => body.append("gallery[]", item.file));
+  }
+  if (filesTouched) {
+    body.append("keep_attachments_sent", "1");
+    filesKept.forEach(f => body.append("keep_attachments[]", f.id));
+    filesNew.forEach(file => body.append("attachments[]", file));
+  }
 
   setBusy(true);
 
@@ -1299,8 +1467,8 @@ async function removePhase(){
 
   const ok = await askConfirm({
     title : "Delete phase",
-    text  : "This phase will be removed from the project, along with anything the "
-          + "client has already been shown of it. This cannot be undone.",
+    text  : "This phase will be removed from the project, along with its images, files "
+          + "and anything the client has already been shown of it. This cannot be undone.",
     action: "Delete phase",
     word  : "DELETE"
   });
@@ -1325,7 +1493,7 @@ load();
 </script>
 <script src="assets/notifications.js?v=1"></script>
 <script src="assets/confirm.js?v=1"></script>
-<script src="assets/shell.js?v=5"></script>
+<script src="assets/shell.js?v=6"></script>
 <script src="assets/sources-lock.js?v=1"></script>
-<script src="assets/role-nav.js?v=3"></script>
+<script src="assets/role-nav.js?v=4"></script>
 </body></html>

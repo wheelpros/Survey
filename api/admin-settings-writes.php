@@ -26,10 +26,11 @@ const ASSIGNABLE_ADMIN_ROLES = ["seo_admin", "super_admin", "account_manager"];
 // How long the "set your password" link in a new admin's welcome email lasts.
 const NEW_ADMIN_LINK_TTL = 72 * 3600;
 
+/* The owner is shown as the Director everywhere; the role key stays `owner`. */
 function adminRoleName($role)
 {
     switch ($role) {
-        case "owner": return "Owner";
+        case "owner": return "Director";
         case "super_admin": return "Super Admin";
         case "account_manager": return "Account Manager";
         case "seo_admin": return "Admin";
@@ -434,6 +435,140 @@ function removeLoginSlide(PDO $pdo, $id)
 |--------------------------------------------------------------------------
 */
 
+/*
+|--------------------------------------------------------------------------
+| Photos, and the Director's own card
+|--------------------------------------------------------------------------
+|
+| avatar_path is set by the owner when adding or editing an admin (add-user.php,
+| admin-update.php) and shown in the list and the sidebar. The Director edits
+| their own name and position on the card at the top of Settings
+| (update-my-profile.php). Both columns are ADMIN_EXTRA_COLUMNS in db.php.
+|
+*/
+
+const ADMIN_AVATAR_MAX_BYTES = 3 * 1024 * 1024;
+
+/**
+ * Saves an uploaded photo ($_FILES entry) under uploads/avatars/ and returns
+ * its path, or null when no file was sent. The type is read from the bytes.
+ */
+function saveAdminAvatar($file)
+{
+    if (!is_array($file) || ($file["error"] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+        return null;
+    }
+
+    $error = $file["error"];
+    if ($error === UPLOAD_ERR_INI_SIZE || $error === UPLOAD_ERR_FORM_SIZE) {
+        throw new PortalWriteError("Photo is too large for the server (upload_max_filesize is "
+            . ini_get("upload_max_filesize") . ").");
+    }
+    if ($error !== UPLOAD_ERR_OK || !is_uploaded_file($file["tmp_name"] ?? "")) {
+        throw new PortalWriteError("Photo upload failed.");
+    }
+    if (($file["size"] ?? 0) > ADMIN_AVATAR_MAX_BYTES) {
+        throw new PortalWriteError("Photo must be 3 MB or smaller.");
+    }
+
+    $ext = contentImageExtension($file["tmp_name"]);
+    if ($ext === null || $ext === "gif") {
+        throw new PortalWriteError("Only JPG, PNG and WEBP photos are allowed.");
+    }
+
+    $dir = dirname(__DIR__) . "/uploads/avatars/";
+    if (!is_dir($dir) && !mkdir($dir, 0755, true)) {
+        throw new PortalWriteError("Could not create the photo folder.", 500);
+    }
+
+    $name = bin2hex(random_bytes(16)) . "." . $ext;
+    if (!move_uploaded_file($file["tmp_name"], $dir . $name)) {
+        throw new PortalWriteError("Could not save the photo.", 500);
+    }
+
+    return "uploads/avatars/" . $name;
+}
+
+function deleteAdminAvatar($path)
+{
+    $path = (string) $path;
+    if (strpos($path, "uploads/avatars/") === 0 && strpos($path, "..") === false) {
+        $full = dirname(__DIR__) . "/" . $path;
+        if (is_file($full)) {
+            @unlink($full);
+        }
+    }
+}
+
+/**
+ * Sets an admin's photo: a saved path, or "" to remove it. Returns the photo
+ * it replaced, for deleteAdminAvatar() once the change has landed.
+ */
+function setAdminAvatar(PDO $pdo, $adminId, $avatar)
+{
+    ensureAdminColumns($pdo);
+
+    $stmt = $pdo->prepare("SELECT avatar_path FROM admins WHERE id = ?");
+    $stmt->execute([(int) $adminId]);
+    $old = $stmt->fetchColumn() ?: null;
+
+    $pdo->prepare("UPDATE admins SET avatar_path = ? WHERE id = ?")
+        ->execute([$avatar !== "" ? $avatar : null, (int) $adminId]);
+
+    return $old;
+}
+
+/** The Director's card on Settings: name, email, role, position, photo. */
+function adminProfile(PDO $pdo, $adminId)
+{
+    ensureAdminColumns($pdo);
+
+    $stmt = $pdo->prepare("SELECT id, name, email, role, position, avatar_path FROM admins WHERE id = ? LIMIT 1");
+    $stmt->execute([(int) $adminId]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$row) {
+        throw new PortalWriteError("Admin not found.", 404);
+    }
+
+    return [
+        "id"          => (int) $row["id"],
+        "name"        => (string) $row["name"],
+        "email"       => (string) $row["email"],
+        "role"        => (string) $row["role"],
+        "role_label"  => adminRoleName($row["role"]),
+        "position"    => (string) ($row["position"] ?? ""),
+        "avatar_path" => $row["avatar_path"] ?: null,
+    ];
+}
+
+/**
+ * The Director changes their own name and position - nothing else: the
+ * email is what they sign in with, and the role is fixed. Returns
+ * [name, position] cleaned.
+ */
+function checkOwnProfile($name, $position)
+{
+    $name = trim((string) $name);
+
+    if ($name === "") {
+        throw new PortalWriteError("Name is required.");
+    }
+    if (mb_strlen($name) > 100) {
+        throw new PortalWriteError("Name must be 100 characters or fewer.");
+    }
+
+    return [$name, checkAdminPosition($position)];
+}
+
+function updateOwnProfile(PDO $pdo, $adminId, $name, $position)
+{
+    ensureAdminColumns($pdo);
+
+    $pdo->prepare("UPDATE admins SET name = ?, position = ? WHERE id = ?")
+        ->execute([$name, $position, (int) $adminId]);
+}
+
 /** Every admin but the owner, with who manages them - the Available Admins panel. */
 function listTeamAdmins(PDO $pdo)
 {
@@ -442,7 +577,7 @@ function listTeamAdmins(PDO $pdo)
     return $pdo->query("
         SELECT
             admins.id, admins.name, admins.email, admins.role, admins.active,
-            admins.managed_by_admin_id, admins.position,
+            admins.managed_by_admin_id, admins.position, admins.avatar_path,
             manager.name AS managed_by_name
         FROM admins
         LEFT JOIN admins manager ON manager.id = admins.managed_by_admin_id
@@ -461,7 +596,7 @@ function checkAdminRoleChange(PDO $pdo, array $owner, $targetId, $newRole)
     $target = findAdminRow($pdo, $targetId);
 
     if ($target["role"] === "owner") {
-        throw new PortalWriteError("The owner's role cannot be changed here.", 403);
+        throw new PortalWriteError("The Director's role cannot be changed here.", 403);
     }
 
     if ((int) $target["id"] === (int) $owner["id"]) {
@@ -610,15 +745,18 @@ function checkAdminPosition($position)
     return $position;
 }
 
-/** $password is the plain password, or null for one nobody knows. Returns the id. */
-function createAdmin(PDO $pdo, $name, $email, $role, $password = null, $position = null)
+/**
+ * $password is the plain password, or null for one nobody knows; $avatar a
+ * saved photo path, or null. Returns the id.
+ */
+function createAdmin(PDO $pdo, $name, $email, $role, $password = null, $position = null, $avatar = null)
 {
     ensureAdminColumns($pdo);
 
     $hash = password_hash($password ?? bin2hex(random_bytes(32)), PASSWORD_DEFAULT);
 
-    $pdo->prepare("INSERT INTO admins (name, email, password, role, active, position) VALUES (?, ?, ?, ?, 1, ?)")
-        ->execute([$name, $email, $hash, $role, $position]);
+    $pdo->prepare("INSERT INTO admins (name, email, password, role, active, position, avatar_path) VALUES (?, ?, ?, ?, 1, ?, ?)")
+        ->execute([$name, $email, $hash, $role, $position, $avatar]);
 
     return (int) $pdo->lastInsertId();
 }
@@ -637,7 +775,7 @@ function checkAdminUpdate(PDO $pdo, array $owner, $targetId, array $in)
     $target = findAdminRow($pdo, $targetId);
 
     if ($target["role"] === "owner") {
-        throw new PortalWriteError("The owner's account cannot be edited here.", 403);
+        throw new PortalWriteError("The Director's account cannot be edited here.", 403);
     }
 
     $name = trim((string) ($in["name"] ?? ""));

@@ -50,7 +50,7 @@ if (!$admin) {
 }
 
 if (($admin["role"] ?? "") !== "owner") {
-    deleteReply(false, "Only the owner can delete a client account.");
+    deleteReply(false, "Only the Director can delete a client account.");
 }
 
 $input = json_decode(file_get_contents("php://input"), true) ?? [];

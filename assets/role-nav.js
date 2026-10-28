@@ -144,10 +144,16 @@
           return;
         }
 
-        /* Only a label changed: the owner set or edited their position. No
-           sign-out - store it and repaint the sidebar card and the popup. */
-        if ((stored.position || null) !== (data.admin.position || null)) {
+        /* Only labels changed: the owner set a position, a name or a photo
+           (Settings, the Director card). No sign-out - store them and repaint
+           the sidebar card and the popup. */
+        var avatar = data.admin.avatar_path || null;
+        if ((stored.position || null) !== (data.admin.position || null)
+            || (stored.avatar_path || null) !== avatar
+            || stored.name !== data.admin.name) {
           stored.position = data.admin.position || null;
+          stored.avatar_path = avatar;
+          stored.name = data.admin.name;
           localStorage.setItem("admin_user", JSON.stringify(stored));
 
           if (window.wzPaintAccount) window.wzPaintAccount();

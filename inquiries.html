@@ -303,7 +303,7 @@ document.addEventListener("DOMContentLoaded", function () {
   var a = {};
   try { a = JSON.parse(localStorage.getItem("admin_user") || "{}"); } catch (e) {}
   var name = a.name || "Admin";
-  var label = ({ owner: "Owner", super_admin: "Super Admin", account_manager: "Account Manager", seo_admin: "Admin" })[a.role] || "";
+  var label = ({ owner: "Director", super_admin: "Super Admin", account_manager: "Account Manager", seo_admin: "Admin" })[a.role] || "";
   var initial = name.charAt(0).toUpperCase();
   function set(id, v){ var el = document.getElementById(id); if (el) el.textContent = v; }
   set("adminName", name);  set("adminRole", label);  set("adminAvatar", initial);
@@ -706,7 +706,7 @@ function showEmptyState() {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
       New Inquiry
     </a>` : `
-    <p>The owner creates inquiries. Once there is one, it shows up here with everything that comes back from it.</p>`}
+    <p>The Director creates inquiries. Once there is one, it shows up here with everything that comes back from it.</p>`}
   `;
 
   box.hidden = false;
@@ -861,8 +861,8 @@ document.addEventListener("keydown", function (event) {
 load();
 </script>
 <script src="assets/notifications.js?v=1"></script>
-<script src="assets/shell.js?v=5"></script>
+<script src="assets/shell.js?v=6"></script>
 <script src="assets/sources-lock.js?v=1"></script>
-<script src="assets/role-nav.js?v=3"></script>
+<script src="assets/role-nav.js?v=4"></script>
 </body>
 </html>

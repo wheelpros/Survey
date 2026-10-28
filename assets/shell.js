@@ -260,6 +260,19 @@
       var el = document.getElementById(pair[0]);
       if (el) el.textContent = pair[1];
     });
+
+    /* The photo, when the Director gave them one, in place of the initial. */
+    var photo = typeof admin.avatar_path === "string"
+      && /^uploads\/avatars\/[a-f0-9]+\.(jpg|png|webp)$/.test(admin.avatar_path) ? admin.avatar_path : "";
+
+    ["adminAvatar", "acctAvatar"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.style.backgroundImage = photo ? "url('" + photo + "')" : "";
+      el.style.backgroundSize = photo ? "cover" : "";
+      el.style.backgroundPosition = photo ? "center" : "";
+      el.style.color = photo ? "transparent" : "";
+    });
   }
 
   window.wzPaintAccount = paintAccount;

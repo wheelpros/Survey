@@ -101,8 +101,10 @@ function canEditTask(array $admin, array $task)
 /**
  * Inserts ($existing null) or updates a task. $f holds the task's fields:
  * title, link, description (HTML), orientation, image_path, scheduled_date
- * and scheduled_time (already checked as dates/times, or null),
- * is_complete, status. Returns the task id.
+ * and scheduled_time (already checked as dates/times, or null), status,
+ * and gallery_paths (a list) when the caller changes the gallery.
+ * is_complete is not among them: recomputeTaskComplete() derives it from the
+ * Assigned table. Returns the task id.
  */
 function saveProjectTask(PDO $pdo, array $actor, array $project, $existing, array $f)
 {
@@ -147,9 +149,13 @@ function saveProjectTask(PDO $pdo, array $actor, array $project, $existing, arra
         "image_path"     => $f["image_path"] ?? null,
         "scheduled_date" => $f["scheduled_date"] ?? null,
         "scheduled_time" => $f["scheduled_time"] ?? null,
-        "is_complete"    => !empty($f["is_complete"]) ? 1 : 0,
         "status"         => $status,
     ];
+
+    if (array_key_exists("gallery_paths", $f)) {
+        $gallery = array_values((array) $f["gallery_paths"]);
+        $columns["gallery_paths"] = $gallery ? json_encode($gallery, JSON_UNESCAPED_SLASHES) : null;
+    }
 
     /* The phase fields are written only when the caller sent them, so an
        api/v1 save - which knows nothing of them - leaves them as they were. */
@@ -218,12 +224,14 @@ function phaseFieldColumns(array $f)
 | Two lists, both drawn from the client's team - the same pool a content
 | post picks from (contentAssigneeCandidates):
 |
-|   teammates     who is on the phase; each ticks their own box done
-|   assignments   who worked on it, what they did, and how far they got -
-|                 the rows the admin dashboard lists as "My tasks"
+|   teammates     who is on the phase
+|   assignments   which teammates worked on it, what they did, and how far
+|                 they got - the rows the admin dashboard lists as "My tasks"
 |
-| Only someone who may edit the task changes either list. Each person moves
-| only their own box and their own status, with no Save needed.
+| Assignments are drawn from the teammates only, one row per person. Only
+| someone who may edit the task changes either list, and never anyone's
+| status: each person moves only their own, with no Save needed. The phase
+| is complete once every assigned person is done (recomputeTaskComplete).
 |
 */
 
@@ -251,11 +259,13 @@ function allowedTaskPeople(PDO $pdo, array $project, array $ids, array $current)
     ));
 }
 
-/** Teammates and assignments of a phase, with names, for the pages. */
+/** Teammates and assignments of a phase, with names and photos, for the pages. */
 function taskTeamPayload(PDO $pdo, $taskId)
 {
+    ensureAdminColumns($pdo);
+
     $stmt = $pdo->prepare("
-        SELECT m.admin_id AS id, a.name, a.role, m.is_done
+        SELECT m.admin_id AS id, a.name, a.role, a.avatar_path
         FROM project_task_teammates m
         LEFT JOIN admins a ON a.id = m.admin_id
         WHERE m.task_id = ?
@@ -263,8 +273,8 @@ function taskTeamPayload(PDO $pdo, $taskId)
     ");
     $stmt->execute([(int) $taskId]);
     $teammates = array_map(function ($r) {
-        return ["id" => (int) $r["id"], "name" => (string) $r["name"],
-                "role" => (string) $r["role"], "is_done" => (int) $r["is_done"]];
+        return ["id" => (int) $r["id"], "name" => (string) $r["name"], "role" => (string) $r["role"],
+                "avatar_path" => $r["avatar_path"] ?: null];
     }, $stmt->fetchAll(PDO::FETCH_ASSOC));
 
     $stmt = $pdo->prepare("
@@ -310,71 +320,106 @@ function saveTaskTeammates(PDO $pdo, array $project, $taskId, array $ids)
         $insert->execute([(int) $taskId, $adminId]);
     }
 
+    /* Someone taken off the phase leaves the Assigned table with it. */
+    if ($removed) {
+        $marks = implode(",", array_fill(0, count($removed), "?"));
+        $pdo->prepare("DELETE FROM project_task_assignments WHERE task_id = ? AND admin_id IN ($marks)")
+            ->execute(array_merge([(int) $taskId], $removed));
+        recomputeTaskComplete($pdo, $taskId);
+    }
+
     return $added;
 }
 
+/** The admin ids on the phase as teammates. */
+function taskTeammateIds(PDO $pdo, $taskId)
+{
+    $stmt = $pdo->prepare("SELECT admin_id FROM project_task_teammates WHERE task_id = ?");
+    $stmt->execute([(int) $taskId]);
+
+    return array_map("intval", $stmt->fetchAll(PDO::FETCH_COLUMN));
+}
+
 /**
- * Makes the phase's assignments exactly $rows: [{id?, admin_id, work_note,
- * status}]. A row with an id that belongs to this phase is updated, a row
- * without one is added, and an existing row left out is removed. Returns
- * the people new to the phase's assignments.
+ * Makes the phase's assignments exactly $rows: [{admin_id, work_note}], one
+ * per person, each a teammate on the phase (save the teammates first). A
+ * person already assigned keeps their row and their status - only they move
+ * it - and a person left out is removed. Anyone not a teammate is refused.
+ * Returns the people new to the phase's assignments.
  */
 function saveTaskAssignments(PDO $pdo, array $project, $taskId, array $rows)
 {
-    $stmt = $pdo->prepare("SELECT id, admin_id FROM project_task_assignments WHERE task_id = ?");
+    $stmt = $pdo->prepare("SELECT admin_id FROM project_task_assignments WHERE task_id = ?");
     $stmt->execute([(int) $taskId]);
-    $existing = [];
-    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
-        $existing[(int) $r["id"]] = (int) $r["admin_id"];
-    }
+    $existing = array_map("intval", $stmt->fetchAll(PDO::FETCH_COLUMN));
 
-    $allowed = allowedTaskPeople($pdo, $project, array_column($rows, "admin_id"), array_values($existing));
+    $teammates = taskTeammateIds($pdo, $taskId);
 
-    $keep  = [];
-    $added = [];
-
-    $update = $pdo->prepare("UPDATE project_task_assignments SET admin_id = ?, work_note = ?, status = ? WHERE id = ? AND task_id = ?");
-    $insert = $pdo->prepare("INSERT INTO project_task_assignments (task_id, admin_id, work_note, status) VALUES (?, ?, ?, ?)");
-
+    $notes = [];
     foreach ($rows as $row) {
         if (!is_array($row)) {
             continue;
         }
         $adminId = (int) ($row["admin_id"] ?? 0);
-        if (!in_array($adminId, $allowed, true)) {
+        if ($adminId <= 0 || isset($notes[$adminId])) {
             continue;
+        }
+        if (!in_array($adminId, $teammates, true)) {
+            throw new PortalWriteError("Only teammates on this phase can be assigned. Add them to Teammates first.");
         }
 
         $note = trim((string) ($row["work_note"] ?? ""));
         if (mb_strlen($note) > 2000) {
             throw new PortalWriteError("What they did must be 2000 characters or fewer.");
         }
-        $status = array_key_exists((string) ($row["status"] ?? ""), TASK_ASSIGNMENT_STATUSES) ? $row["status"] : "todo";
-        $id = (int) ($row["id"] ?? 0);
+        $notes[$adminId] = $note;
+    }
 
-        if ($id && isset($existing[$id])) {
-            $update->execute([$adminId, $note ?: null, $status, $id, (int) $taskId]);
-            $keep[] = $id;
-            if ($existing[$id] !== $adminId) {
-                $added[] = $adminId;
-            }
+    $update = $pdo->prepare("UPDATE project_task_assignments SET work_note = ? WHERE task_id = ? AND admin_id = ?");
+    $insert = $pdo->prepare("INSERT INTO project_task_assignments (task_id, admin_id, work_note, status) VALUES (?, ?, ?, 'todo')");
+
+    $added = [];
+    foreach ($notes as $adminId => $note) {
+        if (in_array($adminId, $existing, true)) {
+            $update->execute([$note ?: null, (int) $taskId, $adminId]);
         } else {
-            $insert->execute([(int) $taskId, $adminId, $note ?: null, $status]);
-            $keep[] = (int) $pdo->lastInsertId();
-            if (!in_array($adminId, $existing, true)) {
-                $added[] = $adminId;
-            }
+            $insert->execute([(int) $taskId, $adminId, $note ?: null]);
+            $added[] = $adminId;
         }
     }
 
-    $gone = array_values(array_diff(array_keys($existing), $keep));
+    $gone = array_values(array_diff($existing, array_keys($notes)));
     if ($gone) {
         $marks = implode(",", array_fill(0, count($gone), "?"));
-        $pdo->prepare("DELETE FROM project_task_assignments WHERE task_id = ? AND id IN ($marks)")
+        $pdo->prepare("DELETE FROM project_task_assignments WHERE task_id = ? AND admin_id IN ($marks)")
             ->execute(array_merge([(int) $taskId], $gone));
     }
 
-    return array_values(array_unique($added));
+    recomputeTaskComplete($pdo, $taskId);
+
+    return $added;
+}
+
+/**
+ * A phase is complete when it has at least one assigned person and every one
+ * of them is done - nobody ticks the phase itself. Run after anything that
+ * changes the Assigned table. Returns the new value.
+ */
+function recomputeTaskComplete(PDO $pdo, $taskId)
+{
+    $stmt = $pdo->prepare("
+        SELECT COUNT(*) AS total, COALESCE(SUM(status = 'done'), 0) AS done
+        FROM project_task_assignments
+        WHERE task_id = ?
+    ");
+    $stmt->execute([(int) $taskId]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    $complete = (int) $row["total"] > 0 && (int) $row["done"] === (int) $row["total"] ? 1 : 0;
+
+    $pdo->prepare("UPDATE project_tasks SET is_complete = ? WHERE id = ?")->execute([$complete, (int) $taskId]);
+
+    return $complete;
 }
 
 /* Never inside a transaction (notify.php rule 2). One notification per
@@ -440,7 +485,31 @@ function setOwnPhaseStatus(PDO $pdo, $taskId, $adminId, $status)
     $stmt = $pdo->prepare("UPDATE project_task_assignments SET status = ? WHERE task_id = ? AND admin_id = ?");
     $stmt->execute([$status, (int) $taskId, (int) $adminId]);
 
+    recomputeTaskComplete($pdo, $taskId);
+
     return $status;
+}
+
+/**
+ * Deletes a phase with its people, attachments and files. The caller has
+ * checked canEditTask(). Shared by project-tasks.php's DELETE and api/v1.
+ */
+function deleteProjectTask(PDO $pdo, array $task)
+{
+    require_once __DIR__ . "/upload-helpers.php";
+
+    $id = (int) $task["id"];
+
+    $pdo->prepare("DELETE FROM project_tasks WHERE id = ?")->execute([$id]);
+    $pdo->prepare("DELETE FROM project_task_teammates WHERE task_id = ?")->execute([$id]);
+    $pdo->prepare("DELETE FROM project_task_assignments WHERE task_id = ?")->execute([$id]);
+    $files = deleteAttachmentRows($pdo, "task", $id);
+
+    deleteUploadedFiles(array_merge(
+        $files,
+        array_filter([$task["image_path"] ?? null]),
+        taskGallery($task)
+    ));
 }
 
 /**
@@ -557,7 +626,7 @@ function myDashboardItems(PDO $pdo, array $actor)
         ensureContentColumns($pdo);
 
         $stmt = $pdo->prepare("
-            SELECT c.id, c.title, c.client, c.type_label, c.content_type, c.post_date, a.is_done
+            SELECT c.id, c.title, c.client, c.type_label, c.content_type, c.post_date, a.is_done, a.status
             FROM content_assignees a
             JOIN content c ON c.id = a.content_id
             WHERE a.admin_id = ?
@@ -572,7 +641,10 @@ function myDashboardItems(PDO $pdo, array $actor)
                 "chip" => trim((string) $r["client"]) !== "" ? (string) $r["client"] : "Content",
                 "due_date" => $r["post_date"],
                 "label" => $r["type_label"] ?: $r["content_type"],
-                "status" => (int) $r["is_done"] === 1 ? "done" : "todo",
+                // A post's Assigned row has the same three steps as a phase's.
+                "status" => array_key_exists((string) $r["status"], TASK_ASSIGNMENT_STATUSES)
+                    ? (string) $r["status"]
+                    : ((int) $r["is_done"] === 1 ? "done" : "todo"),
                 "href" => "admin-content-form.html?id=" . (int) $r["id"],
             ];
         }
@@ -602,6 +674,177 @@ function myDashboardItems(PDO $pdo, array $actor)
     unset($item);
 
     return ["tasks" => $items, "counts" => $counts, "projects" => $mine["projects"]];
+}
+
+/* Who the dashboard's Team overview is for: the Director, who oversees the
+   whole team. Everyone else, account managers included, sees My tasks. */
+const TEAM_DASHBOARD_ROLES = ["owner"];
+
+/**
+ * The Team overview for the Director: every person's row in an Assigned
+ * table - phase assignments inside projectScopeSql() (all of them for the
+ * Director), and post assignees - each with who it is, its status and
+ * whether it is overdue.
+ * Plus the counts (with overdue), how many projects, and what needs
+ * attention: phases nobody is assigned to (they can never complete), forms
+ * waiting for review, and meeting requests waiting for a reply.
+ *
+ * Read-only: each person moves only their own status, elsewhere.
+ */
+function teamDashboardItems(PDO $pdo, array $actor)
+{
+    ensureAdminColumns($pdo);
+
+    [$scopeSql, $scopeParams] = projectScopeSql($actor);
+    $scope = $scopeSql !== "" ? " AND " . $scopeSql : "";
+    $today = date("Y-m-d");
+
+    $person = function ($r) {
+        return ["id" => (int) $r["admin_id"], "name" => (string) $r["admin_name"], "avatar_path" => $r["avatar_path"] ?: null];
+    };
+
+    $items = [];
+
+    $stmt = $pdo->prepare("
+        SELECT s.status, s.admin_id, a.name AS admin_name, a.avatar_path,
+               t.id AS task_id, t.title, t.scheduled_date, t.phase_label,
+               p.id AS project_id, p.title AS project_title
+        FROM project_task_assignments s
+        JOIN project_tasks t ON t.id = s.task_id
+        JOIN projects p      ON p.id = t.project_id
+        LEFT JOIN admins a   ON a.id = s.admin_id
+        WHERE 1 = 1" . $scope . "
+    ");
+    $stmt->execute($scopeParams);
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        $items[] = [
+            "kind" => "assignment",
+            "id" => (int) $r["task_id"],
+            "person" => $person($r),
+            "title" => (string) $r["title"],
+            "chip" => (string) $r["project_title"],
+            "due_date" => $r["scheduled_date"],
+            "label" => $r["phase_label"],
+            "status" => (string) $r["status"],
+            "href" => "project-task-details.html?project=" . (int) $r["project_id"] . "&id=" . (int) $r["task_id"],
+        ];
+    }
+
+    try {
+        ensureContentColumns($pdo);
+        $stmt = $pdo->query("
+            SELECT ca.admin_id, ca.status, ca.is_done, a.name AS admin_name, a.avatar_path,
+                   c.id, c.title, c.client, c.type_label, c.content_type, c.post_date
+            FROM content_assignees ca
+            JOIN content c     ON c.id = ca.content_id
+            LEFT JOIN admins a ON a.id = ca.admin_id
+        ");
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $items[] = [
+                "kind" => "content",
+                "id" => (int) $r["id"],
+                "person" => $person($r),
+                "title" => (string) $r["title"],
+                "chip" => trim((string) $r["client"]) !== "" ? (string) $r["client"] : "Content",
+                "due_date" => $r["post_date"],
+                "label" => $r["type_label"] ?: $r["content_type"],
+                "status" => array_key_exists((string) $r["status"], TASK_ASSIGNMENT_STATUSES)
+                    ? (string) $r["status"]
+                    : ((int) $r["is_done"] === 1 ? "done" : "todo"),
+                "href" => "admin-content-form.html?id=" . (int) $r["id"],
+            ];
+        }
+    } catch (Throwable $e) {
+        // A database without the content tables costs the overview its posts.
+    }
+
+    // Soonest due first, undated last; then by person.
+    usort($items, function ($a, $b) {
+        $da = $a["due_date"] ?: "9999-12-31";
+        $db = $b["due_date"] ?: "9999-12-31";
+        return $da === $db ? strcmp($a["person"]["name"], $b["person"]["name"]) : strcmp($da, $db);
+    });
+
+    $counts = array_fill_keys(array_keys(TASK_ASSIGNMENT_STATUSES), 0) + ["overdue" => 0];
+    foreach ($items as &$item) {
+        $item["overdue"] = $item["status"] !== "done" && $item["due_date"] && substr((string) $item["due_date"], 0, 10) < $today;
+        if (isset($counts[$item["status"]])) {
+            $counts[$item["status"]]++;
+        }
+        if ($item["overdue"]) {
+            $counts["overdue"]++;
+        }
+    }
+    unset($item);
+
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM projects p WHERE 1 = 1" . $scope);
+    $stmt->execute($scopeParams);
+    $projects = (int) $stmt->fetchColumn();
+
+    return [
+        "tasks" => $items,
+        "counts" => $counts,
+        "projects" => $projects,
+        "attention" => teamAttention($pdo, $actor, $scope, $scopeParams),
+    ];
+}
+
+/**
+ * What the Team overview flags: phases with nobody assigned (each with a
+ * link - they can never complete), how many forms wait for review, and how
+ * many client meeting requests wait for a reply, from the clients in scope.
+ */
+function teamAttention(PDO $pdo, array $actor, $scope, array $scopeParams)
+{
+    $stmt = $pdo->prepare("
+        SELECT t.id, t.title, p.id AS project_id, p.title AS project_title
+        FROM project_tasks t
+        JOIN projects p ON p.id = t.project_id
+        WHERE NOT EXISTS (SELECT 1 FROM project_task_assignments s WHERE s.task_id = t.id)" . $scope . "
+        ORDER BY t.scheduled_date IS NULL, t.scheduled_date ASC, t.id ASC
+    ");
+    $stmt->execute($scopeParams);
+    $unassigned = array_map(function ($r) {
+        return [
+            "id" => (int) $r["id"],
+            "title" => (string) $r["title"],
+            "project" => (string) $r["project_title"],
+            "href" => "project-task-details.html?project=" . (int) $r["project_id"] . "&id=" . (int) $r["id"],
+        ];
+    }, $stmt->fetchAll(PDO::FETCH_ASSOC));
+
+    // The review queue: both roles review every form (admin-survey-review.php).
+    $forms = 0;
+    try {
+        $forms = (int) $pdo->query("SELECT COUNT(*) FROM surveys WHERE status = 'pending_review'")->fetchColumn();
+    } catch (Throwable $e) {
+    }
+
+    // Meeting requests a client sent and nobody answered: every client for
+    // the Director, an account manager's own clients otherwise.
+    $meetings = 0;
+    try {
+        if (($actor["role"] ?? "") === "owner") {
+            $meetings = (int) $pdo->query("
+                SELECT COUNT(*) FROM appointments WHERE status = 'pending' AND requested_by = 'user'
+            ")->fetchColumn();
+        } else {
+            $stmt = $pdo->prepare("
+                SELECT COUNT(*) FROM appointments ap
+                JOIN admin_user_assignments aua ON aua.user_id = ap.user_id AND aua.admin_id = ?
+                WHERE ap.status = 'pending' AND ap.requested_by = 'user'
+            ");
+            $stmt->execute([(int) $actor["id"]]);
+            $meetings = (int) $stmt->fetchColumn();
+        }
+    } catch (Throwable $e) {
+    }
+
+    return [
+        "unassigned_phases" => $unassigned,
+        "forms_to_review" => ["count" => $forms, "href" => "admin.html"],
+        "meetings_waiting" => ["count" => $meetings, "href" => "admin-calendar.html"],
+    ];
 }
 
 /*
