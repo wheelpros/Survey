@@ -186,7 +186,7 @@ select.client-filter{
 }
 
 /* ── Dashboard: my phases, counted, then listed ── */
-:root{--c-new:#2563eb;--c-doing:#f59e0b;--c-done:#16a34a;--c-due:#f97316;--c-proj:var(--brand)}
+:root{--c-new:#2563eb;--c-doing:#f59e0b;--c-done:#16a34a;--c-proj:var(--brand)}
 .page-title p{margin-bottom:0}
 .overview{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px;margin-bottom:30px}
 .box{background:#fff;border:1px solid var(--line);border-radius:16px}
@@ -220,7 +220,6 @@ select.client-filter{
 .group-head em{font-style:normal;color:#98a2b3}
 .row{position:relative;display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,.7fr) minmax(0,1fr) 150px;gap:16px;align-items:center;background:#fff;border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:12px;padding:14px 16px;margin-bottom:8px}
 .row.new{--accent:var(--c-new)}
-.row.due{--accent:var(--c-due)}
 .row.doing{--accent:var(--c-doing)}
 .row.done{--accent:var(--c-done)}
 .row-title{min-width:0}
@@ -607,33 +606,22 @@ function paintFilters(){
   });
 }
 
-/* Seven days ahead, inclusive, as yyyy-mm-dd - compared as strings. */
-function weekAhead(){
-  const d = new Date(today + "T00:00:00");
-  d.setDate(d.getDate() + 7);
-  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-}
-
 /*
-| Four groups, in the order work moves: new, due within the week (overdue
-| included - it is the most urgent of them), under way, finished. A phase sits
-| in exactly one; "due this week" wins over new and in progress.
+| Three groups, in the order work moves: new, under way, finished. A task sits
+| in exactly one. An overdue one stays in its group with its date in red.
 */
-function groupOf(task, limit){
+function groupOf(task){
   if (task.status === "done") return "done";
-  if (task.due_date && String(task.due_date).slice(0, 10) <= limit) return "due";
   return task.status === "in_progress" ? "doing" : "new";
 }
 
 const GROUPS = [
-  ["new",   "New",           "var(--c-new)"],
-  ["due",   "Due this week", "var(--c-due)"],
-  ["doing", "In progress",   "var(--c-doing)"],
-  ["done",  "Done",          "var(--c-done)"]
+  ["new",   "New",         "var(--c-new)"],
+  ["doing", "In progress", "var(--c-doing)"],
+  ["done",  "Done",        "var(--c-done)"]
 ];
 
 function paintGroups(){
-  const limit = weekAhead();
   const shown = tasks.filter(t => filter === "all" || t.status === filter);
   const box   = document.getElementById("groups");
 
@@ -648,7 +636,7 @@ function paintGroups(){
   }
 
   box.innerHTML = GROUPS.map(([key, label, colour]) => {
-    const rows = shown.filter(t => groupOf(t, limit) === key);
+    const rows = shown.filter(t => groupOf(t) === key);
     if (!rows.length) return "";
 
     return '<section class="group">'

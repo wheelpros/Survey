@@ -623,6 +623,76 @@ function createAdmin(PDO $pdo, $name, $email, $role, $password = null, $position
     return (int) $pdo->lastInsertId();
 }
 
+/**
+ * What the Edit popup on Settings changes about an admin: name, email,
+ * position and role. Returns [$target, $clean] - the row as it is now and the
+ * four values checked and tidied - or throws.
+ *
+ * The owner's row is never edited here: it is not in the list, and an owner
+ * row that could be demoted or emptied of its email is the lockout
+ * admin-role.php guards against. The rules for a role are checkAdminRoleChange()'s.
+ */
+function checkAdminUpdate(PDO $pdo, array $owner, $targetId, array $in)
+{
+    $target = findAdminRow($pdo, $targetId);
+
+    if ($target["role"] === "owner") {
+        throw new PortalWriteError("The owner's account cannot be edited here.", 403);
+    }
+
+    $name = trim((string) ($in["name"] ?? ""));
+    $email = trim((string) ($in["email"] ?? ""));
+    $role = trim((string) ($in["role"] ?? ""));
+
+    if ($name === "" || $email === "") {
+        throw new PortalWriteError("Name and email are required");
+    }
+
+    if (mb_strlen($name) > 100) {
+        throw new PortalWriteError("Name must be 100 characters or fewer.");
+    }
+
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        throw new PortalWriteError("That email address is not valid.");
+    }
+
+    $taken = $pdo->prepare("SELECT 1 FROM admins WHERE LOWER(email) = LOWER(?) AND id <> ? LIMIT 1");
+    $taken->execute([$email, (int) $target["id"]]);
+
+    if ($taken->fetchColumn()) {
+        throw new PortalWriteError("There is already an admin with that email.", 409);
+    }
+
+    $position = checkAdminPosition($in["position"] ?? "");
+
+    if ($role !== $target["role"]) {
+        checkAdminRoleChange($pdo, $owner, $targetId, $role);
+    }
+
+    return [$target, ["name" => $name, "email" => $email, "position" => $position, "role" => $role]];
+}
+
+/**
+ * Saves what checkAdminUpdate() returned. A changed role signs them out
+ * (changeAdminRole()); the rest is only labels and contact details. Returns
+ * whether they were signed out.
+ */
+function updateAdmin(PDO $pdo, array $target, array $clean)
+{
+    ensureAdminColumns($pdo);
+
+    $pdo->prepare("UPDATE admins SET name = ?, email = ?, position = ? WHERE id = ?")
+        ->execute([$clean["name"], $clean["email"], $clean["position"], (int) $target["id"]]);
+
+    if ($clean["role"] === $target["role"]) {
+        return false;
+    }
+
+    changeAdminRole($pdo, $target["id"], $clean["role"]);
+
+    return true;
+}
+
 /** Sets an existing admin's position. Nobody is signed out - it is only a label. */
 function setAdminPosition(PDO $pdo, $adminId, $position)
 {

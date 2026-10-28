@@ -66,3 +66,50 @@ refusedChange("position v1: an admin that exists", $owner, "set_admin_position",
 [$prep] = change("position v1: set", $owner, "set_admin_position", ["admin" => 2, "position" => "Creative Director"]);
 check("position v1: saved, and the summary says it replaces the name", positionOf($pdo, 2) === "Creative Director"
     && strpos($prep["data"]["summary"] ?? "", "replaces their name") !== false, json_encode($prep));
+
+// ── The Edit popup: name, email, position and role in one save ──────────
+
+/** One admin row. */
+function adminRowOf(PDO $pdo, $adminId)
+{
+    return one($pdo, "SELECT name, email, position, role, session_token FROM admins WHERE id = ?", [$adminId]);
+}
+
+// Sean (5) is signed in as tok-seo, so a role change must clear that.
+[, $r] = post("api/admin-update.php", $owner, ["admin_id" => 5, "name" => " Sean Q ", "email" => "sean.q@w.test",
+    "position" => "Head of SEO", "role" => "seo_admin"]);
+$sean = adminRowOf($pdo, 5);
+check("edit: the owner changes name, email and position", ($r["success"] ?? false) && $sean["name"] === "Sean Q"
+    && $sean["email"] === "sean.q@w.test" && $sean["position"] === "Head of SEO", json_encode($r));
+check("edit: nobody is signed out when the role stays", ($r["signed_out"] ?? null) === false && $sean["session_token"] === "tok-seo", json_encode($r));
+
+[, $r] = post("api/admin-update.php", $owner, ["admin_id" => 5, "name" => "Sean Q", "email" => "sean.q@w.test",
+    "position" => "Head of SEO", "role" => "super_admin"]);
+$sean = adminRowOf($pdo, 5);
+check("edit: a changed role signs them out", ($r["success"] ?? false) && ($r["signed_out"] ?? null) === true
+    && $sean["role"] === "super_admin" && $sean["session_token"] === null, json_encode($r));
+// Put him back for the tests after this file.
+post("api/admin-update.php", $owner, ["admin_id" => 5, "name" => "Sean", "email" => "se@w.test", "position" => "SEO Specialist", "role" => "seo_admin"]);
+$pdo->exec("UPDATE admins SET session_token = 'tok-seo' WHERE id = 5");
+
+[, $r] = post("api/admin-update.php", $owner, ["admin_id" => 5, "name" => "Sean", "email" => "A@W.test", "position" => "SEO", "role" => "seo_admin"]);
+check("edit: not another admin's email", ($r["success"] ?? true) === false && adminRowOf($pdo, 5)["email"] === "se@w.test", json_encode($r));
+[, $r] = post("api/admin-update.php", $owner, ["admin_id" => 5, "name" => "Sean", "email" => "se@w.test", "position" => "SEO", "role" => "seo_admin"]);
+check("edit: keeping their own email is fine", ($r["success"] ?? false) === true, json_encode($r));
+[, $r] = post("api/admin-update.php", $owner, ["admin_id" => 5, "name" => "Sean", "email" => "nope", "position" => "SEO", "role" => "seo_admin"]);
+check("edit: a real email", ($r["success"] ?? true) === false, json_encode($r));
+[, $r] = post("api/admin-update.php", $owner, ["admin_id" => 5, "name" => "  ", "email" => "se@w.test", "position" => "SEO", "role" => "seo_admin"]);
+check("edit: a name", ($r["success"] ?? true) === false, json_encode($r));
+[, $r] = post("api/admin-update.php", $owner, ["admin_id" => 5, "name" => "Sean", "email" => "se@w.test", "position" => "", "role" => "seo_admin"]);
+check("edit: a position", ($r["success"] ?? true) === false && adminRowOf($pdo, 5)["position"] === "SEO", json_encode($r));
+[, $r] = post("api/admin-update.php", $owner, ["admin_id" => 5, "name" => "Sean", "email" => "se@w.test", "position" => "SEO", "role" => "owner"]);
+check("edit: never the owner role", ($r["success"] ?? true) === false && adminRowOf($pdo, 5)["role"] === "seo_admin", json_encode($r));
+[, $r] = post("api/admin-update.php", $owner, ["admin_id" => 1, "name" => "Olivia", "email" => "o@w.test", "position" => "Founder", "role" => "seo_admin"]);
+check("edit: never the owner's row", ($r["success"] ?? true) === false, json_encode($r));
+[, $r] = post("api/admin-update.php", $owner, ["admin_id" => 999, "name" => "x", "email" => "x@w.test", "position" => "x", "role" => "seo_admin"]);
+check("edit: an admin that exists", ($r["success"] ?? true) === false, json_encode($r));
+foreach (["super admin" => $sa, "account manager" => $am, "admin" => $seo] as $who => $token) {
+    [, $r] = post("api/admin-update.php", $token, ["admin_id" => 5, "name" => "Hacked", "email" => "h@w.test", "position" => "x", "role" => "seo_admin"]);
+    check("edit: a $who can't", ($r["success"] ?? true) === false && adminRowOf($pdo, 5)["name"] === "Sean", json_encode($r));
+}
+post("api/admin-update.php", $owner, ["admin_id" => 5, "name" => "Sean", "email" => "se@w.test", "position" => "SEO Specialist", "role" => "seo_admin"]);
