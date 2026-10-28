@@ -27,6 +27,7 @@
 
 require_once __DIR__ . "/_bootstrap.php";
 require_once __DIR__ . "/../task-writes.php";
+require_once __DIR__ . "/../upload-helpers.php";
 
 $p = v1Principal($pdo);
 v1RequireMethod("GET");
@@ -59,7 +60,7 @@ function phasePeopleFor(PDO $pdo, array $taskIds)
     $in = implode(",", array_fill(0, count($taskIds), "?"));
 
     $stmt = $pdo->prepare("
-        SELECT m.task_id, m.admin_id, a.name, a.role, m.is_done
+        SELECT m.task_id, m.admin_id, a.name, a.role
         FROM project_task_teammates m
         LEFT JOIN admins a ON a.id = m.admin_id
         WHERE m.task_id IN ($in)
@@ -71,7 +72,6 @@ function phasePeopleFor(PDO $pdo, array $taskIds)
             "id" => (int) $r["admin_id"],
             "name" => (string) $r["name"],
             "role" => (string) $r["role"],
-            "is_done" => (int) $r["is_done"] === 1,
         ];
     }
 
@@ -138,7 +138,7 @@ if (!empty($_GET["tasks"])) {
         }
     }
 
-    v1Reply(200, [
+    $out = [
         "items" => array_map(function ($t) {
             return [
                 // assignment | teammate | content
@@ -155,7 +155,56 @@ if (!empty($_GET["tasks"])) {
         }, $items),
         "counts" => $counts,
         "projects" => $mine["projects"],
-    ]);
+    ];
+
+    /* The dashboard's Team overview, for the Director:
+       every person's tasks they can see, with overdue and what needs
+       attention. Posts, forms and meetings only for a connection that may
+       read them. */
+    if (in_array($p["role"], TEAM_DASHBOARD_ROLES, true)) {
+        $team = teamDashboardItems($pdo, $p);
+        $teamItems = array_values(array_filter($team["tasks"], function ($t) use ($withPosts) {
+            return $t["kind"] !== "content" || $withPosts;
+        }));
+        $teamCounts = array_fill_keys(array_keys(TASK_ASSIGNMENT_STATUSES), 0) + ["overdue" => 0];
+        foreach ($teamItems as $t) {
+            if (isset($teamCounts[$t["status"]])) {
+                $teamCounts[$t["status"]]++;
+            }
+            if ($t["overdue"]) {
+                $teamCounts["overdue"]++;
+            }
+        }
+        $att = $team["attention"];
+        $out["team"] = [
+            "items" => array_map(function ($t) {
+                return [
+                    // assignment | content
+                    "kind" => $t["kind"],
+                    "id" => (int) $t["id"],
+                    "person" => ["id" => (int) $t["person"]["id"], "untrusted_content" => ["name" => (string) $t["person"]["name"]]],
+                    "title" => (string) $t["title"],
+                    "belongs_to" => (string) $t["chip"],
+                    "due_date" => v1NullableString($t["due_date"]),
+                    "label" => v1NullableString($t["label"]),
+                    "status" => (string) $t["status"],
+                    "overdue" => (bool) $t["overdue"],
+                    "link" => (string) $t["href"],
+                ];
+            }, $teamItems),
+            "counts" => $teamCounts,
+            "projects" => (int) $team["projects"],
+            "attention" => [
+                "unassigned_phases" => array_map(function ($u) {
+                    return ["id" => $u["id"], "title" => $u["title"], "project" => $u["project"], "link" => $u["href"]];
+                }, $att["unassigned_phases"]),
+                "forms_to_review" => hasScope($p, "forms:read") ? $att["forms_to_review"]["count"] : null,
+                "meetings_waiting" => hasScope($p, "calendar:read") ? $att["meetings_waiting"]["count"] : null,
+            ],
+        ];
+    }
+
+    v1Reply(200, $out);
 }
 
 /*
@@ -220,6 +269,7 @@ if ($id !== null) {
     $taskSql = "
         SELECT t.id, t.title, t.description, t.link, t.status, t.scheduled_date, t.scheduled_time,
                t.is_complete, t.phase_label, t.role, t.priority, t.notes, t.created_at,
+               t.created_by_admin_id, t.image_path, t.gallery_paths,
                a.name AS created_by_name,
                " . TASK_IS_LIVE_SQL . " AS is_live
         FROM project_tasks t
@@ -240,15 +290,35 @@ if ($id !== null) {
     // The people on every phase, one query per list rather than one per phase.
     $people = phasePeopleFor($pdo, array_map("intval", array_column($rows, "id")));
 
-    $tasks = array_map(function ($r) use ($people) {
+    // Staff-only files: metadata here; the team downloads them on the phase page.
+    ensureAttachmentsTable($pdo);
+    $files = attachmentsFor($pdo, "task", array_column($rows, "id"));
+
+    $tasks = array_map(function ($r) use ($people, $files, $p, $project) {
         $taskId = (int) $r["id"];
+        $assigned = $people["assignments"][$taskId] ?? [];
+        $doneCount = count(array_filter($assigned, function ($x) { return $x["status"] === "done"; }));
         return [
             "id" => (int) $r["id"],
             "title" => (string) $r["title"],
             // draft | published
             "status" => (string) $r["status"],
             "is_live" => (int) $r["is_live"] === 1,
+            // Worked out, never set: every assigned person is done.
             "is_complete" => (int) $r["is_complete"] === 1,
+            "done_count" => $doneCount . " of " . count($assigned),
+            "can_delete" => canEditTask($p, $r),
+            "cover_url" => $r["image_path"] ? APP_URL . "/" . $r["image_path"] : null,
+            "gallery" => array_map(function ($path) { return APP_URL . "/" . $path; }, taskGallery($r)),
+            "attachments" => array_map(function ($f) use ($project, $taskId) {
+                return [
+                    "id" => $f["id"],
+                    "ext" => $f["ext"],
+                    "size" => $f["size"],
+                    "page_url" => APP_URL . "/project-task-details.html?project=" . (int) $project["id"] . "&id=" . $taskId,
+                    "untrusted_content" => ["name" => $f["name"]],
+                ];
+            }, $files[$taskId] ?? []),
             "scheduled_date" => v1NullableString($r["scheduled_date"]),
             "scheduled_time" => $r["scheduled_time"] === null ? null : substr((string) $r["scheduled_time"], 0, 5),
             "link" => v1NullableString($r["link"]),

@@ -49,21 +49,42 @@ if (!$caller) {
 }
 
 if (($caller["role"] ?? "") !== "owner") {
-    updateReply(false, "Only the owner can edit admins.");
+    updateReply(false, "Only the Director can edit admins.");
 }
 
-$input = json_decode(file_get_contents("php://input"), true) ?? [];
+// Multipart when the popup sends a photo (avatar, or remove_avatar=1); JSON
+// from older callers.
+$input = !empty($_POST) ? $_POST : (json_decode(file_get_contents("php://input"), true) ?? []);
 $targetId = (int) ($input["admin_id"] ?? 0);
 
 if (!$targetId) {
     updateReply(false, "Invalid request.");
 }
 
+$avatar = null;
+$oldAvatar = null;
+
 try {
     [$target, $clean] = checkAdminUpdate($pdo, $caller, $targetId, $input);
+
+    // The photo is saved only once everything else has passed.
+    $avatar = saveAdminAvatar($_FILES["avatar"] ?? null);
+    if ($avatar === null && !empty($input["remove_avatar"])) {
+        $avatar = "";
+    }
+
     $signedOut = updateAdmin($pdo, $target, $clean);
+
+    if ($avatar !== null) {
+        $oldAvatar = setAdminAvatar($pdo, $targetId, $avatar);
+    }
 } catch (PortalWriteError $e) {
+    deleteAdminAvatar($avatar);
     updateReply(false, $e->getMessage());
+}
+
+if ($oldAvatar && $oldAvatar !== $avatar) {
+    deleteAdminAvatar($oldAvatar);
 }
 
 updateReply(

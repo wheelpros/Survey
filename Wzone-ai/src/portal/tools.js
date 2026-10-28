@@ -315,8 +315,9 @@ export const READ_TOOLS = [
     description:
       "One project with its members and its phases (the task updates). is_live says whether the " +
       "client can see a phase yet. Each phase carries its stage, role, priority, the team's notes, " +
-      "its teammates (and who has ticked their part done) and its assignments (who worked on it, " +
-      "what they did, todo / in_progress / done).",
+      "its teammates and its Assigned table (which teammates work on it, what they do, todo / " +
+      "in_progress / done - each person sets their own). is_complete is worked out: everyone assigned " +
+      "is done. It also lists the gallery, attached files (for the team only) and can_delete.",
     input: { id: recordId("The project's id") },
     output: S.projectDetail,
     path: "projects.php",
@@ -354,7 +355,11 @@ export const READ_TOOLS = [
       "Everything on your admin dashboard's My tasks: phases you are assigned to, phases you are a " +
       "teammate on, and content posts you are on (when this connection can read content), each " +
       "with your own status and due date, soonest first, plus the counts. Change a phase with " +
-      "set_my_phase_status and a post with set_my_post_done.",
+      "set_my_phase_status and a post with set_my_post_status. For the Director it " +
+      "also returns team: the dashboard's Team overview - everyone's tasks, each with its " +
+      "person, status and whether it is overdue, the counts, and what needs attention (phases nobody is " +
+      "assigned to, forms to review, meeting requests waiting). Use it for \"what's late across the team?\". " +
+      "Other people's statuses are read-only: each person sets their own.",
     input: {},
     output: S.myTasks,
     path: "projects.php",

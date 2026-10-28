@@ -58,7 +58,7 @@ if (!$caller) {
 }
 
 if (($caller["role"] ?? "") !== "owner") {
-    roleReply(false, "Only the owner can change roles.");
+    roleReply(false, "Only the Director can change roles.");
 }
 
 $input = json_decode(file_get_contents("php://input"), true) ?? [];

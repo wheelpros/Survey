@@ -139,7 +139,7 @@ check("page: a script link is refused", $status === 400, "HTTP $status " . json_
 [, $r] = post("api/admin-inquiries.php", $owner, ["title" => "Page inquiry", "fields" => [["label" => "Name", "type" => "input", "required" => true]]]);
 check("page: the owner creates an inquiry", ($r["success"] ?? false) && ($r["name"] ?? "") === "page-inquiry", json_encode($r));
 [, $r] = post("api/admin-inquiries.php", $am, ["title" => "Not mine", "fields" => [["label" => "Name"]]]);
-check("page: only the owner creates inquiries", ($r["message"] ?? "") === "Only the owner can create inquiries", json_encode($r));
+check("page: only the owner creates inquiries", ($r["message"] ?? "") === "Only the Director can create inquiries", json_encode($r));
 $pageInquiry = (int) one($pdo, "SELECT id FROM inquiries WHERE title = 'Page inquiry'")["id"];
 $r = put("api/admin-inquiries.php", $owner, ["id" => $pageInquiry, "title" => "Page inquiry v2", "status" => "inactive",
     "fields" => [["label" => "Name", "type" => "input", "required" => true], ["label" => "Budget", "type" => "textarea"]]]);
@@ -455,10 +455,11 @@ check("changes: not live yet, not announced", ($done["data"]["result"]["client_n
 
 refusedChange("changes: a member can't edit a teammate's task", $seo, "update_task", ["id" => 601, "title" => "Mine now"], 403);
 refusedChange("changes: nothing to change", $am2, "update_task", ["id" => 600, "status" => "draft"], 422);
-[$prep, $done] = change("changes: publish a draft task", $am2, "update_task", ["id" => 600, "status" => "published", "is_complete" => true]);
+refusedChange("changes: completion is never set by hand", $am2, "update_task", ["id" => 600, "is_complete" => true], 422);
+[$prep, $done] = change("changes: publish a draft task", $am2, "update_task", ["id" => 600, "status" => "published"]);
 check("changes: the preview lists the change", strpos($prep["data"]["summary"], "status \"draft\" → \"published\"") !== false, $prep["data"]["summary"] ?? "");
 $t600 = one($pdo, "SELECT status, is_complete, title FROM project_tasks WHERE id = 600");
-check("changes: only what was asked changed, and the client was told", $t600 == ["status" => "published", "is_complete" => 1, "title" => "Andy's draft"]
+check("changes: only what was asked changed, and the client was told", $t600 == ["status" => "published", "is_complete" => 0, "title" => "Andy's draft"]
     && ($done["data"]["result"]["client_notified"] ?? null) === true, json_encode([$t600, $done]));
 
 // Notifications - no confirmation, own inbox only.

@@ -105,6 +105,17 @@ body{background:#f6f7fb;color:var(--text);padding:0}
 .field .caption ul,.field .caption ol{padding-left:20px;margin:6px 0}
 .field .caption a{color:var(--nav-active)}
 .field.wide{grid-column:1/-1}
+.field[hidden]{display:none}
+
+/* Attachments: the team's files, downloaded with the admin token. */
+.files{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.files a{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid #dfe3ea;border-radius:10px;color:var(--text);text-decoration:none;font-size:13px;max-width:560px}
+.files a:hover{background:#f8fafc;border-color:#cfd5df}
+.files a:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(27,30,58,.15)}
+.files .ext{flex:none;min-width:38px;text-align:center;font-size:9px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#3745a4;background:#e0e8ff;border-radius:6px;padding:4px 5px}
+.files .fname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700;color:#2563eb}
+.files small{flex:none;color:#667085;font-size:11px}
+
 
 /* Portrait media sits beside the copy. */
 .detail.is-vertical{grid-template-columns:300px 1fr}
@@ -378,7 +389,14 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
             <div class="caption" id="detailCaption"></div>
           </div>
 
-          <!-- Everything but the copy sits on one line under it. -->
+          <!-- Staff-only files, downloaded with the token (downloadAttachment). -->
+          <div class="field wide" id="detailFilesField" hidden>
+            <h5>Attachments</h5>
+            <ul class="files" id="detailFiles"></ul>
+          </div>
+
+          <!-- Everything but the copy sits on one line under it. What each
+               person does, and their status, are on the edit page. -->
           <div class="detail-footer">
             <div class="field">
               <h5>Client</h5>
@@ -443,7 +461,7 @@ if(!adminToken || !adminUser.role){
 
 (function(){
   const name = adminUser.name || "Admin";
-  const label = ({ owner: "Owner", super_admin: "Super Admin", account_manager: "Account Manager", seo_admin: "Admin" })[adminUser.role] || "";
+  const label = ({ owner: "Director", super_admin: "Super Admin", account_manager: "Account Manager", seo_admin: "Admin" })[adminUser.role] || "";
   const initial = name.charAt(0).toUpperCase();
   const set = (id,value) => { const el = document.getElementById(id); if(el) el.textContent = value; };
   set("adminName",name);  set("adminRole",label);  set("adminAvatar",initial);
@@ -939,11 +957,61 @@ function selectContent(id){
     item.created_by_email || item.created_by || "—";
   document.getElementById("detailAssignees").innerText =
     (item.assignees || []).map(person => person.name || person.email).join(", ") || "—";
+  renderFiles(item);
   document.getElementById("detailScheduled").innerText = formatTiming(item);
   document.getElementById("detailCreated").innerText = formatStamp(item.created_at);
   document.getElementById("detailUpdated").innerText = formatStamp(item.updated_at);
   document.getElementById("detailUpdatedField").hidden = !wasUpdated(item);
 }
+
+/* ── Attachments ───────────────────────────────────────────────────────── */
+
+function fileSize(bytes){
+  bytes = Number(bytes) || 0;
+  return bytes >= 1024 * 1024 ? (bytes / 1024 / 1024).toFixed(1) + " MB"
+       : Math.max(1, Math.round(bytes / 1024)) + " KB";
+}
+
+function renderFiles(item){
+  const files = item.attachments || [];
+  document.getElementById("detailFilesField").hidden = !files.length;
+  document.getElementById("detailFiles").innerHTML = files.map(f =>
+    '<li><a href="#" data-file="' + Number(f.id) + '" data-name="' + esc(f.name) + '" title="Download ' + esc(f.name) + '">'
+    + '<span class="ext">' + esc(f.ext) + "</span>"
+    + '<span class="fname" dir="auto">' + esc(f.name) + "</span>"
+    + "<small>" + fileSize(f.size) + "</small></a></li>"
+  ).join("");
+}
+
+/* The files are staff-only, so the download carries the token in a header
+   and the browser is handed the result - the token never goes in a URL. */
+document.getElementById("detailFiles").addEventListener("click", async function(event){
+  const link = event.target.closest("a[data-file]");
+  if (!link) return;
+  event.preventDefault();
+
+  try {
+    const response = await fetch("api/attachment.php?id=" + encodeURIComponent(link.dataset.file), {
+      headers: { Authorization: "Bearer " + adminToken }
+    });
+    if (!response.ok) {
+      let message = "Could not download the file.";
+      try { message = (await response.json()).message || message; } catch (e) {}
+      alert(message);
+      return;
+    }
+    const url = URL.createObjectURL(await response.blob());
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = link.dataset.name || "file";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  } catch (e) {
+    alert("Could not download the file.");
+  }
+});
 
 async function deleteContent(id, title){
 
@@ -1006,10 +1074,10 @@ loadContent();
 
 <script src="assets/notifications.js?v=1"></script>
 <script src="assets/confirm.js?v=1"></script>
-<script src="assets/shell.js?v=5"></script>
+<script src="assets/shell.js?v=6"></script>
 <script src="assets/lightbox.js?v=1"></script>
 <script src="assets/sources-lock.js?v=1"></script>
-<script src="assets/role-nav.js?v=3"></script>
+<script src="assets/role-nav.js?v=4"></script>
 <script>
 /* The calendar belongs to the roles that deal with clients. A plain seo_admin
    works on content, so the link comes out of their sidebar. api/calendar.php

@@ -86,7 +86,7 @@ if ($target["role"] === "owner") {
 
     echo json_encode([
         "success" => false,
-        "message" => "You cannot remove the owner"
+        "message" => "You cannot remove the Director"
     ]);
 
     exit;

@@ -11,6 +11,10 @@
 | its due date and their own status - plus the counts the donut and stat cards
 | show and how many projects they can see.
 |
+| The Director also gets `team`: the Team overview - their whole dashboard -
+| every person's tasks, with what needs attention (teamDashboardItems() in
+| task-writes.php). Everyone else, account managers included, sees My tasks.
+|
 | Read-only. Changing "My status" posts to the endpoint that owns the thing:
 | project-tasks.php (set_my_status, set_done) or admin-content.php (set_done).
 |
@@ -79,14 +83,24 @@ ensureProjectTables($pdo);
 
 try {
     $mine = myDashboardItems($pdo, $admin);
+
+    // The Director also gets the Team overview - their whole dashboard: every
+    // person's tasks they can see. Other roles get no `team` key.
+    $team = in_array($admin["role"], TEAM_DASHBOARD_ROLES, true) ? teamDashboardItems($pdo, $admin) : null;
 } catch (Throwable $e) {
     response(false, "Could not load your dashboard.", [], 500);
 }
 
-response(true, "Dashboard loaded.", [
+$out = [
     "tasks"    => $mine["tasks"],
     "counts"   => $mine["counts"],
     "projects" => $mine["projects"],
     "statuses" => TASK_ASSIGNMENT_STATUSES,
     "today"    => date("Y-m-d"),
-]);
+];
+
+if ($team !== null) {
+    $out["team"] = $team;
+}
+
+response(true, "Dashboard loaded.", $out);

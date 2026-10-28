@@ -3,6 +3,7 @@
 require_once "db.php";
 require_once "notify.php";
 require_once "content-writes.php";
+require_once "upload-helpers.php";
 
 header("Content-Type: application/json; charset=UTF-8");
 
@@ -135,6 +136,7 @@ try {
 
 ensureContentColumns($pdo);
 ensureNotificationsTable($pdo);
+ensureAttachmentsTable($pdo);
 
 /*
 | Who may do what with a post - canEditContent(), canPublishContent() and the
@@ -410,11 +412,17 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
 
             $content["assignees"] = contentAssignees($pdo, [$id])[$id] ?? [];
 
+            // Staff-only files; the client endpoint never selects them.
+            $content["attachments"] = attachmentsFor($pdo, "content", [$id])[$id] ?? [];
+
             response(
                 true,
                 "Content loaded.",
                 [
                     "content"     => $content,
+                    "statuses"    => TASK_ASSIGNMENT_STATUSES,
+                    "max_files"   => ATTACHMENT_MAX_FILES,
+                    "max_file_bytes" => ATTACHMENT_MAX_BYTES,
                     "admin_id"    => (int) $admin["id"],
                     "admin_role"  => $admin["role"],
                     "can_edit"    => canEditContent($admin, $content["created_by_id"], $assigned),
@@ -489,6 +497,7 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
         $contents = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         $assignees = contentAssignees($pdo, array_column($contents, "id"));
+        $files     = attachmentsFor($pdo, "content", array_column($contents, "id"));
 
         /* Each row says what this admin may do with it, so the grid shows
            Edit and Delete from the same rules the writes below enforce. */
@@ -497,6 +506,7 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
             unset($row["media_paths"]);
 
             $row["assignees"] = $assignees[(int) $row["id"]] ?? [];
+            $row["attachments"] = $files[(int) $row["id"]] ?? [];
 
             $assigned = in_array(
                 (int) $admin["id"],
@@ -519,7 +529,8 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
                    get the Create button. */
                 "admin_id"   => (int) $admin["id"],
                 "admin_role" => $admin["role"],
-                "can_create" => canCreateContent($admin)
+                "can_create" => canCreateContent($admin),
+                "statuses"   => TASK_ASSIGNMENT_STATUSES
             ]
         );
 
@@ -566,37 +577,54 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     /*
     |--------------------------------------------------------------------------
-    | Tick your own box: action=set_done
+    | Your own status: action=set_my_status (and the older set_done)
     |--------------------------------------------------------------------------
     |
-    | Each teammate on a post marks their own part of it done, straight from
-    | the checklist on admin-content-form.html - no Save needed. Only the
-    | caller's own content_assignees row changes, so nobody can tick a box for
-    | someone else, and someone not on the post has no box at all.
+    | Each teammate on a post moves their own row between To do, In progress
+    | and Done, straight from the Assigned table - no Save needed. Only the
+    | caller's own content_assignees row changes, whatever their role, so
+    | nobody moves someone else's work, and someone not on the post has no row.
+    | set_done (done=1/0) is kept for older callers and maps to done / todo.
     |
     */
-    if (($_POST["action"] ?? "") === "set_done") {
+    $action = (string) ($_POST["action"] ?? "");
+
+    if ($action === "set_done" || $action === "set_my_status") {
 
         $contentId = (int) ($_POST["content_id"] ?? 0);
-        $done = ($_POST["done"] ?? "") === "1" ? 1 : 0;
 
         if ($contentId <= 0) {
             response(false, "Invalid content ID.", [], 400);
         }
 
-        // The rules are setOwnContentDone()'s (content-writes.php), shared with api/v1.
+        $status = $action === "set_done"
+            ? ((($_POST["done"] ?? "") === "1") ? "done" : "todo")
+            : (string) ($_POST["status"] ?? "");
+
         try {
-            setOwnContentDone($pdo, $contentId, $admin["id"], $done);
+            $stmt = $pdo->prepare("SELECT id FROM content WHERE id = ? LIMIT 1");
+            $stmt->execute([$contentId]);
+
+            if (!$stmt->fetch()) {
+                response(false, "Content not found.", [], 404);
+            }
+
+            setOwnContentStatus($pdo, $contentId, $admin["id"], $status);
+
         } catch (PortalWriteError $e) {
+
             response(false, $e->getMessage(), [], $e->status === 422 ? 400 : $e->status);
+
         } catch (Throwable $e) {
-            response(false, "Could not save your checkbox.", [], 500);
+
+            response(false, "Could not save your status.", [], 500);
         }
 
         response(
             true,
-            $done ? "Marked as done." : "Marked as not done.",
+            "Status set to " . TASK_ASSIGNMENT_STATUSES[$status] . ".",
             [
+                "status"    => $status,
                 "assignees" => contentAssignees($pdo, [$contentId])[$contentId] ?? []
             ]
         );
@@ -663,7 +691,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         if (!canCreateContent($admin)) {
             response(
                 false,
-                "Only the owner, an account manager or a super admin can create content.",
+                "Only the Director, an account manager or a super admin can create content.",
                 [],
                 403
             );
@@ -730,6 +758,34 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             : $hadAssignees;
     } catch (Throwable $e) {
         response(false, "Could not check the teammates.", [], 500);
+    }
+
+    /*
+    | What each teammate does (the Assigned table), sent as JSON
+    | {admin_id: text} by whoever may set the team. Status is never set here.
+    */
+    $workNotes = null;
+    if (isset($_POST["assignee_notes"]) && canAssignContent($admin, $existing["created_by"] ?? $admin["id"])) {
+        $workNotes = json_decode((string) $_POST["assignee_notes"], true);
+        if (!is_array($workNotes)) {
+            response(false, "The Assigned table could not be read.", [], 400);
+        }
+    }
+
+    /*
+    | Attachments: keep_attachments[] is what stays, attachments[] the new
+    | files; keep_attachments_sent marks that the list was sent. Every new file
+    | is checked now, before any image is saved.
+    */
+    $fileUploads = uploadedFiles("attachments");
+    $keepFiles = ($_POST["keep_attachments_sent"] ?? "") === "1"
+        ? (array) ($_POST["keep_attachments"] ?? [])
+        : null;
+
+    try {
+        array_map("checkAttachment", $fileUploads);
+    } catch (PortalWriteError $e) {
+        response(false, $e->getMessage(), [], 400);
     }
 
     /*
@@ -944,6 +1000,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             saveContentAssignees($pdo, $newId, [], $assigneeIds, $title, $admin["id"]);
 
+            if ($workNotes !== null) {
+                saveContentWorkNotes($pdo, $newId, $workNotes);
+            }
+            saveAttachments($pdo, "content", $newId, null, $fileUploads, $admin["id"]);
+
             // Only a post that is live has anything to announce. A draft or a
             // scheduled post notifies nobody until it actually publishes.
             if ($status === "published") {
@@ -1047,6 +1108,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         saveContentAssignees($pdo, $id, $hadAssignees, $assigneeIds, $title, $admin["id"]);
 
+        if ($workNotes !== null) {
+            saveContentWorkNotes($pdo, $id, $workNotes);
+        }
+        $removedFiles = saveAttachments($pdo, "content", $id, $keepFiles, $fileUploads, $admin["id"]);
+
         // Only on the transition into published. Without this test every later
         // edit of a live post would notify the whole client all over again.
         if ($status === "published" && ($existing["status"] ?? "") !== "published") {
@@ -1066,6 +1132,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         | points at them - a failed update leaves the post as it was.
         */
         array_map("deleteContentImage", array_diff($hadImages, $images));
+        deleteUploadedFiles($removedFiles);
 
         response(
             true,
@@ -1164,10 +1231,13 @@ if ($_SERVER["REQUEST_METHOD"] === "DELETE") {
 
         $stmt->execute([$id]);
 
+        $removedFiles = deleteAttachmentRows($pdo, "content", $id);
+
         /*
-        | Delete its images
+        | Delete its images and files
         */
         array_map("deleteContentImage", contentImages($content));
+        deleteUploadedFiles($removedFiles);
 
         response(
             true,

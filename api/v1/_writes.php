@@ -57,6 +57,7 @@ require_once __DIR__ . "/../survey-submit.php";
 require_once __DIR__ . "/../content-writes.php";
 require_once __DIR__ . "/../content-image-fetch.php";
 require_once __DIR__ . "/../admin-settings-writes.php";
+require_once __DIR__ . "/../upload-helpers.php";
 
 const V1_CONFIRM_TTL = 900; // 15 minutes to say yes
 
@@ -310,7 +311,7 @@ function contentTeamArgs(PDO $pdo, array $p, array $a, array &$args, array &$cha
     $team = argTeam($pdo, $p, $a, $company, $current);
     if ($team !== null) {
         if (!canAssignContent($p, $post["created_by"] ?? $p["id"])) {
-            throw new PortalWriteError("Only the post's author, the owner or an account manager can change who is on it.", 403);
+            throw new PortalWriteError("Only the post's author, the Director or an account manager can change who is on it.", 403);
         }
         $args["team"] = $team;
         $was = $current;
@@ -320,6 +321,35 @@ function contentTeamArgs(PDO $pdo, array $p, array $a, array &$args, array &$cha
         if ($was !== $now) {
             $changes[] = ["field" => "team", "from" => $post ? adminNames($pdo, $current) : null, "to" => adminNames($pdo, $team)];
         }
+    }
+
+    // The Assigned table: what each teammate does on the post. Status is
+    // never set here - each person moves their own (set_my_post_status).
+    if (array_key_exists("assignments", $a) && $a["assignments"] !== null) {
+        if (!canAssignContent($p, $post["created_by"] ?? $p["id"])) {
+            throw new PortalWriteError("Only the post's author, the Director or an account manager can change what each teammate does.", 403);
+        }
+        $list = $a["assignments"];
+        if (!is_array($list) || array_values($list) !== $list) {
+            throw new PortalWriteError("assignments must be a list of {admin_id, work_note}.");
+        }
+        $teamAfter = $args["team"] ?? $current;
+        $notes = [];
+        foreach ($list as $i => $row) {
+            $id = is_array($row) ? ($row["admin_id"] ?? null) : null;
+            if (!is_int($id) || $id <= 0) {
+                throw new PortalWriteError("assignments item " . ($i + 1) . " needs an admin_id - one of the post's team.");
+            }
+            if (array_key_exists("status", $row)) {
+                throw new PortalWriteError("assignments take no status: each teammate sets their own with set_my_post_status.");
+            }
+            if (!in_array($id, $teamAfter, true)) {
+                throw new PortalWriteError("Admin $id is not on the post's team. Add them to team first - only teammates can be assigned.");
+            }
+            $notes[$id] = argText($row, "work_note", 2000, false);
+        }
+        $args["assignments"] = $notes;
+        $changes[] = ["field" => "what each teammate does", "from" => null, "to" => adminNames($pdo, array_keys($notes))];
     }
 }
 
@@ -392,10 +422,13 @@ function loadEditableTask(PDO $pdo, array $p, $id)
 |
 | What post_project_update and update_task carry beyond the update itself,
 | the same as project-task-form.html: phase, role, priority, notes (staff
-| only), team (teammate ids) and assignments ([{admin_id, work_note, status}],
-| one row per person). Only the ones given. People come from the client's
-| team plus anyone already on the phase (task-writes.php allowedTaskPeople()),
-| and someone else is refused at prepare rather than dropped at apply.
+| only), team (teammate ids), assignments ([{admin_id, work_note}], one row
+| per person, each one a teammate) and gallery images. Only the ones given.
+| People come from the client's team plus anyone already on the phase
+| (task-writes.php allowedTaskPeople()), and someone else is refused at
+| prepare rather than dropped at apply. Nobody's status is set here: each
+| person moves their own (set_my_phase_status), and the phase completes once
+| everyone assigned is done.
 |
 */
 
@@ -414,16 +447,10 @@ function phasePeopleError(array $project, array $bad)
     );
 }
 
-/** "Nour (in progress), Sam (to do)" - an assignment list, for a summary. */
+/** "Nour, Sam" - who is assigned, for a summary. */
 function assignmentsLabel(PDO $pdo, array $rows)
 {
-    if (!$rows) {
-        return "(nobody)";
-    }
-    $names = explode(", ", adminNames($pdo, array_column($rows, "admin_id")));
-    return implode(", ", array_map(function ($row, $i) use ($names) {
-        return ($names[$i] ?? "#" . $row["admin_id"]) . " (" . strtolower(TASK_ASSIGNMENT_STATUSES[$row["status"]]) . ")";
-    }, $rows, array_keys($rows)));
+    return adminNames($pdo, array_column($rows, "admin_id"));
 }
 
 /**
@@ -477,34 +504,57 @@ function phaseArgs(PDO $pdo, array $a, array &$args, array &$changes, array $pro
     if (array_key_exists("assignments", $a) && $a["assignments"] !== null) {
         $list = $a["assignments"];
         if (!is_array($list) || array_values($list) !== $list) {
-            throw new PortalWriteError("assignments must be a list of {admin_id, work_note, status}.");
+            throw new PortalWriteError("assignments must be a list of {admin_id, work_note}.");
         }
+        // Who is on the phase once this change lands: assignments come from them only.
+        $team = $args["team"] ?? array_column($people["teammates"], "id");
         $rows = [];
         foreach ($list as $i => $row) {
             $n = $i + 1;
             if (!is_array($row) || !is_int($row["admin_id"] ?? null) || $row["admin_id"] <= 0) {
-                throw new PortalWriteError("assignments item $n needs an admin_id - from list_phase_teammates.");
+                throw new PortalWriteError("assignments item $n needs an admin_id - one of the phase's team.");
+            }
+            if (array_key_exists("status", $row)) {
+                throw new PortalWriteError("assignments take no status: each person sets their own with set_my_phase_status.");
             }
             if (isset($rows[$row["admin_id"]])) {
                 throw new PortalWriteError("assignments lists admin $row[admin_id] twice - one row per person.");
             }
+            if (!in_array($row["admin_id"], $team, true)) {
+                throw new PortalWriteError("Admin $row[admin_id] is not on the phase's team. Add them to team first - only teammates can be assigned.");
+            }
             $rows[$row["admin_id"]] = [
                 "admin_id" => $row["admin_id"],
                 "work_note" => argText($row, "work_note", 2000, false),
-                "status" => argEnum($row, "status", array_keys(TASK_ASSIGNMENT_STATUSES), "todo"),
             ];
         }
         $rows = array_values($rows);
-        $current = array_column($people["assignments"], "admin_id");
-        if ($bad = phasePeopleRefused($pdo, $project, array_column($rows, "admin_id"), $current)) {
-            throw phasePeopleError($project, $bad);
-        }
         $args["assignments"] = $rows;
         $was = array_map(function ($r) {
-            return ["admin_id" => $r["admin_id"], "work_note" => $r["work_note"], "status" => $r["status"]];
+            return ["admin_id" => $r["admin_id"], "work_note" => $r["work_note"]];
         }, $people["assignments"]);
         if ($was !== $rows) {
             noteChange($changes, "assignments", $task ? assignmentsLabel($pdo, $was) : null, assignmentsLabel($pdo, $rows));
+        }
+    } elseif (isset($args["team"]) && $people["assignments"]) {
+        // Taking someone off the team takes them off the Assigned table too.
+        $leaving = array_diff(array_column($people["assignments"], "admin_id"), $args["team"]);
+        if ($leaving) {
+            noteChange($changes, "assignments", null, "drops " . adminNames($pdo, array_values($leaving)) . " (off the team)");
+        }
+    }
+
+    // Gallery: https image links, replacing the gallery (up to five; [] clears it).
+    if (array_key_exists("images", $a) && $a["images"] !== null) {
+        $images = argImages($a);
+        if (count($images) > TASK_GALLERY_MAX_IMAGES) {
+            throw new PortalWriteError("A phase can have up to " . TASK_GALLERY_MAX_IMAGES . " gallery images.");
+        }
+        $args["images"] = $images;
+        $had = $task ? count(taskGallery($task)) : 0;
+        if ($images || $had) {
+            noteChange($changes, "gallery", $had ? imageCount($had) : null,
+                $images ? imageCount(count($images)) . " downloaded from the links given" : "(none)");
         }
     }
 }
@@ -525,9 +575,9 @@ function phaseColumnsFrom(array $a)
 }
 
 /**
- * Saves prepared team and assignments, then tells each newcomer once. An
- * assignment keeps its row (and what the person set on it) when the same
- * person is listed again.
+ * Saves prepared team and assignments - the team first, since assignments
+ * are drawn from it - then tells each newcomer once. An assignment keeps its
+ * row, and the status its person set, when the same person is listed again.
  */
 function savePhasePeople(PDO $pdo, array $p, array $project, $taskId, $title, array $a)
 {
@@ -536,15 +586,27 @@ function savePhasePeople(PDO $pdo, array $p, array $project, $taskId, $title, ar
         $newcomers = saveTaskTeammates($pdo, $project, $taskId, $a["team"]);
     }
     if (array_key_exists("assignments", $a)) {
-        $stmt = $pdo->prepare("SELECT admin_id, id FROM project_task_assignments WHERE task_id = ?");
-        $stmt->execute([(int) $taskId]);
-        $rowIds = array_column($stmt->fetchAll(), "id", "admin_id");
-        $rows = array_map(function ($r) use ($rowIds) {
-            return $r + ["id" => $rowIds[$r["admin_id"]] ?? null];
-        }, $a["assignments"]);
-        $newcomers = array_merge($newcomers, saveTaskAssignments($pdo, $project, $taskId, $rows));
+        $newcomers = array_merge($newcomers, saveTaskAssignments($pdo, $project, $taskId, $a["assignments"]));
     }
     notifyAddedToPhase($pdo, $p, $project, $taskId, $title, $newcomers);
+}
+
+/**
+ * Downloads prepared gallery links into a phase, replacing its gallery, and
+ * removes the images it let go of. Runs after the phase row is saved.
+ */
+function savePhaseGallery(PDO $pdo, array $task, array $urls)
+{
+    $images = fetchContentImages($urls);
+    try {
+        $pdo->prepare("UPDATE project_tasks SET gallery_paths = ? WHERE id = ?")
+            ->execute([$images ? json_encode($images, JSON_UNESCAPED_SLASHES) : null, (int) $task["id"]]);
+    } catch (Throwable $e) {
+        deleteFetchedContentImages($images);
+        throw $e;
+    }
+    deleteUploadedFiles(array_diff(taskGallery($task), $images));
+    return count($images);
 }
 
 /** A client's own users row, for the shared writes that name them. */
@@ -1222,6 +1284,9 @@ function v1WriteHandlers()
                 $id = (int) $pdo->lastInsertId();
                 // As the page does: the post first, then its team, who are notified.
                 saveContentAssignees($pdo, $id, [], $a["team"] ?? [], $a["title"], $p["id"]);
+                if (!empty($a["assignments"])) {
+                    saveContentWorkNotes($pdo, $id, $a["assignments"]);
+                }
                 return ["content_id" => $id, "status" => "draft", "images" => count($images),
                         "team" => count($a["team"] ?? [])];
             },
@@ -1342,7 +1407,45 @@ function v1WriteHandlers()
                     saveContentAssignees($pdo, $a["id"], currentAssigneeIds($pdo, $a["id"]), $a["team"],
                         $a["title"] ?? $post["title"], $p["id"]);
                 }
+                if (array_key_exists("assignments", $a)) {
+                    saveContentWorkNotes($pdo, $a["id"], $a["assignments"]);
+                }
                 return ["content_id" => (int) $a["id"], "status" => "draft", "images" => count($images)];
+            },
+        ],
+
+        "set_my_post_status" => [
+            "scope" => "content:write",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                $id = argInt($a, "id");
+                $status = argEnum($a, "status", array_keys(TASK_ASSIGNMENT_STATUSES));
+                ensureContentColumns($pdo);
+                $stmt = $pdo->prepare("
+                    SELECT c.title, c.client, ca.status
+                    FROM content_assignees ca
+                    JOIN content c ON c.id = ca.content_id
+                    WHERE ca.content_id = ? AND ca.admin_id = ?
+                    LIMIT 1
+                ");
+                $stmt->execute([$id, (int) $p["id"]]);
+                $mine = $stmt->fetch();
+                if (!$mine) {
+                    throw new PortalWriteError("You aren't on a post with that id - list_my_tasks shows yours.", 403);
+                }
+                if ((string) $mine["status"] === $status) {
+                    throw new PortalWriteError("Nothing to change - your status on that post is already " . strtolower(TASK_ASSIGNMENT_STATUSES[$status]) . ".", 409);
+                }
+                return [
+                    "args" => ["id" => $id, "status" => $status],
+                    "summary" => "Set your status on the post " . quoteFor($mine["title"])
+                        . (trim((string) $mine["client"]) !== "" ? " for " . trim((string) $mine["client"]) : "")
+                        . " to " . strtolower(TASK_ASSIGNMENT_STATUSES[$status]) . ". Only your own row changes; the team sees it.",
+                    "preview" => ["post_id" => $id, "status" => $status, "untrusted_content" => ["title" => (string) $mine["title"]]],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                ensureContentColumns($pdo);
+                return ["post_id" => $a["id"], "status" => setOwnContentStatus($pdo, $a["id"], $p["id"], $a["status"])];
             },
         ],
 
@@ -1387,7 +1490,7 @@ function v1WriteHandlers()
             "scope" => "content:write",
             "prepare" => function (PDO $pdo, array $p, array $a) {
                 if (!canPublishContent($p)) {
-                    throw new PortalWriteError("Only the owner and the account managers schedule and publish posts.", 403);
+                    throw new PortalWriteError("Only the Director and the account managers schedule and publish posts.", 403);
                 }
                 $id = argInt($a, "id");
                 $post = loadEditableDraft($pdo, $p, $id);
@@ -1569,9 +1672,8 @@ function v1WriteHandlers()
                         "role" => $args["role"] ?? null,
                         "priority" => $args["priority"] ?? "medium",
                         "team" => $args["team"] ?? [],
-                        "assignments" => array_map(function ($r) {
-                            return ["admin_id" => $r["admin_id"], "status" => $r["status"]];
-                        }, $args["assignments"] ?? []),
+                        "assignments" => array_column($args["assignments"] ?? [], "admin_id"),
+                        "gallery" => $args["images"] ?? [],
                         "untrusted_content" => [
                             "body" => $body,
                             "notes" => $args["notes"] ?? null,
@@ -1593,9 +1695,11 @@ function v1WriteHandlers()
                     "status" => $a["publish"] ? "published" : "draft",
                 ] + phaseColumnsFrom($a));
                 savePhasePeople($pdo, $p, $project, $id, $a["title"], $a);
+                $gallery = !empty($a["images"]) ? savePhaseGallery($pdo, ["id" => $id], $a["images"]) : 0;
                 return [
                     "task_id" => $id,
                     "status" => $a["publish"] ? "published" : "draft",
+                    "gallery" => $gallery,
                     "client_notified" => announceTaskIfLive($pdo, $p, $project, $id, $a["title"]),
                 ];
             },
@@ -1636,8 +1740,7 @@ function v1WriteHandlers()
                     $change("status", $task["status"], $args["status"]);
                 }
                 if (array_key_exists("is_complete", $a)) {
-                    $args["is_complete"] = argBool($a, "is_complete", false);
-                    $change("is_complete", (int) $task["is_complete"] === 1 ? "true" : "false", $args["is_complete"] ? "true" : "false");
+                    throw new PortalWriteError("is_complete is not set by hand: a phase completes once everyone assigned to it is done.");
                 }
                 phaseArgs($pdo, $a, $args, $changes, $project, $task);
                 if (!$changes) {
@@ -1674,14 +1777,17 @@ function v1WriteHandlers()
                     "scheduled_time" => array_key_exists("time", $a)
                         ? ($a["time"] !== null ? $a["time"] . ":00" : null)
                         : $task["scheduled_time"],
-                    "is_complete" => $a["is_complete"] ?? ((int) $task["is_complete"] === 1),
                     "status" => $a["status"] ?? $task["status"],
                 ] + phaseColumnsFrom($a));
                 savePhasePeople($pdo, $p, $project, $a["id"], $title, $a);
-                return [
+                $result = [
                     "task_id" => (int) $a["id"],
                     "client_notified" => announceTaskIfLive($pdo, $p, $project, $a["id"], $title),
                 ];
+                if (array_key_exists("images", $a)) {
+                    $result["gallery"] = savePhaseGallery($pdo, $task, $a["images"]);
+                }
+                return $result;
             },
         ],
 
@@ -1699,6 +1805,13 @@ function v1WriteHandlers()
                 $args = ["id" => $id];
                 $changes = [];
                 $people = taskTeamPayload($pdo, $id);
+                // done, the old teammate box, is read as status done / todo.
+                if (array_key_exists("done", $a)) {
+                    if (array_key_exists("status", $a)) {
+                        throw new PortalWriteError("Give status only - done is the old name for status done.");
+                    }
+                    $a["status"] = argBool($a, "done", false) ? "done" : "todo";
+                }
                 if (array_key_exists("status", $a)) {
                     $args["status"] = argEnum($a, "status", array_keys(TASK_ASSIGNMENT_STATUSES));
                     $mine = array_values(array_filter($people["assignments"], function ($r) use ($p) {
@@ -1710,44 +1823,66 @@ function v1WriteHandlers()
                     noteChange($changes, "your status", strtolower(TASK_ASSIGNMENT_STATUSES[$mine[0]["status"]] ?? $mine[0]["status"]),
                         strtolower(TASK_ASSIGNMENT_STATUSES[$args["status"]]));
                 }
-                if (array_key_exists("done", $a)) {
-                    $args["done"] = argBool($a, "done", false);
-                    $mine = array_values(array_filter($people["teammates"], function ($r) use ($p) {
-                        return $r["id"] === (int) $p["id"];
-                    }));
-                    if (!$mine) {
-                        throw new PortalWriteError("Only a teammate on this phase can tick their box.", 403);
-                    }
-                    noteChange($changes, "your box", $mine[0]["is_done"] ? "done" : "not done", $args["done"] ? "done" : "not done");
-                }
-                if (count($args) === 1) {
-                    throw new PortalWriteError("Give status, done or both.");
+                if (!array_key_exists("status", $a)) {
+                    throw new PortalWriteError("Give status: todo, in_progress or done.");
                 }
                 if (!$changes) {
                     throw new PortalWriteError("Nothing to change - that is already where you stand on this phase.");
                 }
+                $total = count($people["assignments"]);
+                $doneAfter = count(array_filter($people["assignments"], function ($r) use ($p, $args) {
+                    return ($r["admin_id"] === (int) $p["id"] ? $args["status"] : $r["status"]) === "done";
+                }));
                 return [
                     "args" => $args,
                     "summary" => "On the phase " . quoteFor($task["title"]) . " of " . quoteFor($project["title"]) . ": "
-                        . describeChanges($changes) . ". Only your own part changes; the team sees it.",
+                        . describeChanges($changes) . ". Only your own part changes; the team sees it."
+                        . ($total && $doneAfter === $total ? " Everyone assigned is then done, so the phase is complete." : ""),
                     "preview" => [
                         "phase_id" => $id,
                         "project" => ["id" => (int) $project["id"], "title" => (string) $project["title"]],
-                        "status" => $args["status"] ?? null,
-                        "done" => $args["done"] ?? null,
+                        "status" => $args["status"],
+                        "done_after" => "$doneAfter of $total",
                     ],
                 ];
             },
             "apply" => function (PDO $pdo, array $p, array $a) {
                 ensureProjectTables($pdo);
-                $result = ["phase_id" => (int) $a["id"]];
-                if (array_key_exists("status", $a)) {
-                    $result["status"] = setOwnPhaseStatus($pdo, $a["id"], $p["id"], $a["status"]);
-                }
-                if (array_key_exists("done", $a)) {
-                    $result["done"] = setOwnPhaseDone($pdo, $a["id"], $p["id"], $a["done"]) === 1;
-                }
-                return $result;
+                $status = setOwnPhaseStatus($pdo, $a["id"], $p["id"], $a["status"]);
+                $stmt = $pdo->prepare("SELECT is_complete FROM project_tasks WHERE id = ?");
+                $stmt->execute([(int) $a["id"]]);
+                return ["phase_id" => (int) $a["id"], "status" => $status, "is_complete" => (int) $stmt->fetchColumn() === 1];
+            },
+        ],
+
+        "delete_task" => [
+            "scope" => "projects:write",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                $id = argInt($a, "id");
+                // The same rule as the page's Delete: the Director, an account
+                // manager or the phase's creator.
+                [$task, $project] = loadEditableTask($pdo, $p, $id);
+                $people = taskTeamPayload($pdo, $id);
+                $files = attachmentsFor($pdo, "task", [$id])[$id] ?? [];
+                return [
+                    "args" => ["id" => $id],
+                    "summary" => "Delete the phase " . quoteFor($task["title"]) . " from " . quoteFor($project["title"])
+                        . ", with its " . count($people["teammates"]) . " teammate(s), " . count($people["assignments"])
+                        . " assignment(s), " . imageCount(count(taskGallery($task)) + ($task["image_path"] ? 1 : 0))
+                        . " and " . count($files) . " attached file(s). The client stops seeing it. This cannot be undone.",
+                    "preview" => [
+                        "task_id" => $id,
+                        "project" => ["id" => (int) $project["id"], "title" => (string) $project["title"]],
+                        "title" => (string) $task["title"],
+                    ],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                ensureProjectTables($pdo);
+                ensureAttachmentsTable($pdo);
+                [$task] = loadEditableTask($pdo, $p, $a["id"]);
+                deleteProjectTask($pdo, $task);
+                return ["task_id" => (int) $a["id"], "deleted" => true];
             },
         ],
 
@@ -1963,6 +2098,86 @@ function v1WriteHandlers()
             "apply" => function (PDO $pdo, array $p, array $a) {
                 [$target, $clean] = checkAdminUpdate($pdo, $p, $a["admin"], $a);
                 return ["admin_id" => $a["admin"], "signed_out" => updateAdmin($pdo, $target, $clean)];
+            },
+        ],
+
+        "set_admin_photo" => [
+            "scope" => "admins:write",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                $adminId = argInt($a, "admin");
+                $target = findAdminRow($pdo, $adminId);
+                if ($target["role"] === "owner") {
+                    throw new PortalWriteError("The Director's account cannot be edited here.", 403);
+                }
+                // An https image link, checked now and downloaded on confirm; "" removes the photo.
+                $url = trim((string) ($a["image"] ?? ""));
+                if ($url !== "") {
+                    $url = argImageLink($a, "image");
+                }
+                return [
+                    "args" => ["admin" => $adminId, "image" => $url],
+                    "summary" => ($url !== "" ? "Set the photo of " . adminLabel($target) . " to the image at the link given"
+                                              : "Remove the photo of " . adminLabel($target))
+                        . ". It shows in the admin list and their sidebar. Nobody is signed out.",
+                    "preview" => ["admin_id" => $adminId, "untrusted_content" => ["name" => $target["name"], "image" => $url !== "" ? $url : null]],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                $avatar = "";
+                if ($a["image"] !== "") {
+                    // Downloaded through the same checked fetch as post images,
+                    // then moved under uploads/avatars/.
+                    [$tmp, $ext] = downloadContentImage(0, $a["image"]);
+                    if ($ext === "gif") {
+                        @unlink($tmp);
+                        throw new PortalWriteError("Only JPG, PNG and WEBP photos are allowed.");
+                    }
+                    $dir = dirname(__DIR__, 2) . "/uploads/avatars/";
+                    if (!is_dir($dir)) {
+                        mkdir($dir, 0755, true);
+                    }
+                    $name = bin2hex(random_bytes(16)) . "." . $ext;
+                    if (!rename($tmp, $dir . $name)) {
+                        @unlink($tmp);
+                        throw new PortalWriteError("Could not save the photo.", 500);
+                    }
+                    $avatar = "uploads/avatars/" . $name;
+                }
+                $old = setAdminAvatar($pdo, $a["admin"], $avatar);
+                if ($old && $old !== $avatar) {
+                    deleteAdminAvatar($old);
+                }
+                return ["admin_id" => $a["admin"], "avatar_url" => $avatar !== "" ? APP_URL . "/" . $avatar : null];
+            },
+        ],
+
+        "update_my_profile" => [
+            "scope" => "settings:write",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                if (($p["role"] ?? "") !== "owner") {
+                    throw new PortalWriteError("Only the Director has this card.", 403);
+                }
+                $now = adminProfile($pdo, $p["id"]);
+                [$name, $position] = checkOwnProfile(
+                    array_key_exists("name", $a) ? argText($a, "name", 100) : $now["name"],
+                    array_key_exists("position", $a) ? argText($a, "position", 100, false) : $now["position"]
+                );
+                $changes = [];
+                noteChange($changes, "name", $now["name"], $name);
+                noteChange($changes, "position", $now["position"], $position);
+                if (!$changes) {
+                    throw new PortalWriteError("Nothing to change - your name and position are already those.", 409);
+                }
+                return [
+                    "args" => ["name" => $name, "position" => $position],
+                    "summary" => "Change your Director card: " . describeChanges($changes)
+                        . ". Your email and role stay as they are.",
+                    "preview" => ["untrusted_content" => ["changes" => $changes]],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                updateOwnProfile($pdo, $p["id"], $a["name"], $a["position"]);
+                return ["director" => adminProfile($pdo, $p["id"])];
             },
         ],
 

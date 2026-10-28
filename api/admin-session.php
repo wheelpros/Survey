@@ -49,6 +49,16 @@ if (!$admin || (int) $admin["active"] !== 1) {
     exit;
 }
 
+/* The photo the sidebar shows, kept in step by assets/role-nav.js; none on a
+   database from before the column. */
+$avatar = null;
+try {
+    $stmt = $pdo->prepare("SELECT avatar_path FROM admins WHERE id = ?");
+    $stmt->execute([(int) $admin["id"]]);
+    $avatar = $stmt->fetchColumn() ?: null;
+} catch (PDOException $e) {
+}
+
 echo json_encode([
     "success" => true,
     "valid"   => true,
@@ -57,6 +67,7 @@ echo json_encode([
         "name"  => $admin["name"],
         "email" => $admin["email"],
         "role"  => $admin["role"],
-        "position" => $admin["position"]
+        "position" => $admin["position"],
+        "avatar_path" => $avatar
     ]
 ]);

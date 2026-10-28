@@ -23,8 +23,22 @@ v1RequireScope($p, "settings:read");
 
 $website = getSiteSetting($pdo, "website_url", "");
 $logo = siteLogoPath();
+$director = adminProfile($pdo, $p["id"]);
 
 v1Reply(200, [
+    // The card at the top of Settings. Only name and position change
+    // (update_my_profile); the email and the role are fixed there.
+    "director" => [
+        "id" => $director["id"],
+        "role" => $director["role"],
+        "role_name" => $director["role_label"],
+        "avatar_url" => $director["avatar_path"] ? APP_URL . "/" . $director["avatar_path"] : null,
+        "untrusted_content" => [
+            "name" => $director["name"],
+            "email" => $director["email"],
+            "position" => v1NullableString($director["position"]),
+        ],
+    ],
     "website_address" => $website === "" ? null : $website,
     "website_link" => v1NullableString(normaliseWebUrl($website)),
     "logo_url" => is_file($logo) ? APP_URL . "/logo.png?v=" . filemtime($logo) : null,
@@ -49,6 +63,7 @@ v1Reply(200, [
             "role_name" => adminRoleName($a["role"]),
             "active" => (int) $a["active"] === 1,
             "managed_by" => $a["managed_by_admin_id"] === null ? null : (int) $a["managed_by_admin_id"],
+            "avatar_url" => !empty($a["avatar_path"]) ? APP_URL . "/" . $a["avatar_path"] : null,
             "untrusted_content" => [
                 "name" => (string) $a["name"],
                 "email" => (string) $a["email"],

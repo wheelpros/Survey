@@ -50,7 +50,7 @@ if ($method === "POST") {
     if ($role !== "owner") {
         echo json_encode([
             "success" => false,
-            "message" => "Only the owner can approve or reject users"
+            "message" => "Only the Director can approve or reject users"
         ]);
         exit;
     }

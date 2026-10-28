@@ -238,12 +238,37 @@ select.client-filter{
 .cell select{width:100%;border:1px solid #dfe3ea;background-color:#fff;border-radius:9px;padding:7px 34px 7px 10px;font:inherit;font-size:12px;font-weight:700;color:var(--text);outline:none;cursor:pointer}
 .cell select:focus{border-color:var(--nav-active);box-shadow:0 0 0 3px rgba(27,30,58,.10)}
 
+/* ── Team overview (the Director) ── */
+#teamSection[hidden]{display:none}
+.team-tools{align-items:center}
+.person-filter{display:flex;align-items:center;gap:8px;margin:0}
+.person-filter span{font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
+.person-filter select{-webkit-appearance:none;appearance:none;background:#fff url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%23667085%27 stroke-width=%272.5%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3E%3Cpolyline points=%276 9 12 15 18 9%27/%3E%3C/svg%3E") no-repeat right 12px center/12px;height:32px;min-width:170px;border:1px solid #dfe3ea;border-radius:20px;padding:0 34px 0 12px;font:inherit;font-size:12px;font-weight:700;color:var(--text);cursor:pointer}
+.row.team{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) minmax(0,.6fr) minmax(0,.9fr) 120px}
+.who-cell{display:flex;align-items:center;gap:8px;min-width:0}
+.who-cell b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mini-av{width:26px;height:26px;border-radius:50%;flex:none;background:#e0e8ff center/cover no-repeat;color:#3745a4;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.status-pill{display:inline-flex;align-items:center;padding:4px 10px;border-radius:20px;border:1px solid;font-size:11px;font-weight:800;white-space:nowrap}
+.status-pill.done{color:#17803d;background:#e8faef;border-color:#b8e7c8}
+.status-pill.in_progress{color:#b45309;background:#fff7e6;border-color:#fde68a}
+.status-pill.todo{color:#1d4ed8;background:#eff6ff;border-color:#bfdbfe}
+.section-break{height:1px;background:var(--line);margin:26px 0 30px}
+/* .cell span is the small label over each value; the photo and the pill are
+   spans too, so they take their own shape back here. */
+.cell .mini-av{display:flex;margin:0;font-size:9px;letter-spacing:0;text-transform:none;color:#3745a4}
+.cell .status-pill{display:inline-flex;margin:0;font-size:11px;letter-spacing:0;text-transform:none}
+.cell .status-pill.done{color:#17803d}
+.cell .status-pill.in_progress{color:#b45309}
+.cell .status-pill.todo{color:#1d4ed8}
+
 @media(max-width:1100px){.overview{grid-template-columns:1fr}}
 @media(max-width:700px){
   .donut-card{flex-direction:column;align-items:stretch;gap:18px;padding:18px}
   .donut{margin:0 auto}
-  .row{grid-template-columns:1fr 1fr;gap:10px 14px}
+  .row,.row.team{grid-template-columns:1fr 1fr;gap:10px 14px}
   .row-title,.row .cell:last-child{grid-column:1/-1}
+  .team-tools{flex-direction:column;align-items:stretch}
+  .person-filter select{flex:1}
 }
 
 .empty-state{background:#fff;border-radius:18px;padding:52px 30px;text-align:center;box-shadow:0 14px 30px rgba(0,0,0,.05)}
@@ -280,7 +305,7 @@ document.addEventListener("DOMContentLoaded", function () {
   var a = {};
   try { a = JSON.parse(localStorage.getItem("admin_user") || "{}"); } catch (e) {}
   var name = a.name || "Admin";
-  var label = ({ owner: "Owner", super_admin: "Super Admin", account_manager: "Account Manager", seo_admin: "Admin" })[a.role] || "";
+  var label = ({ owner: "Director", super_admin: "Super Admin", account_manager: "Account Manager", seo_admin: "Admin" })[a.role] || "";
   var initial = name.charAt(0).toUpperCase();
   function set(id, v){ var el = document.getElementById(id); if (el) el.textContent = v; }
   set("adminName", name);  set("adminRole", label);  set("adminAvatar", initial);
@@ -368,6 +393,55 @@ document.addEventListener("DOMContentLoaded", function () {
 
     <div id="dash" hidden>
 
+      <!-- The Team overview: every person's tasks - the Director's whole
+           dashboard. Read-only - each person moves their own status. See
+           paintTeam(). -->
+      <section id="teamSection" hidden>
+        <div class="overview">
+          <div class="box donut-card">
+            <div class="donut" role="img" id="teamDonutBox">
+              <svg viewBox="0 0 42 42" id="teamDonut" aria-hidden="true"></svg>
+              <div class="donut-mid"><strong id="teamDonutTotal">0</strong><span>Team tasks</span></div>
+            </div>
+            <div class="legend">
+              <h3>Team tasks by status</h3>
+              <ul>
+                <li><i class="key" style="background:var(--c-done)"></i>Done<b id="teamLegDone">0</b></li>
+                <li><i class="key" style="background:var(--c-doing)"></i>In progress<b id="teamLegDoing">0</b></li>
+                <li><i class="key" style="background:var(--c-new)"></i>New<b id="teamLegNew">0</b></li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="stat-grid">
+            <div class="box stat"><span class="stat-label"><i class="key" style="background:var(--c-new)"></i>New tasks</span><strong id="teamStatNew">0</strong><small>Waiting to be started</small></div>
+            <div class="box stat"><span class="stat-label"><i class="key" style="background:var(--c-doing)"></i>In progress</span><strong id="teamStatDoing">0</strong><small>Being worked on now</small></div>
+            <div class="box stat"><span class="stat-label"><i class="key" style="background:var(--c-done)"></i>Done</span><strong id="teamStatDone">0</strong><small>Finished</small></div>
+            <div class="box stat"><span class="stat-label"><i class="key" style="background:var(--c-proj)"></i>Projects</span><strong id="teamStatProjects">0</strong><small>Total projects</small></div>
+          </div>
+        </div>
+
+        <div class="mine-head team-tools">
+          <div class="filters" id="teamFilters" role="group" aria-label="Filter the team's tasks by status"></div>
+          <label class="person-filter">
+            <span>Person</span>
+            <select id="teamPerson" aria-label="Filter the team's tasks by person"></select>
+          </label>
+        </div>
+
+        <div id="teamGroups"></div>
+
+        <div class="pager" id="teamPager" hidden>
+          <div class="pager-info" id="teamPagerInfo"></div>
+          <div class="pager-pages" id="teamPagerPages"></div>
+        </div>
+
+        <div class="section-break" id="teamBreak"></div>
+      </section>
+
+      <!-- My own work. The Director's dashboard is the team's alone, so this
+           part is hidden for them (paintTeam). -->
+      <div id="mySection">
       <div class="overview">
         <div class="box donut-card">
           <div class="donut" role="img" id="donutBox">
@@ -405,6 +479,7 @@ document.addEventListener("DOMContentLoaded", function () {
       <div class="pager" id="pager" hidden>
         <div class="pager-info" id="pagerInfo"></div>
         <div class="pager-pages" id="pagerPages"></div>
+      </div>
       </div>
 
     </div>
@@ -528,7 +603,7 @@ function todayISO(){
 }
 
 let tasks    = [];
-let statuses = { todo:"To do", in_progress:"In progress", done:"Done" };
+let statuses = { todo:"New", in_progress:"In progress", done:"Done" };
 let projects = 0;
 let today    = todayISO();
 let filter   = "all";
@@ -549,11 +624,14 @@ async function load(){
   }
 
   tasks    = data.tasks || [];
-  statuses = data.statuses || statuses;
+  // On the dashboard To do reads New, as the donut and the cards say.
+  statuses = Object.assign({}, data.statuses || statuses, { todo: "New" });
   projects = Number(data.projects) || 0;
   today    = data.today || today;
+  team     = data.team || null;
 
   document.getElementById("dash").hidden = false;
+  paintTeam();
   paint();
 }
 
@@ -588,6 +666,12 @@ function paintOverview(){
   document.getElementById("donutBox").setAttribute("aria-label",
     total + " tasks: " + done + " done, " + doing + " in progress, " + fresh + " new");
 
+  document.getElementById("donut").innerHTML = donutSvg(done, doing, fresh);
+}
+
+/* The ring itself - shared by My tasks and the Team overview. */
+function donutSvg(done, doing, fresh){
+  const total = done + doing + fresh;
   const R = 15.9155;   // radius for a circumference of 100
   const parts = [[done, "var(--c-done)"], [doing, "var(--c-doing)"], [fresh, "var(--c-new)"]]
     .filter(p => p[0] > 0);
@@ -604,10 +688,166 @@ function paintOverview(){
     offset += share;
   });
 
-  document.getElementById("donut").innerHTML = svg;
+  return svg;
 }
 
-const FILTERS = [["all", "All"], ["todo", "To do"], ["in_progress", "In progress"], ["done", "Done"]];
+const FILTERS = [["all", "All"], ["todo", "New"], ["in_progress", "In progress"], ["done", "Done"]];
+
+/* ── Team overview (the Director's dashboard) ─────────────────────────────
+   Every person's tasks, read-only: the same donut, cards and groups as My
+   tasks, plus who it is. Everyone else, account
+   managers included, sees My tasks.
+   Filtered on the page by status and by person - no new request. */
+
+let team        = null;   // data.team, or null for the other roles
+let teamFilter  = "all";
+let teamPerson  = "all";
+let teamPage    = 1;
+
+const TEAM_FILTERS = FILTERS;
+
+function teamCount(key){
+  if (key === "all") return team.tasks.length;
+  return team.tasks.filter(t => t.status === key).length;
+}
+
+function paintTeam(){
+  if (!team) return;
+  document.getElementById("teamSection").hidden = false;
+
+  const done = teamCount("done"), doing = teamCount("in_progress"), fresh = teamCount("todo");
+  const set = (id, v) => { document.getElementById(id).textContent = v; };
+
+  set("teamDonutTotal", team.tasks.length);
+  set("teamLegDone", done); set("teamLegDoing", doing); set("teamLegNew", fresh);
+  set("teamStatNew", fresh); set("teamStatDoing", doing); set("teamStatDone", done);
+  set("teamStatProjects", Number(team.projects) || 0);
+  document.getElementById("teamDonutBox").setAttribute("aria-label",
+    team.tasks.length + " team tasks: " + done + " done, " + doing + " in progress, " + fresh + " new");
+  document.getElementById("teamDonut").innerHTML = donutSvg(done, doing, fresh);
+
+  // The Team overview is the Director's whole dashboard: no My tasks under it.
+  document.getElementById("mySection").hidden = true;
+  document.getElementById("teamBreak").hidden = true;
+  document.querySelector(".page-title p").textContent =
+    "Everyone's phases and content posts, across every project and client, in one place.";
+
+  paintTeamPeople();
+  paintTeamFilters();
+  paintTeamGroups();
+}
+
+function paintTeamPeople(){
+  const people = [];
+  team.tasks.forEach(t => {
+    if (t.person && !people.some(p => p.id === t.person.id)) people.push(t.person);
+  });
+  people.sort((a, b) => a.name.localeCompare(b.name));
+
+  const select = document.getElementById("teamPerson");
+  select.innerHTML = '<option value="all">Everyone</option>'
+    + people.map(p => '<option value="' + Number(p.id) + '"' + (String(p.id) === teamPerson ? " selected" : "") + ">"
+      + esc(p.name) + "</option>").join("");
+}
+
+document.getElementById("teamPerson").addEventListener("change", function () {
+  teamPerson = this.value;
+  teamPage = 1;
+  paintTeamFilters();
+  paintTeamGroups();
+});
+
+function teamShown(){
+  return team.tasks.filter(t =>
+    (teamPerson === "all" || String(t.person && t.person.id) === teamPerson)
+    && (teamFilter === "all" || t.status === teamFilter));
+}
+
+function paintTeamFilters(){
+  const byPerson = team.tasks.filter(t => teamPerson === "all" || String(t.person && t.person.id) === teamPerson);
+  const n = key => key === "all" ? byPerson.length
+    : byPerson.filter(t => t.status === key).length;
+
+  document.getElementById("teamFilters").innerHTML = TEAM_FILTERS.map(([key, label]) =>
+    '<button type="button" data-filter="' + key + '" aria-pressed="' + (teamFilter === key) + '">'
+    + esc(label) + " (" + n(key) + ")</button>"
+  ).join("");
+
+  document.querySelectorAll("#teamFilters button").forEach(button => {
+    button.addEventListener("click", () => { teamFilter = button.dataset.filter; teamPage = 1; paintTeamFilters(); paintTeamGroups(); });
+  });
+}
+
+function paintTeamGroups(){
+  const order = GROUPS.map(g => g[0]);
+  const shown = teamShown().sort((a, b) => order.indexOf(groupOf(a)) - order.indexOf(groupOf(b)));
+  const box   = document.getElementById("teamGroups");
+  const pager = document.getElementById("teamPager");
+
+  if (!shown.length) {
+    box.innerHTML = '<div class="empty-state"><h3>Nothing here</h3><p>'
+      + (team.tasks.length ? "No team task matches these filters." : "Nobody is assigned to a phase or a post yet.")
+      + "</p></div>";
+    pager.hidden = true;
+    return;
+  }
+
+  const pages = Math.max(1, Math.ceil(shown.length / TASKS_PAGE_SIZE));
+  if (teamPage > pages) teamPage = pages;
+  const start = (teamPage - 1) * TASKS_PAGE_SIZE;
+  const slice = shown.slice(start, start + TASKS_PAGE_SIZE);
+
+  box.innerHTML = GROUPS.map(([key, label, colour]) => {
+    const rows = slice.filter(t => groupOf(t) === key);
+    if (!rows.length) return "";
+    return '<section class="group">'
+      + '<div class="group-head"><i class="key" style="background:' + colour + '"></i>' + label + " <em>" + rows.length + "</em></div>"
+      + rows.map(t => teamRow(t, key)).join("")
+      + "</section>";
+  }).join("");
+
+  if (shown.length <= TASKS_PAGE_SIZE) {
+    pager.hidden = true;
+    return;
+  }
+  pager.hidden = false;
+  document.getElementById("teamPagerInfo").textContent =
+    "Showing " + (start + 1) + " to " + (start + slice.length) + " of " + shown.length + " tasks";
+  const buttons = ['<button type="button" onclick="goToTeamPage(' + (teamPage - 1) + ')" ' + (teamPage === 1 ? "disabled" : "") + ">Prev</button>"];
+  for (let n = 1; n <= pages; n++) {
+    buttons.push('<button type="button" class="' + (n === teamPage ? "current" : "") + '"'
+      + (n === teamPage ? ' aria-current="page"' : "") + ' onclick="goToTeamPage(' + n + ')">' + n + "</button>");
+  }
+  buttons.push('<button type="button" onclick="goToTeamPage(' + (teamPage + 1) + ')" ' + (teamPage === pages ? "disabled" : "") + ">Next</button>");
+  document.getElementById("teamPagerPages").innerHTML = buttons.join("");
+}
+
+function goToTeamPage(n){
+  teamPage = n;
+  paintTeamGroups();
+  document.getElementById("teamFilters").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+/* A My tasks row, with who it is, and the status as a pill: only its own
+   person moves it. */
+function teamRow(task, group){
+  const date = task.due_date ? String(task.due_date).slice(0, 10) : "";
+  const p = task.person || { name: "?" };
+  const initials = String(p.name || "").trim().split(/\s+/).slice(0, 2).map(s => s.charAt(0).toUpperCase()).join("") || "?";
+  const avatar = p.avatar_path
+    ? '<span class="mini-av" style="background-image:url(\'' + esc(p.avatar_path) + '\')" aria-hidden="true"></span>'
+    : '<span class="mini-av" aria-hidden="true">' + esc(initials) + "</span>";
+
+  return '<div class="row team ' + group + '">'
+    + '<div class="row-title"><a href="' + esc(task.href) + '" dir="auto">' + esc(task.title) + "</a>"
+    +   '<span class="proj-chip" dir="auto">' + esc(task.chip) + "</span>"
+    +   (KIND_TAGS[task.kind] ? '<span class="kind-tag">' + KIND_TAGS[task.kind] + "</span>" : "") + "</div>"
+    + '<div class="cell"><span>Person</span><div class="who-cell">' + avatar + '<b dir="auto">' + esc(p.name) + "</b></div></div>"
+    + '<div class="cell"><span>Due</span><b class="' + (task.overdue ? "late" : "") + '">' + (date ? esc(fmtDateShort(date)) + (task.overdue ? " · late" : "") : "—") + "</b></div>"
+    + '<div class="cell"><span>' + (task.kind === "content" ? "Type" : "Phase") + '</span><b dir="auto">' + esc(task.label || "—") + "</b></div>"
+    + '<div class="cell"><span>Status</span><span class="status-pill ' + esc(task.status) + '">' + esc(statuses[task.status] || task.status) + "</span></div>"
+    + "</div>";
+}
 
 function paintFilters(){
   document.getElementById("filters").innerHTML = FILTERS.map(([key, label]) => {
@@ -713,12 +953,12 @@ function goToTasksPage(n){
   document.querySelector(".mine-head").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-/* What each kind of row can be set to: only an assignment has a middle step;
-   a teammate box and a content box are either ticked or not. */
+/* What each kind of row can be set to: a phase assignment and a post's
+   Assigned row have all three steps; a teammate box is ticked or not. */
 const KIND_TAGS = { teammate: "Teammate", content: "Content" };
 
 function statusChoices(task){
-  return task.kind === "assignment" ? Object.keys(statuses) : ["todo", "done"];
+  return task.kind === "teammate" ? ["todo", "done"] : Object.keys(statuses);
 }
 
 function rowFor(task, group){
@@ -751,9 +991,9 @@ async function setMyStatus(select){
 
   if (kind === "content") {
     url = "api/admin-content.php";
-    body.append("action", "set_done");
+    body.append("action", "set_my_status");
     body.append("content_id", id);
-    body.append("done", select.value === "done" ? "1" : "0");
+    body.append("status", select.value);
   } else if (kind === "teammate") {
     url = "api/project-tasks.php";
     body.append("action", "set_done");
@@ -773,7 +1013,7 @@ async function setMyStatus(select){
   toast(data.message, !data.success);
 
   if (data.success) {
-    const status = kind === "assignment" ? data.status : (select.value === "done" ? "done" : "todo");
+    const status = kind === "teammate" ? (select.value === "done" ? "done" : "todo") : data.status;
     tasks.filter(t => t.kind === kind && Number(t.id) === id).forEach(t => { t.status = status; });
   }
 
@@ -783,7 +1023,7 @@ async function setMyStatus(select){
 load();
 </script>
 <script src="assets/notifications.js?v=1"></script>
-<script src="assets/shell.js?v=5"></script>
+<script src="assets/shell.js?v=6"></script>
 <script src="assets/sources-lock.js?v=1"></script>
-<script src="assets/role-nav.js?v=3"></script>
+<script src="assets/role-nav.js?v=4"></script>
 </body></html>

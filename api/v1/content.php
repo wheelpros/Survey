@@ -27,6 +27,7 @@
 
 require_once __DIR__ . "/_bootstrap.php";
 require_once __DIR__ . "/../content-writes.php";
+require_once __DIR__ . "/../upload-helpers.php";
 
 $p = v1Principal($pdo);
 v1RequireMethod("GET");
@@ -127,10 +128,21 @@ if ($id !== null) {
     $data = contentItem($row, null);
     $data["orientation"] = (string) $row["orientation"];
     $data["priority"] = (string) ($row["priority"] ?? "medium");
+    // The Assigned table: each teammate, what they do and their own status.
     $data["assignees"] = array_map(function ($a) {
         return ["id" => (int) $a["id"], "name" => (string) $a["name"], "role" => (string) $a["role"],
-                "is_done" => (bool) $a["is_done"]];
+                // todo | in_progress | done; is_done is status done, for older callers
+                "status" => (string) $a["status"],
+                "is_done" => (bool) $a["is_done"],
+                "untrusted_content" => ["work_note" => (string) $a["work_note"]]];
     }, contentAssignees($pdo, [$id])[$id] ?? []);
+    // Staff-only files: metadata only, downloaded from the portal.
+    ensureAttachmentsTable($pdo);
+    $data["attachments"] = array_map(function ($f) use ($id) {
+        return ["id" => $f["id"], "ext" => $f["ext"], "size" => $f["size"],
+                "page_url" => APP_URL . "/admin-content.html?id=" . $id,
+                "untrusted_content" => ["name" => $f["name"]]];
+    }, attachmentsFor($pdo, "content", [$id])[$id] ?? []);
     // The team's notes - staff only, never shown to the client.
     $data["untrusted_content"]["notes"] = v1NullableString($row["notes"] ?? null);
     $data["created_at"] = (string) $row["created_at"];

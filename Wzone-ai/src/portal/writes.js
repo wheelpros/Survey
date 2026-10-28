@@ -84,7 +84,20 @@ const postTeamFields = {
     .describe(
       "Everyone to put on the post, from list_content_teammates (the client's team), leaving yourself out. " +
         "Replaces who is on it ([] takes everyone off); each person newly added is notified. " +
-        "Only the post's author, the owner and account managers change it."
+        "Only the post's author, the Director and account managers change it."
+    ),
+  assignments: z
+    .array(
+      z.object({
+        admin_id: recordId("A teammate's id - one of the post's team"),
+        work_note: z.string().max(2000).optional().describe("What they do on the post, and any details"),
+      })
+    )
+    .max(50)
+    .optional()
+    .describe(
+      "The Assigned table: what each teammate does on the post. Each admin_id must be on the team (after this " +
+        "change). No status here - each teammate sets their own with set_my_post_status."
     ),
 };
 
@@ -110,16 +123,26 @@ const phaseTeamFields = {
   assignments: z
     .array(
       z.object({
-        admin_id: recordId("The person's id - from list_phase_teammates"),
-        work_note: z.string().max(2000).optional().describe("What they did, and any details"),
-        status: z.enum(["todo", "in_progress", "done"]).optional().describe("Default todo"),
+        admin_id: recordId("A teammate's id - one of the phase's team"),
+        work_note: z.string().max(2000).optional().describe("What they do, and any details"),
       })
     )
     .max(50)
     .optional()
     .describe(
-      "Who worked on the phase, one row per person. Replaces the whole list ([] clears it); someone listed " +
-        "again keeps their row. Each person newly added is notified."
+      "The Assigned table: which teammates work on the phase, one row per person. Each admin_id must be on the " +
+        "team (after this change) - add them to team first. Replaces the whole list ([] clears it); someone " +
+        "listed again keeps their row and their status. No status here: each person sets their own with " +
+        "set_my_phase_status, and the phase completes by itself once everyone assigned is done. Each person " +
+        "newly added is notified."
+    ),
+  images: z
+    .array(httpsLink)
+    .max(5)
+    .optional()
+    .describe(
+      "The phase gallery, beside its cover: up to 5 public https links to JPG, PNG, WEBP or GIF images, 3 MB " +
+        "each, shown on the phase page to the team only. Replaces the gallery; [] clears it. " + IMAGE_BY_LINK
     ),
 };
 
@@ -336,8 +359,8 @@ export const WRITE_TOOLS = [
       "Adds an update to a project. Published (the default), the client sees it - from `date` if " +
       "one is given - and is notified once it is live. With publish false it is a draft only the " +
       "project team sees. The body is plain text; blank lines start new paragraphs. In the portal " +
-      "these are the project's phases: phase, role, priority, notes, team and assignments are set " +
-      "here too (people from list_phase_teammates)." + TWO_STEP,
+      "these are the project's phases: phase, role, priority, notes, team, assignments and gallery images " +
+      "are set here too (people from list_phase_teammates; assignments only from the team)." + TWO_STEP,
     input: {
       project: recordId("The project's id - from list_projects"),
       title: z.string().min(1).max(200),
@@ -356,7 +379,8 @@ export const WRITE_TOOLS = [
     description:
       "Changes a project update - a phase in the portal. Give only the fields to change; \"\" clears " +
       "date, time, link, phase, role or notes. Publishing a draft makes it visible to the client once " +
-      "its date has come. team and assignments replace their whole list." + TWO_STEP,
+      "its date has come. team, assignments and images replace their whole list. A phase is never marked " +
+      "complete by hand: it completes once everyone assigned is done." + TWO_STEP,
     input: {
       id: recordId("The task's id - from get_project"),
       title: z.string().min(1).max(200).optional(),
@@ -365,8 +389,19 @@ export const WRITE_TOOLS = [
       time: z.union([time("New time"), z.literal("")]).optional(),
       link: z.string().max(500).optional(),
       status: z.enum(["draft", "published"]).optional(),
-      is_complete: z.boolean().optional(),
       ...phaseTeamFields,
+    },
+  },
+  {
+    name: "set_my_post_status",
+    scope: "content:write",
+    title: "Set my status on a post",
+    description:
+      "Moves your own row in a content post's Assigned table: todo, in_progress or done. Only your own row " +
+      "changes, whatever your role. list_my_tasks shows the posts you are on." + TWO_STEP,
+    input: {
+      id: recordId("The post's id - from list_my_tasks or list_content"),
+      status: z.enum(["todo", "in_progress", "done"]),
     },
   },
   {
@@ -374,8 +409,8 @@ export const WRITE_TOOLS = [
     scope: "content:write",
     title: "Tick my box on a post",
     description:
-      "Ticks (or unticks) your own box on a content post you are on - the teammate checklist. Only " +
-      "your box changes. list_my_tasks shows the posts you are on." + TWO_STEP,
+      "The older form of set_my_post_status: true sets your status on the post to done, false back to " +
+      "todo. Only your own row changes. list_my_tasks shows the posts you are on." + TWO_STEP,
     input: {
       id: recordId("The post's id - from list_my_tasks or list_content"),
       done: z.boolean().describe("true ticks it, false unticks it"),
@@ -386,16 +421,38 @@ export const WRITE_TOOLS = [
     scope: "projects:write",
     title: "Set my status on a phase",
     description:
-      "Moves your own part of a phase: status is your assignment (todo, in_progress, done), done ticks " +
-      "your teammate box. Only your own row changes - list_my_phases shows where you stand." + TWO_STEP,
+      "Moves your own row in a phase's Assigned table: todo, in_progress or done. Only your own row " +
+      "changes, whatever your role, and only someone assigned has one. The phase completes by itself once " +
+      "everyone assigned is done. list_my_phases shows where you stand." + TWO_STEP,
     input: {
       id: recordId("The phase's id - from list_my_phases or get_project"),
-      status: z.enum(["todo", "in_progress", "done"]).optional(),
-      done: z.boolean().optional(),
+      status: z.enum(["todo", "in_progress", "done"]),
     },
   },
+  {
+    name: "delete_task",
+    scope: "projects:write",
+    title: "Delete a phase",
+    description:
+      "Deletes a phase (a project update) with its team, assignments, images and attached files; the client " +
+      "stops seeing it. Only the Director, an account manager or the phase's creator can - get_project's " +
+      "can_delete says. This cannot be undone, so say what goes with it before confirming." + TWO_STEP,
+    input: { id: recordId("The phase's id - from get_project") },
+  },
 
-  // ── Settings (the owner's) ────────────────────────────────────────────
+  // ── Settings (the Director's) ─────────────────────────────────────────
+  {
+    name: "update_my_profile",
+    scope: "settings:write",
+    title: "Change my Director card",
+    description:
+      "The Director's own name and/or position, shown on the card at the top of Settings. Nothing else " +
+      "changes here: the email is what they sign in with and the role is fixed. Director only." + TWO_STEP,
+    input: {
+      name: z.string().min(1).max(100).optional(),
+      position: z.string().min(1).max(100).optional().describe("Their job, e.g. Managing Director"),
+    },
+  },
   {
     name: "update_website_address",
     scope: "settings:write",
@@ -475,14 +532,27 @@ export const WRITE_TOOLS = [
     description:
       "Changes an admin's name, email, position and/or role in one go - what the Edit popup on Settings " +
       "does. Give only what changes. The email must not belong to another admin, and someone without a " +
-      "position needs one. A role change signs them out; the rest doesn't. The owner's account can't be " +
-      "edited here." + TWO_STEP,
+      "position needs one. A role change signs them out; the rest doesn't. The Director's account can't be " +
+      "edited here (update_my_profile is theirs). For the photo, use set_admin_photo." + TWO_STEP,
     input: {
       admin: adminId,
       name: z.string().min(1).max(100).optional(),
       email: z.string().email().max(190).optional(),
       position: adminPosition.optional(),
       role: adminRole.optional(),
+    },
+  },
+  {
+    name: "set_admin_photo",
+    scope: "admins:write",
+    title: "Set an admin's photo",
+    description:
+      "Sets or removes an admin's photo, shown in the admin list and their sidebar. Give a public https link " +
+      "to a JPG, PNG or WEBP image (3 MB at most), or an empty string to remove it. Nobody is signed out. " +
+      IMAGE_BY_LINK + TWO_STEP,
+    input: {
+      admin: adminId,
+      image: z.union([httpsLink, z.literal("")]).describe("The photo's https link, or an empty string to remove it"),
     },
   },
   {

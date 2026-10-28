@@ -29,7 +29,7 @@ if (!$p || $p["via"] !== "session") {
     oauthReply(401, ["success" => false, "message" => "Please sign in"]);
 }
 if ($p["kind"] !== "admin" || $p["role"] !== "owner") {
-    oauthReply(403, ["success" => false, "message" => "Only the owner can change AI access"]);
+    oauthReply(403, ["success" => false, "message" => "Only the Director can change AI access"]);
 }
 
 if ($_SERVER["REQUEST_METHOD"] === "GET") {

@@ -50,7 +50,7 @@ if (!password_verify($password, $admin["password"])) {
 if ((int)$admin["active"] !== 1) {
     echo json_encode([
         "success" => false,
-        "message" => "This account has been deactivated. Contact the owner for access."
+        "message" => "This account has been deactivated. Contact the Director for access."
     ]);
     exit;
 }
@@ -68,6 +68,16 @@ $updateStmt->execute([
     $admin["id"]
 ]);
 
+/* The photo the sidebar shows (assets/shell.js); none on a database from
+   before the column. */
+$avatar = null;
+try {
+    $stmt = $pdo->prepare("SELECT avatar_path FROM admins WHERE id = ?");
+    $stmt->execute([$admin["id"]]);
+    $avatar = $stmt->fetchColumn() ?: null;
+} catch (PDOException $e) {
+}
+
 echo json_encode([
     "success" => true,
     "message" => "Admin login successful",
@@ -77,6 +87,7 @@ echo json_encode([
         "name" => $admin["name"],
         "email" => $admin["email"],
         "role" => $admin["role"],
-        "position" => $admin["position"]
+        "position" => $admin["position"],
+        "avatar_path" => $avatar
     ]
 ]);

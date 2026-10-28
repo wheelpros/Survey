@@ -92,7 +92,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     }
 
     if (!$canEditDetails) {
-        respond(false, "Only an account manager or the owner can edit a client.", [], 403);
+        respond(false, "Only an account manager or the Director can edit a client.", [], 403);
     }
 
     $targetId = (int) ($input["id"] ?? 0);

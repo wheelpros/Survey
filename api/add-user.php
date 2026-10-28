@@ -19,7 +19,8 @@ if(!$admin || $admin["role"] !== "owner"){
     exit;
 }
 
-$input = json_decode(file_get_contents("php://input"), true);
+// Multipart when the form carries a photo; JSON from older callers.
+$input = !empty($_POST) ? $_POST : (json_decode(file_get_contents("php://input"), true) ?: []);
 
 if(empty($input["password"])){
     echo json_encode(["success"=>false,"message"=>"Name, email, password and position are required"]);
@@ -31,13 +32,21 @@ if(empty($input["password"])){
 $role = in_array($input["role"] ?? "", ASSIGNABLE_ADMIN_ROLES, true) ? $input["role"] : "seo_admin";
 
 // The checks (valid email, not already an admin) are shared with api/v1's
-// add_admin - admin-settings-writes.php.
+// add_admin - admin-settings-writes.php. The photo is saved last, once
+// everything else has passed, so a refused admin leaves no file behind.
+$avatar = null;
 try {
     [$name, $email] = checkNewAdmin($pdo, $input["name"] ?? "", $input["email"] ?? "", $role);
     $position = checkAdminPosition($input["position"] ?? "");
-    createAdmin($pdo, $name, $email, $role, (string) $input["password"], $position);
+    $avatar = saveAdminAvatar($_FILES["avatar"] ?? null);
+    createAdmin($pdo, $name, $email, $role, (string) $input["password"], $position, $avatar);
 } catch (PortalWriteError $e) {
+    deleteAdminAvatar($avatar);
     echo json_encode(["success"=>false,"message"=>$e->getMessage()]);
+    exit;
+} catch (Throwable $e) {
+    deleteAdminAvatar($avatar);
+    echo json_encode(["success"=>false,"message"=>"Could not add the admin."]);
     exit;
 }
 

@@ -109,7 +109,7 @@ if($_SERVER["REQUEST_METHOD"]=="POST"){
         if($admin["role"] !== "owner"){
             echo json_encode([
                 "success"=>false,
-                "message"=>"Only the owner can activate or deactivate admins"
+                "message"=>"Only the Director can activate or deactivate admins"
             ]);
             exit;
         }

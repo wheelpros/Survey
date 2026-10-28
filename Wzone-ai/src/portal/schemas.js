@@ -218,9 +218,30 @@ export const contentDetail = {
   orientation: text,
   priority: z.string().optional().describe("low, medium or high"),
   assignees: z
-    .array(z.object({ id, name: text, role: text, is_done: z.boolean() }))
+    .array(
+      z.object({
+        id,
+        name: text,
+        role: text,
+        status: z.string().optional().describe("todo, in_progress or done - each teammate sets their own"),
+        is_done: z.boolean().describe("status is done"),
+        untrusted_content: untrusted({ work_note: text.describe("What they do on the post") }).optional(),
+      })
+    )
     .optional()
-    .describe("The teammates on the post, and whether each has ticked their part done"),
+    .describe("The Assigned table: each teammate, what they do and how far they got"),
+  attachments: z
+    .array(
+      z.object({
+        id,
+        ext: text.describe("pdf, txt, md, doc, docx, xls or xlsx"),
+        size: id.describe("Bytes"),
+        page_url: text.describe("Where the team downloads it, in the portal"),
+        untrusted_content: untrusted({ name: text }),
+      })
+    )
+    .optional()
+    .describe("Files attached for the team - never shown to the client"),
   untrusted_content: untrusted({ caption: text, notes: maybe.optional().describe("The team's notes - staff only") }),
   created_at: dateTime,
   updated_at: dateTime,
@@ -307,7 +328,23 @@ export const projectDetail = {
         title: text,
         status: z.string().describe("draft or published"),
         is_live: z.boolean().describe("The client can see it now"),
-        is_complete: z.boolean(),
+        is_complete: z.boolean().describe("Worked out, never set: everyone assigned is done"),
+        done_count: text.optional().describe("e.g. 2 of 3 - assigned people who are done"),
+        can_delete: z.boolean().optional().describe("You may delete it (delete_task): the Director, an account manager or its creator"),
+        cover_url: maybe.optional(),
+        gallery: z.array(text).optional().describe("Up to 5 image links, for the team only"),
+        attachments: z
+          .array(
+            z.object({
+              id,
+              ext: text,
+              size: id.describe("Bytes"),
+              page_url: text.describe("The phase page, where the team downloads it"),
+              untrusted_content: untrusted({ name: text }),
+            })
+          )
+          .optional()
+          .describe("Files attached for the team - never shown to the client"),
         scheduled_date: maybe.describe("The due date"),
         scheduled_time: maybe,
         link: maybe,
@@ -317,8 +354,8 @@ export const projectDetail = {
         role: maybe.describe("The role the phase calls for"),
         priority: z.string().describe("low, medium or high"),
         teammates: z
-          .array(z.object({ id, name: text, role: text, is_done: z.boolean().describe("They ticked their part done") }))
-          .describe("Who is on the phase"),
+          .array(z.object({ id, name: text, role: text }))
+          .describe("Who is on the phase; assignments are drawn from them"),
         assignments: z
           .array(
             z.object({
@@ -330,7 +367,7 @@ export const projectDetail = {
               untrusted_content: untrusted({ work_note: text.describe("What they did") }),
             })
           )
-          .describe("Who worked on it and how far they got"),
+          .describe("The Assigned table: who works on it and how far they got - each sets their own status"),
         untrusted_content: untrusted({ description: text, notes: text.describe("The team's notes - staff only") }),
       })
     )
@@ -366,6 +403,34 @@ export const myTasks = {
   ),
   counts: z.object({ todo: id, in_progress: id, done: id }),
   projects: id.describe("How many projects you can see"),
+  team: z
+    .object({
+      items: z.array(
+        z.object({
+          kind: z.string().describe("assignment (a phase) or content (a post)"),
+          id: id.describe("The phase's id, or the post's for content"),
+          person: z.object({ id, untrusted_content: untrusted({ name: text }) }).describe("Whose task it is"),
+          title: text,
+          belongs_to: text.describe("The project, or the client for a post"),
+          due_date: maybe,
+          label: maybe.describe("The phase's stage, or the post's type"),
+          status: z.string().describe("todo (shown as New), in_progress or done - set by that person"),
+          overdue: z.boolean().describe("Past its due date and not done"),
+          link: text.describe("The portal page it opens"),
+        })
+      ),
+      counts: z.object({ todo: id, in_progress: id, done: id, overdue: id }),
+      projects: id.describe("How many projects in the overview"),
+      attention: z.object({
+        unassigned_phases: z
+          .array(z.object({ id, title: text, project: text, link: text }))
+          .describe("Phases nobody is assigned to - they can never complete"),
+        forms_to_review: id.nullable().describe("Forms waiting for review; null when this connection can't read forms"),
+        meetings_waiting: id.nullable().describe("Client meeting requests waiting for a reply; null without calendar access"),
+      }),
+    })
+    .optional()
+    .describe("The Team overview - the Director's only: everyone's tasks"),
 };
 
 export const myPhases = {
@@ -404,6 +469,16 @@ export const notifications = {
 // ── Settings ────────────────────────────────────────────────────────────
 
 export const settings = {
+  director: z
+    .object({
+      id,
+      role: text,
+      role_name: text.describe("Director"),
+      avatar_url: maybe,
+      untrusted_content: untrusted({ name: text, email: text, position: maybe }),
+    })
+    .optional()
+    .describe("The card at the top of Settings - only name and position change (update_my_profile)"),
   website_address: maybe.describe("As typed on Settings; null when unset"),
   website_link: maybe.describe("The address the public logo links to"),
   logo_url: maybe,
@@ -426,6 +501,7 @@ export const settings = {
         role_name: text,
         active: z.boolean().describe("false: they can't sign in"),
         managed_by: id.nullable().describe("The manager's admin id"),
+        avatar_url: maybe.optional().describe("Their photo (set_admin_photo); null for none"),
         untrusted_content: untrusted({
           name: text,
           email: text,
@@ -434,7 +510,7 @@ export const settings = {
         }),
       })
     )
-    .describe("Everyone on the team but the owner"),
+    .describe("Everyone on the team but the Director"),
 };
 
 // ── Whoami ──────────────────────────────────────────────────────────────
