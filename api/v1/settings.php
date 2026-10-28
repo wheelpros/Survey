@@ -52,6 +52,7 @@ v1Reply(200, [
             "untrusted_content" => [
                 "name" => (string) $a["name"],
                 "email" => (string) $a["email"],
+                "position" => v1NullableString($a["position"] ?? null),
                 "managed_by_name" => v1NullableString($a["managed_by_name"]),
             ],
         ];

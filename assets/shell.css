@@ -305,9 +305,10 @@
 | and a page's own box rule (.slide-box, .req-box) wins whatever the load
 | order. The popup's contents are scoped to #acctModal.
 |
-| It shows the role alone - one of the four the portal has: Owner, plus the
-| Admin, Super Admin and Account Manager the owner hands out on Settings.
-| Esc and the backdrop close it (assets/shell.js).
+| It shows the admin's position - or their name when they have none - and
+| their role: one of the four the portal has, Owner, plus the Admin, Super
+| Admin and Account Manager the owner hands out on Settings. Esc and the
+| backdrop close it (assets/shell.js).
 */
 
 :where(.acct-modal) {
@@ -363,28 +364,43 @@
 }
 
 #acctModal .acct-body {
-  padding: 20px 24px 24px;
-  text-align: left;
+  padding: 24px;
+  text-align: center;
 }
 
-#acctModal .acct-who {
+#acctModal .acct-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: #dce3ff;
+  color: #3745a4;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 20px;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 26px;
+  margin: 0 auto 16px;
 }
 
-#acctModal .acct-label {
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--muted, #667085);
+/* The position - or the name, for an admin who has none - under the avatar. */
+#acctModal .acct-body strong {
+  display: block;
+  font-size: 16px;
+  margin-bottom: 8px;
+  overflow-wrap: anywhere;
 }
 
 #acctModal .acct-role {
-  font-size: 18px;
+  display: inline-block;
+  font-size: 11px;
   font-weight: 800;
-  line-height: 1.3;
-  color: var(--text, #101828);
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--nav-active, #1b1e3a);
+  background: #eef0f6;
+  border-radius: 20px;
+  padding: 5px 12px;
+  margin-bottom: 22px;
 }
 
 #acctModal .acct-logout {

@@ -501,7 +501,7 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 
-<link rel="stylesheet" href="assets/shell.css?v=5" />
+<link rel="stylesheet" href="assets/shell.css?v=6" />
 
 <style>
 /*
@@ -823,10 +823,9 @@ document.addEventListener("DOMContentLoaded", function () {
       <button type="button" onclick="closeAccount()" aria-label="Close">&times;</button>
     </div>
     <div class="acct-body">
-      <div class="acct-who">
-        <span class="acct-label">Your role</span>
-        <strong class="acct-role" id="acctRole"></strong>
-      </div>
+      <div class="acct-avatar" id="acctAvatar">A</div>
+      <strong id="acctName">Admin</strong>
+      <div class="acct-role" id="acctRole"></div>
       <button class="acct-logout" type="button" onclick="logoutAdmin()">&#8617; Log out</button>
     </div>
   </div>
@@ -1555,8 +1554,8 @@ loadSurveyData();
 </script>
 
 <script src="assets/notifications.js?v=1"></script>
-<script src="assets/shell.js?v=4"></script>
-<script src="assets/role-nav.js?v=2"></script>
+<script src="assets/shell.js?v=5"></script>
+<script src="assets/role-nav.js?v=3"></script>
 <script>
 /* The calendar belongs to the roles that deal with clients. A plain seo_admin
    works on content, so the link comes out of their sidebar. api/calendar.php

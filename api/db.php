@@ -75,6 +75,42 @@ const USER_PROFILE_COLUMNS = [
     "whatsapp"     => "VARCHAR(30) NULL",
 ];
 
+/*
+| What an admin is called in the sidebar and the account popup: their job
+| ("SEO Specialist"), set when the owner adds them and editable on Settings.
+| An admin without one - everybody added before this - shows their name.
+| sql/admin_position.sql is the manual version.
+*/
+const ADMIN_EXTRA_COLUMNS = [
+    "position" => "VARCHAR(100) NULL",
+];
+
+function ensureAdminColumns(PDO $pdo)
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    try {
+        $stmt = $pdo->query("
+            SELECT COLUMN_NAME
+            FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'admins'
+        ");
+        $existing = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+        foreach (ADMIN_EXTRA_COLUMNS as $column => $type) {
+            if (!in_array($column, $existing, true)) {
+                $pdo->exec("ALTER TABLE admins ADD COLUMN `$column` $type");
+            }
+        }
+    } catch (PDOException $e) {
+        // Read-only DB user: run sql/admin_position.sql by hand.
+    }
+}
+
 function ensureUserProfileColumns(PDO $pdo)
 {
     static $done = false;

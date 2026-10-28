@@ -319,7 +319,7 @@ document.addEventListener("DOMContentLoaded", function () {
   set("adminName", name);  set("adminRole", label);  set("adminAvatar", initial);
   set("acctRole", label);
 });
-</script><link rel="stylesheet" href="assets/shell.css?v=5" />
+</script><link rel="stylesheet" href="assets/shell.css?v=6" />
 
 </head><body>
 <aside class="admin-sidebar">
@@ -480,10 +480,9 @@ document.addEventListener("DOMContentLoaded", function () {
       <button type="button" onclick="closeAccount()" aria-label="Close">&times;</button>
     </div>
     <div class="acct-body">
-      <div class="acct-who">
-        <span class="acct-label">Your role</span>
-        <strong class="acct-role" id="acctRole"></strong>
-      </div>
+      <div class="acct-avatar" id="acctAvatar">A</div>
+      <strong id="acctName">Admin</strong>
+      <div class="acct-role" id="acctRole"></div>
       <button class="acct-logout" type="button" onclick="logoutAdmin()">&#8617; Log out</button>
     </div>
   </div>
@@ -916,8 +915,8 @@ async function setMyStatus(select){
 load();
 </script>
 <script src="assets/notifications.js?v=1"></script>
-<script src="assets/shell.js?v=4"></script>
+<script src="assets/shell.js?v=5"></script>
 <script src="assets/lightbox.js?v=1"></script>
 <script src="assets/sources-lock.js?v=1"></script>
-<script src="assets/role-nav.js?v=2"></script>
+<script src="assets/role-nav.js?v=3"></script>
 </body></html>

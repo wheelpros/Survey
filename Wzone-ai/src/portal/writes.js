@@ -59,6 +59,11 @@ const postImages = z
 const imageLink = (what) => httpsLink.describe(what + " " + IMAGE_BY_LINK);
 
 const adminId = recordId("The admin's id - from get_settings");
+const adminPosition = z
+  .string()
+  .min(1)
+  .max(100)
+  .describe("Their job, e.g. SEO Specialist - shown in their sidebar and account popup instead of their name");
 const adminRole = z
   .enum(["seo_admin", "super_admin", "account_manager"])
   .describe("seo_admin is shown as Admin. The owner role can't be given");
@@ -442,12 +447,24 @@ export const WRITE_TOOLS = [
     title: "Add an admin",
     description:
       "Adds someone to the admin team. No password is set here: they are emailed a link to choose their own, " +
-      "good for 3 days. Roles: seo_admin (shown as Admin), super_admin, account_manager." + TWO_STEP,
+      "good for 3 days. Roles: seo_admin (shown as Admin), super_admin, account_manager. The position " +
+      "(their job, e.g. SEO Specialist) is required: it is shown in their sidebar and account popup instead of their name." + TWO_STEP,
     input: {
       name: z.string().min(1).max(100),
+      position: adminPosition,
       email: z.string().email().max(190),
       role: adminRole,
     },
+  },
+  {
+    name: "set_admin_position",
+    scope: "admins:write",
+    title: "Set an admin's position",
+    description:
+      "Sets or changes an admin's position (their job, e.g. SEO Specialist), shown in their sidebar and account " +
+      "popup instead of their name. Admins added before positions existed show their name until one is set. " +
+      "Nobody is signed out." + TWO_STEP,
+    input: { admin: adminId, position: adminPosition },
   },
   {
     name: "change_admin_role",

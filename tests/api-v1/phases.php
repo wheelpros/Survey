@@ -90,12 +90,46 @@ $rows = $rows->fetchAll();
 check("phases: assignments are diffed by id", ($r["success"] ?? false) && count($rows) === 2
     && (int) $rows[0]["admin_id"] === 3 && (int) $rows[1]["id"] === $keepId && $rows[1]["work_note"] === "Brief signed off", json_encode($r));
 
+/** The dashboard items of $kind about $id. */
+function dashItems(array $d, $kind, $id)
+{
+    return array_values(array_filter($d["tasks"] ?? [], function ($t) use ($kind, $id) {
+        return $t["kind"] === $kind && (int) $t["id"] === (int) $id;
+    }));
+}
+
+/** The counts the items add up to. */
+function dashTally(array $d)
+{
+    $counts = ["todo" => 0, "in_progress" => 0, "done" => 0];
+    foreach ($d["tasks"] ?? [] as $t) {
+        $counts[$t["status"]]++;
+    }
+    return $counts;
+}
+
+// Sean: assigned on the phase and on 601 (and a teammate on both), and on the post "Acme reel".
 [, $d] = pageGet("api/admin-dashboard.php", $seo);
-$mine = array_values(array_filter($d["tasks"] ?? [], function ($t) use ($phaseId) { return (int) $t["task_id"] === $phaseId; }));
-check("dashboard: my phase, my status, my counts", count($mine) === 1 && $mine[0]["status"] === "done"
-    && ($d["counts"]["done"] ?? 0) === 1 && ($d["projects"] ?? 0) === 2, json_encode($d));
+$mine = dashItems($d, "assignment", $phaseId);
+check("dashboard: my phase, my status", count($mine) === 1 && $mine[0]["status"] === "done"
+    && strpos($mine[0]["href"], "project-task-details.html?project=500&id=$phaseId") === 0, json_encode($d));
+check("dashboard: a phase I am assigned to and a teammate on shows once", !dashItems($d, "teammate", $phaseId) && !dashItems($d, "teammate", 601)
+    && count(dashItems($d, "assignment", 601)) === 1, json_encode($d));
+$post = dashItems($d, "content", 302);
+check("dashboard: a content post I am on", count($post) === 1 && $post[0]["status"] === "todo" && $post[0]["chip"] === "Acme Ltd"
+    && $post[0]["href"] === "admin-content-form.html?id=302" && $post[0]["due_date"] === day("+3"), json_encode($d));
+check("dashboard: a post I am not on isn't there", !dashItems($d, "content", 300) && !dashItems($d, "content", 303), json_encode($d));
+check("dashboard: the counts are the tally of everything listed", dashTally($d) === $d["counts"]
+    && ($d["counts"]["in_progress"] ?? 0) === 1 && ($d["projects"] ?? 0) === 2, json_encode($d));
+
+// Sam: only a teammate on the phase (ticked), and on the post "Acme hello".
+[, $d] = pageGet("api/admin-dashboard.php", $sa);
+$team = dashItems($d, "teammate", $phaseId);
+check("dashboard: a phase I am only a teammate on, with my box", count($team) === 1 && $team[0]["status"] === "done"
+    && count(dashItems($d, "content", 303)) === 1 && dashTally($d) === $d["counts"] && ($d["counts"]["in_progress"] ?? 1) === 0, json_encode($d));
+
 [, $d] = pageGet("api/admin-dashboard.php", $am2);
-check("dashboard: someone with no assignments sees none", ($d["success"] ?? false) && ($d["tasks"] ?? null) === []
+check("dashboard: someone on nothing sees none", ($d["success"] ?? false) && ($d["tasks"] ?? null) === []
     && ($d["projects"] ?? 0) === 1, json_encode($d));
 [$status] = pageGet("api/admin-dashboard.php", "tok-nobody");
 check("dashboard: a bad token is a 401", $status === 401, "HTTP $status");

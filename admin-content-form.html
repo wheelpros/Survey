@@ -423,13 +423,13 @@
    it; the checkboxes are the state of record, read by saveContent(). The
    Details panel lets the open list hang past its edge, so it rounds its own
    head instead of clipping it. */
-      #panelDetails {
+      #panelTeam {
         overflow: visible;
       }
-      #panelDetails > .panel-head {
+      #panelTeam > .panel-head {
         border-radius: 18px 18px 0 0;
       }
-      #panelDetails.collapsed > .panel-head {
+      #panelTeam.collapsed > .panel-head {
         border-radius: 18px;
       }
       .field-row[hidden] {
@@ -1202,7 +1202,7 @@
         document.getElementById("acctModal").classList.remove("show");
       }
     </script>
-    <link rel="stylesheet" href="assets/shell.css?v=5" />
+    <link rel="stylesheet" href="assets/shell.css?v=6" />
   </head>
 
   <body>
@@ -1622,82 +1622,6 @@
                   </select>
                 </div>
 
-                <!-- Shown to whoever may change the team: anyone creating a
-                     post, and on an existing one its author, the owner and the
-                     account managers (can_assign). -->
-                <div class="field-row" id="teammatesRow" hidden>
-                  <label id="memberLabel">Teammates</label>
-                  <div class="multi" id="memberSelect">
-                    <button
-                      class="multi-trigger"
-                      type="button"
-                      id="memberTrigger"
-                      aria-haspopup="listbox"
-                      aria-expanded="false"
-                      aria-labelledby="memberLabel"
-                    >
-                      <span class="multi-value placeholder" id="memberSummary"
-                        >Select teammates...</span
-                      >
-                      <svg
-                        class="multi-chev"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2.5"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      >
-                        <polyline points="6 9 12 15 18 9" />
-                      </svg>
-                    </button>
-                    <div
-                      class="multi-panel"
-                      id="memberList"
-                      role="listbox"
-                      aria-multiselectable="true"
-                    >
-                      <div class="none">Loading teammates...</div>
-                    </div>
-                  </div>
-                  <p class="hint">
-                    Everyone ticked here can open this post and fill it in, and
-                    gets a notification.
-                  </p>
-                </div>
-
-                <!-- One box per teammate on the post. Shown whenever the post
-                     has teammates - to them too, even when the picker above is
-                     hidden. See renderChecklist(). -->
-                <div class="field-row" id="checklistRow" hidden>
-                  <label id="checklistLabel">Teammate checklist</label>
-                  <div
-                    class="checklist"
-                    id="teammateChecklist"
-                    role="group"
-                    aria-labelledby="checklistLabel"
-                  ></div>
-                  <p class="hint" id="checklistHint"></p>
-                </div>
-
-                <div class="field-row">
-                  <label for="priority">Priority</label>
-                  <select id="priority">
-                    <option value="low">Low</option>
-                    <option value="medium" selected>Medium</option>
-                    <option value="high">High</option>
-                  </select>
-                </div>
-
-                <div class="field-row">
-                  <label for="notes">Notes</label>
-                  <textarea
-                    id="notes"
-                    maxlength="5000"
-                    placeholder="e.g. Use the July product shots, keep the caption short"
-                  ></textarea>
-                </div>
-
                 <div class="field-row">
                   <label for="link">Link</label>
                   <input
@@ -1871,6 +1795,122 @@
                 </div>
               </div>
             </section>
+
+            <!-- Who works on the post and how: priority and notes for the team
+                 (never shown to the client), then the teammates and their
+                 checklist. Its own section, under the caption. -->
+            <section class="panel" id="panelTeam">
+              <button
+                class="panel-head"
+                type="button"
+                aria-expanded="true"
+                aria-controls="panelTeamBody"
+                onclick="togglePanel(this)"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+                <h2>Team</h2>
+                <svg
+                  class="chev"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              <div class="panel-body" id="panelTeamBody">
+                <div class="field-row">
+                  <label for="priority">Priority</label>
+                  <select id="priority">
+                    <option value="low">Low</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
+
+                <div class="field-row">
+                  <label for="notes">Notes</label>
+                  <textarea
+                    id="notes"
+                    maxlength="5000"
+                    placeholder="e.g. Use the July product shots, keep the caption short"
+                  ></textarea>
+                </div>
+
+                <!-- Shown to whoever may change the team: anyone creating a
+                     post, and on an existing one its author, the owner and the
+                     account managers (can_assign). -->
+                <div class="field-row" id="teammatesRow" hidden>
+                  <label id="memberLabel">Teammates</label>
+                  <div class="multi" id="memberSelect">
+                    <button
+                      class="multi-trigger"
+                      type="button"
+                      id="memberTrigger"
+                      aria-haspopup="listbox"
+                      aria-expanded="false"
+                      aria-labelledby="memberLabel"
+                    >
+                      <span class="multi-value placeholder" id="memberSummary"
+                        >Select teammates...</span
+                      >
+                      <svg
+                        class="multi-chev"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.5"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <polyline points="6 9 12 15 18 9" />
+                      </svg>
+                    </button>
+                    <div
+                      class="multi-panel"
+                      id="memberList"
+                      role="listbox"
+                      aria-multiselectable="true"
+                    >
+                      <div class="none">Loading teammates...</div>
+                    </div>
+                  </div>
+                  <p class="hint">
+                    Everyone ticked here can open this post and fill it in, and
+                    gets a notification.
+                  </p>
+                </div>
+
+                <!-- One box per teammate on the post. Shown whenever the post
+                     has teammates - to them too, even when the picker above is
+                     hidden. See renderChecklist(). -->
+                <div class="field-row" id="checklistRow" hidden>
+                  <label id="checklistLabel">Teammate checklist</label>
+                  <div
+                    class="checklist"
+                    id="teammateChecklist"
+                    role="group"
+                    aria-labelledby="checklistLabel"
+                  ></div>
+                  <p class="hint" id="checklistHint"></p>
+                </div>
+              </div>
+            </section>
           </div>
 
           <!-- ── Right rail ── -->
@@ -1983,10 +2023,9 @@
           <button type="button" onclick="closeAccount()" aria-label="Close">&times;</button>
         </div>
         <div class="acct-body">
-          <div class="acct-who">
-            <span class="acct-label">Your role</span>
-            <strong class="acct-role" id="acctRole"></strong>
-          </div>
+          <div class="acct-avatar" id="acctAvatar">A</div>
+          <strong id="acctName">Admin</strong>
+          <div class="acct-role" id="acctRole"></div>
           <button class="acct-logout" type="button" onclick="logout()">&#8617; Log out</button>
         </div>
       </div>
@@ -3596,8 +3635,8 @@
 
     <script src="assets/notifications.js?v=1"></script>
     <script src="assets/confirm.js?v=1"></script>
-    <script src="assets/shell.js?v=4"></script>
+    <script src="assets/shell.js?v=5"></script>
     <script src="assets/sources-lock.js?v=1"></script>
-    <script src="assets/role-nav.js?v=2"></script>
+    <script src="assets/role-nav.js?v=3"></script>
   </body>
 </html>

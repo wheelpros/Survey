@@ -247,15 +247,400 @@ body{padding:0}
     margin-bottom: 5px;
 }
 
-.admin-role {
-    display: inline-block !important;
+/* The panel head with a button on its right (Available Admins). */
+.panel-head.with-action {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.panel-head.with-action > div {
+    min-width: 0;
+}
+
+.add-admin-btn {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 11px 18px;
+    border: none;
+    border-radius: 10px;
+    background: #1b1e3a;
+    color: #fff;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.add-admin-btn:hover {
+    background: #282c52;
+}
+
+.add-admin-btn svg {
+    width: 15px;
+    height: 15px;
+}
+
+/* ── The team: one card, a header row, then a row per admin ──
+   The slides list shares .admin-row with the old design, so none of this is
+   named that. Everything is read-only here: Edit opens the popup. */
+.team-list {
+    border: 1px solid #eaecf0;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #fff;
+}
+
+/* "Loading" and "No admins" are not rows. */
+.team-list:has(> .no-admins) {
+    border: none;
+    background: none;
+}
+
+.team-head,
+.team-row {
+    display: grid;
+    grid-template-columns: minmax(0, 2.4fr) minmax(0, 2fr) 150px 96px 212px;
+    gap: 16px;
+    align-items: center;
+    padding: 14px 20px;
+}
+
+.team-head {
+    background: #f9fafb;
+    border-bottom: 1px solid #eaecf0;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .6px;
+    text-transform: uppercase;
+    color: #98a2b3;
+}
+
+.team-row {
+    border-bottom: 1px solid #f2f4f7;
+}
+
+.team-row:last-child {
+    border-bottom: none;
+}
+
+.team-row:hover {
+    background: #fcfcfd;
+}
+
+/* Deactivated: still there, visibly set aside. */
+.team-row.is-inactive .team-who,
+.team-row.is-inactive .team-email {
+    opacity: .6;
+}
+
+.team-who {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.team-avatar {
+    flex: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #dce3ff;
+    color: #3745a4;
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.team-name {
+    min-width: 0;
+}
+
+.team-name strong,
+.team-name span {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.team-name strong {
+    font-size: 15px;
+    color: #101828;
+}
+
+/* The position - what the sidebar shows for them. */
+.team-name span {
+    margin-top: 2px;
+    font-size: 13px;
+    color: #667085;
+}
+
+.team-name span.is-empty {
+    color: #98a2b3;
+    font-style: italic;
+}
+
+.team-email {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+    color: #475467;
+}
+
+.role-pill,
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     width: fit-content;
-    padding: 4px 9px;
+    padding: 4px 10px;
     border-radius: 20px;
-    background: #eef0f6;
-    color: #1b1e3a !important;
-    font-size: 11px !important;
+    font-size: 12px;
     font-weight: 700;
+    white-space: nowrap;
+}
+
+.role-pill.role-account_manager { background: #eef0ff; color: #3745a4; }
+.role-pill.role-super_admin     { background: #f4ebff; color: #6941c6; }
+.role-pill.role-seo_admin       { background: #eef0f6; color: #344054; }
+
+.status-pill::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.status-pill.is-active   { background: #e8faef; color: #17803d; }
+.status-pill.is-inactive { background: #f2f4f7; color: #667085; }
+
+.team-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.team-actions button {
+    font: inherit;
+    font-size: 14px;
+    padding: 9px 14px;
+    white-space: nowrap;
+}
+
+.edit-admin-btn {
+    flex: none;
+    border: 1px solid #dfe3ea;
+    background: #fff;
+    color: #101828;
+    border-radius: 9px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.edit-admin-btn:hover {
+    background: #f6f7f9;
+}
+
+/* The popup that adds and edits an admin. */
+.admin-box {
+    max-width: 520px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.admin-form {
+    padding: 22px 24px 8px;
+    overflow-y: auto;
+}
+
+.admin-form label {
+    margin: 16px 0 7px;
+    font-size: 13px;
+    font-weight: 800;
+    color: #344054;
+}
+
+.admin-form > label:first-child {
+    margin-top: 0;
+}
+
+.admin-form input,
+.admin-form select {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #dfe3ea;
+    border-radius: 10px;
+    background-color: #fff;
+    color: #101828;
+    font: inherit;
+    font-size: 15px;
+}
+
+.admin-form input:focus,
+.admin-form select:focus {
+    outline: none;
+    border-color: #1b1e3a;
+    box-shadow: 0 0 0 3px rgba(27, 30, 58, .10);
+}
+
+.admin-form .hint {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #98a2b3;
+}
+
+.admin-form .role-note {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #fff7e6;
+    color: #93560c;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.admin-form [hidden] {
+    display: none;
+}
+
+.admin-form-foot {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 24px 20px;
+}
+
+.admin-form-foot .status {
+    margin: 0 auto 0 0;
+    font-size: 13px;
+    min-width: 0;
+}
+
+.admin-form-foot button {
+    flex: none;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 800;
+    padding: 11px 18px;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.admin-form-foot .ghost-btn {
+    border: 1px solid #dfe3ea;
+    background: #fff;
+    color: #101828;
+}
+
+.admin-form-foot .ghost-btn:hover {
+    background: #f6f7f9;
+}
+
+.admin-form-foot .save-btn {
+    border: none;
+    background: #1b1e3a;
+    color: #fff;
+}
+
+.admin-form-foot .save-btn:hover:not(:disabled) {
+    background: #282c52;
+}
+
+.admin-form-foot .save-btn:disabled {
+    opacity: .6;
+    cursor: not-allowed;
+}
+
+/* Narrow, whatever the screen: the popup's footer and the panel head stack. */
+@media (max-width: 700px) {
+
+    .panel-head.with-action {
+        flex-direction: column;
+    }
+
+    .add-admin-btn {
+        width: 100%;
+    }
+
+    .admin-form-foot {
+        flex-wrap: wrap;
+    }
+
+    .admin-form-foot .status {
+        flex: 1 0 100%;
+        margin: 0 0 4px;
+    }
+
+    .admin-form-foot button {
+        flex: 1;
+    }
+}
+
+/* The five columns need about 780px. Whether there is that much depends on
+   the list - a collapsed sidebar, a tablet, a phone - not on the screen, so the
+   header row goes and each admin becomes a card by the list's own width. */
+.team-wrap {
+    container-type: inline-size;
+}
+
+@container (max-width: 780px) {
+
+    .team-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        border: none;
+        border-radius: 0;
+        overflow: visible;
+        background: none;
+    }
+
+    .team-head {
+        display: none;
+    }
+
+    .team-row {
+        grid-template-columns: 1fr auto;
+        grid-template-areas:
+            "who who"
+            "email email"
+            "role status"
+            "actions actions";
+        gap: 10px 12px;
+        padding: 16px;
+        border: 1px solid #eaecf0;
+        border-radius: 14px;
+        background: #fff;
+    }
+
+    .team-row:last-child {
+        border-bottom: 1px solid #eaecf0;
+    }
+
+    .team-who     { grid-area: who; }
+    .team-email   { grid-area: email; }
+    .team-role    { grid-area: role; }
+    .team-status  { grid-area: status; justify-self: end; }
+
+    .team-actions {
+        grid-area: actions;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        max-width: 420px;
+        margin-top: 4px;
+    }
 }
 
 .remove-admin-btn {
@@ -303,25 +688,6 @@ body{padding:0}
 
 .activate-admin-btn:hover {
     background: #f2fbf5;
-}
-
-.admin-status {
-    display: inline-block;
-    font-size: 11px;
-    font-weight: 800;
-    padding: 3px 10px;
-    border-radius: 20px;
-    margin-top: 4px;
-}
-
-.admin-status.is-active {
-    background: #e8faef;
-    color: #20a95a;
-}
-
-.admin-status.is-inactive {
-    background: #f2f4f7;
-    color: #667085;
 }
 
 /* Same look as the Owner Assignments box on clients-management.html,
@@ -747,22 +1113,6 @@ select.client-filter{
 /* Reset-by-email block inside the Files password panel. */
 .reset-lead{margin:0 0 18px;font-size:13.5px;line-height:1.65;color:#667085}
 
-/* Role dropdown inside an Available Admins row. Sized to sit where the plain
-   role label used to, so the row height does not jump. */
-.admin-role-select{
-  display:inline-block;
-  margin:4px 0;
-  padding:5px 28px 5px 10px;
-  border:1px solid #dfe3ea;
-  border-radius:8px;
-  background:#fff;
-  font-size:12px;
-  font-weight:700;
-  color:#101828;
-  cursor:pointer;
-}
-.admin-role-select:focus{outline:none;border-color:#1b1e3a}
-.admin-role-select:disabled{opacity:.55;cursor:default}
 </style>
 
 <script>
@@ -809,7 +1159,7 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 </script>
-<link rel="stylesheet" href="assets/shell.css?v=5" />
+<link rel="stylesheet" href="assets/shell.css?v=6" />
 </head>
 
 <body>
@@ -1075,36 +1425,6 @@ document.addEventListener("DOMContentLoaded", function () {
   </div>
 </div>
 
-<div id="addAdminSection">
-<div class="panel">
-  <div class="panel-head">
-    <h1>Add Admin</h1>
-    <p>Create a new admin account with specific role.</p>
-  </div>
-
-  <div class="panel-body">
-    
-    <label>Name</label>
-    <input type="text" id="name" placeholder="Enter name">
-
-    <label>Email</label>
-    <input type="email" id="email" placeholder="Enter email">
-
-    <label>Password</label>
-    <input type="password" id="password" placeholder="Enter password">
-
-    <label>Role</label>
-    <select id="role">
-      <option value="seo_admin">Admin</option>
-      <option value="super_admin">Super Admin</option>
-      <option value="account_manager">Account Manager</option>
-    </select>
-
-    <button class="primary" onclick="addUser()">Add</button>
-
-  </div>
-</div>
-</div>
 <div id="distributeAdminsSection" style="display:none;">
 <div class="panel">
   <div class="panel-head">
@@ -1130,15 +1450,23 @@ document.addEventListener("DOMContentLoaded", function () {
 </div>
 <div id="availableAdminsSection" style="display:none;">
     <div class="panel">
-        <div class="panel-head">
-            <h1>Available Admins</h1>
-            <p id="availableAdminsDesc">Manage Admins, Super Admins and Account Managers.</p>
+        <div class="panel-head with-action">
+            <div>
+                <h1>Available Admins</h1>
+                <p id="availableAdminsDesc">Manage Admins, Super Admins and Account Managers.</p>
+            </div>
+            <button type="button" class="add-admin-btn" onclick="openAddAdmin()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                Add admin
+            </button>
         </div>
 
         <div class="panel-body">
-            <div id="adminsList" class="admin-list">
-                <div class="no-admins">
-                    Loading admins...
+            <div class="team-wrap">
+                <div id="adminsList" class="team-list">
+                    <div class="no-admins">
+                        Loading admins...
+                    </div>
                 </div>
             </div>
 
@@ -1146,6 +1474,57 @@ document.addEventListener("DOMContentLoaded", function () {
                 <span class="pager-info" id="adminsPagerInfo"></span>
                 <div class="pager-pages" id="adminsPagerPages"></div>
             </div>
+        </div>
+    </div>
+
+    <!-- Add / edit an admin: one form, prefilled when editing. Reuses the
+         page's dialog shell, and sits in the owner-only section so nobody
+         else has it. -->
+    <div class="acct-modal" id="adminModal">
+        <div class="acct-box admin-box" role="dialog" aria-modal="true" aria-labelledby="adminModalTitle">
+
+            <div class="acct-head">
+                <h2 id="adminModalTitle">Add admin</h2>
+                <button type="button" onclick="closeAdminModal()" aria-label="Close">&times;</button>
+            </div>
+
+            <form id="adminForm" onsubmit="saveAdmin(event)" novalidate>
+                <div class="admin-form">
+
+                    <label for="adminFormName">Name</label>
+                    <input type="text" id="adminFormName" maxlength="100" autocomplete="off" placeholder="Full name">
+
+                    <label for="adminFormPosition">Position</label>
+                    <input type="text" id="adminFormPosition" maxlength="100" autocomplete="off" placeholder="e.g. SEO Specialist">
+                    <p class="hint">Shown in the sidebar and the account popup instead of their name.</p>
+
+                    <label for="adminFormEmail">Email</label>
+                    <input type="email" id="adminFormEmail" maxlength="190" autocomplete="off" placeholder="name@company.com">
+
+                    <div id="adminPasswordRow">
+                        <label for="adminFormPassword">Password</label>
+                        <input type="password" id="adminFormPassword" autocomplete="new-password" placeholder="Choose a password">
+                    </div>
+
+                    <label for="adminFormRole">Role</label>
+                    <select id="adminFormRole" onchange="syncRoleNote()">
+                        <option value="seo_admin">Admin</option>
+                        <option value="super_admin">Super Admin</option>
+                        <option value="account_manager">Account Manager</option>
+                    </select>
+                    <div class="role-note" id="adminRoleNote" hidden>
+                        Changing the role signs them out. They pick up the new role the next time they log in.
+                    </div>
+
+                </div>
+
+                <div class="admin-form-foot">
+                    <div id="adminFormStatus" class="status" role="status"></div>
+                    <button type="button" class="ghost-btn" onclick="closeAdminModal()">Cancel</button>
+                    <button type="submit" class="save-btn" id="adminSaveBtn">Add admin</button>
+                </div>
+            </form>
+
         </div>
     </div>
 </div>
@@ -1160,14 +1539,12 @@ if (!adminToken || !adminUser.role) {
 }
 
 // Clients Management is open to every admin, so the sidebar no longer hides it.
-// Add Admin, Distribute Admins and Available Admins are all owner-only.
+// Distribute Admins and Available Admins (which holds the Add / Edit admin popup) are owner-only.
 if (adminUser.role === "owner") {
 
-    const addAdmin = document.getElementById("addAdminSection");
     const distributeAdmins = document.getElementById("distributeAdminsSection");
     const availableAdmins = document.getElementById("availableAdminsSection");
 
-    if (addAdmin) addAdmin.style.display = "block";
     if (distributeAdmins) distributeAdmins.style.display = "block";
     if (availableAdmins) availableAdmins.style.display = "block";
 
@@ -1176,11 +1553,9 @@ if (adminUser.role === "owner") {
 
 } else {
 
-    const addAdmin = document.getElementById("addAdminSection");
     const distributeAdmins = document.getElementById("distributeAdminsSection");
     const availableAdmins = document.getElementById("availableAdminsSection");
 
-    if (addAdmin) addAdmin.style.display = "none";
     if (distributeAdmins) distributeAdmins.style.display = "none";
     if (availableAdmins) availableAdmins.style.display = "none";
 }
@@ -1994,45 +2369,10 @@ async function saveSlideOrder() {
     }
 }
 
-async function addUser() {
-  try {
-    const res = await fetch("api/add-user.php", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer " + adminToken
-      },
-      body: JSON.stringify({
-        name: document.getElementById("name").value,
-        email: document.getElementById("email").value,
-        password: document.getElementById("password").value,
-        role: document.getElementById("role").value
-      })
-    });
-
-    // 👇 مهم جدا
-    const text = await res.text();
-    console.log("RAW RESPONSE:", text);
-
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch (e) {
-      alert("Email already exists, try another one ❌");
-      return;
-    }
-
-    alert(data.message || "Done");
-
-  } catch (err) {
-    console.error(err);
-    alert("Network or server error ❌");
-  }
-}
 let allAdmins = [];
 
 // Eight rows to a page; the rest live behind the pager under the list.
-const ADMINS_PAGE_SIZE = 8;
+const ADMINS_PAGE_SIZE = 5;
 let adminsPage = 1;
 
 function hideAdminsPager() {
@@ -2094,90 +2434,147 @@ async function loadAdmins() {
     }
 }
 
-/* The role cell.
+/*
+| The popup that adds and edits an admin. One form: adding asks for a password
+| as well, editing leaves it out - an admin sets their own. Everything is
+| changed here and nowhere else; the list is read-only apart from
+| Activate / Deactivate.
+*/
+let adminFormId = null;     // null: adding; otherwise the admin being edited
+let adminFormRole = "";     // the role they had when the popup opened
 
-   For the owner it is a dropdown - promoting and demoting between Admin,
-   Super Admin and Account Manager happens here, and api/admin-role.php writes
-   it to the admins table, which is what every other page and endpoint reads.
-   For anyone else, and for the owner's own row, it stays a plain label. */
-
-const ASSIGNABLE_ROLES = ["seo_admin", "super_admin", "account_manager"];
-
-function adminRoleControl(admin){
-    const isOwnerRow = admin.role === "owner";
-    const canEdit = adminUser.role === "owner" && !isOwnerRow;
-
-    if(!canEdit){
-        return `<span class="admin-role">${adminRoleLabel(admin.role)}</span>`;
-    }
-
-    return `
-        <select class="admin-role-select" data-current="${escapeHtml(admin.role)}"
-                onchange="changeAdminRole(${admin.id}, this)">
-            ${ASSIGNABLE_ROLES.map(role => `
-                <option value="${role}" ${role === admin.role ? "selected" : ""}>
-                    ${adminRoleLabel(role)}
-                </option>
-            `).join("")}
-        </select>
-    `;
+function adminModal() {
+    return document.getElementById("adminModal");
 }
 
-async function changeAdminRole(adminId, select){
-    const newRole = select.value;
-    const previous = select.dataset.current;
+function openAddAdmin() {
+    adminFormId = null;
+    adminFormRole = "";
 
-    if(newRole === previous) return;
+    document.getElementById("adminModalTitle").textContent = "Add admin";
+    document.getElementById("adminSaveBtn").textContent = "Add admin";
+    document.getElementById("adminPasswordRow").hidden = false;
 
-    const label = adminRoleLabel(newRole);
-
-    const ok = await askConfirm({
-        title : "Change role",
-        text  : `This person becomes ${label}. They will be signed out and pick up the new role next time they log in.`,
-        action: "Change role",
-        icon  : "warn"
+    ["Name", "Position", "Email", "Password"].forEach(field => {
+        document.getElementById("adminForm" + field).value = "";
     });
+    document.getElementById("adminFormRole").value = "seo_admin";
 
-    if(!ok){
-        select.value = previous;
-        return;
-    }
+    showAdminModal();
+}
 
-    select.disabled = true;
+function openEditAdmin(adminId) {
+    const admin = allAdmins.find(a => Number(a.id) === Number(adminId));
 
-    try{
-        const res = await fetch("api/admin-role.php", {
+    if (!admin) return;
+
+    adminFormId = Number(admin.id);
+    adminFormRole = admin.role;
+
+    document.getElementById("adminModalTitle").textContent = "Edit admin";
+    document.getElementById("adminSaveBtn").textContent = "Save changes";
+    document.getElementById("adminPasswordRow").hidden = true;
+
+    document.getElementById("adminFormName").value = admin.name || "";
+    document.getElementById("adminFormPosition").value = admin.position || "";
+    document.getElementById("adminFormEmail").value = admin.email || "";
+    document.getElementById("adminFormPassword").value = "";
+    document.getElementById("adminFormRole").value = admin.role;
+
+    showAdminModal();
+}
+
+function showAdminModal() {
+    const status = document.getElementById("adminFormStatus");
+    status.textContent = "";
+    status.className = "status";
+
+    document.getElementById("adminSaveBtn").disabled = false;
+    syncRoleNote();
+
+    adminModal().classList.add("show");
+    document.getElementById("adminFormName").focus();
+}
+
+function closeAdminModal() {
+    adminModal().classList.remove("show");
+}
+
+/* Only a role that is changing signs someone out, so only then does it say so. */
+function syncRoleNote() {
+    document.getElementById("adminRoleNote").hidden =
+        adminFormId === null || document.getElementById("adminFormRole").value === adminFormRole;
+}
+
+function adminFormError(message) {
+    const status = document.getElementById("adminFormStatus");
+    status.textContent = message;
+    status.className = "status error";
+}
+
+async function saveAdmin(event) {
+    event.preventDefault();
+
+    const adding = adminFormId === null;
+    const fields = {
+        name: document.getElementById("adminFormName").value.trim(),
+        position: document.getElementById("adminFormPosition").value.trim(),
+        email: document.getElementById("adminFormEmail").value.trim(),
+        role: document.getElementById("adminFormRole").value
+    };
+    const password = document.getElementById("adminFormPassword").value;
+
+    if (!fields.name) return adminFormError("Enter a name.");
+    if (!fields.position) return adminFormError("Enter a position, e.g. SEO Specialist.");
+    if (!fields.email) return adminFormError("Enter an email address.");
+    if (adding && !password) return adminFormError("Choose a password.");
+
+    const button = document.getElementById("adminSaveBtn");
+    button.disabled = true;
+
+    try {
+        const res = await fetch(adding ? "api/add-user.php" : "api/admin-update.php", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                Authorization: "Bearer " + adminToken
+                "Authorization": "Bearer " + adminToken
             },
-            body: JSON.stringify({ admin_id: adminId, role: newRole })
+            body: JSON.stringify(adding
+                ? Object.assign({ password }, fields)
+                : Object.assign({ admin_id: adminFormId }, fields))
         });
 
-        const data = await res.json();
+        let data = null;
 
-        if(!data.success){
-            alert(data.message);
-            select.value = previous;
-            select.disabled = false;
+        try { data = await res.json(); } catch (error) { /* handled below */ }
+
+        if (!data || !data.success) {
+            adminFormError((data && data.message) || "Could not save. Try again.");
+            button.disabled = false;
             return;
         }
 
-        select.dataset.current = newRole;
-        select.disabled = false;
+        closeAdminModal();
+        alert(data.message || (adding ? "Admin added." : "Admin updated."));
 
-        // The dropdown above depends on who holds which role, so both lists
-        // are rebuilt rather than only the row that changed.
+        // Roles decide who can be handed to whom, so both lists are rebuilt.
         loadAdmins();
         loadDistribution();
 
-    }catch(error){
-        alert("Connection error.");
-        select.value = previous;
-        select.disabled = false;
+    } catch (error) {
+        adminFormError("Connection error.");
+        button.disabled = false;
     }
 }
+
+// Esc and a click on the backdrop close it, as with the account popup.
+adminModal().addEventListener("click", function (event) {
+    if (event.target === adminModal()) closeAdminModal();
+});
+
+document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape" && adminModal().classList.contains("show")) closeAdminModal();
+});
 
 function renderAdmins() {
     const list = document.getElementById("adminsList");
@@ -2202,38 +2599,44 @@ function renderAdmins() {
     const start = (adminsPage - 1) * ADMINS_PAGE_SIZE;
     const pageAdmins = allAdmins.slice(start, start + ADMINS_PAGE_SIZE);
 
-    list.innerHTML = pageAdmins.map(admin => {
+    list.innerHTML = `
+        <div class="team-head" aria-hidden="true">
+            <span>Admin</span><span>Email</span><span>Role</span><span>Status</span><span></span>
+        </div>
+    ` + pageAdmins.map(admin => {
         const isActive = Number(admin.active) === 1;
+        const position = String(admin.position || "").trim();
+        const initial = (String(admin.name || "").trim().charAt(0) || "?").toUpperCase();
 
         return `
-        <div class="admin-row" id="admin-row-${admin.id}">
+        <div class="team-row ${isActive ? "" : "is-inactive"}" id="admin-row-${admin.id}">
 
-            <div class="admin-info">
-                <strong>${escapeHtml(admin.name)}</strong>
-                <span>${escapeHtml(admin.email)}</span>
-                ${adminRoleControl(admin)}
-                <span class="admin-status ${isActive ? "is-active" : "is-inactive"}">
-                    ${isActive ? "Active" : "Inactive"}
-                </span>
+            <div class="team-who">
+                <span class="team-avatar" aria-hidden="true">${escapeHtml(initial)}</span>
+                <div class="team-name">
+                    <strong dir="auto">${escapeHtml(admin.name)}</strong>
+                    <span class="${position ? "" : "is-empty"}" dir="auto">${position ? escapeHtml(position) : "No position yet"}</span>
+                </div>
             </div>
 
-            ${
-                isActive
-                ? `<button
-                    type="button"
-                    class="deactivate-admin-btn"
-                    onclick="setAdminActive(${admin.id}, '${escapeHtml(admin.name)}', false)"
-                  >
-                    Deactivate
-                  </button>`
-                : `<button
-                    type="button"
-                    class="activate-admin-btn"
-                    onclick="setAdminActive(${admin.id}, '${escapeHtml(admin.name)}', true)"
-                  >
-                    Activate
-                  </button>`
-            }
+            <div class="team-email" title="${escapeHtml(admin.email)}">${escapeHtml(admin.email)}</div>
+
+            <div class="team-role">
+                <span class="role-pill role-${escapeHtml(admin.role)}">${escapeHtml(adminRoleLabel(admin.role))}</span>
+            </div>
+
+            <div class="team-status">
+                <span class="status-pill ${isActive ? "is-active" : "is-inactive"}">${isActive ? "Active" : "Inactive"}</span>
+            </div>
+
+            <div class="team-actions">
+                <button type="button" class="edit-admin-btn" onclick="openEditAdmin(${Number(admin.id)})">Edit</button>
+                ${
+                    isActive
+                    ? `<button type="button" class="deactivate-admin-btn" onclick="setAdminActive(${Number(admin.id)}, false)">Deactivate</button>`
+                    : `<button type="button" class="activate-admin-btn" onclick="setAdminActive(${Number(admin.id)}, true)">Activate</button>`
+                }
+            </div>
 
         </div>
         `;
@@ -2275,7 +2678,10 @@ function goToAdminsPage(page) {
 
     document.getElementById("adminsList").scrollIntoView({behavior:"smooth", block:"center"});
 }
-async function setAdminActive(id, name, makeActive) {
+async function setAdminActive(id, makeActive) {
+
+    const person = allAdmins.find(a => Number(a.id) === Number(id));
+    const name = person ? person.name : "This admin";
 
     const confirmed = await askConfirm({
         title : makeActive ? "Reactivate admin" : "Deactivate admin",
@@ -2523,10 +2929,9 @@ window.onload = loadSettings;
       <button type="button" onclick="closeAccount()" aria-label="Close">&times;</button>
     </div>
     <div class="acct-body">
-      <div class="acct-who">
-        <span class="acct-label">Your role</span>
-        <strong class="acct-role" id="acctRole"></strong>
-      </div>
+      <div class="acct-avatar" id="acctAvatar">A</div>
+      <strong id="acctName">Admin</strong>
+      <div class="acct-role" id="acctRole"></div>
       <button class="acct-logout" type="button" onclick="logoutAdmin()">&#8617; Log out</button>
     </div>
   </div>
@@ -2535,9 +2940,9 @@ window.onload = loadSettings;
 
 <script src="assets/notifications.js?v=1"></script>
 <script src="assets/confirm.js?v=1"></script>
-<script src="assets/shell.js?v=4"></script>
+<script src="assets/shell.js?v=5"></script>
 <script src="assets/sources-lock.js?v=1"></script>
-<script src="assets/role-nav.js?v=2"></script>
+<script src="assets/role-nav.js?v=3"></script>
 <script>
 /* The calendar belongs to the roles that deal with clients. A plain seo_admin
    works on content, so the link comes out of their sidebar. api/calendar.php

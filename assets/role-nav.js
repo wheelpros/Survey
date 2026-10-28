@@ -141,6 +141,16 @@
 
         if (stored.role && stored.role !== data.admin.role) {
           signOut();
+          return;
+        }
+
+        /* Only a label changed: the owner set or edited their position. No
+           sign-out - store it and repaint the sidebar card and the popup. */
+        if ((stored.position || null) !== (data.admin.position || null)) {
+          stored.position = data.admin.position || null;
+          localStorage.setItem("admin_user", JSON.stringify(stored));
+
+          if (window.wzPaintAccount) window.wzPaintAccount();
         }
       }
 

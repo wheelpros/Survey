@@ -22,7 +22,7 @@ if(!$admin || $admin["role"] !== "owner"){
 $input = json_decode(file_get_contents("php://input"), true);
 
 if(empty($input["password"])){
-    echo json_encode(["success"=>false,"message"=>"Name, email and password are required"]);
+    echo json_encode(["success"=>false,"message"=>"Name, email, password and position are required"]);
     exit;
 }
 
@@ -34,7 +34,8 @@ $role = in_array($input["role"] ?? "", ASSIGNABLE_ADMIN_ROLES, true) ? $input["r
 // add_admin - admin-settings-writes.php.
 try {
     [$name, $email] = checkNewAdmin($pdo, $input["name"] ?? "", $input["email"] ?? "", $role);
-    createAdmin($pdo, $name, $email, $role, (string) $input["password"]);
+    $position = checkAdminPosition($input["position"] ?? "");
+    createAdmin($pdo, $name, $email, $role, (string) $input["password"], $position);
 } catch (PortalWriteError $e) {
     echo json_encode(["success"=>false,"message"=>$e->getMessage()]);
     exit;

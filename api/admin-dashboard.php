@@ -2,19 +2,20 @@
 
 /*
 |--------------------------------------------------------------------------
-| Admin dashboard: the phases I am working on
+| Admin dashboard: what I am working on
 |--------------------------------------------------------------------------
 |
-| Backs admin-dashboard.html. Lists the signed-in admin's own assignments
-| (project_task_assignments) with the phase and project each belongs to, the
-| counts the donut and stat cards show, and how many projects they can see.
+| Backs admin-dashboard.html. Lists everything that is the signed-in admin's:
+| the phases they are assigned to, the phases they are a teammate on, and the
+| content posts they are on - each with the project or client it belongs to,
+| its due date and their own status - plus the counts the donut and stat cards
+| show and how many projects they can see.
 |
-| Read-only: changing "My status" posts action=set_my_status to
-| api/project-tasks.php.
+| Read-only. Changing "My status" posts to the endpoint that owns the thing:
+| project-tasks.php (set_my_status, set_done) or admin-content.php (set_done).
 |
-| The query is myPhaseAssignments() in task-writes.php, shared with api/v1's
-| list_my_phases: only projects inside projectScopeSql(), the same rule the
-| project pages use.
+| The list is myDashboardItems() in task-writes.php; phases only from projects
+| inside projectScopeSql(), the same rule the project pages use.
 |
 */
 
@@ -77,7 +78,7 @@ if ($_SERVER["REQUEST_METHOD"] !== "GET") {
 ensureProjectTables($pdo);
 
 try {
-    $mine = myPhaseAssignments($pdo, $admin);
+    $mine = myDashboardItems($pdo, $admin);
 } catch (Throwable $e) {
     response(false, "Could not load your dashboard.", [], 500);
 }

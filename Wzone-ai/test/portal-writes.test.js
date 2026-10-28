@@ -109,7 +109,7 @@ describe("private server: confirmed changes", () => {
                      "reorder_login_slides", "remove_login_slide", "confirm_change"]) {
       expect(names).toContain(n);
     }
-    for (const n of ["add_admin", "change_admin_role", "set_admin_active", "assign_admins_to_manager"]) {
+    for (const n of ["add_admin", "set_admin_position", "change_admin_role", "set_admin_active", "assign_admins_to_manager"]) {
       expect(names).not.toContain(n);
     }
     await c.close();
@@ -119,14 +119,14 @@ describe("private server: confirmed changes", () => {
     const upstream = fakePortal({ scopes: ["admins:write"] });
     const c = await connect();
     const { tools } = await c.listTools();
-    expect(Object.keys(tools.find((t) => t.name === "add_admin").inputSchema.properties).sort()).toEqual(["email", "name", "role"]);
+    expect(Object.keys(tools.find((t) => t.name === "add_admin").inputSchema.properties).sort()).toEqual(["email", "name", "position", "role"]);
 
-    const r = await c.callTool({ name: "add_admin", arguments: { name: "Nia", email: "n@w.test", role: "super_admin" } });
+    const r = await c.callTool({ name: "add_admin", arguments: { name: "Nia", position: "SEO Specialist", email: "n@w.test", role: "super_admin" } });
     expect(r.isError).toBeFalsy();
     expect(r.content[0].text).toMatch(/^NOTHING HAS CHANGED YET/);
     expect(posts(upstream)).toEqual([expect.objectContaining({
       path: "changes.php",
-      body: { action: "prepare", tool: "add_admin", args: { name: "Nia", email: "n@w.test", role: "super_admin" } },
+      body: { action: "prepare", tool: "add_admin", args: { name: "Nia", position: "SEO Specialist", email: "n@w.test", role: "super_admin" } },
     })]);
 
     const owner = await c.callTool({ name: "change_admin_role", arguments: { admin: 7, role: "owner" } });

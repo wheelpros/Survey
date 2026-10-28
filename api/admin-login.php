@@ -17,8 +17,10 @@ if (!$email || !$password) {
     exit;
 }
 
+ensureAdminColumns($pdo);
+
 $stmt = $pdo->prepare("
-    SELECT id, name, email, password, role, active
+    SELECT id, name, email, password, role, active, position
     FROM admins
     WHERE LOWER(email) = ?
     LIMIT 1
@@ -74,6 +76,7 @@ echo json_encode([
         "id" => $admin["id"],
         "name" => $admin["name"],
         "email" => $admin["email"],
-        "role" => $admin["role"]
+        "role" => $admin["role"],
+        "position" => $admin["position"]
     ]
 ]);

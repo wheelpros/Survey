@@ -15,6 +15,11 @@ body{background:#f6f7fb;color:#101828}
 .pager button:hover:not(:disabled){background:#f6f7f9}
 .pager button.current{background:var(--nav-active);border-color:var(--nav-active);color:#fff}
 .pager button:disabled{opacity:.45;cursor:not-allowed}
+/* On a phone the count adds nothing the buttons do not already say. */
+@media(max-width:700px){
+  .pager-info{display:none}
+  .pager{justify-content:center}
+}
 
 /* ── Back link, above the page title on every sub-page ── */
 .back-link{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;flex:none;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--text);text-decoration:none;transition:background .15s}
@@ -186,7 +191,7 @@ select.client-filter{
 }
 
 /* ── Dashboard: my phases, counted, then listed ── */
-:root{--c-new:#2563eb;--c-doing:#f59e0b;--c-done:#16a34a;--c-due:#f97316;--c-proj:var(--brand)}
+:root{--c-new:#2563eb;--c-doing:#f59e0b;--c-done:#16a34a;--c-proj:var(--brand)}
 .page-title p{margin-bottom:0}
 .overview{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px;margin-bottom:30px}
 .box{background:#fff;border:1px solid var(--line);border-radius:16px}
@@ -220,12 +225,12 @@ select.client-filter{
 .group-head em{font-style:normal;color:#98a2b3}
 .row{position:relative;display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,.7fr) minmax(0,1fr) 150px;gap:16px;align-items:center;background:#fff;border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:12px;padding:14px 16px;margin-bottom:8px}
 .row.new{--accent:var(--c-new)}
-.row.due{--accent:var(--c-due)}
 .row.doing{--accent:var(--c-doing)}
 .row.done{--accent:var(--c-done)}
 .row-title{min-width:0}
 .row-title a{display:block;font-size:13px;font-weight:800;color:var(--text);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .row-title a:hover{text-decoration:underline}
+.kind-tag{display:inline-block;margin-left:6px;padding:2px 8px;border-radius:6px;background:#f2f4f7;color:#475467;font-size:10px;font-weight:700;vertical-align:top;margin-top:5px}
 .proj-chip{display:inline-block;max-width:100%;margin-top:5px;padding:2px 8px;border-radius:6px;background:#eef2ff;color:#3745a4;font-size:10px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:top}
 .cell span{display:block;font-size:9px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#98a2b3;margin-bottom:3px}
 .cell b{display:block;font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -281,7 +286,7 @@ document.addEventListener("DOMContentLoaded", function () {
   set("adminName", name);  set("adminRole", label);  set("adminAvatar", initial);
   set("acctRole", label);
 });
-</script><link rel="stylesheet" href="assets/shell.css?v=5" />
+</script><link rel="stylesheet" href="assets/shell.css?v=6" />
 
 </head><body>
 <aside class="admin-sidebar">
@@ -355,7 +360,7 @@ document.addEventListener("DOMContentLoaded", function () {
     <div class="page-head">
       <div class="page-title">
         <h1>Dashboard</h1>
-        <p>The phases you are working on, across every project, in one place.</p>
+        <p>Your phases and content posts, across every project and client, in one place.</p>
       </div>
     </div>
 
@@ -390,12 +395,17 @@ document.addEventListener("DOMContentLoaded", function () {
       <div class="mine-head">
         <div>
           <h2>My tasks</h2>
-          <p>Only the phases you are assigned to. You can change your own status here.</p>
+          <p>Only what you are on: phases you are assigned to or a teammate on, and content posts. You can change your own status here.</p>
         </div>
         <div class="filters" id="filters" role="group" aria-label="Filter by status"></div>
       </div>
 
       <div id="groups"></div>
+
+      <div class="pager" id="pager" hidden>
+        <div class="pager-info" id="pagerInfo"></div>
+        <div class="pager-pages" id="pagerPages"></div>
+      </div>
 
     </div>
 
@@ -410,10 +420,9 @@ document.addEventListener("DOMContentLoaded", function () {
       <button type="button" onclick="closeAccount()" aria-label="Close">&times;</button>
     </div>
     <div class="acct-body">
-      <div class="acct-who">
-        <span class="acct-label">Your role</span>
-        <strong class="acct-role" id="acctRole"></strong>
-      </div>
+      <div class="acct-avatar" id="acctAvatar">A</div>
+      <strong id="acctName">Admin</strong>
+      <div class="acct-role" id="acctRole"></div>
       <button class="acct-logout" type="button" onclick="logoutAdmin()">&#8617; Log out</button>
     </div>
   </div>
@@ -524,6 +533,11 @@ let projects = 0;
 let today    = todayISO();
 let filter   = "all";
 
+/* Six tasks to a page, over the whole filtered list; the groups are drawn
+   within each page. */
+const TASKS_PAGE_SIZE = 6;
+let tasksPage = 1;
+
 async function load(){
   const data = await api("api/admin-dashboard.php");
 
@@ -603,52 +617,54 @@ function paintFilters(){
   }).join("");
 
   document.querySelectorAll("#filters button").forEach(button => {
-    button.addEventListener("click", () => { filter = button.dataset.filter; paintFilters(); paintGroups(); });
+    button.addEventListener("click", () => { filter = button.dataset.filter; tasksPage = 1; paintFilters(); paintGroups(); });
   });
 }
 
-/* Seven days ahead, inclusive, as yyyy-mm-dd - compared as strings. */
-function weekAhead(){
-  const d = new Date(today + "T00:00:00");
-  d.setDate(d.getDate() + 7);
-  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-}
-
 /*
-| Four groups, in the order work moves: new, due within the week (overdue
-| included - it is the most urgent of them), under way, finished. A phase sits
-| in exactly one; "due this week" wins over new and in progress.
+| Three groups, in the order work moves: new, under way, finished. A task sits
+| in exactly one. An overdue one stays in its group with its date in red.
 */
-function groupOf(task, limit){
+function groupOf(task){
   if (task.status === "done") return "done";
-  if (task.scheduled_date && String(task.scheduled_date).slice(0, 10) <= limit) return "due";
   return task.status === "in_progress" ? "doing" : "new";
 }
 
 const GROUPS = [
-  ["new",   "New",           "var(--c-new)"],
-  ["due",   "Due this week", "var(--c-due)"],
-  ["doing", "In progress",   "var(--c-doing)"],
-  ["done",  "Done",          "var(--c-done)"]
+  ["new",   "New",         "var(--c-new)"],
+  ["doing", "In progress", "var(--c-doing)"],
+  ["done",  "Done",        "var(--c-done)"]
 ];
 
 function paintGroups(){
-  const limit = weekAhead();
-  const shown = tasks.filter(t => filter === "all" || t.status === filter);
+  // New, then In progress, then Done - so a page reads in the order work moves.
+  // The sort is stable: inside a group the soonest-due stays first.
+  const order = GROUPS.map(g => g[0]);
+  const shown = tasks
+    .filter(t => filter === "all" || t.status === filter)
+    .sort((a, b) => order.indexOf(groupOf(a)) - order.indexOf(groupOf(b)));
   const box   = document.getElementById("groups");
 
   if (!shown.length) {
     box.innerHTML = '<div class="empty-state">'
       + '<div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>'
       + (tasks.length
-          ? "<h3>Nothing here</h3><p>None of your phases is " + esc((statuses[filter] || "").toLowerCase()) + ".</p>"
-          : "<h3>No phases yet</h3><p>When someone assigns you to a phase of a project, it shows up here with its due date and your status.</p>")
+          ? "<h3>Nothing here</h3><p>None of your tasks is " + esc((statuses[filter] || "").toLowerCase()) + ".</p>"
+          : "<h3>Nothing on your plate</h3><p>When you are put on a phase or a content post, it shows up here with its due date and your status.</p>")
       + "</div>";
+    document.getElementById("pager").hidden = true;
     return;
   }
 
+  const pages = Math.max(1, Math.ceil(shown.length / TASKS_PAGE_SIZE));
+
+  if (tasksPage > pages) tasksPage = pages;
+
+  const start = (tasksPage - 1) * TASKS_PAGE_SIZE;
+  const slice = shown.slice(start, start + TASKS_PAGE_SIZE);
+
   box.innerHTML = GROUPS.map(([key, label, colour]) => {
-    const rows = shown.filter(t => groupOf(t, limit) === key);
+    const rows = slice.filter(t => groupOf(t) === key);
     if (!rows.length) return "";
 
     return '<section class="group">'
@@ -657,47 +673,108 @@ function paintGroups(){
       + "</section>";
   }).join("");
 
-  box.querySelectorAll("select[data-task]").forEach(select => {
+  box.querySelectorAll("select[data-kind]").forEach(select => {
     select.addEventListener("change", () => setMyStatus(select));
   });
+
+  paintPager(shown.length, pages, start, slice.length);
+}
+
+function paintPager(total, pages, start, shown){
+  const pager = document.getElementById("pager");
+
+  if (total <= TASKS_PAGE_SIZE) {
+    pager.hidden = true;
+    return;
+  }
+
+  pager.hidden = false;
+
+  document.getElementById("pagerInfo").textContent =
+    "Showing " + (start + 1) + " to " + (start + shown) + " of " + total + " tasks";
+
+  const buttons = ['<button type="button" onclick="goToTasksPage(' + (tasksPage - 1) + ')" '
+    + (tasksPage === 1 ? "disabled" : "") + ">Prev</button>"];
+
+  for (let n = 1; n <= pages; n++) {
+    buttons.push('<button type="button" class="' + (n === tasksPage ? "current" : "") + '"'
+      + (n === tasksPage ? ' aria-current="page"' : "") + ' onclick="goToTasksPage(' + n + ')">' + n + "</button>");
+  }
+
+  buttons.push('<button type="button" onclick="goToTasksPage(' + (tasksPage + 1) + ')" '
+    + (tasksPage === pages ? "disabled" : "") + ">Next</button>");
+
+  document.getElementById("pagerPages").innerHTML = buttons.join("");
+}
+
+function goToTasksPage(n){
+  tasksPage = n;
+  paintGroups();
+  document.querySelector(".mine-head").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+/* What each kind of row can be set to: only an assignment has a middle step;
+   a teammate box and a content box are either ticked or not. */
+const KIND_TAGS = { teammate: "Teammate", content: "Content" };
+
+function statusChoices(task){
+  return task.kind === "assignment" ? Object.keys(statuses) : ["todo", "done"];
 }
 
 function rowFor(task, group){
-  const href = "project-task-details.html?project=" + encodeURIComponent(task.project_id)
-             + "&id=" + encodeURIComponent(task.task_id);
-  const date = task.scheduled_date ? String(task.scheduled_date).slice(0, 10) : "";
+  const date = task.due_date ? String(task.due_date).slice(0, 10) : "";
   const late = date && date < today && task.status !== "done";
+  const key  = task.kind + ":" + task.id;
 
   return '<div class="row ' + group + '">'
-    + '<div class="row-title"><a href="' + esc(href) + '" dir="auto">' + esc(task.title) + "</a>"
-    +   '<span class="proj-chip" dir="auto">' + esc(task.project_title) + "</span></div>"
+    + '<div class="row-title"><a href="' + esc(task.href) + '" dir="auto">' + esc(task.title) + "</a>"
+    +   '<span class="proj-chip" dir="auto">' + esc(task.chip) + "</span>"
+    +   (KIND_TAGS[task.kind] ? '<span class="kind-tag">' + KIND_TAGS[task.kind] + "</span>" : "") + "</div>"
     + '<div class="cell"><span>Due</span><b class="' + (late ? "late" : "") + '">' + (date ? esc(fmtDateShort(date)) + (late ? " · late" : "") : "—") + "</b></div>"
-    + '<div class="cell"><span>Phase</span><b dir="auto">' + esc(task.phase_label || "—") + "</b></div>"
-    + '<div class="cell"><span>My status</span><select data-task="' + Number(task.task_id) + '" data-assignment="' + Number(task.assignment_id) + '" aria-label="My status for ' + esc(task.title) + '">'
-    +   Object.keys(statuses).map(k => '<option value="' + k + '"' + (k === task.status ? " selected" : "") + ">" + esc(statuses[k]) + "</option>").join("")
+    + '<div class="cell"><span>' + (task.kind === "content" ? "Type" : "Phase") + '</span><b dir="auto">' + esc(task.label || "—") + "</b></div>"
+    + '<div class="cell"><span>My status</span><select data-kind="' + esc(task.kind) + '" data-id="' + Number(task.id) + '" aria-label="My status for ' + esc(task.title) + '">'
+    +   statusChoices(task).map(k => '<option value="' + k + '"' + (k === task.status ? " selected" : "") + ">" + esc(statuses[k]) + "</option>").join("")
     + "</select></div>"
     + "</div>";
 }
 
-/* Saved at once, then the whole board repaints: the counts, the donut and the
-   group the row belongs in all follow from the one status. */
+/*
+| Saved at once, then the whole board repaints: the counts, the donut and the
+| group the row belongs in all follow from the one status. Each kind goes to
+| the endpoint that owns it, and each changes only the caller's own row.
+*/
 async function setMyStatus(select){
+  const kind = select.dataset.kind;
+  const id   = Number(select.dataset.id);
   const body = new FormData();
-  body.append("action", "set_my_status");
-  body.append("task_id", select.dataset.task);
-  body.append("status", select.value);
+  let url;
+
+  if (kind === "content") {
+    url = "api/admin-content.php";
+    body.append("action", "set_done");
+    body.append("content_id", id);
+    body.append("done", select.value === "done" ? "1" : "0");
+  } else if (kind === "teammate") {
+    url = "api/project-tasks.php";
+    body.append("action", "set_done");
+    body.append("task_id", id);
+    body.append("done", select.value === "done" ? "1" : "0");
+  } else {
+    url = "api/project-tasks.php";
+    body.append("action", "set_my_status");
+    body.append("task_id", id);
+    body.append("status", select.value);
+  }
 
   select.disabled = true;
-  const data = await api("api/project-tasks.php", { method:"POST", body });
+  const data = await api(url, { method:"POST", body });
   select.disabled = false;
 
   toast(data.message, !data.success);
 
-  /* The status is per person per phase, so every row of mine on this phase
-     moves with it. */
   if (data.success) {
-    tasks.filter(t => Number(t.task_id) === Number(select.dataset.task))
-         .forEach(t => { t.status = data.status; });
+    const status = kind === "assignment" ? data.status : (select.value === "done" ? "done" : "todo");
+    tasks.filter(t => t.kind === kind && Number(t.id) === id).forEach(t => { t.status = status; });
   }
 
   paint();
@@ -706,7 +783,7 @@ async function setMyStatus(select){
 load();
 </script>
 <script src="assets/notifications.js?v=1"></script>
-<script src="assets/shell.js?v=4"></script>
+<script src="assets/shell.js?v=5"></script>
 <script src="assets/sources-lock.js?v=1"></script>
-<script src="assets/role-nav.js?v=2"></script>
+<script src="assets/role-nav.js?v=3"></script>
 </body></html>
