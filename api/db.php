@@ -1272,6 +1272,54 @@ function ensureNotificationsTable(PDO $pdo)
 }
 
 /**
+ * The Director's event log: one row per change an admin made, in the
+ * browser or through the MCP. api/events.php writes it, api/admin-events.php
+ * and api/v1/events.php read it.
+ *
+ * Who did it and what it was done to are copied in when the row is written
+ * (actor_name, target_label), so a row still reads right after the admin is
+ * removed or the project renamed - no foreign keys on purpose.
+ *
+ * sql/admin_events.sql is the same table to run by hand.
+ */
+function ensureAdminEventsTable(PDO $pdo)
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    try {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS admin_events (
+              id             BIGINT AUTO_INCREMENT PRIMARY KEY,
+              actor_admin_id INT          NOT NULL,
+              actor_name     VARCHAR(150) NOT NULL,
+              actor_role     VARCHAR(30)  NOT NULL,
+              via            VARCHAR(10)  NOT NULL DEFAULT 'web',
+              action         VARCHAR(64)  NOT NULL,
+              target_type    VARCHAR(30)  NOT NULL,
+              target_id      INT              NULL,
+              target_label   VARCHAR(200)     NULL,
+              client_id      INT              NULL,
+              summary        VARCHAR(500) NOT NULL,
+              ip             VARCHAR(45)      NULL,
+              request_id     VARCHAR(64)      NULL,
+              created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              KEY idx_created (created_at),
+              KEY idx_actor (actor_admin_id, id),
+              KEY idx_client (client_id, id),
+              KEY idx_target (target_type, target_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+    } catch (PDOException $e) {
+        // Read-only DB user: logEvent() stays silent and the Event log page
+        // is empty until sql/admin_events.sql is run by hand.
+    }
+}
+
+/**
  * The announcements the owner writes by hand, plus the notifications column
  * that points back at them.
  *

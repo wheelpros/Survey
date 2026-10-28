@@ -1,6 +1,7 @@
 <?php
 
 require_once "db.php";
+require_once "events.php";
 
 header("Content-Type: application/json; charset=UTF-8");
 
@@ -178,6 +179,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             respond(false, "Could not save the details.", [], 500);
         }
 
+        $who = eventClientName($pdo, $targetId);
+        logEvent($pdo, EVENT_CLIENT_UPDATED, "user", $targetId, $who, "Edited " . $who . "'s company details", $targetId);
+
         /* The saved values go back, not the submitted ones: the page repaints
            from these, so what it shows is what is stored rather than what was
            typed. */
@@ -217,6 +221,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     if (!setClientNote($pdo, $targetId, (int) $admin["id"], $note)) {
         respond(false, "Could not save the note.", [], 500);
     }
+
+    $who = eventClientName($pdo, $targetId);
+    logEvent($pdo, EVENT_CLIENT_NOTE_SAVED, "user", $targetId, $who,
+        ($note === "" ? "Cleared their private note about " : "Saved their private note about ") . $who, $targetId);
 
     respond(true, $note === "" ? "Note cleared." : "Note saved.", [
         "notes" => $note

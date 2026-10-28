@@ -15,6 +15,7 @@
 */
 
 require_once "db.php";
+require_once "events.php";
 
 header("Content-Type: application/json; charset=UTF-8");
 
@@ -217,6 +218,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         $stmt->execute([$typeId, $label, $platform, $category, $icon, $admin["id"]]);
 
+        logEvent($pdo, EVENT_CONTENT_TYPE_CHANGED, "content_type", 0, $label, "Added content type \"" . $label . "\"");
+
         response(
             true,
             "Type saved.",
@@ -260,6 +263,10 @@ if ($_SERVER["REQUEST_METHOD"] === "DELETE") {
 
         $stmt = $pdo->prepare("DELETE FROM content_types WHERE type_id = ?");
         $stmt->execute([$typeId]);
+
+        if ($stmt->rowCount() > 0) {
+            logEvent($pdo, EVENT_CONTENT_TYPE_CHANGED, "content_type", 0, $typeId, "Removed content type \"" . $typeId . "\"");
+        }
 
         response(true, "Type removed.");
 

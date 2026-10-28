@@ -40,6 +40,7 @@ if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") {
 
 require_once "db.php";
 require_once "notify.php";
+require_once "events.php";
 
 function reply($success, $message = "", $extra = [], $code = 200)
 {
@@ -454,6 +455,9 @@ if ($action === "create" || ($_SERVER["REQUEST_METHOD"] === "POST" && $action ==
         ]);
 
         $announcementId = (int) $pdo->lastInsertId();
+
+        logEvent($pdo, EVENT_ANNOUNCEMENT_SENT, "announcement", $announcementId, $title,
+            "Sent announcement \"" . $title . "\" to " . $audience);
 
     } catch (PDOException $e) {
         // Nothing references the file now, so it would sit there forever.

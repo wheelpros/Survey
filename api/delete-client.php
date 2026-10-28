@@ -21,6 +21,7 @@
 */
 
 require_once "db.php";
+require_once "events.php";
 
 header("Content-Type: application/json; charset=UTF-8");
 
@@ -109,6 +110,8 @@ foreach ($columns->fetchAll(PDO::FETCH_ASSOC) as $row) {
 
 $deleted = [];
 
+$eventWho = eventClientName($pdo, $userId);
+
 $pdo->beginTransaction();
 
 try {
@@ -152,6 +155,9 @@ try {
 
     $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
     $stmt->execute([$userId]);
+
+    logEvent($pdo, EVENT_CLIENT_DELETED, "user", $userId, $eventWho,
+        "Permanently deleted " . $eventWho . " (" . $user["email"] . ") and everything of theirs", $userId);
 
     $pdo->commit();
 

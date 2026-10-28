@@ -84,6 +84,7 @@ function bearerToken()
 |   admins:write     O         add-user.php, admin-role.php,
 |                              admin-position.php, admin-update.php,
 |                              admin-manager-assignments.php
+|   events:read      O         admin-events.php (the event log)
 |
 | O owner, SA super_admin, AM account_manager. Which *records* a role sees
 | within a scope (assigned clients, own posts, project membership) is the
@@ -113,6 +114,7 @@ const SCOPE_ROLES = [
     "settings:read"       => ["owner"],
     "settings:write"      => ["owner"],
     "admins:write"        => ["owner"],
+    "events:read"         => ["owner"],
 ];
 
 /**

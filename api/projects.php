@@ -22,6 +22,7 @@
 
 require_once "db.php";
 require_once "notify.php";
+require_once "events.php";
 
 header("Content-Type: application/json; charset=UTF-8");
 
@@ -915,6 +916,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         $pdo->beginTransaction();
 
+        $isNew = $id <= 0;
+
         if ($id > 0) {
 
             $stmt = $pdo->prepare("
@@ -984,6 +987,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         /* Full replace, the same shape Settings uses for its assignments: the form
            always posts the complete team, so anything missing was removed. */
 
+        $stmt = $pdo->prepare("SELECT admin_id FROM project_members WHERE project_id = ?");
+        $stmt->execute([$id]);
+        $membersBefore = array_map("intval", $stmt->fetchAll(PDO::FETCH_COLUMN));
+
         $stmt = $pdo->prepare("DELETE FROM project_members WHERE project_id = ?");
         $stmt->execute([$id]);
 
@@ -997,6 +1004,18 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 $stmt->execute([$id, $memberId]);
             }
         }
+
+        $membersAfter = array_map("intval", $memberIds);
+        $joined = array_values(array_diff($membersAfter, $membersBefore));
+        $left = array_values(array_diff($membersBefore, $membersAfter));
+
+        logEvent($pdo, $isNew ? EVENT_PROJECT_CREATED : EVENT_PROJECT_UPDATED, "project", $id, $title,
+            ($isNew
+                ? "Created project \"" . $title . "\" for " . eventClientName($pdo, $clientId)
+                : "Edited project \"" . $title . "\"")
+            . (!$isNew && $joined ? " - added " . eventAdminNames($pdo, $joined) : "")
+            . (!$isNew && $left ? " - removed " . eventAdminNames($pdo, $left) : ""),
+            $clientId);
 
         $pdo->commit();
 
@@ -1124,6 +1143,9 @@ if ($_SERVER["REQUEST_METHOD"] === "DELETE") {
 
         $stmt = $pdo->prepare("DELETE FROM projects WHERE id = ?");
         $stmt->execute([$id]);
+
+        logEvent($pdo, EVENT_PROJECT_DELETED, "project", $id, $project["title"],
+            "Deleted project \"" . $project["title"] . "\" and its phases", $project["client_id"]);
 
         $pdo->commit();
 

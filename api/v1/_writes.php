@@ -940,6 +940,9 @@ function v1WriteHandlers()
                 if (!setClientNote($pdo, $a["client"], $p["id"], $a["text"])) {
                     throw new PortalWriteError("Could not save the note.", 500);
                 }
+                $who = eventClientName($pdo, $a["client"]);
+                logEvent($pdo, EVENT_CLIENT_NOTE_SAVED, "user", $a["client"], $who,
+                    ($a["text"] === "" ? "Cleared their private note about " : "Saved their private note about ") . $who, $a["client"]);
                 return ["client_id" => $a["client"], "saved" => true];
             },
         ],
@@ -1282,6 +1285,9 @@ function v1WriteHandlers()
                     throw $e;
                 }
                 $id = (int) $pdo->lastInsertId();
+                [, $eventClientId] = eventContent($pdo, $id);
+                logEvent($pdo, EVENT_CONTENT_CREATED, "content", $id, $a["title"],
+                    "Created post \"" . $a["title"] . "\" for " . $a["company"] . " (draft)", $eventClientId);
                 // As the page does: the post first, then its team, who are notified.
                 saveContentAssignees($pdo, $id, [], $a["team"] ?? [], $a["title"], $p["id"]);
                 if (!empty($a["assignments"])) {
@@ -1397,6 +1403,9 @@ function v1WriteHandlers()
                     }
                     throw $e;
                 }
+                [$eventTitle, $eventClientId] = eventContent($pdo, $a["id"]);
+                logEvent($pdo, EVENT_CONTENT_UPDATED, "content", $a["id"], $eventTitle,
+                    "Edited draft \"" . $eventTitle . "\"", $eventClientId);
                 // The old files go only once the post no longer points at them,
                 // as admin-content.php does.
                 if (array_key_exists("images", $a)) {
@@ -1536,6 +1545,10 @@ function v1WriteHandlers()
                 if ($stmt->rowCount() !== 1) {
                     throw new PortalWriteError("That post is no longer a draft.", 409);
                 }
+                [, $eventClientId] = eventContent($pdo, $a["id"]);
+                logEvent($pdo, EVENT_CONTENT_STATUS, "content", $a["id"], $post["title"],
+                    ($status === "published" ? "Published \"" : "Scheduled \"") . $post["title"] . "\""
+                    . ($status === "published" ? "" : " for " . $date . ($time !== null ? " at " . $time : "")), $eventClientId);
                 // As admin-content.php: only a post that is live has anything to announce.
                 if ($status === "published") {
                     notifyUsersAtCompany($pdo, $post["client"], NOTIFY_CONTENT_PUBLISHED, "New content published",

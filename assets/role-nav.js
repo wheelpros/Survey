@@ -32,6 +32,12 @@
       // on client accounts.
       href: "clients-management.html",
       roles: ["owner", "super_admin", "account_manager"]
+    },
+    {
+      // The event log: what every admin changed. The Director's alone
+      // (api/admin-events.php).
+      href: "event-log.html",
+      roles: ["owner"]
     }
   ];
 

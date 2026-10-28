@@ -1,6 +1,7 @@
 <?php
 
 require_once "db.php";
+require_once "events.php";
 
 header("Content-Type: application/json");
 
@@ -61,7 +62,7 @@ if (!$id) {
 
 // Make sure target is NOT owner
 $stmt = $pdo->prepare("
-    SELECT id, role
+    SELECT id, role, name, email
     FROM admins
     WHERE id = ?
     LIMIT 1
@@ -112,6 +113,9 @@ $stmt = $pdo->prepare("
 ");
 
 $stmt->execute([$id]);
+
+logEvent($pdo, EVENT_ADMIN_REMOVED, "admin", $id, $target["name"],
+    "Removed " . $target["name"] . " (" . $target["email"] . ") from the team");
 
 
 echo json_encode([

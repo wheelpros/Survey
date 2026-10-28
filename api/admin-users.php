@@ -1,6 +1,7 @@
 <?php
 
 require_once "db.php";
+require_once "events.php";
 
 header("Content-Type: application/json");
 
@@ -71,6 +72,9 @@ if ($method === "POST") {
         $stmt = $pdo->prepare("UPDATE users SET approved = 1 WHERE id = ?");
         $stmt->execute([$userId]);
 
+        $who = eventClientName($pdo, $userId);
+        logEvent($pdo, EVENT_CLIENT_APPROVED, "user", $userId, $who, "Approved " . $who . "'s account", $userId);
+
         echo json_encode([
             "success" => true,
             "message" => "User approved successfully"
@@ -79,8 +83,12 @@ if ($method === "POST") {
     }
 
     if ($action === "reject") {
+        $who = eventClientName($pdo, $userId);
+
         $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
         $stmt->execute([$userId]);
+
+        logEvent($pdo, EVENT_CLIENT_REJECTED, "user", $userId, $who, "Rejected " . $who . "'s sign-up", $userId);
 
         // A deleted user can't stay handed out to a super_admin / seo_admin.
         $cleanupStmt = $pdo->prepare("DELETE FROM admin_user_assignments WHERE user_id = ?");

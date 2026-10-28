@@ -15,12 +15,13 @@ const ALL_STAFF = [
   "inquiries:read", "inquiries:write", "content:read", "content:write",
   "calendar:read", "calendar:write", "projects:read", "projects:write",
   "notifications:read", "notifications:write",
-  "settings:read", "settings:write", "admins:write",
+  "settings:read", "settings:write", "admins:write", "events:read",
 ];
 
-// What an seo_admin's role allows: no calendar, no inquiries, no settings.
+// What an seo_admin's role allows: no calendar, no inquiries, no settings,
+// no event log.
 const SEO = ALL_STAFF.filter((s) => !s.startsWith("calendar") && !s.startsWith("inquiries") && s !== "forms:review"
-  && s !== "clients:write" && !s.startsWith("settings") && s !== "admins:write");
+  && s !== "clients:write" && !s.startsWith("settings") && s !== "admins:write" && s !== "events:read");
 
 /**
  * A fake portal: introspection grants `scopes`; api/v1 answers from the
@@ -48,6 +49,7 @@ function fakePortal({ scopes, v1 } = {}) {
       "forms.php": q.has("id") ? "get_form" : q.has("queue") ? "list_forms_awaiting_review" : "list_forms",
       "projects.php": q.has("teammates") ? "list_phase_teammates" : q.has("mine") ? "list_my_phases" : q.has("tasks") ? "list_my_tasks" : q.has("id") ? "get_project" : "list_projects",
       "notifications.php": "list_my_notifications",
+      "events.php": "list_admin_events",
       "calendar.php": q.has("id") ? "get_meeting" : q.has("pending") ? "list_pending_approvals" : "get_calendar",
     }[path];
     return pick ? jsonResponse(200, { ok: true, data: fixtures[pick] }) : jsonResponse(404, { ok: false, error: { code: "not_found", message: "No such thing" } });
@@ -128,6 +130,7 @@ describe("private server: per-person tools", () => {
     expect(names).toContain("get_client_overview");
     expect(names).not.toContain("get_calendar");
     expect(names).not.toContain("list_inquiry_leads");
+    expect(names).not.toContain("list_admin_events");
     const prompts = (await c.listPrompts()).prompts.map((p) => p.name);
     expect(prompts).not.toContain("meeting_prep");
     expect(prompts).not.toContain("triage_new_leads");
@@ -147,6 +150,7 @@ describe("private server: per-person tools", () => {
     await c.callTool({ name: "list_phase_teammates", arguments: { id: 500 } });
     await c.callTool({ name: "list_my_phases", arguments: {} });
     await c.callTool({ name: "list_my_tasks", arguments: {} });
+    await c.callTool({ name: "list_admin_events", arguments: { area: "project", actor_id: 4, from: "2026-10-01", q: "logo" } });
 
     const calls = v1Calls(upstream).map(({ url }) => `${url.pathname.replace("/api/v1/", "")}?${url.searchParams}`);
     expect(calls).toEqual([
@@ -158,6 +162,7 @@ describe("private server: per-person tools", () => {
       "projects.php?id=500&teammates=1",
       "projects.php?mine=1",
       "projects.php?tasks=1",
+      "events.php?actor_id=4&area=project&from=2026-10-01&q=logo",
     ]);
     const { init } = v1Calls(upstream)[0];
     expect(init.headers["X-MCP-Tool"]).toBe("get_client_team");
@@ -175,6 +180,11 @@ describe("private server: per-person tools", () => {
 
     const types = await c.callTool({ name: "list_my_notifications", arguments: {} });
     expect(types.structuredContent.unread_count).toBe(1);
+
+    const events = await c.callTool({ name: "list_admin_events", arguments: {} });
+    expect(events.isError).toBeFalsy();
+    expect(events.structuredContent.items.length).toBeGreaterThan(0);
+    expect(events.content[0].text).toMatch(/^Fields named untrusted_content/);
     await c.close();
   });
 

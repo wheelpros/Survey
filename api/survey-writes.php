@@ -23,6 +23,7 @@
 require_once __DIR__ . "/db.php";
 require_once __DIR__ . "/notify.php";
 require_once __DIR__ . "/mailer.php";
+require_once __DIR__ . "/events.php";
 
 const SURVEY_QUESTION_TYPES = ["input", "textarea", "file", "checkbox"];
 
@@ -205,6 +206,10 @@ function createSurveyForm(PDO $pdo, array $actor, $title, $description, $userId,
 
         writeSurveyQuestions($pdo, $surveyId, $questions);
 
+        logEvent($pdo, EVENT_FORM_CREATED, "form", $surveyId, $title,
+            "Created form \"" . $title . "\" for " . eventClientName($pdo, $userId)
+            . ($released ? " and released it" : " (waiting for review)"), $userId);
+
         $pdo->commit();
     } catch (Throwable $e) {
         $pdo->rollBack();
@@ -299,6 +304,9 @@ function updateSurveyForm(PDO $pdo, array $actor, $surveyId, $title, $descriptio
 
         writeSurveyQuestions($pdo, $surveyId, $questions);
 
+        logEvent($pdo, EVENT_FORM_UPDATED, "form", $surveyId, $title,
+            "Edited form \"" . $title . "\"" . ($released ? "" : " (back to review)"), $userId);
+
         $pdo->commit();
     } catch (PortalWriteError $e) {
         $pdo->rollBack();
@@ -377,6 +385,9 @@ function reviewSurveyForm(PDO $pdo, array $actor, $surveyId, $action, $note)
             throw new PortalWriteError("This survey has already been reviewed by someone else", 409);
         }
 
+        logEvent($pdo, EVENT_FORM_REVIEWED, "form", $surveyId, $survey["title"],
+            "Approved form \"" . $survey["title"] . "\"", $survey["assigned_user_id"]);
+
         // Approving is the moment the form reaches the user, so both ends
         // hear about it: the person who has to fill it in, and the admin who
         // wrote it and has been waiting on the gate.
@@ -420,6 +431,9 @@ function reviewSurveyForm(PDO $pdo, array $actor, $surveyId, $action, $note)
     if ($stmt->rowCount() === 0) {
         throw new PortalWriteError("This survey has already been reviewed by someone else", 409);
     }
+
+    logEvent($pdo, EVENT_FORM_REVIEWED, "form", $surveyId, $survey["title"],
+        "Sent form \"" . $survey["title"] . "\" back: " . $note, $survey["assigned_user_id"]);
 
     // Only the creator: the assigned user never knew this form existed,
     // because a rejected form has not been released to them.

@@ -320,6 +320,9 @@ if ($action === "set_password") {
     $stmt = $pdo->prepare("UPDATE admins SET sources_password = ? WHERE id = ?");
     $stmt->execute([password_hash($password, PASSWORD_DEFAULT), $admin["id"]]);
 
+    require_once __DIR__ . "/events.php";
+    logEvent($pdo, EVENT_SETTINGS_CHANGED, "admin", $admin["id"], "", "Set their source files password");
+
     lockReply(true, "Password set.", [
         "token" => issueUnlockToken($pdo, $admin["id"])
     ]);
