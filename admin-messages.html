@@ -188,8 +188,9 @@ body{padding:0}
 .messages{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:6px;background:#fbfbfd}
 .older-btn{align-self:center;border:1px solid #dfe3ea;background:#fff;border-radius:20px;padding:6px 14px;font:inherit;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;margin-bottom:8px}
 .day{align-self:center;font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#98a2b3;margin:12px 0 6px}
-.msg{max-width:min(520px,78%);display:flex;flex-direction:column;gap:3px}
-.msg.mine{align-self:flex-end;align-items:flex-end}
+/* Mine on the left, theirs on the right. */
+.msg{max-width:min(520px,78%);display:flex;flex-direction:column;gap:3px;align-self:flex-end;align-items:flex-end}
+.msg.mine{align-self:flex-start;align-items:flex-start}
 .bubble{padding:9px 13px;border-radius:14px;background:#fff;border:1px solid #eaecf0;font-size:14px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
 .msg.mine .bubble{background:var(--nav-active);border-color:var(--nav-active);color:#fff}
 .msg.mine .bubble a{color:#fff}
