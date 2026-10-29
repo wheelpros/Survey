@@ -1,5 +1,6 @@
 <?php
 require_once "db.php";
+require_once "events.php";
 
 header("Content-Type: application/json");
 
@@ -45,6 +46,8 @@ if(!in_array($ext, $allowed)){
 $targetPath = __DIR__ . "/../logo.png";
 
 if (move_uploaded_file($tmp, $targetPath)) {
+    logEvent($pdo, EVENT_SETTINGS_CHANGED, "settings", 0, "Logo", "Replaced the portal logo");
+
     echo json_encode([
         "success" => true,
         "message" => "Logo updated successfully"

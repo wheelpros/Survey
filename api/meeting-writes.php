@@ -18,6 +18,7 @@
 require_once __DIR__ . "/db.php";
 require_once __DIR__ . "/notify.php";
 require_once __DIR__ . "/mailer.php";
+require_once __DIR__ . "/events.php";
 
 /**
  * The client accounts a request for $company goes to: every account the
@@ -115,6 +116,10 @@ function requestMeetingFromClients(PDO $pdo, array $admin, array $targets, $comp
         );
     }
 
+    logEvent($pdo, EVENT_MEETING_PROPOSED, "meeting", $ids[0] ?? 0, $topic,
+        "Proposed a meeting with " . $company . ": \"" . $topic . "\" on " . $date . " at " . $time,
+        count($targets) === 1 ? $targets[0]["id"] : null);
+
     // Each client by email too: the request needs their answer, and the
     // portal only shows it to someone who happens to sign in.
     emailClientsAboutMeetingRequest($targets, (string) $admin["name"], $topic, $date, $time, $notes);
@@ -160,6 +165,11 @@ function answerClientMeetingRequest(PDO $pdo, array $admin, $appointmentId, $sta
         WHERE id = ?
     ");
     $stmt->execute([$status, $admin["id"], (int) $appointmentId]);
+
+    logEvent($pdo, EVENT_MEETING_ANSWERED, "meeting", $appointmentId, (string) ($row["topic"] ?? ""),
+        ($status === "approved" ? "Accepted " : "Declined ") . eventClientName($pdo, $row["user_id"])
+        . "'s meeting request \"" . ($row["topic"] ?? "Meeting") . "\" on " . $row["date"] . " at " . $row["time"],
+        $row["user_id"]);
 
     notify(
         $pdo,

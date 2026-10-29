@@ -1,6 +1,7 @@
 <?php
 
 require_once "db.php";
+require_once "events.php";
 
 header("Content-Type: application/json; charset=UTF-8");
 
@@ -56,6 +57,10 @@ if ($method === "POST") {
         ");
         $stmt->execute($grantedIds);
     }
+
+    $names = eventAdminNames($pdo, $grantedIds);
+    logEvent($pdo, EVENT_INQUIRY_ACCESS, "settings", 0, "Inquiries access",
+        $names !== "" ? "Gave inquiries access to " . $names : "Took inquiries access from every account manager");
 
     echo json_encode(["success" => true, "message" => "Inquiries access updated"]);
     exit;

@@ -22,6 +22,7 @@
 
 require_once __DIR__ . "/db.php";
 require_once __DIR__ . "/notify.php";
+require_once __DIR__ . "/events.php";
 
 function canPublishContent($admin)
 {
@@ -180,6 +181,11 @@ function saveContentAssignees(PDO $pdo, $contentId, array $before, array $after,
             $stmt->execute([(int) $contentId, (int) $adminId]);
         }
 
+        [, $clientId] = eventContent($pdo, $contentId);
+        logEvent($pdo, EVENT_CONTENT_ASSIGNEES, "content", $contentId, $title, "Changed the team on \"" . $title . "\""
+            . ($added ? " - added " . eventAdminNames($pdo, $added) : "")
+            . ($removed ? " - removed " . eventAdminNames($pdo, $removed) : ""), $clientId);
+
         $pdo->commit();
 
     } catch (Throwable $e) {
@@ -281,6 +287,10 @@ function setOwnContentStatus(PDO $pdo, $contentId, $adminId, $status)
         WHERE content_id = ? AND admin_id = ?
     ");
     $stmt->execute([$status, $done, $done, (int) $contentId, (int) $adminId]);
+
+    [$title, $clientId] = eventContent($pdo, $contentId);
+    logEvent($pdo, EVENT_CONTENT_STATUS, "content", $contentId, $title,
+        "Set their status on \"" . $title . "\" to " . TASK_ASSIGNMENT_STATUSES[$status], $clientId);
 
     return $status;
 }

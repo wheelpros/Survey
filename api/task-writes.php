@@ -17,6 +17,7 @@
 
 require_once __DIR__ . "/db.php";
 require_once __DIR__ . "/notify.php";
+require_once __DIR__ . "/events.php";
 
 /* The rich-text counter under the editor says 0 / 2000, and it counts text,
    not the markup the editor wraps around it. */
@@ -165,6 +166,8 @@ function saveProjectTask(PDO $pdo, array $actor, array $project, $existing, arra
         $sets = implode(", ", array_map(function ($c) { return "`$c` = ?"; }, array_keys($columns)));
         $stmt = $pdo->prepare("UPDATE project_tasks SET $sets WHERE id = ?");
         $stmt->execute(array_merge(array_values($columns), [(int) $existing["id"]]));
+        logEvent($pdo, EVENT_PHASE_UPDATED, "phase", $existing["id"], $title,
+            "Edited phase \"" . $title . "\" on " . $project["title"], $project["client_id"] ?? null);
         return (int) $existing["id"];
     }
 
@@ -176,7 +179,11 @@ function saveProjectTask(PDO $pdo, array $actor, array $project, $existing, arra
     $stmt = $pdo->prepare("INSERT INTO project_tasks ($names) VALUES ($marks)");
     $stmt->execute(array_values($columns));
 
-    return (int) $pdo->lastInsertId();
+    $id = (int) $pdo->lastInsertId();
+    logEvent($pdo, EVENT_PHASE_CREATED, "phase", $id, $title,
+        "Added phase \"" . $title . "\" to " . $project["title"], $project["client_id"] ?? null);
+
+    return $id;
 }
 
 /* Notes are a working space for the team, not an essay. */
@@ -328,6 +335,13 @@ function saveTaskTeammates(PDO $pdo, array $project, $taskId, array $ids)
         recomputeTaskComplete($pdo, $taskId);
     }
 
+    if ($added || $removed) {
+        [$title, $projectTitle, $clientId] = eventPhase($pdo, $taskId);
+        logEvent($pdo, EVENT_PHASE_TEAM, "phase", $taskId, $title, "Changed the teammates on \"" . $title . "\""
+            . ($added ? " - added " . eventAdminNames($pdo, $added) : "")
+            . ($removed ? " - removed " . eventAdminNames($pdo, $removed) : ""), $clientId);
+    }
+
     return $added;
 }
 
@@ -396,6 +410,13 @@ function saveTaskAssignments(PDO $pdo, array $project, $taskId, array $rows)
     }
 
     recomputeTaskComplete($pdo, $taskId);
+
+    if ($added || $gone) {
+        [$title, $projectTitle, $clientId] = eventPhase($pdo, $taskId);
+        logEvent($pdo, EVENT_PHASE_TEAM, "phase", $taskId, $title, "Changed who is assigned to \"" . $title . "\""
+            . ($added ? " - assigned " . eventAdminNames($pdo, $added) : "")
+            . ($gone ? " - unassigned " . eventAdminNames($pdo, $gone) : ""), $clientId);
+    }
 
     return $added;
 }
@@ -467,6 +488,10 @@ function setOwnPhaseDone(PDO $pdo, $taskId, $adminId, $done)
     ");
     $stmt->execute([$done, $done, (int) $taskId, (int) $adminId]);
 
+    [$title, $projectTitle, $clientId] = eventPhase($pdo, $taskId);
+    logEvent($pdo, EVENT_PHASE_STATUS, "phase", $taskId, $title,
+        ($done ? "Ticked their box on \"" : "Unticked their box on \"") . $title . "\"", $clientId);
+
     return $done;
 }
 
@@ -487,6 +512,10 @@ function setOwnPhaseStatus(PDO $pdo, $taskId, $adminId, $status)
 
     recomputeTaskComplete($pdo, $taskId);
 
+    [$title, $projectTitle, $clientId] = eventPhase($pdo, $taskId);
+    logEvent($pdo, EVENT_PHASE_STATUS, "phase", $taskId, $title,
+        "Set their status on \"" . $title . "\" to " . TASK_ASSIGNMENT_STATUSES[$status], $clientId);
+
     return $status;
 }
 
@@ -500,7 +529,10 @@ function deleteProjectTask(PDO $pdo, array $task)
 
     $id = (int) $task["id"];
 
+    [$title, $projectTitle, $clientId] = eventPhase($pdo, $id);
     $pdo->prepare("DELETE FROM project_tasks WHERE id = ?")->execute([$id]);
+    logEvent($pdo, EVENT_PHASE_DELETED, "phase", $id, $title,
+        "Deleted phase \"" . $title . "\"" . ($projectTitle !== "" ? " from " . $projectTitle : ""), $clientId);
     $pdo->prepare("DELETE FROM project_task_teammates WHERE task_id = ?")->execute([$id]);
     $pdo->prepare("DELETE FROM project_task_assignments WHERE task_id = ?")->execute([$id]);
     $files = deleteAttachmentRows($pdo, "task", $id);

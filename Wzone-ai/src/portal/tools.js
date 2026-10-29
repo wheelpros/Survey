@@ -378,6 +378,33 @@ export const READ_TOOLS = [
     query: ({ unread, ...rest }) => ({ ...rest, unread: unread ? 1 : undefined }),
   },
 
+  // ── Event log (the owner's) ───────────────────────────────────────────
+  {
+    name: "list_admin_events",
+    scope: "events:read",
+    title: "Event log",
+    description:
+      "What every admin changed in the portal - in the browser or through an AI assistant - with who, " +
+      "when and a one-line summary: projects, phases, content, forms, inquiries, meetings, clients, the " +
+      "team and settings. " + ORDER + " Kept for 12 months. Filter by admin (an id from get_settings), " +
+      "area, client (from search_clients), dates or text. Use it for \"what did Sara do this week?\" or " +
+      "\"who deleted that project?\".",
+    input: {
+      actor_id: recordId("Only this admin's changes - an id from get_settings").optional(),
+      area: z
+        .enum(["client", "project", "phase", "content", "form", "inquiry", "meeting", "source", "announcement", "admin", "settings"])
+        .optional()
+        .describe("Only one area; admin means changes to the team"),
+      client_id: recordId("Only changes about this client - from search_clients").optional(),
+      from: date("On or after this day").optional(),
+      to: date("On or before this day").optional(),
+      q: z.string().max(100).optional().describe("Text in the summary, the item's name or the admin's name"),
+      ...paging,
+    },
+    output: S.adminEvents,
+    path: "events.php",
+  },
+
   // ── Settings (the owner's) ────────────────────────────────────────────
   {
     name: "get_settings",

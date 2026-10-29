@@ -1,6 +1,7 @@
 <?php
 
 require_once "db.php";
+require_once "events.php";
 
 header("Content-Type: application/json; charset=UTF-8");
 
@@ -328,12 +329,18 @@ try {
 
         $message = $target["name"] . " added to the team.";
 
+        $who = eventClientName($pdo, $userId);
+        logEvent($pdo, EVENT_CLIENT_TEAM_CHANGED, "user", $userId, $who, "Added " . $target["name"] . " to " . $who . "'s team", $userId);
+
     } else {
 
         $pdo->prepare("DELETE FROM admin_user_assignments WHERE admin_id = ? AND user_id = ?")
             ->execute([$targetId, $userId]);
 
         $message = $target["name"] . " removed from the team.";
+
+        $who = eventClientName($pdo, $userId);
+        logEvent($pdo, EVENT_CLIENT_TEAM_CHANGED, "user", $userId, $who, "Removed " . $target["name"] . " from " . $who . "'s team", $userId);
     }
 
     respond(true, $message, teamPayload($pdo, $actor, $userId));

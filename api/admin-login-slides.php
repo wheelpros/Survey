@@ -2,6 +2,7 @@
 
 require_once "db.php";
 require_once "admin-settings-writes.php";
+require_once "events.php";
 
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS");
@@ -451,6 +452,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 deleteSlideImage($imagePath);
                 response(false, "Slide not found.", [], 404);
             }
+
+            logEvent($pdo, EVENT_SETTINGS_CHANGED, "login_slide", $id, "", "Replaced the image of a login page slide");
 
         } catch (Throwable $e) {
 

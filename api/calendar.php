@@ -28,6 +28,7 @@ if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") {
 
 require_once "db.php";
 require_once "meeting-writes.php";
+require_once "events.php";
 
 function reply($success, $message = "", $extra = [])
 {
@@ -317,6 +318,10 @@ if ($action === "create_appointment" && $admin) {
         VALUES (?, ?, ?, ?, 'pending', ?, 'admin', ?)
     ");
     $stmt->execute([$targetUserId, $title, $date, $time, $title, $admin["id"]]);
+
+    logEvent($pdo, EVENT_MEETING_PROPOSED, "meeting", $pdo->lastInsertId(), $title,
+        "Proposed a meeting with " . eventClientName($pdo, $targetUserId) . ": \"" . $title . "\" on " . $date . " at " . $time,
+        $targetUserId);
 
     reply(true, "Appointment request sent to user");
 }

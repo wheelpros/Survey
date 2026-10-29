@@ -87,6 +87,7 @@ Each person gets only the tools their connection's scopes allow, so a client nev
 | `projects:read` | `list_projects`, `get_project` | your clients' projects, the ones you manage, and the ones you're a member of; drafts as on the project page |
 | `notifications:read` | `list_my_notifications` | your own inbox |
 | `settings:read` | `get_settings` | the owner only: website address, logo, login slides and the admin team (roles, on/off, who manages whom). Never a password, token or the files password |
+| `events:read` | `list_admin_events` | the owner only: the event log - every change an admin made, in the portal or through an assistant, with who, when and a summary. The same rows as the portal's Event log page, kept 12 months |
 
 - **`get_client_overview`** answers "tell me about client X" in one call: profile, team, open forms, recent responses, upcoming and recent content, upcoming meetings, active projects. A section the connection has no scope for is left out and named in `not_included`.
 - **Lists are paged by cursor.** Pass `next_cursor` back as `cursor`. Rows never repeat or go missing when new ones arrive between pages.

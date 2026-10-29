@@ -241,6 +241,8 @@ if($_SERVER["REQUEST_METHOD"]=="POST"){
             $admin["id"]
         ]);
 
+        logEvent($pdo, EVENT_SETTINGS_CHANGED, "admin", $admin["id"], "", "Set their source files password");
+
         echo json_encode([
             "success"=>true,
             "message"=>"Password saved"
@@ -292,6 +294,8 @@ if($_SERVER["REQUEST_METHOD"]=="POST"){
         $hash,
         $admin["id"]
     ]);
+
+    logEvent($pdo, EVENT_SETTINGS_CHANGED, "admin", $admin["id"], "", "Changed their source files password");
 
     echo json_encode([
         "success"=>true,

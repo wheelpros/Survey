@@ -3,6 +3,7 @@
 require_once "db.php";
 require_once "notify.php";
 require_once "content-writes.php";
+require_once "events.php";
 require_once "upload-helpers.php";
 
 header("Content-Type: application/json; charset=UTF-8");
@@ -998,6 +999,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             $newId = $pdo->lastInsertId();
 
+            [, $eventClientId] = eventContent($pdo, $newId);
+            logEvent($pdo, EVENT_CONTENT_CREATED, "content", $newId, $title,
+                "Created post \"" . $title . "\"" . ($client !== "" ? " for " . $client : "") . ($status === "published" ? " (published)" : ($status === "scheduled" ? " (scheduled)" : " (draft)")), $eventClientId);
+
             saveContentAssignees($pdo, $newId, [], $assigneeIds, $title, $admin["id"]);
 
             if ($workNotes !== null) {
@@ -1105,6 +1110,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $notes !== "" ? $notes : null,
             $id
         ]);
+
+        [, $eventClientId] = eventContent($pdo, $id);
+        logEvent($pdo, EVENT_CONTENT_UPDATED, "content", $id, $title,
+            "Edited post \"" . $title . "\""
+            . (($existing["status"] ?? "") !== $status ? " - now " . $status : ""), $eventClientId);
 
         saveContentAssignees($pdo, $id, $hadAssignees, $assigneeIds, $title, $admin["id"]);
 
@@ -1214,6 +1224,8 @@ if ($_SERVER["REQUEST_METHOD"] === "DELETE") {
             );
         }
 
+        [$eventTitle, $eventClientId] = eventContent($pdo, $id);
+
         /*
         | Delete database row
         */
@@ -1223,6 +1235,8 @@ if ($_SERVER["REQUEST_METHOD"] === "DELETE") {
         ");
 
         $stmt->execute([$id]);
+
+        logEvent($pdo, EVENT_CONTENT_DELETED, "content", $id, $eventTitle, "Deleted post \"" . $eventTitle . "\"", $eventClientId);
 
         $stmt = $pdo->prepare("
             DELETE FROM content_assignees

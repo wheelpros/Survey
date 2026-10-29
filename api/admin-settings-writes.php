@@ -18,6 +18,7 @@
 
 require_once __DIR__ . "/db.php";
 require_once __DIR__ . "/mailer.php";
+require_once __DIR__ . "/events.php";
 
 // The roles an owner hands out. `owner` is not one of them: it is never given
 // from a dropdown, and an owner row is never demoted (see admin-role.php).
@@ -93,6 +94,8 @@ function saveWebsiteAddress(PDO $pdo, $website)
             ? "Could not save the website address"
             : "Could not save the website address: " . $error, 500);
     }
+
+    logEvent($pdo, EVENT_SETTINGS_CHANGED, "settings", 0, "Website address", "Changed the website address to " . $website);
 }
 
 /*
@@ -127,6 +130,9 @@ function fetchSiteLogo($url)
         }
 
         @chmod(siteLogoPath(), 0644);
+
+        global $pdo;
+        logEvent($pdo, EVENT_SETTINGS_CHANGED, "settings", 0, "Logo", "Replaced the portal logo");
     } finally {
         if (is_file($tmp)) {
             @unlink($tmp);
@@ -300,6 +306,8 @@ function addLoginSlide(PDO $pdo, $imagePath, $title, $subtitle, $adminId)
         ]);
 
         $id = (int) $pdo->lastInsertId();
+        logEvent($pdo, EVENT_SETTINGS_CHANGED, "login_slide", $id, $title,
+            "Added a login page slide" . ($title !== "" ? " \"$title\"" : ""));
         $pdo->commit();
 
         return ["id" => $id, "image_path" => $imagePath, "position" => $position];
@@ -323,6 +331,8 @@ function updateLoginSlideText(PDO $pdo, $id, $title, $subtitle)
         $subtitle !== "" ? $subtitle : null,
         (int) $id,
     ]);
+
+    logEvent($pdo, EVENT_SETTINGS_CHANGED, "login_slide", $id, $title, "Edited the text of a login page slide");
 }
 
 /**
@@ -382,6 +392,7 @@ function reorderLoginSlides(PDO $pdo, array $ids)
             $stmt->execute([$index, $id]);
         }
 
+        logEvent($pdo, EVENT_SETTINGS_CHANGED, "login_slide", 0, "", "Reordered the login page slides");
         $pdo->commit();
 
     } catch (Throwable $e) {
@@ -417,6 +428,7 @@ function removeLoginSlide(PDO $pdo, $id)
             $update->execute([$index, (int) $remainingId]);
         }
 
+        logEvent($pdo, EVENT_SETTINGS_CHANGED, "login_slide", $id, "", "Removed a login page slide");
         $pdo->commit();
 
     } catch (Throwable $e) {
@@ -515,6 +527,10 @@ function setAdminAvatar(PDO $pdo, $adminId, $avatar)
     $pdo->prepare("UPDATE admins SET avatar_path = ? WHERE id = ?")
         ->execute([$avatar !== "" ? $avatar : null, (int) $adminId]);
 
+    $name = eventAdminName($pdo, $adminId);
+    logEvent($pdo, EVENT_ADMIN_UPDATED, "admin", $adminId, $name,
+        ($avatar !== "" ? "Changed the photo of " : "Removed the photo of ") . $name);
+
     return $old;
 }
 
@@ -567,6 +583,8 @@ function updateOwnProfile(PDO $pdo, $adminId, $name, $position)
 
     $pdo->prepare("UPDATE admins SET name = ?, position = ? WHERE id = ?")
         ->execute([$name, $position, (int) $adminId]);
+
+    logEvent($pdo, EVENT_ADMIN_UPDATED, "admin", $adminId, $name, "Updated their own name and position");
 }
 
 /** Every admin but the owner, with who manages them - the Available Admins panel. */
@@ -613,8 +631,13 @@ function checkAdminRoleChange(PDO $pdo, array $owner, $targetId, $newRole)
  */
 function changeAdminRole(PDO $pdo, $targetId, $newRole)
 {
+    $target = findAdminRow($pdo, $targetId);
+
     $pdo->prepare("UPDATE admins SET role = ?, session_token = NULL WHERE id = ?")
         ->execute([$newRole, (int) $targetId]);
+
+    logEvent($pdo, EVENT_ADMIN_ROLE, "admin", $targetId, $target["name"],
+        "Changed " . $target["name"] . "'s role from " . adminRoleName($target["role"]) . " to " . adminRoleName($newRole));
 }
 
 /**
@@ -634,6 +657,9 @@ function checkAdminActiveChange(PDO $pdo, array $owner, $targetId)
 function setAdminActive(PDO $pdo, $targetId, $active)
 {
     $pdo->prepare("UPDATE admins SET active = ? WHERE id = ?")->execute([$active ? 1 : 0, (int) $targetId]);
+
+    $name = eventAdminName($pdo, $targetId);
+    logEvent($pdo, EVENT_ADMIN_ACTIVE, "admin", $targetId, $name, ($active ? "Reactivated " : "Deactivated ") . $name);
 }
 
 /**
@@ -687,6 +713,14 @@ function assignAdminsToManager(PDO $pdo, $managerId, array $adminIds, array $all
                 WHERE id IN ($placeholders) AND role IN ($rolePlaceholders)
             ")->execute(array_merge([(int) $managerId], $adminIds, $allowedRoles));
         }
+
+        $manager = eventAdminName($pdo, $managerId);
+        $names = array_map(function ($id) use ($pdo) {
+            return eventAdminName($pdo, $id);
+        }, $adminIds);
+        logEvent($pdo, EVENT_ADMIN_MANAGER, "admin", $managerId, $manager, $names
+            ? "Set the admins under " . $manager . ": " . implode(", ", $names)
+            : "Removed every admin from under " . $manager);
 
         $pdo->commit();
 
@@ -758,7 +792,10 @@ function createAdmin(PDO $pdo, $name, $email, $role, $password = null, $position
     $pdo->prepare("INSERT INTO admins (name, email, password, role, active, position, avatar_path) VALUES (?, ?, ?, ?, 1, ?, ?)")
         ->execute([$name, $email, $hash, $role, $position, $avatar]);
 
-    return (int) $pdo->lastInsertId();
+    $id = (int) $pdo->lastInsertId();
+    logEvent($pdo, EVENT_ADMIN_CREATED, "admin", $id, $name, "Added " . $name . " (" . $email . ") as " . adminRoleName($role));
+
+    return $id;
 }
 
 /**
@@ -822,6 +859,17 @@ function updateAdmin(PDO $pdo, array $target, array $clean)
     $pdo->prepare("UPDATE admins SET name = ?, email = ?, position = ? WHERE id = ?")
         ->execute([$clean["name"], $clean["email"], $clean["position"], (int) $target["id"]]);
 
+    $changed = [];
+    foreach (["name", "email", "position"] as $field) {
+        if ((string) ($target[$field] ?? "") !== (string) $clean[$field]) {
+            $changed[] = $field;
+        }
+    }
+    if ($changed) {
+        logEvent($pdo, EVENT_ADMIN_UPDATED, "admin", $target["id"], $clean["name"],
+            "Edited " . $target["name"] . "'s " . implode(", ", $changed));
+    }
+
     if ($clean["role"] === $target["role"]) {
         return false;
     }
@@ -836,8 +884,12 @@ function setAdminPosition(PDO $pdo, $adminId, $position)
 {
     ensureAdminColumns($pdo);
 
+    $position = checkAdminPosition($position);
     $pdo->prepare("UPDATE admins SET position = ? WHERE id = ?")
-        ->execute([checkAdminPosition($position), (int) $adminId]);
+        ->execute([$position, (int) $adminId]);
+
+    $name = eventAdminName($pdo, $adminId);
+    logEvent($pdo, EVENT_ADMIN_POSITION, "admin", $adminId, $name, "Set " . $name . "'s position to " . $position);
 }
 
 /**

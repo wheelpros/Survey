@@ -1,6 +1,7 @@
 <?php
 require_once "db.php";
 require_once "sources-lock.php";
+require_once "events.php";
 header("Content-Type: application/json");
 
 $headers = getallheaders();
@@ -54,6 +55,8 @@ if($method === "POST"){
     VALUES (?,?)
   ");
   $stmt->execute([$admin["id"], $title]);
+
+  logEvent($pdo, EVENT_SOURCE_CHANGED, "source_folder", $pdo->lastInsertId(), $title, "Created source folder \"" . $title . "\"");
 
   echo json_encode(["success"=>true,"message"=>"Folder created"]);
   exit;

@@ -11,6 +11,7 @@
 */
 
 require_once __DIR__ . "/db.php";
+require_once __DIR__ . "/events.php";
 
 /*
 | The readable half of a public link. A title becomes the `name` in
@@ -202,6 +203,8 @@ function createInquiry(PDO $pdo, array $actor, $title, $introText, array $fields
 
         writeFields($pdo, $inquiryId, $fields);
 
+        logEvent($pdo, EVENT_INQUIRY_CREATED, "inquiry", $inquiryId, $title, "Created inquiry \"" . $title . "\"");
+
         $pdo->commit();
     } catch (Exception $e) {
         $pdo->rollBack();
@@ -220,6 +223,12 @@ function saveInquirySettings(PDO $pdo, $inquiryId, $status, $managerId, $referen
         SET status = ?, account_manager_admin_id = ?, reference = ?
         WHERE id = ?
     ")->execute([normaliseStatus($status), $managerId, normaliseReference($reference), (int) $inquiryId]);
+
+    $stmt = $pdo->prepare("SELECT title FROM inquiries WHERE id = ?");
+    $stmt->execute([(int) $inquiryId]);
+    $title = (string) $stmt->fetchColumn();
+    logEvent($pdo, EVENT_INQUIRY_UPDATED, "inquiry", $inquiryId, $title,
+        "Changed the status, account manager or reference of inquiry \"" . $title . "\"");
 }
 
 /**
@@ -277,6 +286,8 @@ function updateInquiry(PDO $pdo, $inquiryId, $title, $introText, array $fields, 
         $pdo->prepare("DELETE FROM inquiry_fields WHERE inquiry_id = ?")->execute([$inquiryId]);
 
         writeFields($pdo, $inquiryId, $fields);
+
+        logEvent($pdo, EVENT_INQUIRY_UPDATED, "inquiry", $inquiryId, $title, "Edited inquiry \"" . $title . "\"");
 
         $pdo->commit();
     } catch (Exception $e) {

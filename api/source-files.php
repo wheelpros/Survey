@@ -1,6 +1,7 @@
 <?php
 require_once "db.php";
 require_once "sources-lock.php";
+require_once "events.php";
 header("Content-Type: application/json");
 
 $headers = getallheaders();
@@ -153,6 +154,9 @@ if($method === "POST"){
             ]);
         }
 
+        logEvent($pdo, EVENT_SOURCE_CHANGED, "source_file", $fileId, $name,
+            "Uploaded \"" . $name . "\"" . ($userId > 0 ? " for " . eventClientName($pdo, $userId) : ""), $userId);
+
     } // end move_uploaded_file
 
 } // end foreach
@@ -167,7 +171,7 @@ if($method === "DELETE"){
   $fileId = (int)($_GET["id"] ?? 0);
 
   $stmt = $pdo->prepare("
-    SELECT file_path FROM source_files
+    SELECT file_path, original_name FROM source_files
     WHERE id=? AND admin_id=?
   ");
   $stmt->execute([$fileId, $admin["id"]]);
@@ -187,6 +191,9 @@ if($method === "DELETE"){
     WHERE id=? AND admin_id=?
   ");
   $del->execute([$fileId, $admin["id"]]);
+
+  logEvent($pdo, EVENT_SOURCE_CHANGED, "source_file", $fileId, $file["original_name"],
+    "Deleted source file \"" . $file["original_name"] . "\"");
 
   echo json_encode(["success"=>true,"message"=>"File deleted"]);
   exit;

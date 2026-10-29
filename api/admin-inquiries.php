@@ -240,6 +240,10 @@ if ($method === "DELETE") {
         exit;
     }
 
+    $stmt = $pdo->prepare("SELECT title FROM inquiries WHERE id = ?");
+    $stmt->execute([$inquiryId]);
+    $eventTitle = (string) $stmt->fetchColumn();
+
     // No foreign keys on these tables, so the children go by hand, deepest
     // first - the same thing api/projects.php does for its tasks and members.
     $pdo->beginTransaction();
@@ -262,6 +266,9 @@ if ($method === "DELETE") {
             echo json_encode(["success" => false, "message" => "Inquiry not found"]);
             exit;
         }
+
+        logEvent($pdo, EVENT_INQUIRY_DELETED, "inquiry", $inquiryId, $eventTitle,
+            "Deleted inquiry \"" . $eventTitle . "\" and its answers");
 
         $pdo->commit();
         echo json_encode(["success" => true, "message" => "Inquiry deleted"]);
