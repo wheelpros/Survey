@@ -155,6 +155,12 @@ body{padding:0}
 .create-btn:hover{background:#282c52}
 .create-btn:disabled{opacity:.45;cursor:not-allowed}
 .create-btn svg{width:16px;height:16px}
+.head-actions{flex:none;display:flex;gap:10px;align-items:center}
+.sound-btn{width:40px;height:40px;border:1px solid #dfe3ea;background:#fff;border-radius:10px;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.sound-btn:hover{background:#f6f7f9;color:var(--text)}
+.sound-btn svg{width:18px;height:18px}
+.sound-btn .off,.sound-btn[aria-pressed="true"] .on{display:none}
+.sound-btn[aria-pressed="true"] .off{display:block}
 
 .chat{display:grid;grid-template-columns:320px minmax(0,1fr);background:#fff;border-radius:20px;box-shadow:0 14px 35px rgba(0,0,0,.06);overflow:hidden;height:calc(100vh - 190px);min-height:460px}
 
@@ -217,9 +223,12 @@ body{padding:0}
 .picker-head{display:flex;justify-content:space-between;align-items:center;padding:18px 20px;border-bottom:1px solid #eef1f5}
 .picker-head h2{font-size:18px}
 .picker-close{border:1px solid #dfe3ea;background:#fff;width:34px;height:34px;border-radius:50%;font-size:20px;line-height:1;cursor:pointer;color:var(--muted)}
-.picker-list{overflow-y:auto}
+.picker-search{padding:12px 20px;border-bottom:1px solid #eef1f5}
+.picker-search input{width:100%;height:38px;border:1px solid #dfe3ea;border-radius:9px;padding:0 12px;font:inherit;font-size:13px}
+.picker-search input:focus{outline:2px solid var(--nav-active);outline-offset:1px}
+.picker-list{overflow-y:auto;max-height:min(360px,55vh)}
 .person{display:flex;gap:12px;align-items:center;width:100%;padding:12px 20px;border:0;border-bottom:1px solid #f2f4f7;background:#fff;text-align:left;font:inherit;cursor:pointer;color:inherit}
-.person:hover{background:#fafbfc}
+.person:hover,.person.current{background:#f3f4fb}
 .person strong{display:block;font-size:14px}
 .person span{font-size:12px;color:var(--muted)}
 
@@ -370,10 +379,16 @@ document.addEventListener("DOMContentLoaded", function () {
         <h1>Messages</h1>
         <p>Private chats with your team. Only the two people in a chat can read it.</p>
       </div>
-      <button class="create-btn" type="button" onclick="openPicker()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        New message
-      </button>
+      <div class="head-actions">
+        <button class="sound-btn" type="button" id="soundBtn" onclick="toggleSound()" aria-pressed="false" title="Mute the new message sound" aria-label="Mute the new message sound">
+          <svg class="on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>
+          <svg class="off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/></svg>
+        </button>
+        <button class="create-btn" type="button" id="newMessageBtn" onclick="openPicker()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New message
+        </button>
+      </div>
     </div>
 
     <div class="chat" id="chat">
@@ -397,13 +412,18 @@ document.addEventListener("DOMContentLoaded", function () {
   </div>
 </div>
 
-<div class="picker" id="picker" onclick="if(event.target===this)closePicker()">
+<div class="picker" id="picker" onclick="if(event.target===this)closePicker(true)">
   <div class="picker-box" role="dialog" aria-modal="true" aria-labelledby="pickerTitle">
     <div class="picker-head">
       <h2 id="pickerTitle">New message</h2>
-      <button class="picker-close" type="button" onclick="closePicker()" aria-label="Close">&times;</button>
+      <button class="picker-close" type="button" onclick="closePicker(true)" aria-label="Close">&times;</button>
     </div>
-    <div class="picker-list" id="pickerList"></div>
+    <div class="picker-search">
+      <input type="search" id="pickerSearch" placeholder="Search by name or role" autocomplete="off"
+             role="combobox" aria-expanded="true" aria-controls="pickerList" aria-autocomplete="list" aria-label="Search people"
+             oninput="pickerIndex = 0; renderPicker()" onkeydown="onPickerKey(event)">
+    </div>
+    <div class="picker-list" id="pickerList" role="listbox" aria-label="People"></div>
   </div>
 </div>
 
@@ -443,6 +463,7 @@ function logoutAdmin(){
    tab is visible. The open chat lives in the URL (?with=<admin id>). */
 
 const POLL_MS = 5000;
+const LIST_POLL_MS = 15000;
 const MAX_CHARS = 2000;
 const ROLE_LABELS = { owner: "Director", super_admin: "Super Admin", account_manager: "Account Manager", seo_admin: "Admin" };
 
@@ -521,17 +542,24 @@ function paintBadge(){
 /* ── The list ── */
 
 async function loadList(){
+  let fresh;
   try{
     const data = await api({ action: "list" });
     if(!data.success) throw new Error(data.message);
-    conversations = data.conversations || [];
+    fresh = data.conversations || [];
   }catch(err){
     if(!conversations.length){
       document.getElementById("convoList").innerHTML = `<div class="list-empty">Could not load your chats. Reload the page to try again.</div>`;
     }
     return;
   }
-  renderList();
+  noticeIncoming(fresh.filter(c => c.last && !c.last.mine).map(c => c.last.id), true);
+
+  // The list is re-fetched in the background, so leave the rows alone
+  // (and any focus on them) when nothing has changed.
+  const changed = JSON.stringify(fresh) !== JSON.stringify(conversations);
+  conversations = fresh;
+  if(changed || !document.querySelector("#convoList .convo")) renderList();
   paintBadge();
 }
 
@@ -578,6 +606,7 @@ async function openChat(adminId){
   openWith = data.with;
   messages = data.messages;
   hasOlder = data.has_older;
+  noticeIncoming(messages.filter(m => !m.mine).map(m => m.id), false);
   history.replaceState(null, "", "?with=" + adminId);
   document.getElementById("chat").classList.add("open");
 
@@ -767,6 +796,7 @@ async function poll(){
     if(!data.success) return;
 
     const theirs = data.messages.filter(m => !m.mine && !messages.some(x => x.id === m.id));
+    noticeIncoming(theirs.map(m => m.id), true);
     if(!messages.length && data.messages.length){
       messages = [];
       document.getElementById("messages").innerHTML = "";
@@ -799,34 +829,190 @@ document.addEventListener("visibilitychange", () => {
   }
 });
 
+// The list is checked even in a background tab, so a message in any chat -
+// not only the open one - still brings a sound. Browsers slow this timer
+// down in hidden tabs, which is fine for a chime.
+setInterval(loadList, LIST_POLL_MS);
+
+/* ── A sound for new messages ───────────────────────────────────────────────
+   A short two-note tone made with the Web Audio API, so there is no file to
+   ship. Only for messages from the other person, and only ones that arrive
+   after the page has loaded: the first look at the list and every chat
+   opened just sets the mark (heardUpTo), nothing rings for it.
+
+   Browsers only let a page make sound after someone has clicked or typed on
+   it, so the audio is switched on at the first click or key press; until
+   then, or with no Web Audio at all, the chime is silently skipped. Muting
+   is remembered in this browser. */
+
+const SOUND_KEY = "wz_msg_sound_muted";
+const HEARD_KEY = "wz_msg_heard_id";    // shared by every open Messages tab
+
+let audio = null;
+let heardUpTo = null;     // the newest incoming message id accounted for; null until the first load
+
+function soundMuted(){
+  try{ return localStorage.getItem(SOUND_KEY) === "1"; }catch(e){ return false; }
+}
+
+function paintSoundBtn(){
+  const btn = document.getElementById("soundBtn");
+  const muted = soundMuted();
+  const label = muted ? "Turn on the new message sound" : "Mute the new message sound";
+  btn.setAttribute("aria-pressed", String(muted));
+  btn.title = label;
+  btn.setAttribute("aria-label", label);
+}
+
+function toggleSound(){
+  const muted = !soundMuted();
+  try{ localStorage.setItem(SOUND_KEY, muted ? "1" : "0"); }catch(e){}
+  paintSoundBtn();
+}
+
+function unlockAudio(){
+  if(!audio){
+    const Context = window.AudioContext || window.webkitAudioContext;
+    if(!Context) return;
+    try{ audio = new Context(); }catch(e){ return; }
+  }
+  if(audio.state === "suspended") audio.resume().catch(() => {});
+}
+document.addEventListener("pointerdown", unlockAudio, true);
+document.addEventListener("keydown", unlockAudio, true);
+
+function chime(){
+  if(soundMuted() || !audio || audio.state !== "running") return;
+  try{
+    const now = audio.currentTime;
+    [[880, 0], [1320, 0.1]].forEach(([frequency, at]) => {
+      const tone = audio.createOscillator();
+      const volume = audio.createGain();
+      tone.type = "sine";
+      tone.frequency.value = frequency;
+      volume.gain.setValueAtTime(0.0001, now + at);
+      volume.gain.exponentialRampToValueAtTime(0.06, now + at + 0.015);
+      volume.gain.exponentialRampToValueAtTime(0.0001, now + at + 0.22);
+      tone.connect(volume).connect(audio.destination);
+      tone.start(now + at);
+      tone.stop(now + at + 0.25);
+    });
+  }catch(e){
+    // No sound is the right failure.
+  }
+}
+
+/* ids: incoming message ids just seen. ring=false only moves the mark. */
+function noticeIncoming(ids, ring){
+  const newest = ids.length ? Math.max(...ids) : 0;
+  if(ring && heardUpTo !== null && newest > heardUpTo){
+    // With the page open in two tabs, only the first to see it rings.
+    let shared = 0;
+    try{ shared = Number(localStorage.getItem(HEARD_KEY)) || 0; }catch(e){}
+    if(newest > shared){
+      try{ localStorage.setItem(HEARD_KEY, String(newest)); }catch(e){}
+      chime();
+    }
+  }
+  heardUpTo = Math.max(heardUpTo || 0, newest);
+}
+
+paintSoundBtn();
+
 /* ── Starting a chat ── */
+
+/* The search box keeps focus the whole time: typing filters by name, role
+   or position, the arrow keys move the highlight, Enter opens that chat. */
+
+let people = null;        // the team, once loaded
+let pickerMatches = [];   // what the search currently shows
+let pickerIndex = 0;      // the highlighted row in pickerMatches
 
 async function openPicker(){
   const picker = document.getElementById("picker");
-  const list = document.getElementById("pickerList");
+  const search = document.getElementById("pickerSearch");
   picker.classList.add("show");
-  list.innerHTML = `<div class="list-empty">Loading the team...</div>`;
+  search.value = "";
+  pickerIndex = 0;
+  search.focus();
 
-  const data = await api({ action: "people" }).catch(() => null);
-  if(!data || !data.success){
-    list.innerHTML = `<div class="list-empty">Could not load the team.</div>`;
-    return;
+  if(!people){
+    document.getElementById("pickerList").innerHTML = `<div class="list-empty">Loading the team...</div>`;
+    const data = await api({ action: "people" }).catch(() => null);
+    if(!data || !data.success){
+      document.getElementById("pickerList").innerHTML = `<div class="list-empty">Could not load the team.</div>`;
+      return;
+    }
+    people = data.people;
   }
-  list.innerHTML = data.people.length
-    ? data.people.map(p => `
-        <button type="button" class="person" onclick="openChat(${p.id})">
-          ${avatar(p, true)}
-          <span><strong>${esc(p.name)}</strong><span>${esc(subtitle(p))}</span></span>
-        </button>`).join("")
-    : `<div class="list-empty">There is nobody else on the team yet.</div>`;
+  renderPicker();
 }
 
-function closePicker(){
-  document.getElementById("picker").classList.remove("show");
+function renderPicker(){
+  const list = document.getElementById("pickerList");
+  const search = document.getElementById("pickerSearch");
+  if(!people) return;
+
+  const q = search.value.trim().toLowerCase();
+  pickerMatches = people.filter(p => !q || [p.name, p.position, ROLE_LABELS[p.role]]
+    .some(field => (field || "").toLowerCase().includes(q)));
+  pickerIndex = Math.max(0, Math.min(pickerIndex, pickerMatches.length - 1));
+
+  if(!people.length){
+    list.innerHTML = `<div class="list-empty">There is nobody else on the team yet.</div>`;
+  }else if(!pickerMatches.length){
+    list.innerHTML = `<div class="list-empty">No one matches "${esc(search.value.trim())}".</div>`;
+  }else{
+    list.innerHTML = pickerMatches.map((p, i) => `
+      <button type="button" class="person${i === pickerIndex ? " current" : ""}" id="person-${p.id}" role="option"
+              aria-selected="${i === pickerIndex}" tabindex="-1"
+              onclick="openChat(${p.id})" onmousemove="highlightPerson(${i})">
+        ${avatar(p, true)}
+        <span><strong>${esc(p.name)}</strong><span>${esc(subtitle(p))}</span></span>
+      </button>`).join("");
+  }
+
+  const current = pickerMatches[pickerIndex];
+  if(current) search.setAttribute("aria-activedescendant", "person-" + current.id);
+  else search.removeAttribute("aria-activedescendant");
+}
+
+function highlightPerson(index){
+  if(index === pickerIndex) return;
+  pickerIndex = index;
+  document.querySelectorAll("#pickerList .person").forEach((row, i) => {
+    row.classList.toggle("current", i === index);
+    row.setAttribute("aria-selected", String(i === index));
+  });
+  const current = pickerMatches[index];
+  if(current) document.getElementById("pickerSearch").setAttribute("aria-activedescendant", "person-" + current.id);
+}
+
+function onPickerKey(event){
+  if(!pickerMatches.length) return;
+  if(event.key === "ArrowDown" || event.key === "ArrowUp"){
+    event.preventDefault();
+    const step = event.key === "ArrowDown" ? 1 : -1;
+    highlightPerson((pickerIndex + step + pickerMatches.length) % pickerMatches.length);
+    const row = document.querySelectorAll("#pickerList .person")[pickerIndex];
+    if(row) row.scrollIntoView({ block: "nearest" });
+  }else if(event.key === "Enter" && !event.isComposing){
+    event.preventDefault();
+    openChat(pickerMatches[pickerIndex].id);
+  }
+}
+
+/* restoreFocus: closed by hand (Escape, the cross, the backdrop), so focus
+   goes back to the button. openChat moves focus to the composer itself. */
+function closePicker(restoreFocus){
+  const picker = document.getElementById("picker");
+  if(!picker.classList.contains("show")) return;
+  picker.classList.remove("show");
+  if(restoreFocus) document.getElementById("newMessageBtn").focus();
 }
 
 document.addEventListener("keydown", event => {
-  if(event.key === "Escape") closePicker();
+  if(event.key === "Escape") closePicker(true);
 });
 
 (async function start(){

@@ -20,8 +20,9 @@
 | only: clients and AI tokens are refused, and nothing here is logged to the
 | event log or the notifications inbox.
 |
-| The page polls ?action=thread&after= every few seconds while it is open -
-| there are no websockets or background workers on this host.
+| The page polls ?action=thread&after= every few seconds while it is open, and
+| ?action=list a little less often (to chime for new messages) - there are no
+| websockets or background workers on this host.
 |
 | Tables: ensureAdminMessageTables() in db.php, sql/admin_messages.sql.
 |
@@ -190,6 +191,8 @@ if ($action === "list") {
             "with"     => otherAdmin($pdo, $c["other_id"]),
             "unread"   => (int) $c["unread"],
             "last"     => $c["last_body"] === null ? null : [
+                // The page compares ids to tell a new message from one it has seen.
+                "id"      => (int) $c["last_message_id"],
                 "mine"    => (int) $c["last_sender_id"] === $me,
                 "preview" => mb_strlen($body) > 120 ? mb_substr($body, 0, 119) . "…" : $body,
                 "created_ts" => (int) $c["last_ts"],

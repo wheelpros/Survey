@@ -85,7 +85,8 @@ check("messages: your own messages are never unread", ($r["unread"] ?? null) ===
 [, $r] = msgGet("action=list", $am);
 $c = $r["conversations"][0] ?? [];
 check("messages: the list shows the chat", count($r["conversations"]) === 1 && $c["with"]["name"] === "Sam"
-    && $c["unread"] === 2 && $c["last"]["preview"] === "And another" && $c["last"]["mine"] === false, json_encode($r));
+    && $c["unread"] === 2 && $c["last"]["preview"] === "And another" && $c["last"]["mine"] === false
+    && is_int($c["last"]["id"]) && $c["last"]["id"] > 0, json_encode($r));
 
 [$status] = msgPost($am, ["action" => "read", "with" => 2]);
 [, $r] = msgGet("action=count", $am);
