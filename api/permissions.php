@@ -28,8 +28,9 @@
 
 require_once __DIR__ . "/db.php";
 
-/* The roles the Director can set permissions for, in the order Settings shows them. */
-const PERMISSION_ROLES = ["super_admin", "account_manager", "seo_admin"];
+/* The roles the Director can set permissions for, in the order Settings shows them:
+   Admin, Super Admin, Account Manager. */
+const PERMISSION_ROLES = ["seo_admin", "super_admin", "account_manager"];
 
 const PERMISSION_AREAS = [
     "clients"   => "Clients",

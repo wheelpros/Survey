@@ -1317,6 +1317,14 @@ select.client-filter{
 .panel-body .perm-select{width:auto;min-width:150px;margin:0;padding:8px 10px;font-size:13px}
 .panel-body .perm-select.is-set{border-color:var(--nav-active);font-weight:700}
 .perm-empty{color:var(--muted);text-align:center;padding:24px}
+.perm-combo{position:relative;max-width:440px}
+.panel-body .perm-combo input[type="text"]{padding-right:40px}
+.perm-combo-icon{position:absolute;right:14px;top:17px;width:16px;height:16px;color:var(--muted);pointer-events:none}
+.perm-combo-list{position:absolute;z-index:20;left:0;right:0;top:calc(100% - 10px);max-height:240px;overflow-y:auto;margin:0;padding:6px;list-style:none;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 28px rgba(16,24,40,.12)}
+.perm-combo-list li{padding:10px 12px;border-radius:8px;font-size:14px;color:var(--text);cursor:pointer}
+.perm-combo-list li.is-active{background:#f2f4f7}
+.perm-combo-list li[aria-selected="true"]{font-weight:700}
+.perm-combo-list .perm-combo-empty{color:var(--muted);cursor:default}
 .perm-foot{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:20px;flex-wrap:wrap}
 .perm-foot .status{margin:0 auto 0 0}
 .perm-save{padding:12px 18px;font-size:13px}
@@ -1824,8 +1832,15 @@ document.addEventListener("DOMContentLoaded", function () {
     </div>
 
     <div id="permPeople" role="tabpanel" aria-labelledby="permTabPeople" hidden>
-      <label for="permAdminSelect">Person</label>
-      <select id="permAdminSelect" onchange="renderPermPerson()"></select>
+      <label for="permAdminSearch">Person</label>
+      <div class="perm-combo">
+        <input type="text" id="permAdminSearch" role="combobox" aria-expanded="false" aria-controls="permAdminList"
+               aria-autocomplete="list" autocomplete="off" placeholder="Search by name or role"
+               onfocus="openPermPeople()" oninput="openPermPeople()" onkeydown="permComboKey(event)" onblur="closePermPeople()">
+        <svg class="perm-combo-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <input type="hidden" id="permAdminSelect">
+        <ul id="permAdminList" class="perm-combo-list" role="listbox" aria-label="People" hidden onmousedown="event.preventDefault()"></ul>
+      </div>
       <div class="perm-scroll">
         <table class="perm-table" id="permPersonTable"><tbody></tbody></table>
       </div>
@@ -1975,16 +1990,95 @@ function resetPermRole(role){
   });
 }
 
+/*
+| The person picker: a search box over a list that scrolls past a few rows,
+| so a big team stays one short control. The chosen id lives in the hidden
+| #permAdminSelect; the box shows that person's name whenever it is closed.
+*/
+let permComboActive = -1;
+
+function permPersonLabel(a){
+  const n = Object.keys(a.overrides).length;
+  return `${a.name} - ${a.role_name}${a.active ? "" : " (deactivated)"}${n ? ` - ${n} exception${n > 1 ? "s" : ""}` : ""}`;
+}
+
 function renderPermAdminSelect(){
-  const select = document.getElementById("permAdminSelect");
-  const keep = select.value;
-  select.innerHTML = permData.admins.length
-    ? permData.admins.map(a => {
-        const n = Object.keys(a.overrides).length;
-        return `<option value="${a.id}">${permEsc(a.name)} - ${permEsc(a.role_name)}${a.active ? "" : " (deactivated)"}${n ? ` - ${n} exception${n > 1 ? "s" : ""}` : ""}</option>`;
-      }).join("")
-    : `<option value="">No admins yet</option>`;
-  if (keep && permData.admins.some(a => String(a.id) === keep)) select.value = keep;
+  const hidden = document.getElementById("permAdminSelect");
+  if (!permData.admins.some(a => String(a.id) === hidden.value)) {
+    hidden.value = permData.admins.length ? String(permData.admins[0].id) : "";
+  }
+  const chosen = permData.admins.find(a => String(a.id) === hidden.value);
+  const box = document.getElementById("permAdminSearch");
+  box.value = chosen ? permPersonLabel(chosen) : "";
+  box.placeholder = permData.admins.length ? "Search by name or role" : "No admins yet";
+}
+
+function permPeopleMatches(){
+  const box = document.getElementById("permAdminSearch");
+  const chosen = permData.admins.find(a => String(a.id) === document.getElementById("permAdminSelect").value);
+  // The box still showing the chosen person's label means "not searching yet".
+  const q = chosen && box.value === permPersonLabel(chosen) ? "" : box.value.trim().toLowerCase();
+  return permData.admins.filter(a => !q || (a.name + " " + a.role_name).toLowerCase().includes(q));
+}
+
+function openPermPeople(){
+  if (!permData) return;
+  const list = document.getElementById("permAdminList");
+  const matches = permPeopleMatches();
+  const current = document.getElementById("permAdminSelect").value;
+  permComboActive = Math.max(0, matches.findIndex(a => String(a.id) === current));
+  list.innerHTML = matches.length
+    ? matches.map((a, i) => `<li role="option" id="permOpt${a.id}" aria-selected="${String(a.id) === current}"
+          class="${i === permComboActive ? "is-active" : ""}" onclick="pickPermPerson(${a.id})">${permEsc(permPersonLabel(a))}</li>`).join("")
+    : `<li class="perm-combo-empty">No one matches</li>`;
+  list.hidden = false;
+  document.getElementById("permAdminSearch").setAttribute("aria-expanded", "true");
+  syncPermComboActive();
+}
+
+function closePermPeople(){
+  document.getElementById("permAdminList").hidden = true;
+  document.getElementById("permAdminSearch").setAttribute("aria-expanded", "false");
+  document.getElementById("permAdminSearch").removeAttribute("aria-activedescendant");
+  renderPermAdminSelect();
+}
+
+function pickPermPerson(id){
+  document.getElementById("permAdminSelect").value = String(id);
+  closePermPeople();
+  renderPermPerson();
+}
+
+function syncPermComboActive(){
+  const options = [...document.querySelectorAll("#permAdminList [role=option]")];
+  options.forEach((li, i) => li.classList.toggle("is-active", i === permComboActive));
+  const active = options[permComboActive];
+  const box = document.getElementById("permAdminSearch");
+  if (active) {
+    box.setAttribute("aria-activedescendant", active.id);
+    active.scrollIntoView({ block: "nearest" });
+  } else {
+    box.removeAttribute("aria-activedescendant");
+  }
+}
+
+function permComboKey(e){
+  const list = document.getElementById("permAdminList");
+  const matches = permPeopleMatches();
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    e.preventDefault();
+    if (list.hidden) { openPermPeople(); return; }
+    const step = e.key === "ArrowDown" ? 1 : -1;
+    permComboActive = Math.min(matches.length - 1, Math.max(0, permComboActive + step));
+    syncPermComboActive();
+  } else if (e.key === "Enter") {
+    if (!list.hidden && matches[permComboActive]) {
+      e.preventDefault();
+      pickPermPerson(matches[permComboActive].id);
+    }
+  } else if (e.key === "Escape") {
+    e.target.blur();
+  }
 }
 
 function personValue(admin, key){

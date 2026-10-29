@@ -1038,6 +1038,17 @@ function permissionsOverview(PDO $pdo)
                 "overrides" => (object) ($overrides[(int) $a["id"]] ?? []),
                 "permissions" => effectivePermissions($a, $pdo),
             ];
-        }, listTeamAdmins($pdo)),
+        }, permissionPeopleInOrder(listTeamAdmins($pdo))),
     ];
+}
+
+/* The person picker's order: by role as the columns run (Admin, Super Admin,
+   Account Manager), then by name. */
+function permissionPeopleInOrder(array $admins)
+{
+    usort($admins, function ($a, $b) {
+        $byRole = array_search($a["role"], PERMISSION_ROLES, true) <=> array_search($b["role"], PERMISSION_ROLES, true);
+        return $byRole ?: strcasecmp($a["name"], $b["name"]);
+    });
+    return $admins;
 }
