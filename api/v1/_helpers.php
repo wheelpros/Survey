@@ -275,7 +275,7 @@ function v1ClientRef($id, $name, $company, $email = null)
 */
 function v1SeesAllForms(array $p)
 {
-    return in_array($p["role"], ["owner", "account_manager"], true);
+    return can($p, "forms.review");
 }
 
 /*

@@ -34,7 +34,7 @@ const SURVEY_QUESTION_TYPES = ["input", "textarea", "file", "checkbox"];
 */
 function isSurveyReviewer(array $actor)
 {
-    return in_array($actor["role"] ?? "", ["account_manager", "owner"], true);
+    return can($actor, "forms.review");
 }
 
 /* The form builder sends a question's options as "a, b, c"; api/v1 as a list. */
@@ -60,7 +60,7 @@ function prepareChips($chips)
 // actually assigned to their own admin_id - same boundary as the users list.
 function isUserInScope($pdo, $role, $adminId, $userId)
 {
-    if ($role === "owner") {
+    if (can(["role" => $role, "id" => $adminId], "clients.view_all", $pdo)) {
         return true;
     }
 

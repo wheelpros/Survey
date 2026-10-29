@@ -48,7 +48,7 @@ if ($method === "POST") {
 
     // Approving / rejecting a registration is the owner's call only. Every
     // other role on this page gets a View button and nothing more.
-    if ($role !== "owner") {
+    if (!can($currentAdmin, "clients.approve", $pdo)) {
         echo json_encode([
             "success" => false,
             "message" => "Only the Director can approve or reject users"
@@ -119,7 +119,7 @@ ensureUserProfileColumns($pdo);
 //
 // Everyone except the owner reads from the same assignment table, so the one
 // query below covers all three.
-if ($role === "owner") {
+if (can($currentAdmin, "clients.view_all", $pdo)) {
 
     $stmt = $pdo->query("
         SELECT id, name, email, company_name, approved, created_at

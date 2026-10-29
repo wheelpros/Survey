@@ -50,7 +50,7 @@ if (!$admin) {
     deleteReply(false, "Unauthorized");
 }
 
-if (($admin["role"] ?? "") !== "owner") {
+if (!can($admin, "clients.delete", $pdo)) {
     deleteReply(false, "Only the Director can delete a client account.");
 }
 
