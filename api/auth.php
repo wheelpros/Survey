@@ -18,12 +18,11 @@
 |     "id"     => admins.id | users.id,
 |     "name", "email",
 |     "role"   => admins.role, or "client" for a user,
-|     "inquiries_access" => bool,            // admins only
 |     "company_name"     => string|null,     // users only
 |     "via"    => "session" | "mcp",
-|     "scopes" => [...],    // a session may do whatever its role may; an MCP
-|                           // token only what was consented to AND the role
-|                           // still allows today
+|     "scopes" => [...],    // a session may do whatever its permissions allow;
+|                           // an MCP token only what was consented to AND
+|                           // the permissions still allow today
 |     "grant_id", "client_id", "client_name"  // via mcp only
 |   ]
 |
@@ -33,6 +32,7 @@
 */
 
 require_once __DIR__ . "/oauth/lib.php";
+require_once __DIR__ . "/permissions.php";
 
 // The four admin roles the portal knows (see api/admin-users.php).
 const ADMIN_ROLES = ["owner", "super_admin", "seo_admin", "account_manager"];
@@ -55,71 +55,44 @@ function bearerToken()
 
 /*
 |--------------------------------------------------------------------------
-| Which roles may hold which scope
+| Which permission each scope needs
 |--------------------------------------------------------------------------
 |
-| Exactly the role rules the browser endpoints already enforce - so the
+| A scope is offered to an AI only when its person holds the permission the
+| browser endpoint checks for the same thing (api/permissions.php), so the
 | consent page never offers something the portal would then refuse, and an
-| AI can never be given more than its person has in the browser:
+| AI can never be given more than its person has in the browser. null means
+| any admin; which *records* they see within it is still the endpoint's job,
+| the same way it is in the browser - see assignedClientIds().
 |
-|   clients:read     all       admin-users.php (every role reaches the list)
-|   clients:write    O, AM     admin-user-details.php $canManageNotes
-|   forms:read       all       admin-surveys.php (own forms; reviewers see all)
-|   forms:write      all       admin-surveys.php POST - drafts, scoped to the
-|                              admin's clients, still go through review
-|   forms:review     O, AM     admin-survey-review.php $canReview
-|   inquiries:read   O, AM*    admin-inquiries.php - *with inquiries_access
-|   inquiries:write  O         admin-inquiries.php create / edit / delete
-|   content:read     all       admin-content.php (O, AM see all; SA, seo_admin
-|                              their own posts and the ones assigned to them)
-|   content:write    O, AM, SA admin-content.php canCreateContent() - only they
-|                              create posts, and nothing here publishes
-|   calendar:*       O, SA, AM calendar.php $calendarRoles - closed to seo_admin
-|   projects:*       all       projects.php / project-tasks.php - seo_admin
-|                              only on projects they are a member of, which
-|                              the endpoint checks per project
-|   notifications:*  all       notifications.php
-|   settings:*       O         settings.php, upload-logo.php,
-|                              admin-login-slides.php
-|   admins:write     O         add-user.php, admin-role.php,
-|                              admin-position.php, admin-update.php,
-|                              admin-manager-assignments.php
-|   events:read      O         admin-events.php (the event log)
-|
-| O owner, SA super_admin, AM account_manager. Which *records* a role sees
-| within a scope (assigned clients, own posts, project membership) is the
-| endpoint's job, the same way it is in the browser - see assignedClientIds().
-|
-| When a browser endpoint's role rule changes, change it here too.
+| When the Director changes a permission, every MCP token follows on its
+| next request: scopes are worked out again each time.
 */
-const OWNER_AND_AM = ["owner", "account_manager"];
-const CALENDAR_ROLES = ["owner", "super_admin", "account_manager"];
-
-const SCOPE_ROLES = [
-    "clients:read"        => ADMIN_ROLES,
-    "clients:write"       => OWNER_AND_AM,
-    "forms:read"          => ADMIN_ROLES,
-    "forms:write"         => ADMIN_ROLES,
-    "forms:review"        => OWNER_AND_AM,
-    "inquiries:read"      => OWNER_AND_AM,   // plus inquiries_access for AM, below
-    "inquiries:write"     => ["owner"],
-    "content:read"        => ADMIN_ROLES,
-    "content:write"       => ["owner", "account_manager", "super_admin"],
-    "calendar:read"       => CALENDAR_ROLES,
-    "calendar:write"      => CALENDAR_ROLES,
-    "projects:read"       => ADMIN_ROLES,
-    "projects:write"      => ADMIN_ROLES,
-    "notifications:read"  => ADMIN_ROLES,
-    "notifications:write" => ADMIN_ROLES,
-    "settings:read"       => ["owner"],
-    "settings:write"      => ["owner"],
-    "admins:write"        => ["owner"],
-    "events:read"         => ["owner"],
+const SCOPE_PERMISSIONS = [
+    "clients:read"        => null,
+    "clients:write"       => "clients.edit",
+    "forms:read"          => null,
+    "forms:write"         => null,
+    "forms:review"        => "forms.review",
+    "inquiries:read"      => "inquiries.read",
+    "inquiries:write"     => "inquiries.write",
+    "content:read"        => null,
+    "content:write"       => "content.create",
+    "calendar:read"       => "calendar.use",
+    "calendar:write"      => "calendar.use",
+    "projects:read"       => null,
+    "projects:write"      => null,
+    "notifications:read"  => null,
+    "notifications:write" => null,
+    "settings:read"       => "settings.manage",
+    "settings:write"      => "settings.manage",
+    "admins:write"        => "admins.manage",
+    "events:read"         => "events.view",
 ];
 
 /**
- * The scopes a person's role allows at all - the ceiling for any MCP grant,
- * checked again on every request so a role change takes effect at once.
+ * The scopes a person's permissions allow at all - the ceiling for any MCP
+ * grant, checked again on every request so a change takes effect at once.
  */
 function scopesAllowedFor(PDO $pdo, array $p)
 {
@@ -127,21 +100,16 @@ function scopesAllowedFor(PDO $pdo, array $p)
         return clientsMayUseMcp($pdo) ? CLIENT_SCOPES : [];
     }
 
-    $role = $p["role"];
-    if (!in_array($role, ADMIN_ROLES, true)) {
+    if (!in_array($p["role"], ADMIN_ROLES, true)) {
         return [];
     }
 
-    return array_values(array_filter(STAFF_SCOPES, function ($scope) use ($role, $p) {
-        if (!in_array($role, SCOPE_ROLES[$scope] ?? [], true)) {
+    return array_values(array_filter(STAFF_SCOPES, function ($scope) use ($pdo, $p) {
+        if (!array_key_exists($scope, SCOPE_PERMISSIONS)) {
             return false;
         }
-        // An account manager reads inquiries only once the owner switched
-        // it on for them (api/inquiries-access.php).
-        if ($scope === "inquiries:read" && $role === "account_manager") {
-            return !empty($p["inquiries_access"]);
-        }
-        return true;
+        $perm = SCOPE_PERMISSIONS[$scope];
+        return $perm === null || can($p, $perm, $pdo);
     }));
 }
 
@@ -153,7 +121,6 @@ function principalFromAdminRow(array $row)
         "name" => $row["name"] ?? "",
         "email" => $row["email"] ?? "",
         "role" => $row["role"] ?? "",
-        "inquiries_access" => !empty($row["inquiries_access"]),
         "company_name" => null,
     ];
 }
@@ -166,7 +133,6 @@ function principalFromUserRow(array $row)
         "name" => $row["name"] ?? "",
         "email" => $row["email"] ?? "",
         "role" => "client",
-        "inquiries_access" => false,
         "company_name" => $row["company_name"] ?? null,
     ];
 }
@@ -293,16 +259,17 @@ function hasScope(array $p, $scope)
 }
 
 /**
- * The client (users.id) list an admin may see: null for the owner, meaning
- * every client; otherwise the ids assigned to them. The same rule every
- * admin list applies (api/admin-users.php, calendar.php, projects.php...).
+ * The client (users.id) list an admin may see: null for anyone holding
+ * clients.view_all, meaning every client; otherwise the ids assigned to
+ * them. The same rule every admin list applies (api/admin-users.php,
+ * calendar.php, projects.php...).
  */
 function assignedClientIds(PDO $pdo, array $p)
 {
     if ($p["kind"] !== "admin") {
         return [];
     }
-    if ($p["role"] === "owner") {
+    if (can($p, "clients.view_all", $pdo)) {
         return null;
     }
     try {

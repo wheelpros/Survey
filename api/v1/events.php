@@ -6,7 +6,7 @@
 |   GET events.php?actor_id=&area=&client_id=&from=&to=&q=&cursor=&limit=
 |       list_admin_events
 |
-| Scope events:read, which only the owner's role can hold (SCOPE_ROLES in
+| Scope events:read, which needs events.view - the Director's (SCOPE_PERMISSIONS in
 | auth.php); the role is checked again here so a token can never outlive a
 | change of role. The same rows and filters as event-log.html, through the
 | same helpers in api/events.php - newest first, cursor-paged.
@@ -23,7 +23,7 @@ v1RequireStaff($p);
 v1RequireMethod("GET");
 v1RequireScope($p, "events:read");
 
-if ($p["role"] !== "owner") {
+if (!can($p, "events.view", $pdo)) {
     v1Error(403, "insufficient_scope", "Only the Director can read the event log.");
 }
 

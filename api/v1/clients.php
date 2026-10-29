@@ -103,7 +103,7 @@ if ($part === "team") {
 if ($part === "note") {
     // Private to whoever wrote it, and only the roles that may write one
     // have one - admin-user-details.php $canManageNotes.
-    $canWrite = in_array($p["role"], OWNER_AND_AM, true);
+    $canWrite = can($p, "clients.edit", $pdo);
     v1Reply(200, [
         "client" => $ref,
         "can_write" => $canWrite,
