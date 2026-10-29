@@ -9,7 +9,7 @@
 |
 |   GET  ?action=list                          my conversations, latest first
 |   GET  ?action=thread&with=7[&after=|before=] one conversation's messages
-|   GET  ?action=count                         my unread total, for the badge
+|   GET  ?action=count                         my unread total and newest incoming id, for the badge
 |   GET  ?action=people                        who I can start a chat with
 |   POST {"action":"send","to":7,"body":"..."}
 |   POST {"action":"read","with":7}
@@ -20,8 +20,10 @@
 | only: clients and AI tokens are refused, and nothing here is logged to the
 | event log or the notifications inbox.
 |
-| The page polls ?action=thread&after= every few seconds while it is open -
-| there are no websockets or background workers on this host.
+| The page polls ?action=thread&after= every few seconds while it is open, and
+| ?action=list a little less often; every other admin page polls ?action=count
+| for the sidebar badge and the new message sound. There are no websockets or
+| background workers on this host.
 |
 | Tables: ensureAdminMessageTables() in db.php, sql/admin_messages.sql.
 |
@@ -145,7 +147,19 @@ if ($action === "count") {
            OR (c.admin_high = :me3 AND m.id > c.high_last_read_id AND m.sender_id <> :me4)
     ");
     $stmt->execute(["me1" => $me, "me2" => $me, "me3" => $me, "me4" => $me]);
-    reply(true, "", ["unread" => (int) $stmt->fetchColumn()]);
+    $unread = (int) $stmt->fetchColumn();
+
+    // The newest message anyone sent me, read or not - the sidebar compares
+    // it between checks to know when to play the new message sound.
+    $stmt = $pdo->prepare("
+        SELECT COALESCE(MAX(m.id), 0)
+        FROM admin_conversations c
+        JOIN admin_messages m ON m.conversation_id = c.id
+        WHERE (c.admin_low = :me1 OR c.admin_high = :me2) AND m.sender_id <> :me3
+    ");
+    $stmt->execute(["me1" => $me, "me2" => $me, "me3" => $me]);
+
+    reply(true, "", ["unread" => $unread, "latest_id" => (int) $stmt->fetchColumn()]);
 }
 
 if ($action === "people") {
@@ -190,6 +204,8 @@ if ($action === "list") {
             "with"     => otherAdmin($pdo, $c["other_id"]),
             "unread"   => (int) $c["unread"],
             "last"     => $c["last_body"] === null ? null : [
+                // The page compares ids to tell a new message from one it has seen.
+                "id"      => (int) $c["last_message_id"],
                 "mine"    => (int) $c["last_sender_id"] === $me,
                 "preview" => mb_strlen($body) > 120 ? mb_substr($body, 0, 119) . "…" : $body,
                 "created_ts" => (int) $c["last_ts"],

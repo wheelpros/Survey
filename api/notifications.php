@@ -103,7 +103,16 @@ function unreadCount(PDO $pdo, string $kind, int $me)
 */
 
 if ($action === "count") {
-    reply(true, "", ["unread" => unreadCount($pdo, $kind, $me)]);
+    // The newest row, read or not - an admin sidebar compares it between
+    // checks to know when to play the new notification sound.
+    $stmt = $pdo->prepare("
+        SELECT COALESCE(MAX(id), 0)
+        FROM notifications
+        WHERE recipient_kind = ? AND recipient_id = ?
+    ");
+    $stmt->execute([$kind, $me]);
+
+    reply(true, "", ["unread" => unreadCount($pdo, $kind, $me), "latest_id" => (int) $stmt->fetchColumn()]);
 }
 
 if ($action === "list") {
