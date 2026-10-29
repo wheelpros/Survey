@@ -161,7 +161,7 @@ if (!empty($_GET["tasks"])) {
        every person's tasks they can see, with overdue and what needs
        attention. Posts, forms and meetings only for a connection that may
        read them. */
-    if (in_array($p["role"], TEAM_DASHBOARD_ROLES, true)) {
+    if (can($p, "team.overview", $pdo)) {
         $team = teamDashboardItems($pdo, $p);
         $teamItems = array_values(array_filter($team["tasks"], function ($t) use ($withPosts) {
             return $t["kind"] !== "content" || $withPosts;
@@ -263,7 +263,7 @@ if ($id !== null) {
         v1Error(404, "not_found", "No project with that id among the projects you can see.");
     }
 
-    $seesEveryDraft = in_array($p["role"], ["owner", "account_manager"], true)
+    $seesEveryDraft = can($p, "tasks.see_drafts", $pdo)
         || (int) $project["account_manager_admin_id"] === (int) $p["id"];
 
     $taskSql = "

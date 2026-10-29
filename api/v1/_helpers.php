@@ -226,7 +226,7 @@ function v1NullableString($value)
  */
 function v1ClientScopeSql(array $p, $column)
 {
-    if ($p["role"] === "owner") {
+    if (can($p, "clients.view_all")) {
         return ["", []];
     }
     return ["$column IN (SELECT user_id FROM admin_user_assignments WHERE admin_id = ?)", [$p["id"]]];

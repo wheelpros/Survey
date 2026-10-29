@@ -45,7 +45,7 @@ function meetingTargetsForCompany(PDO $pdo, array $admin, $company)
  */
 function meetingScopedClients(PDO $pdo, array $admin)
 {
-    if (($admin["role"] ?? "") === "owner") {
+    if (can($admin, "clients.view_all", $pdo)) {
         return $pdo->query("
             SELECT id, name, email, company_name, approved
             FROM users

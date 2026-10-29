@@ -1907,7 +1907,7 @@ class PortalWriteError extends RuntimeException
  */
 function projectScopeSql(array $actor)
 {
-    if (($actor["role"] ?? "") === "owner") {
+    if (can($actor, "projects.view_all")) {
         return ["", []];
     }
 

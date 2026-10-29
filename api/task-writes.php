@@ -73,7 +73,7 @@ function loadScopedProject(PDO $pdo, array $admin, $projectId)
 */
 function canWriteTask(PDO $pdo, array $admin, array $project)
 {
-    if (in_array($admin["role"] ?? "", ["owner", "account_manager", "super_admin"], true)) {
+    if (can($admin, "tasks.write", $pdo)) {
         return true;
     }
 
@@ -92,7 +92,7 @@ function canWriteTask(PDO $pdo, array $admin, array $project)
 */
 function canEditTask(array $admin, array $task)
 {
-    if (in_array($admin["role"] ?? "", ["owner", "account_manager"], true)) {
+    if (can($admin, "tasks.edit_any")) {
         return true;
     }
 
@@ -708,10 +708,6 @@ function myDashboardItems(PDO $pdo, array $actor)
     return ["tasks" => $items, "counts" => $counts, "projects" => $mine["projects"]];
 }
 
-/* Who the dashboard's Team overview is for: the Director, who oversees the
-   whole team. Everyone else, account managers included, sees My tasks. */
-const TEAM_DASHBOARD_ROLES = ["owner"];
-
 /**
  * The Team overview for the Director: every person's row in an Assigned
  * table - phase assignments inside projectScopeSql() (all of them for the
@@ -856,7 +852,7 @@ function teamAttention(PDO $pdo, array $actor, $scope, array $scopeParams)
     // the Director, an account manager's own clients otherwise.
     $meetings = 0;
     try {
-        if (($actor["role"] ?? "") === "owner") {
+        if (can($actor, "clients.view_all", $pdo)) {
             $meetings = (int) $pdo->query("
                 SELECT COUNT(*) FROM appointments WHERE status = 'pending' AND requested_by = 'user'
             ")->fetchColumn();

@@ -180,16 +180,12 @@ function projectScope(array $admin)
 
 function canCreateProject(array $admin)
 {
-    return in_array(
-        $admin["role"] ?? "",
-        ["owner", "super_admin", "account_manager"],
-        true
-    );
+    return can($admin, "projects.create");
 }
 
 function canManageProject(array $admin, array $project)
 {
-    if (($admin["role"] ?? "") === "owner") {
+    if (can($admin, "projects.manage_any")) {
         return true;
     }
 
@@ -201,7 +197,7 @@ function canManageProject(array $admin, array $project)
 
 function canDeleteProject(array $admin, array $project)
 {
-    if (($admin["role"] ?? "") === "owner") {
+    if (can($admin, "projects.delete_any")) {
         return true;
     }
 
@@ -222,7 +218,7 @@ function canDeleteProject(array $admin, array $project)
 
 function scopedClients(PDO $pdo, array $admin)
 {
-    if (($admin["role"] ?? "") === "owner") {
+    if (can($admin, "clients.view_all", $pdo)) {
         $stmt = $pdo->query("
             SELECT id, name, email, company_name
             FROM users
@@ -536,7 +532,7 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
             */
 
             $seesEveryDraft =
-                in_array($admin["role"], ["owner", "account_manager"], true)
+                can($admin, "tasks.see_drafts")
                 || (int) $project["account_manager_admin_id"] === (int) $admin["id"];
 
             $taskSql = "
