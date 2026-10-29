@@ -2,10 +2,11 @@
 
 /*
 |--------------------------------------------------------------------------
-| The Director's event log: reading it
+| The event log: reading it
 |--------------------------------------------------------------------------
 |
-| Backs event-log.html. The Director's alone - every other role, and any AI
+| Backs event-log.html. Whoever holds events.view (the Director, and anyone
+| they gave it to in Settings > Permissions) - everyone else, and any AI
 | token, gets a 403 (the AI reads the same log through api/v1/events.php,
 | behind its own scope).
 |
@@ -48,7 +49,7 @@ if (!$p) {
 }
 
 if ($p["kind"] !== "admin" || $p["via"] !== "session" || !can($p, "events.view", $pdo)) {
-    reply(false, "Only the Director can see the event log.", [], 403);
+    reply(false, "You do not have permission to read the event log.", [], 403);
 }
 
 $action = $_GET["action"] ?? "list";

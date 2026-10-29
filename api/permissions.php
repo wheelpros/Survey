@@ -79,12 +79,12 @@ const PERMISSIONS = [
     // Team
     "team.overview"      => ["area" => "team", "label" => "See the whole team's tasks on the dashboard", "roles" => []],
     "announcements.send" => ["area" => "team", "label" => "Send announcements", "roles" => []],
+    "events.view"        => ["area" => "team", "label" => "Read the event log - every admin's changes", "roles" => []],
 
     // The Director's alone
     "settings.manage"    => ["area" => "director", "label" => "Change portal settings", "roles" => [], "owner_only" => true],
     "admins.manage"      => ["area" => "director", "label" => "Add, edit and remove admins", "roles" => [], "owner_only" => true],
     "permissions.manage" => ["area" => "director", "label" => "Change these permissions", "roles" => [], "owner_only" => true],
-    "events.view"        => ["area" => "director", "label" => "Read the event log", "roles" => [], "owner_only" => true],
 ];
 
 function isPermission($perm)

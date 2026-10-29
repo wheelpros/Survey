@@ -1,15 +1,16 @@
 <?php
 
 /*
-| The event log - what every admin changed, the Director's alone.
+| The event log - what every admin changed, for whoever holds events.view.
 |
 |   GET events.php?actor_id=&area=&client_id=&from=&to=&q=&cursor=&limit=
 |       list_admin_events
 |
-| Scope events:read, which needs events.view - the Director's (SCOPE_PERMISSIONS in
-| auth.php); the role is checked again here so a token can never outlive a
-| change of role. The same rows and filters as event-log.html, through the
-| same helpers in api/events.php - newest first, cursor-paged.
+| Scope events:read, which needs events.view - the Director, and anyone they
+| gave it to (SCOPE_PERMISSIONS in auth.php); it is checked again here so a
+| token can never outlive a change of permission. The same rows and filters
+| as event-log.html, through the same helpers in api/events.php - newest
+| first, cursor-paged.
 |
 | Summaries and labels quote what people typed (a project title, a meeting
 | topic, a rejection note), so they come back under untrusted_content.
@@ -24,7 +25,7 @@ v1RequireMethod("GET");
 v1RequireScope($p, "events:read");
 
 if (!can($p, "events.view", $pdo)) {
-    v1Error(403, "insufficient_scope", "Only the Director can read the event log.");
+    v1Error(403, "insufficient_scope", "You do not have permission to read the event log.");
 }
 
 pruneAdminEvents($pdo);

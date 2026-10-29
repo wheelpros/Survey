@@ -7,7 +7,7 @@
 |   1. Changes land in admin_events with the right actor, source and
 |      summary: browser writes as 'web', MCP writes as 'mcp', and a
 |      rolled-back change leaves nothing behind.
-|   2. Reading it is the Director's alone, in the browser (admin-events.php)
+|   2. Reading it needs events.view - the Director's by default - in the browser (admin-events.php)
 |      and through api/v1 (events.php, scope events:read), with the filters
 |      and paging both pages offer.
 |   3. Rows older than 12 months go when the log is read.

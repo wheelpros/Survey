@@ -428,8 +428,9 @@ if(!adminToken || !adminUser.role){
   window.location.href = "admin-login.html";
 }
 
-/* The Director's page. api/admin-events.php refuses everyone else; this only
-   saves them a page that would say so. */
+/* Needs events.view: the Director, and whoever they gave it to.
+   api/admin-events.php refuses everyone else; this only saves them a page
+   that would say so. */
 if(adminUser.role && !adminCan("events.view")){
   window.location.href = "admin-dashboard.html";
 }

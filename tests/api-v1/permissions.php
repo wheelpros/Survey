@@ -186,3 +186,17 @@ change("permissions v1: back to defaults", $owner, "set_role_permissions", ["rol
 [, $done] = confirm($owner, $prep);
 check("permissions v1: an older prepare still confirms its own change", ($done["data"]["done"] ?? false) === true
     && !one($pdo, "SELECT admin_id FROM admin_permission_overrides WHERE admin_id = 5"), json_encode($done));
+
+// ── 5. The event log can be handed out ───────────────────────────────────
+
+refused("event log: Amy can't read it by default", "events.php", $am, 403);
+post("api/permissions-admin.php", $owner, ["admin_id" => 3, "changes" => ["events.view" => true]]);
+[$status, $r] = pageGet("api/admin-events.php?action=list", $am);
+check("event log: once given it, Amy reads it in the browser", $status === 200 && ($r["success"] ?? false) === true
+    && count($r["items"] ?? $r["data"]["items"] ?? []) > 0, "HTTP $status " . json_encode($r));
+[$status] = get("events.php", $am);
+check("event log: and through an AI", $status === 200, "HTTP $status");
+[, $session] = post("api/admin-session.php", $am, []);
+check("event log: her sidebar gets the link", in_array("events.view", $session["admin"]["permissions"] ?? [], true));
+post("api/permissions-admin.php", $owner, ["admin_id" => 3, "changes" => ["events.view" => "default"]]);
+refused("event log: and loses it again", "events.php", $am, 403);
