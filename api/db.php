@@ -1320,6 +1320,57 @@ function ensureAdminEventsTable(PDO $pdo)
 }
 
 /**
+ * The Director's permission changes (api/permissions.php): one row per role
+ * or per admin where a default was changed, nothing otherwise.
+ *
+ * An account manager's old inquiries_access flag becomes an inquiries.read
+ * override the first time this runs. INSERT IGNORE keeps any override the
+ * Director set since, and the flag is kept in step by the writes, so going
+ * back to an older build still reads it right.
+ *
+ * sql/permissions.sql is the same to run by hand.
+ */
+function ensurePermissionTables(PDO $pdo)
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    try {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS role_permissions (
+              role       VARCHAR(30) NOT NULL,
+              permission VARCHAR(64) NOT NULL,
+              allowed    TINYINT(1)  NOT NULL,
+              updated_by INT             NULL,
+              updated_at TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+              PRIMARY KEY (role, permission)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS admin_permission_overrides (
+              admin_id   INT         NOT NULL,
+              permission VARCHAR(64) NOT NULL,
+              allowed    TINYINT(1)  NOT NULL,
+              updated_by INT             NULL,
+              updated_at TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+              PRIMARY KEY (admin_id, permission)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        $pdo->exec("
+            INSERT IGNORE INTO admin_permission_overrides (admin_id, permission, allowed)
+            SELECT id, 'inquiries.read', 1 FROM admins
+            WHERE role = 'account_manager' AND inquiries_access = 1
+        ");
+    } catch (PDOException $e) {
+        // Read-only DB user: every role keeps its defaults until
+        // sql/permissions.sql is run by hand.
+    }
+}
+
+/**
  * The announcements the owner writes by hand, plus the notifications column
  * that points back at them.
  *
