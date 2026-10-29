@@ -282,3 +282,49 @@ function permissionOverrides(PDO $pdo, $adminId = null)
     }
     return $out;
 }
+
+/*
+|--------------------------------------------------------------------------
+| Storing a change
+|--------------------------------------------------------------------------
+|
+| $allowed true or false stores a row; null deletes it, so the role goes back
+| to the default and the admin back to their role. The callers have checked
+| who is asking (permissions.manage) and what is being changed.
+|
+*/
+
+function storeRolePermission(PDO $pdo, $role, $perm, $allowed, $byAdminId)
+{
+    ensurePermissionTables($pdo);
+    if ($allowed === null) {
+        $pdo->prepare("DELETE FROM role_permissions WHERE role = ? AND permission = ?")->execute([$role, $perm]);
+    } else {
+        $pdo->prepare("
+            INSERT INTO role_permissions (role, permission, allowed, updated_by) VALUES (?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE allowed = VALUES(allowed), updated_by = VALUES(updated_by)
+        ")->execute([$role, $perm, $allowed ? 1 : 0, (int) $byAdminId]);
+    }
+    forgetPermissions();
+}
+
+function storeAdminPermission(PDO $pdo, $adminId, $perm, $allowed, $byAdminId)
+{
+    ensurePermissionTables($pdo);
+    if ($allowed === null) {
+        $pdo->prepare("DELETE FROM admin_permission_overrides WHERE admin_id = ? AND permission = ?")->execute([(int) $adminId, $perm]);
+    } else {
+        $pdo->prepare("
+            INSERT INTO admin_permission_overrides (admin_id, permission, allowed, updated_by) VALUES (?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE allowed = VALUES(allowed), updated_by = VALUES(updated_by)
+        ")->execute([(int) $adminId, $perm, $allowed ? 1 : 0, (int) $byAdminId]);
+    }
+
+    // The old flag mirrors an explicit grant, so ensurePermissionTables()
+    // never brings back an override the Director removed, and an older build
+    // still reads it right.
+    if ($perm === "inquiries.read") {
+        $pdo->prepare("UPDATE admins SET inquiries_access = ? WHERE id = ?")->execute([$allowed === true ? 1 : 0, (int) $adminId]);
+    }
+    forgetPermissions();
+}

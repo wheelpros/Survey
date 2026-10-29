@@ -9,7 +9,7 @@ ensureInquiryTables($pdo);
 $headers = getallheaders();
 $token = str_replace("Bearer ", "", $headers["Authorization"] ?? "");
 
-$stmt = $pdo->prepare("SELECT id, role, inquiries_access FROM admins WHERE session_token = ? LIMIT 1");
+$stmt = $pdo->prepare("SELECT id, role FROM admins WHERE session_token = ? LIMIT 1");
 $stmt->execute([$token]);
 $currentAdmin = $stmt->fetch();
 
@@ -18,8 +18,7 @@ if (!$currentAdmin) {
     exit;
 }
 
-$hasAccess = $currentAdmin["role"] === "owner"
-    || ($currentAdmin["role"] === "account_manager" && (int)$currentAdmin["inquiries_access"] === 1);
+$hasAccess = can($currentAdmin, "inquiries.read", $pdo);
 
 if (!$hasAccess) {
     echo json_encode(["success" => false, "message" => "Unauthorized"]);

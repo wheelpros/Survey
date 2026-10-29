@@ -1,5 +1,12 @@
 <?php
 
+/*
+| The account managers' inquiries access, the way inquiries.html has always
+| set it. It is the inquiries.read permission now: a tick that matches what
+| the role already gets leaves no override behind, so a later change to the
+| role still reaches them.
+*/
+
 require_once "db.php";
 require_once "events.php";
 
@@ -14,25 +21,32 @@ $stmt = $pdo->prepare("SELECT id, role FROM admins WHERE session_token = ? LIMIT
 $stmt->execute([$token]);
 $currentAdmin = $stmt->fetch();
 
-if (!$currentAdmin || $currentAdmin["role"] !== "owner") {
+if (!$currentAdmin || !can($currentAdmin, "permissions.manage", $pdo)) {
     echo json_encode(["success" => false, "message" => "Unauthorized"]);
     exit;
 }
 
 $method = $_SERVER["REQUEST_METHOD"];
 
-if ($method === "GET") {
+$managers = $pdo->query("
+    SELECT id, name, email, role
+    FROM admins
+    WHERE role = 'account_manager'
+    ORDER BY name ASC
+")->fetchAll();
 
-    $stmt = $pdo->query("
-        SELECT id, name, email, inquiries_access
-        FROM admins
-        WHERE role = 'account_manager'
-        ORDER BY name ASC
-    ");
+if ($method === "GET") {
 
     echo json_encode([
         "success" => true,
-        "accountManagers" => $stmt->fetchAll()
+        "accountManagers" => array_map(function ($m) use ($pdo) {
+            return [
+                "id" => $m["id"],
+                "name" => $m["name"],
+                "email" => $m["email"],
+                "inquiries_access" => can($m, "inquiries.read", $pdo) ? 1 : 0,
+            ];
+        }, $managers),
     ]);
     exit;
 }
@@ -46,16 +60,10 @@ if ($method === "POST") {
 
     // Full replace, same pattern as Owner Assignments: whoever's checked
     // gets access, everyone else with this role loses it.
-    $pdo->prepare("UPDATE admins SET inquiries_access = 0 WHERE role = 'account_manager'")->execute();
-
-    if (!empty($grantedIds)) {
-        $placeholders = implode(",", array_fill(0, count($grantedIds), "?"));
-        $stmt = $pdo->prepare("
-            UPDATE admins
-            SET inquiries_access = 1
-            WHERE role = 'account_manager' AND id IN ($placeholders)
-        ");
-        $stmt->execute($grantedIds);
+    $roleGets = rolePermissionMatrix($pdo)["account_manager"]["inquiries.read"];
+    foreach ($managers as $m) {
+        $granted = in_array((int) $m["id"], $grantedIds, true);
+        storeAdminPermission($pdo, $m["id"], "inquiries.read", $granted === $roleGets ? null : $granted, $currentAdmin["id"]);
     }
 
     $names = eventAdminNames($pdo, $grantedIds);

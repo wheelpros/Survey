@@ -38,7 +38,7 @@ if (!$admin) {
 }
 
 // Available Admins on settings.html is the owner's alone.
-if ($admin["role"] !== "owner") {
+if (!can($admin, "admins.manage", $pdo)) {
 
     http_response_code(403);
 

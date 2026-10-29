@@ -22,7 +22,7 @@ if($_SERVER["REQUEST_METHOD"]=="GET"){
 
     // Files password management is owner-only - everything else
     // in this file (toggle/distribute) is shared with super_admin/account_manager.
-    if ($admin['role'] !== 'owner') {
+    if (!can($admin, "settings.manage", $pdo)) {
         echo json_encode([
             "status" => "error",
             "message" => "Unauthorized"
@@ -60,7 +60,7 @@ if($_SERVER["REQUEST_METHOD"]=="POST"){
     if(($input["action"] ?? "")=="verify"){
 
         // Sources password is owner-only.
-        if ($admin['role'] !== 'owner') {
+        if (!can($admin, "settings.manage", $pdo)) {
             echo json_encode([
                 "success"=>false,
                 "message"=>"Unauthorized"
@@ -106,7 +106,7 @@ if($_SERVER["REQUEST_METHOD"]=="POST"){
     // toggle anyone except themself.
     if(($input["action"] ?? "")=="toggle_admin_status"){
 
-        if($admin["role"] !== "owner"){
+        if (!can($admin, "admins.manage", $pdo)) {
             echo json_encode([
                 "success"=>false,
                 "message"=>"Only the Director can activate or deactivate admins"
@@ -157,7 +157,7 @@ if($_SERVER["REQUEST_METHOD"]=="POST"){
        goes back to not being a link. */
     if(($input["action"] ?? "")=="save_website"){
 
-        if ($admin['role'] !== 'owner') {
+        if (!can($admin, "settings.manage", $pdo)) {
             echo json_encode([
                 "success"=>false,
                 "message"=>"Unauthorized"
@@ -188,7 +188,7 @@ if($_SERVER["REQUEST_METHOD"]=="POST"){
     }
 
     // Everything below (sources password change) is owner-only.
-    if ($admin['role'] !== 'owner') {
+    if (!can($admin, "settings.manage", $pdo)) {
         echo json_encode([
             "success"=>false,
             "message"=>"Unauthorized"

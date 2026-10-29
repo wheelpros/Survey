@@ -28,7 +28,7 @@ $admin = $stmt->fetch(PDO::FETCH_ASSOC);
 
 
 // Only owner can remove admins
-if (!$admin || $admin["role"] !== "owner") {
+if (!$admin || !can($admin, "admins.manage", $pdo)) {
 
     http_response_code(403);
 

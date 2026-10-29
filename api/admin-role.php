@@ -57,7 +57,7 @@ if (!$caller) {
     roleReply(false, "Unauthorized");
 }
 
-if (($caller["role"] ?? "") !== "owner") {
+if (!can($caller, "admins.manage", $pdo)) {
     roleReply(false, "Only the Director can change roles.");
 }
 

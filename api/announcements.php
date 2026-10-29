@@ -94,7 +94,7 @@ if (!$user) {
 
 $kind    = $user ? "user" : "admin";
 $me      = (int) ($user ? $user["id"] : $admin["id"]);
-$isOwner = !$user && ($admin["role"] ?? "") === "owner";
+$isOwner = !$user && can($admin, "announcements.send", $pdo);
 
 $action = $_GET["action"] ?? $_POST["action"] ?? "";
 
@@ -102,7 +102,7 @@ $action = $_GET["action"] ?? $_POST["action"] ?? "";
 function requireOwner($isOwner)
 {
     if (!$isOwner) {
-        reply(false, "Only the Director can send announcements.", [], 403);
+        reply(false, "You do not have permission to send announcements.", [], 403);
     }
 }
 

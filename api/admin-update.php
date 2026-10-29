@@ -48,7 +48,7 @@ if (!$caller) {
     updateReply(false, "Unauthorized");
 }
 
-if (($caller["role"] ?? "") !== "owner") {
+if (!can($caller, "admins.manage", $pdo)) {
     updateReply(false, "Only the Director can edit admins.");
 }
 

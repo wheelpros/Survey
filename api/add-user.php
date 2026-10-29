@@ -14,7 +14,7 @@ $admin = $stmt->fetch();
 // Adding admins is an owner-only action - this now matches the gate
 // settings.php / settings.html already use for this panel. (It previously
 // required role === "super_admin", which silently blocked the owner.)
-if(!$admin || $admin["role"] !== "owner"){
+if(!$admin || !can($admin, "admins.manage", $pdo)){
     echo json_encode(["success"=>false,"message"=>"Not allowed"]);
     exit;
 }

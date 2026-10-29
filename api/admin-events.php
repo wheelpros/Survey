@@ -47,7 +47,7 @@ if (!$p) {
     reply(false, "Unauthorized token", [], 401);
 }
 
-if ($p["kind"] !== "admin" || $p["via"] !== "session" || $p["role"] !== "owner") {
+if ($p["kind"] !== "admin" || $p["via"] !== "session" || !can($p, "events.view", $pdo)) {
     reply(false, "Only the Director can see the event log.", [], 403);
 }
 
