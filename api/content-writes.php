@@ -18,6 +18,10 @@
 | author, the owner and the account managers change who is on a post and
 | delete it; an assignee does neither.
 |
+| Those are the defaults: the role lists are permissions now (content.create,
+| content.publish, content.view_all in api/permissions.php), which the
+| Director can change.
+|
 */
 
 require_once __DIR__ . "/db.php";
@@ -26,17 +30,17 @@ require_once __DIR__ . "/events.php";
 
 function canPublishContent($admin)
 {
-    return in_array($admin["role"] ?? "", ["owner", "account_manager"], true);
+    return can($admin, "content.publish");
 }
 
 function canCreateContent($admin)
 {
-    return in_array($admin["role"] ?? "", ["owner", "account_manager", "super_admin"], true);
+    return can($admin, "content.create");
 }
 
 function canViewAllContent($admin)
 {
-    return contentSeesAll((string) ($admin["role"] ?? ""));
+    return contentSeesAll($admin);
 }
 
 function isContentAssignee(PDO $pdo, $contentId, $adminId)

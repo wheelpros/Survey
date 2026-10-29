@@ -981,22 +981,20 @@ function contentImageExtension(string $path): ?string
 | Who sees which post
 |--------------------------------------------------------------------------
 |
-| A post is a task. The owner and the account managers run the posting
-| calendar and see every post; anyone else sees the posts they created and
-| the ones they were assigned to (content_assignees). api/admin-content.php
+| A post is a task. Whoever holds content.view_all (the owner and the account
+| managers, unless the Director changed it) sees every post; anyone else sees
+| the posts they created and the ones they were assigned to
+| (content_assignees). api/admin-content.php
 | and the v1 content reads all ask these, so the rule lives in one place.
 |
 */
 
-/** Roles that see the whole content library. */
-const CONTENT_SEES_ALL_ROLES = ["owner", "account_manager"];
-
 /** Roles a post can be assigned to: account managers, Super Admins and Admins. */
 const CONTENT_ASSIGNEE_ROLES = ["account_manager", "super_admin", "seo_admin"];
 
-function contentSeesAll(string $role): bool
+function contentSeesAll(array $admin): bool
 {
-    return in_array($role, CONTENT_SEES_ALL_ROLES, true);
+    return can($admin, "content.view_all");
 }
 
 /**
@@ -1955,3 +1953,6 @@ function normalisePortalLink($link)
 
     return $link;
 }
+
+// can() and the permission catalog - most callers of the helpers above need them.
+require_once __DIR__ . "/permissions.php";

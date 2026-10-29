@@ -285,7 +285,7 @@ function v1SeesAllForms(array $p)
 */
 function v1SeesAllContent(array $p)
 {
-    return contentSeesAll((string) $p["role"]);
+    return contentSeesAll($p);
 }
 
 /*
