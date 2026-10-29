@@ -2164,6 +2164,66 @@ function v1WriteHandlers()
             },
         ],
 
+        "set_role_permissions" => [
+            "scope" => "admins:write",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                $role = argEnum($a, "role", PERMISSION_ROLES);
+                $changes = v1PermissionChanges($pdo, $p, $a, function ($changes) use ($role) {
+                    return checkRolePermissionChange($role, $changes);
+                });
+                return [
+                    "args" => ["role" => $role, "changes" => $changes],
+                    "summary" => "For every " . adminRoleName($role) . ": " . permissionChangeSummary($changes, "the default")
+                        . ". It applies on their next request; nobody is signed out.",
+                    "preview" => ["role" => $role, "changes" => $changes],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                $changes = v1PermissionChanges($pdo, $p, $a, function ($changes) use ($a) {
+                    return checkRolePermissionChange($a["role"], $changes);
+                });
+                $pdo->beginTransaction();
+                setRolePermissions($pdo, $p, $a["role"], $changes);
+                $pdo->commit();
+                return ["role" => $a["role"], "allowed" => array_keys(array_filter(rolePermissionMatrix($pdo)[$a["role"]]))];
+            },
+        ],
+
+        "set_admin_permissions" => [
+            "scope" => "admins:write",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                $adminId = argInt($a, "admin");
+                $target = null;
+                $changes = v1PermissionChanges($pdo, $p, $a, function ($changes) use ($pdo, $adminId, &$target) {
+                    [$target, $clean] = checkAdminPermissionChange($pdo, $adminId, $changes);
+                    return $clean;
+                });
+                return [
+                    "args" => ["admin" => $adminId, "changes" => $changes],
+                    "summary" => "For " . adminLabel($target) . ": " . permissionChangeSummary($changes, "their role")
+                        . ". It applies on their next request; nobody is signed out.",
+                    "preview" => [
+                        "admin_id" => $adminId,
+                        "role" => $target["role"],
+                        "changes" => $changes,
+                        "untrusted_content" => ["name" => $target["name"]],
+                    ],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                $target = null;
+                $changes = v1PermissionChanges($pdo, $p, $a, function ($changes) use ($pdo, $a, &$target) {
+                    [$target, $clean] = checkAdminPermissionChange($pdo, $a["admin"], $changes);
+                    return $clean;
+                });
+                $pdo->beginTransaction();
+                setAdminPermissions($pdo, $p, $target, $changes);
+                $pdo->commit();
+                forgetPermissions();
+                return ["admin_id" => (int) $a["admin"], "effective" => effectivePermissions($target, $pdo)];
+            },
+        ],
+
         "update_my_profile" => [
             "scope" => "settings:write",
             "prepare" => function (PDO $pdo, array $p, array $a) {
@@ -2431,4 +2491,24 @@ function v1WriteHandlers()
             },
         ],
     ];
+}
+
+/*
+| set_role_permissions / set_admin_permissions: the Director's alone
+| (permissions.manage, on top of admins:write), checked on prepare and again
+| on confirm by the same rules as Settings > Permissions. "changes" is an
+| object of permission key => true, false or "default". The tables are made
+| here, outside any transaction - a CREATE TABLE would commit it.
+*/
+function v1PermissionChanges(PDO $pdo, array $p, array $a, callable $check)
+{
+    if (!can($p, "permissions.manage", $pdo)) {
+        throw new PortalWriteError("Only the Director can change permissions.", 403);
+    }
+    ensurePermissionTables($pdo);
+    $changes = $a["changes"] ?? null;
+    if (!is_array($changes) || array_is_list($changes) && $changes !== []) {
+        throw new PortalWriteError("changes must be an object of permission => true, false or \"default\".");
+    }
+    return $check($changes);
 }

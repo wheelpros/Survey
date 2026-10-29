@@ -86,7 +86,7 @@ export const READ_TOOLS = [
     title: "My note about a client",
     description:
       "Your own private note about a client. Notes belong to whoever wrote them, so " +
-      "nobody else's is ever shown. Only the owner and account managers keep notes.",
+      "nobody else's is ever shown. Only those who may edit clients keep notes (the Director and account managers, by default).",
     input: { client: clientId },
     output: S.clientNote,
     path: "clients.php",
@@ -418,6 +418,18 @@ export const READ_TOOLS = [
     input: {},
     output: S.settings,
     path: "settings.php",
+  },
+  {
+    name: "get_permissions",
+    scope: "settings:read",
+    title: "Permissions",
+    description:
+      "Settings > Permissions: every permission key, what each role (Admin, Super Admin, Account Manager) gets, " +
+      "and each admin's exceptions to their role and what they end up holding. The Director holds them all. " +
+      "Start here before set_role_permissions or set_admin_permissions; the keys and admin ids come from this.",
+    input: {},
+    output: S.permissions,
+    path: "permissions.php",
   },
 
   // ── A client's own account (self:read) ────────────────────────────────

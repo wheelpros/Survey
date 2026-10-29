@@ -146,3 +146,43 @@ change("permissions page: Andy goes back", $owner, "change_admin_role", ["admin"
 post("api/permissions-admin.php", $owner, ["admin_id" => 6, "changes" => ["calendar.use" => true]]);
 [$status] = get("calendar.php", "tok-inactive");
 check("permissions page: a deactivated admin's exception gets them nowhere", $status === 401, "HTTP $status");
+
+// ── 4. The same through an AI: get_permissions and the two change tools ──
+
+[$status, $r] = get("permissions.php", $owner);
+check("permissions v1: the Director reads them", $status === 200
+    && count($r["data"]["permissions"] ?? []) === count(PERMISSIONS)
+    && array_column($r["data"]["roles"] ?? [], "role") === PERMISSION_ROLES
+    && ($r["data"]["admins"][0]["untrusted_content"]["name"] ?? null) !== null
+    && !array_key_exists("name", $r["data"]["admins"][0] ?? []), "HTTP $status " . json_encode($r));
+$fixtures["get_permissions"] = $r["data"] ?? null;
+foreach (["super admin" => $sa, "account manager" => $am, "admin" => $seo] as $who => $token) {
+    refused("permissions v1: a $who can't read them", "permissions.php", $token, 403);
+    refusedChange("permissions v1: nor can a $who change a role", $token, "set_role_permissions",
+        ["role" => "seo_admin", "changes" => ["calendar.use" => true]], 403);
+}
+
+[$prep] = change("permissions v1: Admins get the calendar", $owner, "set_role_permissions",
+    ["role" => "seo_admin", "changes" => ["calendar.use" => true]]);
+check("permissions v1: the summary says what changes",
+    strpos($prep["data"]["summary"] ?? "", "can now: use the calendar") !== false, json_encode($prep));
+[$status] = get("calendar.php", $seo);
+check("permissions v1: and Sean can open it", $status === 200, "HTTP $status");
+
+change("permissions v1: but not Sean himself", $owner, "set_admin_permissions",
+    ["admin" => 5, "changes" => ["calendar.use" => false]]);
+refused("permissions v1: his exception beats the role", "calendar.php", $seo, 403);
+
+refusedChange("permissions v1: never a Director-only one", $owner, "set_role_permissions",
+    ["role" => "seo_admin", "changes" => ["admins.manage" => true]], 403);
+refusedChange("permissions v1: never the Director", $owner, "set_admin_permissions",
+    ["admin" => 1, "changes" => ["calendar.use" => false]], 403);
+refusedChange("permissions v1: changes is an object", $owner, "set_role_permissions",
+    ["role" => "seo_admin", "changes" => ["calendar.use"]], 422);
+
+// Two changes prepared side by side: each confirms on its own.
+[, $prep] = prepare($owner, "set_admin_permissions", ["admin" => 5, "changes" => ["calendar.use" => "default"]]);
+change("permissions v1: back to defaults", $owner, "set_role_permissions", ["role" => "seo_admin", "changes" => ["calendar.use" => "default"]]);
+[, $done] = confirm($owner, $prep);
+check("permissions v1: an older prepare still confirms its own change", ($done["data"]["done"] ?? false) === true
+    && !one($pdo, "SELECT admin_id FROM admin_permission_overrides WHERE admin_id = 5"), json_encode($done));

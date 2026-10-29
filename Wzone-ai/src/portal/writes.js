@@ -59,6 +59,11 @@ const postImages = z
 const imageLink = (what) => httpsLink.describe(what + " " + IMAGE_BY_LINK);
 
 const adminId = recordId("The admin's id - from get_settings");
+const permissionChanges = z
+  .record(z.string().regex(/^[a-z_]+\.[a-z_]+$/, "must be a permission key like content.create"),
+    z.union([z.boolean(), z.literal("default")]))
+  .refine((c) => Object.keys(c).length > 0 && Object.keys(c).length <= 40, "change 1 to 40 permissions")
+  .describe("Permission key (from get_permissions) => true, false or \"default\"");
 const adminPosition = z
   .string()
   .min(1)
@@ -314,8 +319,8 @@ export const WRITE_TOOLS = [
     scope: "content:write",
     title: "Schedule or publish a post",
     description:
-      "Schedules a draft post to go live at a date and time, or publishes it now - the owner and " +
-      "account managers only, as in the portal. A scheduled post goes live on its own; a time " +
+      "Schedules a draft post to go live at a date and time, or publishes it now - only for whoever may publish " +
+      "(the Director and account managers, unless the Director changed it). A scheduled post goes live on its own; a time " +
       "already passed goes live straight away. The client is notified when it goes live. A post " +
       "that is out is changed or taken down in the portal." + TWO_STEP,
     input: {
@@ -435,7 +440,7 @@ export const WRITE_TOOLS = [
     title: "Delete a phase",
     description:
       "Deletes a phase (a project update) with its team, assignments, images and attached files; the client " +
-      "stops seeing it. Only the Director, an account manager or the phase's creator can - get_project's " +
+      "stops seeing it. Only whoever may edit a teammate's update, or the phase's creator, can - get_project's " +
       "can_delete says. This cannot be undone, so say what goes with it before confirming." + TWO_STEP,
     input: { id: recordId("The phase's id - from get_project") },
   },
@@ -595,6 +600,28 @@ export const WRITE_TOOLS = [
       manager: recordId("The super admin's or account manager's id - from get_settings"),
       admins: z.array(adminId).max(200).describe("Every admin they should manage"),
     },
+  },
+
+  // ── Permissions (the Director's) ──────────────────────────────────────
+  {
+    name: "set_role_permissions",
+    scope: "admins:write",
+    title: "Change what a role can do",
+    description:
+      "Changes permissions for everyone in a role - keys from get_permissions. true allows, false denies, " +
+      "\"default\" goes back to the portal's default. A person's own exception (set_admin_permissions) still " +
+      "beats the role. Director-only permissions can't be given. Nobody is signed out." + TWO_STEP,
+    input: { role: adminRole, changes: permissionChanges },
+  },
+  {
+    name: "set_admin_permissions",
+    scope: "admins:write",
+    title: "Make an exception for one admin",
+    description:
+      "Gives or takes a permission from one admin, whatever their role gets - keys from get_permissions. " +
+      "true allows, false denies, \"default\" removes the exception so their role decides again. Changing " +
+      "their role later clears their exceptions. Not for the Director, who holds everything." + TWO_STEP,
+    input: { admin: adminId, changes: permissionChanges },
   },
 
   // ── A client's own account (self:write) ───────────────────────────────
