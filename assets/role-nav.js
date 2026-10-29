@@ -6,12 +6,13 @@
 | The sidebar markup is copied across every admin page, so trimming it per role
 | in each file means the same edit eight times and a link left behind whenever a
 | page is added. This does it in one place: include the script and any link in
-| the table below disappears for roles that cannot use it.
+| the table below disappears for anyone without its permission
+| (api/permissions.php - the Director holds them all).
 |
 | Matching is on the href, so no page needs an id or a class added to its markup.
 |
-| This is presentation only. Every page and endpoint listed here checks the role
-| itself - a hidden link is a tidier sidebar, never a permission.
+| This is presentation only. Every page and endpoint listed here checks the
+| permission itself - a hidden link is a tidier sidebar, never a permission.
 |
 |   <script src="assets/role-nav.js?v=1"></script>
 |
@@ -23,21 +24,24 @@
 
   var RESTRICTED = [
     {
-      // Client meetings: the roles that deal with clients, not seo_admin.
+      // Client meetings.
       href: "admin-calendar.html",
-      roles: ["owner", "super_admin", "account_manager"]
+      perm: "calendar.use"
     },
     {
-      // Clients Management: the same roles. seo_admin works on content, not
-      // on client accounts.
+      // Clients Management.
       href: "clients-management.html",
-      roles: ["owner", "super_admin", "account_manager"]
+      perm: "clients.details"
     },
     {
-      // The event log: what every admin changed. The Director's alone
-      // (api/admin-events.php).
+      // Inquiries: the Director, and whoever was given access.
+      href: "inquiries.html",
+      perm: "inquiries.read"
+    },
+    {
+      // The event log: what every admin changed (api/admin-events.php).
       href: "event-log.html",
-      roles: ["owner"]
+      perm: "events.view"
     }
   ];
 
@@ -59,7 +63,7 @@
 
     RESTRICTED.forEach(function (rule) {
 
-      if (rule.roles.indexOf(role) !== -1) return;
+      if (window.adminCan ? window.adminCan(rule.perm) : role === "owner") return;
 
       // Both the bare name and any path or query form of it.
       document
@@ -147,6 +151,17 @@
 
         if (stored.role && stored.role !== data.admin.role) {
           signOut();
+          return;
+        }
+
+        /* The Director changed what this admin may do (Settings >
+           Permissions). No sign-out: store the new list and reload, so the
+           sidebar and every button are drawn from it. */
+        var perms = data.admin.permissions || [];
+        if (JSON.stringify(stored.permissions || null) !== JSON.stringify(perms)) {
+          stored.permissions = perms;
+          localStorage.setItem("admin_user", JSON.stringify(stored));
+          location.reload();
           return;
         }
 

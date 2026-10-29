@@ -1368,6 +1368,7 @@
       }
     </script>
     <link rel="stylesheet" href="assets/shell.css?v=6" />
+  <script src="assets/permissions.js?v=1"></script>
   </head>
 
   <body>
@@ -2250,9 +2251,7 @@
       /* The owner, the account managers and the super admins create posts; an
    Admin opens one they are on to fill it in. api/admin-content.php refuses the
    create too - this only saves writing a whole post for nothing. */
-      const canCreate = ["owner", "account_manager", "super_admin"].includes(
-        adminUser.role,
-      );
+      const canCreate = adminCan("content.create");
 
       if (!editId && !canCreate) {
         window.location.replace("admin-content.html");
@@ -2794,8 +2793,7 @@
    api/admin-content.php pins the status to draft for those roles too - this
    only keeps the form honest about what the button is going to do. */
 
-      const canPublish =
-        adminUser.role === "account_manager" || adminUser.role === "owner";
+      const canPublish = adminCan("content.publish");
 
       function syncPublishNow() {
         const toggle = document.getElementById("publishNow");
@@ -3987,6 +3985,6 @@
     <script src="assets/confirm.js?v=1"></script>
     <script src="assets/shell.js?v=6"></script>
     <script src="assets/sources-lock.js?v=1"></script>
-    <script src="assets/role-nav.js?v=5"></script>
+    <script src="assets/role-nav.js?v=6"></script>
   </body>
 </html>

@@ -169,6 +169,7 @@ document.addEventListener("DOMContentLoaded", function () {
   set("acctRole", label);
 });
 </script>
+<script src="assets/permissions.js?v=1"></script>
 </head>
 
 <body>
@@ -372,9 +373,8 @@ document.addEventListener("DOMContentLoaded", function () {
 |------------------------------------------------------------------------------
 |
 | One page for both, the way project-form.html does it: ?id= present means
-| edit. Creating is open to the owner and any access-granted account manager;
-| editing is the owner's alone, so an account manager arriving with an id is
-| turned around here as well as at the endpoint.
+| edit. Both need inquiries.write, so anyone without it is turned around here
+| as well as at the endpoint.
 |
 | An inquiry that has been answered keeps its questions: rewriting them would
 | delete the rows those answers point at. The endpoint enforces that and saves
@@ -394,13 +394,11 @@ if (!adminToken || !adminUser.role) {
 // Creating and editing inquiries are the owner's. An account manager reads
 // them on inquiries.html, so that is where they are sent; anyone else has no
 // inquiries at all. api/admin-inquiries.php refuses the save either way.
-if (adminUser.role === "account_manager") {
-  window.location.href = "inquiries.html";
-} else if (adminUser.role !== "owner") {
-  window.location.href = "admin.html";
+if (!adminCan("inquiries.write")) {
+  window.location.href = adminCan("inquiries.read") ? "inquiries.html" : "admin.html";
 }
 
-const isOwner = adminUser.role === "owner";
+const canWrite = adminCan("inquiries.write");
 const inquiryId = Number(new URLSearchParams(window.location.search).get("id") || 0);
 const isEdit = inquiryId > 0;
 
@@ -585,7 +583,7 @@ document.getElementById("fStatus").addEventListener("change", function () {
 
 async function start() {
   // Shown only for the moment before the redirect above lands.
-  if (!isOwner) {
+  if (!canWrite) {
     block("Only the Director can create or edit inquiries.");
     return;
   }
@@ -849,6 +847,6 @@ start();
 <script src="assets/notifications.js?v=1"></script>
 <script src="assets/shell.js?v=6"></script>
 <script src="assets/sources-lock.js?v=1"></script>
-<script src="assets/role-nav.js?v=5"></script>
+<script src="assets/role-nav.js?v=6"></script>
 </body>
 </html>

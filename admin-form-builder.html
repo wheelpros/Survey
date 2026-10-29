@@ -454,6 +454,7 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 <link rel="stylesheet" href="assets/shell.css?v=6" />
+<script src="assets/permissions.js?v=1"></script>
 </head>
 
 <body>
@@ -624,7 +625,7 @@ if(!adminToken || !adminUser.role){
 
 /* An account manager or the owner is the approval step, so a form they write
    goes straight to the client - api/admin-surveys.php does the same on save. */
-const canReview = adminUser.role === "account_manager" || adminUser.role === "owner";
+const canReview = adminCan("forms.review");
 
 function logoutAdmin(){
   localStorage.removeItem("admin_token");
@@ -1153,6 +1154,6 @@ init();
 <script src="assets/confirm.js?v=1"></script>
 <script src="assets/shell.js?v=6"></script>
 <script src="assets/sources-lock.js?v=1"></script>
-<script src="assets/role-nav.js?v=5"></script>
+<script src="assets/role-nav.js?v=6"></script>
 </body>
 </html>

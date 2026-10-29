@@ -88,6 +88,8 @@ echo json_encode([
         "email" => $admin["email"],
         "role" => $admin["role"],
         "position" => $admin["position"],
-        "avatar_path" => $avatar
+        "avatar_path" => $avatar,
+        // What the pages show and hide by (assets/permissions.js).
+        "permissions" => effectivePermissions($admin, $pdo)
     ]
 ]);

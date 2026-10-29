@@ -425,6 +425,7 @@ function openAccount(){ document.getElementById("acctModal").classList.add("show
 function closeAccount(){ document.getElementById("acctModal").classList.remove("show"); }
 </script>
 <link rel="stylesheet" href="assets/shell.css?v=6" />
+<script src="assets/permissions.js?v=1"></script>
 </head>
 
 <body>
@@ -547,7 +548,7 @@ if(!adminToken || !adminUser.role){
 
 // Part of Clients Management, which is not for seo_admin. api/admin-user-details.php
 // refuses the role as well; this only stops a typed-in URL loading an empty page.
-if(adminUser.role === "seo_admin"){
+if(!adminCan("clients.details")){
   window.location.replace("admin.html");
 }
 
@@ -1004,24 +1005,26 @@ async function saveClientNote(){
 | the same act, and only one of them is informed.
 |
 | Which pair shows depends on the account: pending gets Approve and Reject,
-| approved gets Delete. The owner alone gets any of them, matching
-| api/admin-users.php and api/delete-client.php - no button is offered that is
+| approved gets Delete - to whoever holds clients.approve or clients.delete,
+| matching api/admin-users.php and api/delete-client.php - no button is offered that is
 | going to come back Unauthorized.
 |
 */
 
-const isOwner = adminUser.role === "owner";
+const canApprove = adminCan("clients.approve");
+const canDelete = adminCan("clients.delete");
 
 function decideButtons(approved){
-  if(!isOwner) return "";
-
   if(!approved){
+    if(!canApprove) return "";
     return `
       <div class="head-decide">
         <button class="btn approve-btn" type="button" onclick="decide('approve')">Approve</button>
         <button class="btn reject-btn" type="button" onclick="decide('reject')">Reject</button>
       </div>`;
   }
+
+  if(!canDelete) return "";
 
   return `
     <div class="head-decide">
@@ -1036,7 +1039,7 @@ function decideButtons(approved){
 | the browser goes back to the list.
 */
 async function decide(action){
-  if(!isOwner) return;
+  if(!canApprove) return;
 
   if(action === "reject"){
     const ok = await askConfirm({
@@ -1089,7 +1092,7 @@ async function decide(action){
 /* Permanent, and the whole account: the dialog names it and holds its button
    until DELETE has been typed. Same dialog the Project Management page uses. */
 async function removeClient(){
-  if(!isOwner) return;
+  if(!canDelete) return;
 
   const ok = await askConfirm({
     title : "Delete client",
@@ -1701,7 +1704,7 @@ function render(data){
       header
       + `<div class="pending-only">
            This registration has not been approved yet, so there is nothing
-           assigned to it. ${isOwner
+           assigned to it. ${canApprove
               ? "Approve it above and their surveys, meetings and files appear here."
               : "Once the Director approves it, their surveys, meetings and files appear here."}
          </div>`
@@ -1777,7 +1780,7 @@ loadUser();
 <script src="assets/notifications.js?v=1"></script>
 <script src="assets/shell.js?v=6"></script>
 <script src="assets/sources-lock.js?v=1"></script>
-<script src="assets/role-nav.js?v=5"></script>
+<script src="assets/role-nav.js?v=6"></script>
 <script src="assets/confirm.js?v=1"></script>
 </body>
 </html>

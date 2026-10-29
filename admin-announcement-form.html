@@ -251,6 +251,7 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 <link rel="stylesheet" href="assets/shell.css?v=6" />
+<script src="assets/permissions.js?v=1"></script>
 </head>
 
 <body>
@@ -453,9 +454,9 @@ if(!adminToken || !adminUser.role){
   window.location.href = "admin-login.html";
 }
 
-/* Writing an announcement is the owner's alone - api/announcements.php refuses
+/* Writing an announcement needs announcements.send - api/announcements.php refuses
    everybody else too, so this only saves them a wasted trip. */
-if(adminUser.role !== "owner"){
+if(!adminCan("announcements.send")){
   window.location.href = "admin-notifications.html";
 }
 
@@ -809,20 +810,8 @@ loadRecipients();
 <script src="assets/notifications.js?v=1"></script>
 <script src="assets/shell.js?v=6"></script>
 <script src="assets/sources-lock.js?v=1"></script>
-<script src="assets/role-nav.js?v=5"></script>
+<script src="assets/role-nav.js?v=6"></script>
 
-<script>
-/* The calendar is account-management work, so the link is hidden from admins
-   who cannot open it. api/calendar.php and the page itself refuse the role
-   too - this only hides a dead link. */
-(function () {
-  var CALENDAR_ROLES = ["owner", "super_admin", "account_manager"];
-  var role = "";
-  try { role = (JSON.parse(localStorage.getItem("admin_user") || "{}") || {}).role || ""; } catch (e) {}
-  if (!role || CALENDAR_ROLES.indexOf(role) !== -1) return;
-  document.querySelectorAll('a[href*="admin-calendar.html"]').forEach(function (link) { link.remove(); });
-})();
-</script>
 
 </body>
 </html>

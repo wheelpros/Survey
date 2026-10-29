@@ -590,6 +590,7 @@ document.addEventListener("DOMContentLoaded", function () {
   .row-kebab svg{width:18px;height:18px}
 }
 </style>
+<script src="assets/permissions.js?v=1"></script>
 </head>
 
 <body>
@@ -1226,7 +1227,7 @@ async function viewSurveyResponses(surveyId){
    - any other admin sees only the forms they submitted, sitting there while
      they wait to hear back. */
 
-const canReview = adminUser.role === "account_manager" || adminUser.role === "owner";
+const canReview = adminCan("forms.review");
 
 let allReviewSurveys = [];
 let reviewPage = 1;
@@ -1559,24 +1560,6 @@ loadSurveyData();
 
 <script src="assets/notifications.js?v=1"></script>
 <script src="assets/shell.js?v=6"></script>
-<script src="assets/role-nav.js?v=5"></script>
-<script>
-/* The calendar belongs to the roles that deal with clients. A plain seo_admin
-   works on content, so the link comes out of their sidebar. api/calendar.php
-   and the page itself refuse the role too - this only hides a dead link. */
-(function () {
-  var CALENDAR_ROLES = ["owner", "super_admin", "account_manager"];
-
-  var role = "";
-  try {
-    role = (JSON.parse(localStorage.getItem("admin_user") || "{}") || {}).role || "";
-  } catch (e) {}
-
-  if (!role || CALENDAR_ROLES.indexOf(role) !== -1) return;
-
-  document.querySelectorAll('a[href*="admin-calendar.html"]')
-    .forEach(function (link) { link.remove(); });
-})();
-</script>
+<script src="assets/role-nav.js?v=6"></script>
 </body>
 </html>

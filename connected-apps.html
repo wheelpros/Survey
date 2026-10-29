@@ -51,6 +51,7 @@ th{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#667085}
 .scroll{overflow-x:auto}
 [hidden]{display:none !important}
 </style>
+<script src="assets/permissions.js?v=1"></script>
 </head>
 <body>
 <div class="wrap">
@@ -167,7 +168,7 @@ async function disconnect(id, name) {
 }
 
 async function loadOwner() {
-  if (!staffToken || staffUser.role !== "owner") return;
+  if (!staffToken || !adminCan("settings.manage")) return;
   let data;
   try {
     data = await call("api/oauth/admin.php");

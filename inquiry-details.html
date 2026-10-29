@@ -169,6 +169,7 @@ document.addEventListener("DOMContentLoaded", function () {
   set("acctRole", label);
 });
 </script>
+<script src="assets/permissions.js?v=1"></script>
 </head>
 
 <body>
@@ -366,11 +367,11 @@ if (!adminToken || !adminUser.role) {
   window.location.href = "admin-login.html";
 }
 
-if (adminUser.role !== "owner" && adminUser.role !== "account_manager") {
+if (!adminCan("inquiries.read")) {
   window.location.href = "admin.html";
 }
 
-const isOwner = adminUser.role === "owner";
+const canWrite = adminCan("inquiries.write");
 const inquiryId = Number(new URLSearchParams(window.location.search).get("id") || 0);
 
 // Responses are paged in the browser, five at a time - the whole set arrives
@@ -474,7 +475,7 @@ function fill(inq) {
       "This inquiry is inactive, so its link is closed. Set it back to active to reopen it.";
   }
 
-  if (isOwner) {
+  if (canWrite) {
     const edit = document.getElementById("editBtn");
     edit.href = "inquiry-form.html?id=" + inquiryId;
     edit.hidden = false;
@@ -699,6 +700,6 @@ loadResponses();
 <script src="assets/notifications.js?v=1"></script>
 <script src="assets/shell.js?v=6"></script>
 <script src="assets/sources-lock.js?v=1"></script>
-<script src="assets/role-nav.js?v=5"></script>
+<script src="assets/role-nav.js?v=6"></script>
 </body>
 </html>

@@ -265,6 +265,7 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 <link rel="stylesheet" href="assets/shell.css?v=6" />
+<script src="assets/permissions.js?v=1"></script>
 </head>
 
 <body>
@@ -429,7 +430,7 @@ if(!adminToken || !adminUser.role){
 
 /* The Director's page. api/admin-events.php refuses everyone else; this only
    saves them a page that would say so. */
-if(adminUser.role && adminUser.role !== "owner"){
+if(adminUser.role && !adminCan("events.view")){
   window.location.href = "admin-dashboard.html";
 }
 
@@ -637,7 +638,7 @@ function renderPager(total, totalPages, start, shown){
 <script src="assets/notifications.js?v=1"></script>
 <script src="assets/shell.js?v=6"></script>
 <script src="assets/sources-lock.js?v=1"></script>
-<script src="assets/role-nav.js?v=5"></script>
+<script src="assets/role-nav.js?v=6"></script>
 
 </body>
 </html>

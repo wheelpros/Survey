@@ -269,6 +269,7 @@ document.addEventListener("DOMContentLoaded", function () {
   #pendingPanel td[colspan],#approvedPanel td[colspan]{padding:20px 0;text-align:center}
 }
 </style>
+<script src="assets/permissions.js?v=1"></script>
 </head><body>
 <aside class="admin-sidebar">
   <div>
@@ -393,7 +394,7 @@ if(!adminToken || !adminUser.role){
 // Not for seo_admin: they work on content, not on client accounts. The link is
 // gone from their sidebar (assets/role-nav.js) and api/admin-user-details.php
 // refuses them; this only stops a typed-in URL landing on an empty page.
-if(adminUser.role === "seo_admin"){
+if(!adminCan("clients.details")){
   window.location.replace("admin.html");
 }
 
@@ -403,10 +404,10 @@ function logoutAdmin(){
   window.location.href = "admin-login.html";
 }
 
-// Every role but seo_admin reaches this page - what changes between them is the
+// Whoever holds clients.details reaches this page - what changes between them is the
 // data scope and which actions render.
 const myRole = adminUser.role;
-const isOwner = myRole === "owner";
+const canApprove = adminCan("clients.approve");
 
 // Wording for the clients table changes with role: the owner sees every signup
 // and decides on it from the client's own page, everyone below is just looking
@@ -557,7 +558,7 @@ function renderPending(){
 
   panel.hidden = false;
 
-  document.getElementById("pendingSub").textContent = isOwner
+  document.getElementById("pendingSub").textContent = canApprove
     ? "Newly registered clients waiting on your decision - open one to approve or reject it."
     : "Newly registered clients waiting on the Director's decision.";
 
@@ -584,7 +585,7 @@ function renderApproved(){
   const table = document.getElementById("approvedTable");
   const rows  = approvedUsers();
 
-  document.getElementById("approvedSub").textContent = isOwner
+  document.getElementById("approvedSub").textContent = canApprove
     ? "Approved accounts. Open one to manage or delete it."
     : "Approved accounts you can manage.";
 
@@ -683,23 +684,5 @@ loadUsers();
 <script src="assets/notifications.js?v=1"></script>
 <script src="assets/shell.js?v=6"></script>
 <script src="assets/sources-lock.js?v=1"></script>
-<script src="assets/role-nav.js?v=5"></script>
-<script>
-/* The calendar belongs to the roles that deal with clients. A plain seo_admin
-   works on content, so the link comes out of their sidebar. api/calendar.php
-   and the page itself refuse the role too - this only hides a dead link. */
-(function () {
-  var CALENDAR_ROLES = ["owner", "super_admin", "account_manager"];
-
-  var role = "";
-  try {
-    role = (JSON.parse(localStorage.getItem("admin_user") || "{}") || {}).role || "";
-  } catch (e) {}
-
-  if (!role || CALENDAR_ROLES.indexOf(role) !== -1) return;
-
-  document.querySelectorAll('a[href*="admin-calendar.html"]')
-    .forEach(function (link) { link.remove(); });
-})();
-</script>
+<script src="assets/role-nav.js?v=6"></script>
 </body></html>
