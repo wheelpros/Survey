@@ -1290,11 +1290,21 @@ select.client-filter{
 .perm-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
 .perm-table{width:100%;border-collapse:collapse;font-size:14px;min-width:560px}
 .perm-table th,.perm-table td{padding:11px 14px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
-.perm-table tbody tr:last-child > *{border-bottom:none}
+.perm-table tbody:last-child tr:last-child > *{border-bottom:none}
 .perm-table thead th{font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;background:#fafbfc}
 .perm-table tbody th[scope="row"]{font-weight:500;color:var(--text)}
 .perm-table .perm-col{text-align:center;width:150px}
-.perm-area th{background:#fafbfc;font-size:12px;font-weight:800;color:var(--nav-active);text-transform:uppercase;letter-spacing:.04em;padding-top:14px}
+.perm-area th{background:#fafbfc;padding:0}
+.perm-fold{display:flex;align-items:center;gap:10px;width:100%;padding:13px 14px;border:none;background:none;font:inherit;font-size:12px;font-weight:800;color:var(--nav-active);text-transform:uppercase;letter-spacing:.04em;text-align:left;cursor:pointer}
+.perm-fold:hover{background:#f2f4f7}
+.perm-fold:focus-visible{outline:2px solid var(--nav-active);outline-offset:-2px}
+.perm-fold svg{width:14px;height:14px;flex:none;transition:transform .15s ease}
+.perm-fold[aria-expanded="true"] svg{transform:rotate(90deg)}
+.perm-count{font-weight:700;color:var(--muted)}
+.perm-note{margin-left:auto;font-size:11px;font-weight:700;letter-spacing:0;text-transform:none;color:var(--brand);background:#fff1f1;border-radius:999px;padding:3px 9px}
+.perm-group.is-collapsed tr:not(.perm-area){display:none}
+.perm-group.is-collapsed .perm-area > th{border-bottom:1px solid var(--line)}
+@media (prefers-reduced-motion: reduce){.perm-fold svg{transition:none}}
 .perm-locked th[scope="row"]{color:var(--muted)}
 .perm-lock{display:inline-block;font-size:11px;font-weight:700;color:var(--muted);background:#f2f4f7;border-radius:999px;padding:3px 9px}
 .perm-check{position:relative;display:inline-flex;align-items:center;justify-content:center;margin:0;font-size:inherit;cursor:pointer}
@@ -1896,10 +1906,12 @@ function renderPermRoles(){
   const roles = permData.roles;
   let html = `<thead><tr><th scope="col">Permission</th>${roles.map(r =>
     `<th scope="col" class="perm-col">${permEsc(r.name)}
-       <button type="button" class="perm-reset" onclick="resetPermRole('${r.key}')">Reset to default</button></th>`).join("")}</tr></thead><tbody>`;
+       <button type="button" class="perm-reset" onclick="resetPermRole('${r.key}')">Reset to default</button></th>`).join("")}</tr></thead>`;
 
   permGroups().forEach(g => {
-    html += `<tr class="perm-area"><th scope="rowgroup" colspan="${roles.length + 1}">${permEsc(g.label)}</th></tr>`;
+    const changed = g.items.filter(p => !p.owner_only)
+      .reduce((n, p) => n + roles.filter(r => roleValue(r.key, p.key) !== p.defaults.includes(r.key)).length, 0);
+    html += permAreaHead("roles", g, roles.length + 1, changed ? `${changed} changed` : "");
     g.items.forEach(p => {
       html += `<tr${p.owner_only ? ' class="perm-locked"' : ""}><th scope="row">${permEsc(p.label)}</th>`;
       roles.forEach(r => {
@@ -1916,9 +1928,35 @@ function renderPermRoles(){
       });
       html += "</tr>";
     });
+    html += "</tbody>";
   });
 
-  document.getElementById("permRoleTable").innerHTML = html + "</tbody>";
+  document.getElementById("permRoleTable").innerHTML = html;
+}
+
+/*
+| Each area is a section that folds, so the panel starts as a short list of
+| headings. Which ones are open is remembered per view while the page is up;
+| a folded heading still says how many things in it were changed.
+*/
+const permOpen = { roles: new Set(), people: new Set() };
+
+function permAreaHead(view, g, cols, note){
+  const open = permOpen[view].has(g.area);
+  return `<tbody class="perm-group${open ? "" : " is-collapsed"}"><tr class="perm-area"><th scope="rowgroup" colspan="${cols}">
+    <button type="button" class="perm-fold" aria-expanded="${open}" onclick="togglePermArea('${view}','${g.area}')">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>${permEsc(g.label)}</span>
+      <span class="perm-count">${g.items.filter(p => view === "roles" || !p.owner_only).length}</span>
+      ${note ? `<span class="perm-note">${permEsc(note)}</span>` : ""}
+    </button></th></tr>`;
+}
+
+function togglePermArea(view, area){
+  if (permOpen[view].has(area)) permOpen[view].delete(area);
+  else permOpen[view].add(area);
+  if (view === "roles") renderPermRoles();
+  else renderPermPerson();
 }
 
 function editPermRole(role, key, on){
@@ -1959,10 +1997,11 @@ function renderPermPerson(){
   const admin = permData && permData.admins.find(a => String(a.id) === document.getElementById("permAdminSelect").value);
   if (!admin) { table.innerHTML = ""; return; }
 
-  let html = `<thead><tr><th scope="col">Permission</th><th scope="col" class="perm-col">${permEsc(admin.role_name)} gets</th><th scope="col" class="perm-col">${permEsc(admin.name)}</th></tr></thead><tbody>`;
+  let html = `<thead><tr><th scope="col">Permission</th><th scope="col" class="perm-col">${permEsc(admin.role_name)} gets</th><th scope="col" class="perm-col">${permEsc(admin.name)}</th></tr></thead>`;
   permGroups().forEach(g => {
     if (g.items.every(p => p.owner_only)) return;
-    html += `<tr class="perm-area"><th scope="rowgroup" colspan="3">${permEsc(g.label)}</th></tr>`;
+    const set = g.items.filter(p => !p.owner_only && personValue(admin, p.key) !== null).length;
+    html += permAreaHead("people", g, 3, set ? `${set} exception${set > 1 ? "s" : ""}` : "");
     g.items.forEach(p => {
       if (p.owner_only) return;
       const fromRole = roleValue(admin.role, p.key);
@@ -1976,8 +2015,9 @@ function renderPermPerson(){
           <option value="deny"${v === false ? " selected" : ""}>Deny</option>
         </select></td></tr>`;
     });
+    html += "</tbody>";
   });
-  table.innerHTML = html + "</tbody>";
+  table.innerHTML = html;
 }
 
 function editPermPerson(adminId, key, choice){
