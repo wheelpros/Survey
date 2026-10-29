@@ -885,17 +885,18 @@ function chime(){
   if(soundMuted() || !audio || audio.state !== "running") return;
   try{
     const now = audio.currentTime;
-    [[880, 0], [1320, 0.1]].forEach(([frequency, at]) => {
+    // Loud enough to hear on laptop speakers; at 0.06 it went unnoticed.
+    [[880, 0], [1320, 0.13]].forEach(([frequency, at]) => {
       const tone = audio.createOscillator();
       const volume = audio.createGain();
       tone.type = "sine";
       tone.frequency.value = frequency;
       volume.gain.setValueAtTime(0.0001, now + at);
-      volume.gain.exponentialRampToValueAtTime(0.06, now + at + 0.015);
-      volume.gain.exponentialRampToValueAtTime(0.0001, now + at + 0.22);
+      volume.gain.exponentialRampToValueAtTime(0.25, now + at + 0.015);
+      volume.gain.exponentialRampToValueAtTime(0.0001, now + at + 0.35);
       tone.connect(volume).connect(audio.destination);
       tone.start(now + at);
-      tone.stop(now + at + 0.25);
+      tone.stop(now + at + 0.38);
     });
   }catch(e){
     // No sound is the right failure.
