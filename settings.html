@@ -1282,6 +1282,38 @@ select.client-filter{
 /* Reset-by-email block inside the Files password panel. */
 .reset-lead{margin:0 0 18px;font-size:13.5px;line-height:1.65;color:#667085}
 
+/* ── Permissions (Settings > Permissions) ─────────────────────────────────── */
+.perm-tabs{display:inline-flex;gap:4px;padding:4px;background:#f2f4f7;border-radius:10px;margin-bottom:20px}
+.perm-tabs button{border:none;background:none;padding:8px 14px;border-radius:8px;font:inherit;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer}
+.perm-tabs button[aria-selected="true"]{background:#fff;color:var(--text);box-shadow:0 1px 3px rgba(16,24,40,.1)}
+.perm-tabs button:focus-visible,.perm-reset:focus-visible,.perm-check input:focus-visible{outline:2px solid var(--nav-active);outline-offset:2px}
+.perm-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+.perm-table{width:100%;border-collapse:collapse;font-size:14px;min-width:560px}
+.perm-table th,.perm-table td{padding:11px 14px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+.perm-table tbody tr:last-child > *{border-bottom:none}
+.perm-table thead th{font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;background:#fafbfc}
+.perm-table tbody th[scope="row"]{font-weight:500;color:var(--text)}
+.perm-table .perm-col{text-align:center;width:150px}
+.perm-area th{background:#fafbfc;font-size:12px;font-weight:800;color:var(--nav-active);text-transform:uppercase;letter-spacing:.04em;padding-top:14px}
+.perm-locked th[scope="row"]{color:var(--muted)}
+.perm-lock{display:inline-block;font-size:11px;font-weight:700;color:var(--muted);background:#f2f4f7;border-radius:999px;padding:3px 9px}
+.perm-check{position:relative;display:inline-flex;align-items:center;justify-content:center;margin:0;font-size:inherit;cursor:pointer}
+.perm-check input{width:18px;height:18px;margin:0;accent-color:var(--nav-active);cursor:pointer}
+.perm-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--brand)}
+.perm-check .perm-dot{position:absolute;top:-4px;right:-10px}
+.perm-legend{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;color:var(--muted)}
+.perm-reset{display:block;margin:4px auto 0;border:none;background:none;padding:0;font:inherit;font-size:11px;font-weight:700;color:var(--brand);text-transform:none;letter-spacing:0;cursor:pointer}
+.perm-reset:hover{text-decoration:underline}
+.panel-body .perm-select{width:auto;min-width:150px;margin:0;padding:8px 10px;font-size:13px}
+.panel-body .perm-select.is-set{border-color:var(--nav-active);font-weight:700}
+.perm-empty{color:var(--muted);text-align:center;padding:24px}
+.perm-foot{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:20px;flex-wrap:wrap}
+.perm-foot .status{margin:0 auto 0 0}
+.perm-save{padding:12px 18px;font-size:13px}
+.perm-foot .ghost-btn{padding:12px 18px;border:1px solid #dfe3ea;border-radius:10px;background:#fff;color:#101828;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.perm-foot .ghost-btn:hover:not(:disabled){background:#f6f7f9}
+.perm-save:disabled,.perm-foot .ghost-btn:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:700px){.perm-table .perm-col{width:auto}}
 </style>
 
 <script>
@@ -1757,6 +1789,282 @@ document.addEventListener("DOMContentLoaded", function () {
         </div>
     </div>
 </div>
+<!-- What each role may do, and one person's exceptions (api/permissions-admin.php).
+     The Director's alone; the endpoints check every one of these again. -->
+<div id="permissionsSection" style="display:none;">
+<div class="panel">
+  <div class="panel-head">
+    <h1>Permissions</h1>
+    <p>Choose what each role can do, then make exceptions for one person. A change applies on their next click &ndash; nobody is signed out.</p>
+  </div>
+
+  <div class="panel-body">
+    <div class="perm-tabs" role="tablist" aria-label="Permissions view">
+      <button type="button" role="tab" id="permTabRoles" aria-selected="true" aria-controls="permRoles" onclick="showPermView('roles')">By role</button>
+      <button type="button" role="tab" id="permTabPeople" aria-selected="false" aria-controls="permPeople" onclick="showPermView('people')">One person</button>
+    </div>
+
+    <div id="permRoles" role="tabpanel" aria-labelledby="permTabRoles">
+      <div class="perm-scroll">
+        <table class="perm-table" id="permRoleTable">
+          <tbody><tr><td class="perm-empty">Loading permissions...</td></tr></tbody>
+        </table>
+      </div>
+      <p class="perm-legend"><span class="perm-dot" aria-hidden="true"></span> Changed from the portal's default</p>
+    </div>
+
+    <div id="permPeople" role="tabpanel" aria-labelledby="permTabPeople" hidden>
+      <label for="permAdminSelect">Person</label>
+      <select id="permAdminSelect" onchange="renderPermPerson()"></select>
+      <div class="perm-scroll">
+        <table class="perm-table" id="permPersonTable"><tbody></tbody></table>
+      </div>
+    </div>
+
+    <div class="perm-foot">
+      <div id="permStatus" class="status" role="status"></div>
+      <button type="button" class="ghost-btn" id="permUndoBtn" onclick="undoPermChanges()" disabled>Undo</button>
+      <button type="button" class="action-btn btn perm-save" id="permSaveBtn" onclick="savePermChanges()" disabled>Save changes</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+/*
+|------------------------------------------------------------------------------
+| Settings > Permissions
+|------------------------------------------------------------------------------
+|
+| Two views over one GET of api/permissions-admin.php: a grid of every
+| permission against the three roles, and one person's exceptions to their
+| role. Edits stay on the page until Save; a value that matches the default
+| (or, for a person, their role) is sent as "default" so nothing is stored
+| that would stop a later change from reaching them.
+|
+*/
+let permData = null;
+let permRoleEdits = {};    // role -> { perm: bool }
+let permPersonEdits = {};  // admin id -> { perm: true | false | null }
+
+function permEsc(s){
+  return String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[c]);
+}
+
+async function loadPermissions(){
+  try {
+    const res = await fetch("api/permissions-admin.php", { headers: { Authorization: "Bearer " + localStorage.getItem("admin_token") } });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message || "Could not load permissions.");
+    permData = data.data;
+    permRoleEdits = {};
+    permPersonEdits = {};
+    renderPermRoles();
+    renderPermAdminSelect();
+    renderPermPerson();
+    syncPermButtons();
+  } catch (error) {
+    document.querySelector("#permRoleTable tbody").innerHTML =
+      `<tr><td class="perm-empty">${permEsc(error.message || "Could not load permissions.")}</td></tr>`;
+  }
+}
+
+function showPermView(view){
+  document.getElementById("permRoles").hidden = view !== "roles";
+  document.getElementById("permPeople").hidden = view !== "people";
+  document.getElementById("permTabRoles").setAttribute("aria-selected", view === "roles");
+  document.getElementById("permTabPeople").setAttribute("aria-selected", view === "people");
+}
+
+/* The catalog in its areas, in the order api/permissions.php lists them. */
+function permGroups(){
+  const groups = [];
+  permData.catalog.forEach(p => {
+    let g = groups.find(x => x.area === p.area);
+    if (!g) groups.push(g = { area: p.area, label: p.area_label, items: [] });
+    g.items.push(p);
+  });
+  return groups;
+}
+
+function roleValue(role, key){
+  const edit = (permRoleEdits[role] || {})[key];
+  return edit !== undefined ? edit : permData.matrix[role][key];
+}
+
+function renderPermRoles(){
+  const roles = permData.roles;
+  let html = `<thead><tr><th scope="col">Permission</th>${roles.map(r =>
+    `<th scope="col" class="perm-col">${permEsc(r.name)}
+       <button type="button" class="perm-reset" onclick="resetPermRole('${r.key}')">Reset to default</button></th>`).join("")}</tr></thead><tbody>`;
+
+  permGroups().forEach(g => {
+    html += `<tr class="perm-area"><th scope="rowgroup" colspan="${roles.length + 1}">${permEsc(g.label)}</th></tr>`;
+    g.items.forEach(p => {
+      html += `<tr${p.owner_only ? ' class="perm-locked"' : ""}><th scope="row">${permEsc(p.label)}</th>`;
+      roles.forEach(r => {
+        if (p.owner_only) {
+          html += `<td class="perm-col"><span class="perm-lock">Director</span></td>`;
+          return;
+        }
+        const on = roleValue(r.key, p.key);
+        const changed = on !== p.defaults.includes(r.key);
+        html += `<td class="perm-col"><label class="perm-check">
+          <input type="checkbox" ${on ? "checked" : ""} onchange="editPermRole('${r.key}','${p.key}',this.checked)"
+                 aria-label="${permEsc(r.name)}: ${permEsc(p.label)}">
+          ${changed ? '<span class="perm-dot" title="Changed from the default"></span>' : ""}</label></td>`;
+      });
+      html += "</tr>";
+    });
+  });
+
+  document.getElementById("permRoleTable").innerHTML = html + "</tbody>";
+}
+
+function editPermRole(role, key, on){
+  permRoleEdits[role] = permRoleEdits[role] || {};
+  if (on === permData.matrix[role][key]) delete permRoleEdits[role][key];
+  else permRoleEdits[role][key] = on;
+  renderPermRoles();
+  renderPermPerson();
+  syncPermButtons();
+}
+
+/* Every box in the column back to the portal's default - saved with the rest. */
+function resetPermRole(role){
+  permData.catalog.forEach(p => {
+    if (!p.owner_only) editPermRole(role, p.key, p.defaults.includes(role));
+  });
+}
+
+function renderPermAdminSelect(){
+  const select = document.getElementById("permAdminSelect");
+  const keep = select.value;
+  select.innerHTML = permData.admins.length
+    ? permData.admins.map(a => {
+        const n = Object.keys(a.overrides).length;
+        return `<option value="${a.id}">${permEsc(a.name)} - ${permEsc(a.role_name)}${a.active ? "" : " (deactivated)"}${n ? ` - ${n} exception${n > 1 ? "s" : ""}` : ""}</option>`;
+      }).join("")
+    : `<option value="">No admins yet</option>`;
+  if (keep && permData.admins.some(a => String(a.id) === keep)) select.value = keep;
+}
+
+function personValue(admin, key){
+  const edits = permPersonEdits[admin.id] || {};
+  return key in edits ? edits[key] : (key in admin.overrides ? admin.overrides[key] : null);
+}
+
+function renderPermPerson(){
+  const table = document.getElementById("permPersonTable");
+  const admin = permData && permData.admins.find(a => String(a.id) === document.getElementById("permAdminSelect").value);
+  if (!admin) { table.innerHTML = ""; return; }
+
+  let html = `<thead><tr><th scope="col">Permission</th><th scope="col" class="perm-col">${permEsc(admin.role_name)} gets</th><th scope="col" class="perm-col">${permEsc(admin.name)}</th></tr></thead><tbody>`;
+  permGroups().forEach(g => {
+    if (g.items.every(p => p.owner_only)) return;
+    html += `<tr class="perm-area"><th scope="rowgroup" colspan="3">${permEsc(g.label)}</th></tr>`;
+    g.items.forEach(p => {
+      if (p.owner_only) return;
+      const fromRole = roleValue(admin.role, p.key);
+      const v = personValue(admin, p.key);
+      html += `<tr><th scope="row">${permEsc(p.label)}</th>
+        <td class="perm-col">${fromRole ? "Yes" : "No"}</td>
+        <td class="perm-col"><select class="perm-select${v === null ? "" : " is-set"}" onchange="editPermPerson(${admin.id},'${p.key}',this.value)"
+              aria-label="${permEsc(admin.name)}: ${permEsc(p.label)}">
+          <option value="default"${v === null ? " selected" : ""}>As role (${fromRole ? "yes" : "no"})</option>
+          <option value="allow"${v === true ? " selected" : ""}>Allow</option>
+          <option value="deny"${v === false ? " selected" : ""}>Deny</option>
+        </select></td></tr>`;
+    });
+  });
+  table.innerHTML = html + "</tbody>";
+}
+
+function editPermPerson(adminId, key, choice){
+  const admin = permData.admins.find(a => a.id === adminId);
+  const value = choice === "allow" ? true : choice === "deny" ? false : null;
+  const saved = key in admin.overrides ? admin.overrides[key] : null;
+  permPersonEdits[adminId] = permPersonEdits[adminId] || {};
+  if (value === saved) delete permPersonEdits[adminId][key];
+  else permPersonEdits[adminId][key] = value;
+  renderPermPerson();
+  syncPermButtons();
+}
+
+function pendingPermCount(){
+  return [...Object.values(permRoleEdits), ...Object.values(permPersonEdits)]
+    .reduce((n, edits) => n + Object.keys(edits).length, 0);
+}
+
+function syncPermButtons(){
+  const n = pendingPermCount();
+  document.getElementById("permSaveBtn").disabled = n === 0;
+  document.getElementById("permUndoBtn").disabled = n === 0;
+  document.getElementById("permSaveBtn").textContent = n ? `Save ${n} change${n > 1 ? "s" : ""}` : "Save changes";
+}
+
+function undoPermChanges(){
+  permRoleEdits = {};
+  permPersonEdits = {};
+  renderPermRoles();
+  renderPermPerson();
+  syncPermButtons();
+  setPermStatus("");
+}
+
+function setPermStatus(text, isError){
+  const el = document.getElementById("permStatus");
+  el.textContent = text;
+  el.classList.toggle("error", !!isError);
+}
+
+async function savePermChanges(){
+  const requests = [];
+  Object.entries(permRoleEdits).forEach(([role, edits]) => {
+    const changes = {};
+    Object.entries(edits).forEach(([key, on]) => {
+      const def = permData.catalog.find(p => p.key === key).defaults.includes(role);
+      changes[key] = on === def ? "default" : on;
+    });
+    if (Object.keys(changes).length) requests.push({ role, changes });
+  });
+  Object.entries(permPersonEdits).forEach(([id, edits]) => {
+    const changes = {};
+    Object.entries(edits).forEach(([key, v]) => { changes[key] = v === null ? "default" : v; });
+    if (Object.keys(changes).length) requests.push({ admin_id: Number(id), changes });
+  });
+
+  document.getElementById("permSaveBtn").disabled = true;
+  setPermStatus("Saving...");
+
+  try {
+    for (const body of requests) {
+      const res = await fetch("api/permissions-admin.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + localStorage.getItem("admin_token") },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message || "Could not save.");
+      if (body.role) delete permRoleEdits[body.role];
+      else delete permPersonEdits[body.admin_id];
+      permData = data.data;
+    }
+    setPermStatus("Saved. It applies on their next click - nobody is signed out.");
+  } catch (error) {
+    setPermStatus(error.message || "Could not save.", true);
+  }
+  renderPermRoles();
+  renderPermAdminSelect();
+  renderPermPerson();
+  syncPermButtons();
+}
+
+if (adminCan("permissions.manage")) {
+  document.getElementById("permissionsSection").style.display = "block";
+  loadPermissions();
+}
+</script>
 <script>
 // ✅ تعريفات مرة واحدة بس
 let adminToken = localStorage.getItem("admin_token");

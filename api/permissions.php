@@ -290,13 +290,14 @@ function permissionOverrides(PDO $pdo, $adminId = null)
 |
 | $allowed true or false stores a row; null deletes it, so the role goes back
 | to the default and the admin back to their role. The callers have checked
-| who is asking (permissions.manage) and what is being changed.
+| who is asking (permissions.manage) and what is being changed, and have run
+| ensurePermissionTables() before opening a transaction - a CREATE TABLE in
+| MySQL commits whatever transaction is open.
 |
 */
 
 function storeRolePermission(PDO $pdo, $role, $perm, $allowed, $byAdminId)
 {
-    ensurePermissionTables($pdo);
     if ($allowed === null) {
         $pdo->prepare("DELETE FROM role_permissions WHERE role = ? AND permission = ?")->execute([$role, $perm]);
     } else {
@@ -310,7 +311,6 @@ function storeRolePermission(PDO $pdo, $role, $perm, $allowed, $byAdminId)
 
 function storeAdminPermission(PDO $pdo, $adminId, $perm, $allowed, $byAdminId)
 {
-    ensurePermissionTables($pdo);
     if ($allowed === null) {
         $pdo->prepare("DELETE FROM admin_permission_overrides WHERE admin_id = ? AND permission = ?")->execute([(int) $adminId, $perm]);
     } else {

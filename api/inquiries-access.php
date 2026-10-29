@@ -13,6 +13,7 @@ require_once "events.php";
 header("Content-Type: application/json; charset=UTF-8");
 
 ensureInquiryTables($pdo);
+ensurePermissionTables($pdo);
 
 $headers = getallheaders();
 $token = str_replace("Bearer ", "", $headers["Authorization"] ?? "");

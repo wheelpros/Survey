@@ -636,6 +636,11 @@ function changeAdminRole(PDO $pdo, $targetId, $newRole)
     $pdo->prepare("UPDATE admins SET role = ?, session_token = NULL WHERE id = ?")
         ->execute([$newRole, (int) $targetId]);
 
+    // Their exceptions were made against the old role; the new one starts clean.
+    foreach (array_keys(permissionOverrides($pdo, $targetId)[(int) $targetId] ?? []) as $perm) {
+        storeAdminPermission($pdo, $targetId, $perm, null, 0);
+    }
+
     logEvent($pdo, EVENT_ADMIN_ROLE, "admin", $targetId, $target["name"],
         "Changed " . $target["name"] . "'s role from " . adminRoleName($target["role"]) . " to " . adminRoleName($newRole));
 }
@@ -913,4 +918,126 @@ function emailNewAdminWelcome(PDO $pdo, $adminId, $name, $email, $role, $ownerNa
     );
 
     return sendPortalEmail([["email" => $email, "name" => $name]], "Your W Zone portal account", $html) > 0;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Permissions (Settings > Permissions)
+|--------------------------------------------------------------------------
+|
+| What each role may do, and one admin's exceptions to their role - the keys
+| in api/permissions.php. $changes is permission => true (allow), false
+| (deny) or null (back to the default, or for an admin back to their role).
+| A change applies on the person's next request; nobody is signed out.
+|
+*/
+
+/** Returns $changes cleaned up, or throws with the first thing wrong. */
+function checkPermissionChanges($changes)
+{
+    if (!is_array($changes) || $changes === []) {
+        throw new PortalWriteError("Choose at least one permission to change.");
+    }
+
+    $clean = [];
+    foreach ($changes as $perm => $value) {
+        if (!isPermission($perm)) {
+            throw new PortalWriteError("Unknown permission: " . mb_substr((string) $perm, 0, 64) . ".");
+        }
+        if (isOwnerOnlyPermission($perm)) {
+            throw new PortalWriteError("“" . PERMISSIONS[$perm]["label"] . "” stays with the Director.", 403);
+        }
+        if ($value === "default") {
+            $value = null;
+        }
+        if ($value !== null && !is_bool($value)) {
+            throw new PortalWriteError("Each permission is true, false or \"default\".");
+        }
+        $clean[$perm] = $value;
+    }
+    return $clean;
+}
+
+function checkRolePermissionChange($role, $changes)
+{
+    if (!in_array($role, PERMISSION_ROLES, true)) {
+        throw new PortalWriteError("Role must be one of: " . implode(", ", PERMISSION_ROLES) . ".");
+    }
+    return checkPermissionChanges($changes);
+}
+
+/** Returns [the admin, $changes cleaned up]. */
+function checkAdminPermissionChange(PDO $pdo, $adminId, $changes)
+{
+    $target = findAdminRow($pdo, $adminId);
+
+    if ($target["role"] === "owner") {
+        throw new PortalWriteError("The Director holds every permission.", 403);
+    }
+    if (!in_array($target["role"], PERMISSION_ROLES, true)) {
+        throw new PortalWriteError("This admin has no role to set permissions for.", 422);
+    }
+
+    return [$target, checkPermissionChanges($changes)];
+}
+
+/** "Can now create posts; can no longer publish; back to the default for ..." */
+function permissionChangeSummary(array $changes, $defaultWord)
+{
+    $parts = [];
+    foreach ($changes as $perm => $value) {
+        $label = lcfirst(PERMISSIONS[$perm]["label"]);
+        $parts[] = $value === null ? "back to $defaultWord for: $label"
+            : ($value ? "can now: $label" : "can no longer: $label");
+    }
+    return implode("; ", $parts);
+}
+
+function setRolePermissions(PDO $pdo, array $by, $role, array $changes)
+{
+    foreach ($changes as $perm => $value) {
+        storeRolePermission($pdo, $role, $perm, $value, $by["id"]);
+    }
+
+    $who = adminRoleName($role) . "s";
+    logEvent($pdo, EVENT_ROLE_PERMISSIONS, "admin", 0, $who,
+        $who . " " . permissionChangeSummary($changes, "the default"));
+}
+
+function setAdminPermissions(PDO $pdo, array $by, array $target, array $changes)
+{
+    foreach ($changes as $perm => $value) {
+        storeAdminPermission($pdo, $target["id"], $perm, $value, $by["id"]);
+    }
+
+    logEvent($pdo, EVENT_ADMIN_PERMISSIONS, "admin", $target["id"], $target["name"],
+        $target["name"] . " " . permissionChangeSummary($changes, "their role"));
+}
+
+/**
+ * Everything the Permissions panel draws: the catalog, each role's column,
+ * and every admin with their exceptions and what they end up holding.
+ */
+function permissionsOverview(PDO $pdo)
+{
+    $overrides = permissionOverrides($pdo);
+
+    return [
+        "catalog" => permissionCatalog(),
+        "roles" => array_map(function ($role) {
+            return ["key" => $role, "name" => adminRoleName($role)];
+        }, PERMISSION_ROLES),
+        "matrix" => rolePermissionMatrix($pdo),
+        "admins" => array_map(function ($a) use ($pdo, $overrides) {
+            return [
+                "id" => (int) $a["id"],
+                "name" => $a["name"],
+                "role" => $a["role"],
+                "role_name" => adminRoleName($a["role"]),
+                "active" => (int) $a["active"] === 1,
+                "overrides" => (object) ($overrides[(int) $a["id"]] ?? []),
+                "permissions" => effectivePermissions($a, $pdo),
+            ];
+        }, listTeamAdmins($pdo)),
+    ];
 }

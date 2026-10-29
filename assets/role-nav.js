@@ -156,13 +156,18 @@
 
         /* The Director changed what this admin may do (Settings >
            Permissions). No sign-out: store the new list and reload, so the
-           sidebar and every button are drawn from it. */
+           sidebar and every button are drawn from it. At most once a
+           minute, so storage that will not save can never loop it. */
         var perms = data.admin.permissions || [];
         if (JSON.stringify(stored.permissions || null) !== JSON.stringify(perms)) {
           stored.permissions = perms;
           localStorage.setItem("admin_user", JSON.stringify(stored));
-          location.reload();
-          return;
+          var last = Number(sessionStorage.getItem("wz_perm_reload") || 0);
+          if (Date.now() - last > 60000) {
+            sessionStorage.setItem("wz_perm_reload", String(Date.now()));
+            location.reload();
+            return;
+          }
         }
 
         /* Only labels changed: the owner set a position, a name or a photo

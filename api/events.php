@@ -86,6 +86,8 @@ const EVENT_ADMIN_ROLE            = "admin.role_changed";
 const EVENT_ADMIN_ACTIVE          = "admin.active_changed";
 const EVENT_ADMIN_MANAGER         = "admin.manager_changed";
 const EVENT_ADMIN_POSITION        = "admin.position_changed";
+const EVENT_ADMIN_PERMISSIONS     = "admin.permissions_changed";
+const EVENT_ROLE_PERMISSIONS      = "admin.role_permissions_changed";
 
 const EVENT_SETTINGS_CHANGED      = "settings.changed";
 
