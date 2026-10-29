@@ -79,6 +79,13 @@ check("messages: nothing reaches the notifications inbox",
 // later messages are unread.
 [, $r] = msgGet("action=count", $am);
 check("messages: Amy has 2 unread", ($r["unread"] ?? null) === 2, json_encode($r));
+check("messages: the count carries the newest incoming id", is_int($r["latest_id"] ?? null) && $r["latest_id"] > 0, json_encode($r));
+
+// The notifications badge rings the same way, from its own newest id.
+// Earlier sections add to Sam's inbox, so the table is the reference.
+[, $r] = pageGet("api/notifications.php?action=count", $sa);
+$newest = (int) one($pdo, "SELECT MAX(id) AS n FROM notifications WHERE recipient_kind = 'admin' AND recipient_id = 2")["n"];
+check("notifications: the count carries the newest id", $newest >= 901 && ($r["latest_id"] ?? null) === $newest, json_encode($r));
 [, $r] = msgGet("action=count", $sa);
 check("messages: your own messages are never unread", ($r["unread"] ?? null) === 0, json_encode($r));
 

@@ -6,9 +6,11 @@
  * in localStorage - an admin session has admin_token, a client has
  * portal_token, and no page ever has both.
  *
- * Deliberately no polling: a page load is the refresh. The pages that can
- * change the count (admin-notifications.html, notifications.html) repaint the
- * badge themselves after marking rows read.
+ * A client page asks once: a page load is the refresh. An admin page asks
+ * again every 15 seconds, in a background tab too, and plays the new
+ * notification sound (assets/alert-sound.js) when something new comes in.
+ * The pages that can change the count (admin-notifications.html,
+ * notifications.html) repaint the badge themselves after marking rows read.
  *
  * Every failure path is silent. A badge that never appears is the correct
  * degradation for a page whose real job is something else.
@@ -19,26 +21,38 @@
   var badge = document.getElementById("notifBadge");
   if (!badge) return;
 
-  var token = localStorage.getItem("admin_token")
-           || localStorage.getItem("portal_token");
+  var adminToken = localStorage.getItem("admin_token");
+  var token = adminToken || localStorage.getItem("portal_token");
   if (!token) return;
 
-  fetch("api/notifications.php?action=count", {
-    headers: { Authorization: "Bearer " + token }
-  })
-    .then(function (res) { return res.json(); })
-    .then(function (data) {
-      if (!data || !data.success) return;
-
-      var count = Number(data.unread) || 0;
-      if (count <= 0) return;
-
-      // Past 9 the exact number stops mattering and starts breaking the pill's
-      // width in the collapsed sidebar.
-      badge.textContent = count > 9 ? "9+" : String(count);
-      badge.hidden = false;
+  function check() {
+    fetch("api/notifications.php?action=count", {
+      headers: { Authorization: "Bearer " + token }
     })
-    .catch(function () {
-      /* Offline, logged out, or the table was never created. */
-    });
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (!data || !data.success) return;
+
+        var count = Number(data.unread) || 0;
+
+        // Past 9 the exact number stops mattering and starts breaking the pill's
+        // width in the collapsed sidebar.
+        badge.textContent = count > 9 ? "9+" : String(count);
+        badge.hidden = count <= 0;
+
+        if (adminToken && window.WzAlertSound) window.WzAlertSound.notice("notification", data.latest_id);
+      })
+      .catch(function () {
+        /* Offline, logged out, or the table was never created. */
+      });
+  }
+
+  check();
+  if (!adminToken) return;
+
+  setInterval(check, 15000);
+  // Back on the tab: catch up at once rather than waiting for the next tick.
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden) check();
+  });
 })();

@@ -297,6 +297,8 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 <link rel="stylesheet" href="assets/shell.css?v=6" />
+<!-- Before the page script, which asks it to ring. -->
+<script src="assets/alert-sound.js?v=1"></script>
 </head>
 
 <body>
@@ -831,91 +833,34 @@ document.addEventListener("visibilitychange", () => {
 
 // The list is checked even in a background tab, so a message in any chat -
 // not only the open one - still brings a sound. Browsers slow this timer
-// down in hidden tabs, which is fine for a chime.
+// down in hidden tabs, which is fine for a sound.
 setInterval(loadList, LIST_POLL_MS);
 
-/* ── A sound for new messages ───────────────────────────────────────────────
-   A short two-note tone made with the Web Audio API, so there is no file to
-   ship. Only for messages from the other person, and only ones that arrive
-   after the page has loaded: the first look at the list and every chat
-   opened just sets the mark (heardUpTo), nothing rings for it.
+/* ── The new message sound ──────────────────────────────────────────────────
+   assets/alert-sound.js plays it (and keeps the mute setting) on every admin
+   page. Here it is only for messages from the other person that arrive after
+   the page has loaded: the first look at the list and every chat opened just
+   set the mark, nothing rings for them. */
 
-   Browsers only let a page make sound after someone has clicked or typed on
-   it, so the audio is switched on at the first click or key press; until
-   then, or with no Web Audio at all, the chime is silently skipped. Muting
-   is remembered in this browser. */
-
-const SOUND_KEY = "wz_msg_sound_muted";
-const HEARD_KEY = "wz_msg_heard_id";    // shared by every open Messages tab
-
-let audio = null;
-let heardUpTo = null;     // the newest incoming message id accounted for; null until the first load
-
-function soundMuted(){
-  try{ return localStorage.getItem(SOUND_KEY) === "1"; }catch(e){ return false; }
+/* ids: incoming message ids just seen. ring=false only moves the mark. */
+function noticeIncoming(ids, ring){
+  if(!window.WzAlertSound) return;
+  WzAlertSound.notice("message", ids.length ? Math.max(...ids) : 0, ring);
 }
 
 function paintSoundBtn(){
   const btn = document.getElementById("soundBtn");
-  const muted = soundMuted();
-  const label = muted ? "Turn on the new message sound" : "Mute the new message sound";
+  const muted = !!window.WzAlertSound && WzAlertSound.muted();
+  const label = muted ? "Turn on sounds for new messages and notifications" : "Mute sounds for new messages and notifications";
   btn.setAttribute("aria-pressed", String(muted));
   btn.title = label;
   btn.setAttribute("aria-label", label);
 }
 
 function toggleSound(){
-  const muted = !soundMuted();
-  try{ localStorage.setItem(SOUND_KEY, muted ? "1" : "0"); }catch(e){}
+  if(!window.WzAlertSound) return;
+  WzAlertSound.setMuted(!WzAlertSound.muted());
   paintSoundBtn();
-}
-
-function unlockAudio(){
-  if(!audio){
-    const Context = window.AudioContext || window.webkitAudioContext;
-    if(!Context) return;
-    try{ audio = new Context(); }catch(e){ return; }
-  }
-  if(audio.state === "suspended") audio.resume().catch(() => {});
-}
-document.addEventListener("pointerdown", unlockAudio, true);
-document.addEventListener("keydown", unlockAudio, true);
-
-function chime(){
-  if(soundMuted() || !audio || audio.state !== "running") return;
-  try{
-    const now = audio.currentTime;
-    // Loud enough to hear on laptop speakers; at 0.06 it went unnoticed.
-    [[880, 0], [1320, 0.13]].forEach(([frequency, at]) => {
-      const tone = audio.createOscillator();
-      const volume = audio.createGain();
-      tone.type = "sine";
-      tone.frequency.value = frequency;
-      volume.gain.setValueAtTime(0.0001, now + at);
-      volume.gain.exponentialRampToValueAtTime(0.25, now + at + 0.015);
-      volume.gain.exponentialRampToValueAtTime(0.0001, now + at + 0.35);
-      tone.connect(volume).connect(audio.destination);
-      tone.start(now + at);
-      tone.stop(now + at + 0.38);
-    });
-  }catch(e){
-    // No sound is the right failure.
-  }
-}
-
-/* ids: incoming message ids just seen. ring=false only moves the mark. */
-function noticeIncoming(ids, ring){
-  const newest = ids.length ? Math.max(...ids) : 0;
-  if(ring && heardUpTo !== null && newest > heardUpTo){
-    // With the page open in two tabs, only the first to see it rings.
-    let shared = 0;
-    try{ shared = Number(localStorage.getItem(HEARD_KEY)) || 0; }catch(e){}
-    if(newest > shared){
-      try{ localStorage.setItem(HEARD_KEY, String(newest)); }catch(e){}
-      chime();
-    }
-  }
-  heardUpTo = Math.max(heardUpTo || 0, newest);
 }
 
 paintSoundBtn();
@@ -1023,8 +968,8 @@ document.addEventListener("keydown", event => {
 })();
 </script>
 
-<script src="assets/notifications.js?v=1"></script>
-<script src="assets/messages-badge.js?v=1"></script>
+<script src="assets/notifications.js?v=2"></script>
+<script src="assets/messages-badge.js?v=2" data-page-polls></script>
 <script src="assets/shell.js?v=6"></script>
 <script src="assets/sources-lock.js?v=1"></script>
 <script src="assets/role-nav.js?v=4"></script>
