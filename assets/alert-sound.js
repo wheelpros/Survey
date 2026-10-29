@@ -9,8 +9,7 @@
  * Browsers only let a page make sound after someone has clicked or typed on
  * it, so the audio is switched on at the first click or key press on each
  * page; until then, or with no Web Audio at all, the sound is silently
- * skipped. Muting (the speaker button on admin-messages.html) is remembered
- * in this browser and covers both kinds.
+ * skipped. There is no mute in the app - the browser's own tab mute does it.
  *
  * Only something that arrives while the page is open rings: the first look
  * after a page load just sets the mark. With several admin pages open, only
@@ -19,7 +18,6 @@
 (function () {
   "use strict";
 
-  var MUTE_KEY = "wz_alert_sound_muted";
   var TUNES = {
     message:      [[880, 0], [1320, 0.13]],
     notification: [[1175, 0], [784, 0.13]]
@@ -27,14 +25,6 @@
 
   var audio = null;
   var marks = {};   // kind -> the newest id this page has accounted for
-
-  function muted() {
-    try { return localStorage.getItem(MUTE_KEY) === "1"; } catch (e) { return false; }
-  }
-
-  function setMuted(on) {
-    try { localStorage.setItem(MUTE_KEY, on ? "1" : "0"); } catch (e) {}
-  }
 
   function unlock() {
     if (!audio) {
@@ -48,7 +38,7 @@
   document.addEventListener("keydown", unlock, true);
 
   function play(kind) {
-    if (muted() || !audio || audio.state !== "running") return;
+    if (!audio || audio.state !== "running") return;
     try {
       var now = audio.currentTime;
       (TUNES[kind] || TUNES.message).forEach(function (note) {
@@ -96,5 +86,5 @@
     marks[kind] = Math.max(mark || 0, newest);
   }
 
-  window.WzAlertSound = { muted: muted, setMuted: setMuted, notice: notice, play: play };
+  window.WzAlertSound = { notice: notice, play: play };
 })();

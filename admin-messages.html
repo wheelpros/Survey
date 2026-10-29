@@ -155,12 +155,6 @@ body{padding:0}
 .create-btn:hover{background:#282c52}
 .create-btn:disabled{opacity:.45;cursor:not-allowed}
 .create-btn svg{width:16px;height:16px}
-.head-actions{flex:none;display:flex;gap:10px;align-items:center}
-.sound-btn{width:40px;height:40px;border:1px solid #dfe3ea;background:#fff;border-radius:10px;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
-.sound-btn:hover{background:#f6f7f9;color:var(--text)}
-.sound-btn svg{width:18px;height:18px}
-.sound-btn .off,.sound-btn[aria-pressed="true"] .on{display:none}
-.sound-btn[aria-pressed="true"] .off{display:block}
 
 .chat{display:grid;grid-template-columns:320px minmax(0,1fr);background:#fff;border-radius:20px;box-shadow:0 14px 35px rgba(0,0,0,.06);overflow:hidden;height:calc(100vh - 190px);min-height:460px}
 
@@ -298,7 +292,7 @@ document.addEventListener("DOMContentLoaded", function () {
 </script>
 <link rel="stylesheet" href="assets/shell.css?v=6" />
 <!-- Before the page script, which asks it to ring. -->
-<script src="assets/alert-sound.js?v=1"></script>
+<script src="assets/alert-sound.js?v=2"></script>
 </head>
 
 <body>
@@ -381,16 +375,10 @@ document.addEventListener("DOMContentLoaded", function () {
         <h1>Messages</h1>
         <p>Private chats with your team. Only the two people in a chat can read it.</p>
       </div>
-      <div class="head-actions">
-        <button class="sound-btn" type="button" id="soundBtn" onclick="toggleSound()" aria-pressed="false" title="Mute the new message sound" aria-label="Mute the new message sound">
-          <svg class="on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>
-          <svg class="off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/></svg>
-        </button>
-        <button class="create-btn" type="button" id="newMessageBtn" onclick="openPicker()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          New message
-        </button>
-      </div>
+      <button class="create-btn" type="button" id="newMessageBtn" onclick="openPicker()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        New message
+      </button>
     </div>
 
     <div class="chat" id="chat">
@@ -837,33 +825,16 @@ document.addEventListener("visibilitychange", () => {
 setInterval(loadList, LIST_POLL_MS);
 
 /* ── The new message sound ──────────────────────────────────────────────────
-   assets/alert-sound.js plays it (and keeps the mute setting) on every admin
-   page. Here it is only for messages from the other person that arrive after
-   the page has loaded: the first look at the list and every chat opened just
-   set the mark, nothing rings for them. */
+   assets/alert-sound.js plays it on every admin page. Here it is only for
+   messages from the other person that arrive after the page has loaded: the
+   first look at the list and every chat opened just set the mark, nothing
+   rings for them. */
 
 /* ids: incoming message ids just seen. ring=false only moves the mark. */
 function noticeIncoming(ids, ring){
   if(!window.WzAlertSound) return;
   WzAlertSound.notice("message", ids.length ? Math.max(...ids) : 0, ring);
 }
-
-function paintSoundBtn(){
-  const btn = document.getElementById("soundBtn");
-  const muted = !!window.WzAlertSound && WzAlertSound.muted();
-  const label = muted ? "Turn on sounds for new messages and notifications" : "Mute sounds for new messages and notifications";
-  btn.setAttribute("aria-pressed", String(muted));
-  btn.title = label;
-  btn.setAttribute("aria-label", label);
-}
-
-function toggleSound(){
-  if(!window.WzAlertSound) return;
-  WzAlertSound.setMuted(!WzAlertSound.muted());
-  paintSoundBtn();
-}
-
-paintSoundBtn();
 
 /* ── Starting a chat ── */
 
