@@ -2568,5 +2568,35 @@
                 }
             }
         ]
+    },
+    "get_dashboard": {
+        "items": [
+            {
+                "kind": "assignment",
+                "id": 601,
+                "title": "Audit done",
+                "belongs_to": "Beta SEO",
+                "due_date": "2026-10-28",
+                "label": null,
+                "status": "in_progress",
+                "link": "project-task-details.html?project=501&id=601"
+            },
+            {
+                "kind": "content",
+                "id": 302,
+                "title": "Acme reel",
+                "belongs_to": "Acme Ltd",
+                "due_date": "2026-11-01",
+                "label": "Social Media",
+                "status": "todo",
+                "link": "admin-content-form.html?id=302"
+            }
+        ],
+        "counts": {
+            "todo": 1,
+            "in_progress": 1,
+            "done": 0
+        },
+        "projects": 2
     }
 }

@@ -415,6 +415,8 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
 
             // Staff-only files; the client endpoint never selects them.
             $content["attachments"] = attachmentsFor($pdo, "content", [$id])[$id] ?? [];
+            // Files for the client: shown on their Content page once live.
+            $content["client_attachments"] = attachmentsFor($pdo, CLIENT_FILES_OWNER, [$id])[$id] ?? [];
 
             response(
                 true,
@@ -499,6 +501,7 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
 
         $assignees = contentAssignees($pdo, array_column($contents, "id"));
         $files     = attachmentsFor($pdo, "content", array_column($contents, "id"));
+        $clientFiles = attachmentsFor($pdo, CLIENT_FILES_OWNER, array_column($contents, "id"));
 
         /* Each row says what this admin may do with it, so the grid shows
            Edit and Delete from the same rules the writes below enforce. */
@@ -508,6 +511,7 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
 
             $row["assignees"] = $assignees[(int) $row["id"]] ?? [];
             $row["attachments"] = $files[(int) $row["id"]] ?? [];
+            $row["client_attachments"] = $clientFiles[(int) $row["id"]] ?? [];
 
             $assigned = in_array(
                 (int) $admin["id"],
@@ -776,15 +780,21 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     /*
     | Attachments: keep_attachments[] is what stays, attachments[] the new
     | files; keep_attachments_sent marks that the list was sent. Every new file
-    | is checked now, before any image is saved.
+    | is checked now, before any image is saved. The client_ fields are the
+    | same for the files the client sees (CLIENT_FILES_OWNER).
     */
     $fileUploads = uploadedFiles("attachments");
     $keepFiles = ($_POST["keep_attachments_sent"] ?? "") === "1"
         ? (array) ($_POST["keep_attachments"] ?? [])
         : null;
+    $clientFileUploads = uploadedFiles("client_attachments");
+    $keepClientFiles = ($_POST["keep_client_attachments_sent"] ?? "") === "1"
+        ? (array) ($_POST["keep_client_attachments"] ?? [])
+        : null;
 
     try {
         array_map("checkAttachment", $fileUploads);
+        array_map("checkAttachment", $clientFileUploads);
     } catch (PortalWriteError $e) {
         response(false, $e->getMessage(), [], 400);
     }
@@ -1009,6 +1019,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 saveContentWorkNotes($pdo, $newId, $workNotes);
             }
             saveAttachments($pdo, "content", $newId, null, $fileUploads, $admin["id"]);
+            saveAttachments($pdo, CLIENT_FILES_OWNER, $newId, null, $clientFileUploads, $admin["id"]);
 
             // Only a post that is live has anything to announce. A draft or a
             // scheduled post notifies nobody until it actually publishes.
@@ -1121,7 +1132,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         if ($workNotes !== null) {
             saveContentWorkNotes($pdo, $id, $workNotes);
         }
-        $removedFiles = saveAttachments($pdo, "content", $id, $keepFiles, $fileUploads, $admin["id"]);
+        $removedFiles = array_merge(
+            saveAttachments($pdo, "content", $id, $keepFiles, $fileUploads, $admin["id"]),
+            saveAttachments($pdo, CLIENT_FILES_OWNER, $id, $keepClientFiles, $clientFileUploads, $admin["id"])
+        );
 
         // Only on the transition into published. Without this test every later
         // edit of a live post would notify the whole client all over again.
@@ -1245,7 +1259,10 @@ if ($_SERVER["REQUEST_METHOD"] === "DELETE") {
 
         $stmt->execute([$id]);
 
-        $removedFiles = deleteAttachmentRows($pdo, "content", $id);
+        $removedFiles = array_merge(
+            deleteAttachmentRows($pdo, "content", $id),
+            deleteAttachmentRows($pdo, CLIENT_FILES_OWNER, $id)
+        );
 
         /*
         | Delete its images and files

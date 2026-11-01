@@ -79,7 +79,7 @@ const PERMISSIONS = [
     // Team
     "team.overview"      => ["area" => "team", "label" => "See the whole team's tasks on the dashboard", "roles" => []],
     "announcements.send" => ["area" => "team", "label" => "Send announcements", "roles" => []],
-    "events.view"        => ["area" => "team", "label" => "Read the event log - every admin's changes", "roles" => []],
+    "events.view"        => ["area" => "team", "label" => "See Tracking - every admin's changes", "roles" => []],
 
     // The Director's alone
     "settings.manage"    => ["area" => "director", "label" => "Change portal settings", "roles" => [], "owner_only" => true],

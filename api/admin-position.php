@@ -47,7 +47,7 @@ if (!$caller) {
 }
 
 if (!can($caller, "admins.manage", $pdo)) {
-    positionReply(false, "Only the owner can change positions.");
+    positionReply(false, "Only the Director can change positions.");
 }
 
 $input = json_decode(file_get_contents("php://input"), true) ?? [];

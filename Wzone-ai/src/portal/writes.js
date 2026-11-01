@@ -71,7 +71,7 @@ const adminPosition = z
   .describe("Their job, e.g. SEO Specialist - shown in their sidebar and account popup instead of their name");
 const adminRole = z
   .enum(["seo_admin", "super_admin", "account_manager"])
-  .describe("seo_admin is shown as Admin. The owner role can't be given");
+  .describe("seo_admin is shown as Admin. The Director role can't be given");
 
 // What a post carries for the team working on it: never shown to the client.
 const postTeamFields = {
@@ -514,7 +514,7 @@ export const WRITE_TOOLS = [
     input: { slide: recordId("The slide's id - from get_settings") },
   },
 
-  // ── The admin team (the owner's) ──────────────────────────────────────
+  // ── The admin team (the Director's) ──────────────────────────────────────
   {
     name: "add_admin",
     scope: "admins:write",
@@ -576,7 +576,7 @@ export const WRITE_TOOLS = [
     title: "Change an admin's role",
     description:
       "Changes an admin's role. They are signed out and pick up the new role when they next sign in. " +
-      "The owner's role, and your own, can't be changed." + TWO_STEP,
+      "The Director's role, and your own, can't be changed." + TWO_STEP,
     input: { admin: adminId, role: adminRole },
   },
   {

@@ -49,7 +49,7 @@ if (!$p) {
 }
 
 if ($p["kind"] !== "admin" || $p["via"] !== "session" || !can($p, "events.view", $pdo)) {
-    reply(false, "You do not have permission to read the event log.", [], 403);
+    reply(false, "You do not have permission to see Tracking.", [], 403);
 }
 
 $action = $_GET["action"] ?? "list";

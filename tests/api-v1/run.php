@@ -597,6 +597,7 @@ if (in_array("--fixtures", $argv, true)) {
         "list_phase_teammates" => ["projects.php?id=500&teammates=1", $owner],
         "list_my_phases" => ["projects.php?mine=1", $seo],
         "list_my_tasks" => ["projects.php?tasks=1", $seo],
+        "get_dashboard" => ["projects.php?tasks=1", $owner],
         "list_my_notifications" => ["notifications.php", $sa],
     ];
     foreach ($calls as $tool => [$path, $token]) {

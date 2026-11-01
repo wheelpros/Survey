@@ -50,6 +50,11 @@ const ATTACHMENT_SERVE_TYPES = [
     "xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 ];
 
+/* A post's files for its client - shown and downloadable on the client's
+   Content page once the post is live. The post's own "content" attachments
+   stay the team's. */
+const CLIENT_FILES_OWNER = "client_post";
+
 /* A phase's gallery, beside its cover: shown on the phase page only. */
 const TASK_GALLERY_MAX_IMAGES = 5;
 

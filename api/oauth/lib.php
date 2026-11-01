@@ -71,7 +71,7 @@ const SCOPE_DESCRIPTIONS = [
     "settings:read"       => "See the portal settings: website address, logo, login slides and the admin team",
     "settings:write"      => "Change the website address, logo and login page slides",
     "admins:write"        => "Add and edit admins (name, email, position, role), switch them on or off, and assign them to managers",
-    "events:read"         => "See the event log: what every admin changed, and when",
+    "events:read"         => "See Tracking: what every admin changed, and when",
     "self:read"           => "See your meetings, content, forms, projects and notifications",
     "self:write"          => "Request and answer meetings, fill in your forms, mark notifications read",
 ];

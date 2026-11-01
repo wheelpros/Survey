@@ -41,7 +41,7 @@ export const clientListItem = z.object({
   name: text,
   email: text,
   company_name: maybe,
-  approved: z.boolean().describe("false: registered, waiting for the owner's approval"),
+  approved: z.boolean().describe("false: registered, waiting for the Director's approval"),
   created_at: dateTime,
 });
 
@@ -60,7 +60,7 @@ export const clientOverview = {
     created_at: dateTime,
     untrusted_content: untrusted({ description: text }),
   }),
-  team: z.array(staffMember).describe("Staff assigned to this client (the owner is on every client)"),
+  team: z.array(staffMember).describe("Staff assigned to this client (the Director is on every client)"),
   not_included: z
     .array(z.object({ section: text, needs_scope: text }))
     .describe("Sections left out because this connection lacks that area's scope"),
@@ -96,7 +96,7 @@ export const clientTeam = { client: clientRef, team: z.array(staffMember) };
 
 export const clientNote = {
   client: clientRef,
-  can_write: z.boolean().describe("Only the owner and account managers keep notes"),
+  can_write: z.boolean().describe("Only the Director and account managers keep notes"),
   untrusted_content: untrusted({ note: text.describe("Your own private note; empty if none") }),
 };
 
@@ -466,7 +466,7 @@ export const notifications = {
   unread_count: id,
 };
 
-// ── Event log (the owner's) ─────────────────────────────────────────────
+// ── Event log (the Director's) ─────────────────────────────────────────────
 
 export const adminEvents = page(
   z.object({
@@ -582,7 +582,7 @@ export const whoami = {
   id,
   name: text,
   email: text,
-  role: text.describe("owner, super_admin, seo_admin, account_manager - or client"),
+  role: text.describe("owner (the Director - always call them the Director), super_admin, seo_admin, account_manager - or client"),
   scopes: z.array(text).describe("What this connection may do"),
   via: text,
   connected_app: maybe.optional(),

@@ -25,7 +25,7 @@ v1RequireMethod("GET");
 v1RequireScope($p, "events:read");
 
 if (!can($p, "events.view", $pdo)) {
-    v1Error(403, "insufficient_scope", "You do not have permission to read the event log.");
+    v1Error(403, "insufficient_scope", "You do not have permission to see Tracking.");
 }
 
 pruneAdminEvents($pdo);

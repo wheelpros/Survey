@@ -1534,9 +1534,9 @@
             <span>Notifications</span>
             <em class="nav-badge" id="notifBadge" hidden></em>
           </a>
-          <a href="event-log.html" title="Event log">
+          <a href="event-log.html" title="Tracking">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 2"/><path d="M3.05 11a9 9 0 1 1 .5 4"/><path d="M3 4v5h5"/></svg>
-            <span>Event log</span>
+            <span>Tracking</span>
           </a>
           <a href="settings.html" title="Settings">
             <svg
@@ -2087,6 +2087,21 @@
                     placeholder="e.g. Use the July product shots, keep the caption short"
                   ></textarea>
                 </div>
+
+                <!-- Files for the team (owner_type "content"). Never shown to
+                     the client - theirs are under Media Assets. -->
+                <div class="field-row">
+                  <label>Team files</label>
+                  <ul class="file-list" id="fileList"></ul>
+                  <button class="file-add" type="button" id="fileAddBtn"
+                    onclick="document.getElementById('fileInput').click()">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                    Attach files
+                  </button>
+                  <input type="file" id="fileInput" accept=".pdf,.txt,.md,.doc,.docx,.xls,.xlsx" multiple hidden />
+                  <p class="hint">Only the team sees these. PDF, TXT, MD, Word or Excel · up to 5 files · max 8 MB each</p>
+                  <div class="media-error" id="fileError"></div>
+                </div>
               </div>
             </section>
           </div>
@@ -2127,19 +2142,21 @@
               </div>
             </section>
 
-            <!-- Files for the team. Never shown to the client. -->
+            <!-- Files for the client (CLIENT_FILES_OWNER): download links on
+                 their Content page once the post is live. The team's own
+                 files are under Teammates. -->
             <section class="panel">
-              <div class="panel-head"><h2>Attachments</h2></div>
+              <div class="panel-head"><h2>Files for the client</h2></div>
               <div class="panel-body">
-                <ul class="file-list" id="fileList"></ul>
-                <button class="file-add" type="button" id="fileAddBtn"
-                  onclick="document.getElementById('fileInput').click()">
+                <ul class="file-list" id="clientFileList"></ul>
+                <button class="file-add" type="button" id="clientFileAddBtn"
+                  onclick="document.getElementById('clientFileInput').click()">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
                   Attach files
                 </button>
-                <input type="file" id="fileInput" accept=".pdf,.txt,.md,.doc,.docx,.xls,.xlsx" multiple hidden />
-                <div class="media-count" id="fileCount">PDF, TXT, MD, Word or Excel · up to 5 files · max 8 MB each</div>
-                <div class="media-error" id="fileError"></div>
+                <input type="file" id="clientFileInput" accept=".pdf,.txt,.md,.doc,.docx,.xls,.xlsx" multiple hidden />
+                <div class="media-count">The client can download these from their Content page. PDF, TXT, MD, Word or Excel · up to 5 files · max 8 MB each</div>
+                <div class="media-error" id="clientFileError"></div>
               </div>
             </section>
 
@@ -2958,11 +2975,8 @@
         }
 
         // Sent only when changed, so a save that never touched them keeps them all.
-        if (filesTouched) {
-          form.append("keep_attachments_sent", "1");
-          filesKept.forEach((f) => form.append("keep_attachments[]", f.id));
-          filesNew.forEach((file) => form.append("attachments[]", file));
-        }
+        teamFiles.appendTo(form, "attachments");
+        clientFiles.appendTo(form, "client_attachments");
 
         let uploads;
 
@@ -3090,10 +3104,10 @@
           viewerId = String(data.admin_id);
           if (data.statuses) statuses = data.statuses;
           setSavedAssignees(item.assignees || []);
-          filesKept = (item.attachments || []).slice();
           maxFiles = Number(data.max_files) || maxFiles;
           maxFileBytes = Number(data.max_file_bytes) || maxFileBytes;
-          paintFiles();
+          teamFiles.load(item.attachments);
+          clientFiles.load(item.client_attachments);
 
           showTeammates(Boolean(data.can_assign));
           await selectTeammates(item.assignees || []);
@@ -3438,9 +3452,6 @@
       /* ── Attachments ── */
       let maxFiles = 5;
       let maxFileBytes = 8 * 1024 * 1024;
-      let filesKept = []; // [{id, name, ext, size}] from the server
-      let filesNew = []; // [File]
-      let filesTouched = false;
       const FILE_EXTS = ["pdf", "txt", "md", "doc", "docx", "xls", "xlsx"];
 
       function fileSize(bytes) {
@@ -3455,64 +3466,99 @@
         return m ? m[1].toLowerCase() : "";
       }
 
-      function fileError(message) {
-        const box = document.getElementById("fileError");
-        box.textContent = message || "";
-        box.classList.toggle("show", Boolean(message));
-      }
+      /* One list of files: kept ones from the server and new ones to upload.
+         Two of them - the team's under Teammates, the client's under Media
+         Assets - each saved under its own field names. */
+      function makeFileList(ids) {
+        let kept = []; // [{id, name, ext, size}] from the server
+        let added = []; // [File]
+        let touched = false;
 
-      function addFiles(files) {
-        fileError("");
-        const room = maxFiles - filesKept.length - filesNew.length;
-        if (files.length > room) {
-          fileError("Up to " + maxFiles + " files can be attached.");
-          files = files.slice(0, Math.max(room, 0));
+        function error(message) {
+          const box = document.getElementById(ids.error);
+          box.textContent = message || "";
+          box.classList.toggle("show", Boolean(message));
         }
-        for (const file of files) {
-          if (!FILE_EXTS.includes(extOf(file.name))) {
-            fileError("Only PDF, TXT, MD, Word and Excel files can be attached.");
-            continue;
+
+        function add(files) {
+          error("");
+          const room = maxFiles - kept.length - added.length;
+          if (files.length > room) {
+            error("Up to " + maxFiles + " files can be attached.");
+            files = files.slice(0, Math.max(room, 0));
           }
-          if (file.size > maxFileBytes) {
-            fileError('"' + file.name + '" is larger than ' + Math.round(maxFileBytes / 1024 / 1024) + " MB.");
-            continue;
+          for (const file of files) {
+            if (!FILE_EXTS.includes(extOf(file.name))) {
+              error("Only PDF, TXT, MD, Word and Excel files can be attached.");
+              continue;
+            }
+            if (file.size > maxFileBytes) {
+              error('"' + file.name + '" is larger than ' + Math.round(maxFileBytes / 1024 / 1024) + " MB.");
+              continue;
+            }
+            added.push(file);
+            touched = true;
           }
-          filesNew.push(file);
-          filesTouched = true;
+          paint();
         }
-        paintFiles();
+
+        function remove(kind, index) {
+          if (kind === "kept") kept.splice(index, 1);
+          else added.splice(index, 1);
+          touched = true;
+          error("");
+          paint();
+        }
+
+        function paint() {
+          const rows = kept
+            .map((f, i) => ({ name: f.name, size: f.size, kind: "kept", i }))
+            .concat(added.map((f, i) => ({ name: f.name, size: f.size, kind: "new", i })));
+
+          document.getElementById(ids.list).innerHTML = rows
+            .map(
+              (r) =>
+                '<li><span class="ext">' + esc(extOf(r.name) || "file") + "</span>" +
+                '<span class="fname" dir="auto" title="' + esc(r.name) + '">' + esc(r.name) + "</span>" +
+                "<small>" + fileSize(r.size) + "</small>" +
+                '<button type="button" aria-label="Remove ' + esc(r.name) + '" onclick="' + ids.name +
+                ".remove('" + r.kind + "'," + r.i + ')">&times;</button></li>',
+            )
+            .join("");
+
+          document.getElementById(ids.addBtn).hidden = rows.length >= maxFiles;
+        }
+
+        document.getElementById(ids.input).addEventListener("change", function () {
+          add(Array.from(this.files || []));
+          this.value = "";
+        });
+
+        return {
+          remove,
+          load(files) {
+            kept = (files || []).slice();
+            added = [];
+            touched = false;
+            paint();
+          },
+          /* keep_<field>[] is what stays, <field>[] the new files, and
+             keep_<field>_sent says the list was sent - only when changed. */
+          appendTo(form, field) {
+            if (!touched) return;
+            form.append("keep_" + field + "_sent", "1");
+            kept.forEach((f) => form.append("keep_" + field + "[]", f.id));
+            added.forEach((file) => form.append(field + "[]", file));
+          },
+        };
       }
 
-      function removeFile(kind, index) {
-        if (kind === "kept") filesKept.splice(index, 1);
-        else filesNew.splice(index, 1);
-        filesTouched = true;
-        fileError("");
-        paintFiles();
-      }
-
-      function paintFiles() {
-        const rows = filesKept
-          .map((f, i) => ({ name: f.name, size: f.size, kind: "kept", i }))
-          .concat(filesNew.map((f, i) => ({ name: f.name, size: f.size, kind: "new", i })));
-
-        document.getElementById("fileList").innerHTML = rows
-          .map(
-            (r) =>
-              '<li><span class="ext">' + esc(extOf(r.name) || "file") + "</span>" +
-              '<span class="fname" dir="auto" title="' + esc(r.name) + '">' + esc(r.name) + "</span>" +
-              "<small>" + fileSize(r.size) + "</small>" +
-              '<button type="button" aria-label="Remove ' + esc(r.name) + '" onclick="removeFile(\'' +
-              r.kind + "'," + r.i + ')">&times;</button></li>',
-          )
-          .join("");
-
-        document.getElementById("fileAddBtn").hidden = rows.length >= maxFiles;
-      }
-
-      document.getElementById("fileInput").addEventListener("change", function () {
-        addFiles(Array.from(this.files || []));
-        this.value = "";
+      const teamFiles = makeFileList({
+        name: "teamFiles", list: "fileList", addBtn: "fileAddBtn", input: "fileInput", error: "fileError",
+      });
+      const clientFiles = makeFileList({
+        name: "clientFiles", list: "clientFileList", addBtn: "clientFileAddBtn",
+        input: "clientFileInput", error: "clientFileError",
       });
 
       /** {admin_id: note} for every row on the table, as the API takes it. */

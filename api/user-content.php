@@ -1,6 +1,7 @@
 <?php
 
 require_once "db.php";
+require_once "upload-helpers.php";
 
 header("Content-Type: application/json; charset=UTF-8");
 
@@ -144,10 +145,16 @@ try {
 
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    // The files the team shared with the client (never the team's own),
+    // downloaded through api/attachment.php with this same token.
+    ensureAttachmentsTable($pdo);
+    $files = attachmentsFor($pdo, CLIENT_FILES_OWNER, array_column($rows, "id"));
+
     // Every image on the post, for the detail panel's thumbnails.
     foreach ($rows as &$row) {
         $row["images"] = contentImages($row);
         unset($row["media_paths"]);
+        $row["files"] = $files[(int) $row["id"]] ?? [];
     }
     unset($row);
 

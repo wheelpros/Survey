@@ -7,11 +7,15 @@
 |
 | GET api/attachment.php?id=12   with the admin's Bearer token
 |
-| Attachments are staff-only, so only an admin session gets in - a client
-| token is refused like no token at all. The admin must also be able to see
+| Attachments are the team's, so an admin session gets in when it can see
 | what the file is attached to: the phase's project (projectScopeSql) or the
 | post (contentVisibleSql, everything for the roles that see the whole
 | library). Anything else is a 404, so nothing confirms a file exists.
+|
+| The one exception is a post's files for its client (CLIENT_FILES_OWNER):
+| a client's portal token may download those, only once the post is live
+| and only when it is for their company or for everyone - the same rule as
+| api/user-content.php. A client asking for anything else gets the 404.
 |
 | The pages fetch this with the token in the header and save the blob, so
 | the token never goes in a URL.
@@ -45,8 +49,15 @@ try {
 }
 $admin = $stmt->fetch(PDO::FETCH_ASSOC);
 
+$client = null;
 if (!$admin) {
-    attachmentFail("Attachments are for the team only.", 403);
+    $stmt = $pdo->prepare("SELECT id, approved, company_name FROM users WHERE session_token = ? LIMIT 1");
+    $stmt->execute([$token]);
+    $client = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$client || (int) $client["approved"] !== 1) {
+        attachmentFail("Unauthorized.", 401);
+    }
 }
 
 ensureAttachmentsTable($pdo);
@@ -61,7 +72,21 @@ if (!$file) {
 
 $visible = false;
 
-if ($file["owner_type"] === "task") {
+if ($client) {
+    // Only a live post's files for its client - see the comment at the top.
+    if ($file["owner_type"] === CLIENT_FILES_OWNER) {
+        ensureContentColumns($pdo);
+        $company = trim($client["company_name"] ?? "");
+        $stmt = $pdo->prepare("
+            SELECT 1 FROM content c
+            WHERE c.id = ? AND " . contentIsLiveSql("c") . "
+              AND (c.client IS NULL OR c.client = '' OR (? <> '' AND c.client = ?))
+            LIMIT 1
+        ");
+        $stmt->execute([(int) $file["owner_id"], contentNow(), $company, $company]);
+        $visible = (bool) $stmt->fetchColumn();
+    }
+} elseif ($file["owner_type"] === "task") {
     ensureProjectTables($pdo);
     [$scopeSql, $scopeParams] = projectScopeSql($admin);
     $stmt = $pdo->prepare("
@@ -72,7 +97,7 @@ if ($file["owner_type"] === "task") {
     ");
     $stmt->execute(array_merge([(int) $file["owner_id"]], $scopeParams));
     $visible = (bool) $stmt->fetchColumn();
-} elseif ($file["owner_type"] === "content") {
+} elseif ($file["owner_type"] === "content" || $file["owner_type"] === CLIENT_FILES_OWNER) {
     ensureContentColumns($pdo);
     $sql = "SELECT 1 FROM content c WHERE c.id = ?";
     $params = [(int) $file["owner_id"]];
