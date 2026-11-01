@@ -169,6 +169,7 @@ document.addEventListener("DOMContentLoaded", function () {
   set("acctRole", label);
 });
 </script>
+<script src="assets/permissions.js?v=1"></script>
 </head>
 
 <body>
@@ -323,7 +324,7 @@ if (!adminToken || !adminUser.role) {
   window.location.href = "admin-login.html";
 }
 
-if (adminUser.role !== "owner" && adminUser.role !== "account_manager") {
+if (!adminCan("inquiries.read")) {
   window.location.href = "admin.html";
 }
 
@@ -487,6 +488,6 @@ load();
 <script src="assets/messages-badge.js?v=2"></script>
 <script src="assets/shell.js?v=6"></script>
 <script src="assets/sources-lock.js?v=1"></script>
-<script src="assets/role-nav.js?v=5"></script>
+<script src="assets/role-nav.js?v=6"></script>
 </body>
 </html>

@@ -93,6 +93,7 @@ select{
 
 .empty{padding:26px;text-align:center;color:var(--muted)}
 </style>
+<script src="assets/permissions.js?v=1"></script>
 </head>
 
 <body>
@@ -179,7 +180,7 @@ const sourceId = new URLSearchParams(location.search).get("id");
 
 /* An account manager or the owner is the approval step, so their own forms go
    straight to the client - matching what api/admin-surveys.php does on save. */
-const canReview = adminUser.role === "account_manager" || adminUser.role === "owner";
+const canReview = adminCan("forms.review");
 
 let sourceQuestions = [];
 

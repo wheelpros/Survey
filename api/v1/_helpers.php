@@ -226,7 +226,7 @@ function v1NullableString($value)
  */
 function v1ClientScopeSql(array $p, $column)
 {
-    if ($p["role"] === "owner") {
+    if (can($p, "clients.view_all")) {
         return ["", []];
     }
     return ["$column IN (SELECT user_id FROM admin_user_assignments WHERE admin_id = ?)", [$p["id"]]];
@@ -275,7 +275,7 @@ function v1ClientRef($id, $name, $company, $email = null)
 */
 function v1SeesAllForms(array $p)
 {
-    return in_array($p["role"], ["owner", "account_manager"], true);
+    return can($p, "forms.review");
 }
 
 /*
@@ -285,7 +285,7 @@ function v1SeesAllForms(array $p)
 */
 function v1SeesAllContent(array $p)
 {
-    return contentSeesAll((string) $p["role"]);
+    return contentSeesAll($p);
 }
 
 /*

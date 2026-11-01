@@ -5,7 +5,7 @@
 |
 |   GET settings.php     get_settings
 |
-| Scope settings:read, the owner's alone (SCOPE_ROLES in auth.php). Never
+| Scope settings:read, the owner's alone (SCOPE_PERMISSIONS in auth.php). Never
 | returns a password, password hash, session or reset token, or the files
 | password - only whether things are set.
 |

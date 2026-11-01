@@ -104,9 +104,7 @@ if (!$user) {
     |
     */
 
-    $calendarRoles = ["owner", "super_admin", "account_manager"];
-
-    if (!in_array($admin["role"] ?? "", $calendarRoles, true)) {
+    if (!can($admin, "calendar.use", $pdo)) {
         reply(false, "You do not have access to the calendar.");
     }
 }

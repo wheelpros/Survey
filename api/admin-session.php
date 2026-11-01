@@ -14,7 +14,9 @@
 | them back to the login screen, where the fresh role is handed out.
 |
 | The current role goes back in the reply too, so a page can spot a stale copy
-| in localStorage even in the cases where the session itself survived.
+| in localStorage even in the cases where the session itself survived. So do
+| the permissions (api/permissions.php): the Director changing one does not
+| sign anyone out, the page just reloads with the new list.
 |
 */
 
@@ -68,6 +70,7 @@ echo json_encode([
         "email" => $admin["email"],
         "role"  => $admin["role"],
         "position" => $admin["position"],
-        "avatar_path" => $avatar
+        "avatar_path" => $avatar,
+        "permissions" => effectivePermissions($admin, $pdo)
     ]
 ]);

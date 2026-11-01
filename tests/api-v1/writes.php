@@ -139,7 +139,7 @@ check("page: a script link is refused", $status === 400, "HTTP $status " . json_
 [, $r] = post("api/admin-inquiries.php", $owner, ["title" => "Page inquiry", "fields" => [["label" => "Name", "type" => "input", "required" => true]]]);
 check("page: the owner creates an inquiry", ($r["success"] ?? false) && ($r["name"] ?? "") === "page-inquiry", json_encode($r));
 [, $r] = post("api/admin-inquiries.php", $am, ["title" => "Not mine", "fields" => [["label" => "Name"]]]);
-check("page: only the owner creates inquiries", ($r["message"] ?? "") === "Only the Director can create inquiries", json_encode($r));
+check("page: only the owner creates inquiries", ($r["message"] ?? "") === "You do not have permission to create inquiries", json_encode($r));
 $pageInquiry = (int) one($pdo, "SELECT id FROM inquiries WHERE title = 'Page inquiry'")["id"];
 $r = put("api/admin-inquiries.php", $owner, ["id" => $pageInquiry, "title" => "Page inquiry v2", "status" => "inactive",
     "fields" => [["label" => "Name", "type" => "input", "required" => true], ["label" => "Budget", "type" => "textarea"]]]);

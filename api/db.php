@@ -981,22 +981,20 @@ function contentImageExtension(string $path): ?string
 | Who sees which post
 |--------------------------------------------------------------------------
 |
-| A post is a task. The owner and the account managers run the posting
-| calendar and see every post; anyone else sees the posts they created and
-| the ones they were assigned to (content_assignees). api/admin-content.php
+| A post is a task. Whoever holds content.view_all (the owner and the account
+| managers, unless the Director changed it) sees every post; anyone else sees
+| the posts they created and the ones they were assigned to
+| (content_assignees). api/admin-content.php
 | and the v1 content reads all ask these, so the rule lives in one place.
 |
 */
 
-/** Roles that see the whole content library. */
-const CONTENT_SEES_ALL_ROLES = ["owner", "account_manager"];
-
 /** Roles a post can be assigned to: account managers, Super Admins and Admins. */
 const CONTENT_ASSIGNEE_ROLES = ["account_manager", "super_admin", "seo_admin"];
 
-function contentSeesAll(string $role): bool
+function contentSeesAll(array $admin): bool
 {
-    return in_array($role, CONTENT_SEES_ALL_ROLES, true);
+    return can($admin, "content.view_all");
 }
 
 /**
@@ -1316,6 +1314,57 @@ function ensureAdminEventsTable(PDO $pdo)
     } catch (PDOException $e) {
         // Read-only DB user: logEvent() stays silent and the Event log page
         // is empty until sql/admin_events.sql is run by hand.
+    }
+}
+
+/**
+ * The Director's permission changes (api/permissions.php): one row per role
+ * or per admin where a default was changed, nothing otherwise.
+ *
+ * An account manager's old inquiries_access flag becomes an inquiries.read
+ * override the first time this runs. INSERT IGNORE keeps any override the
+ * Director set since, and the flag is kept in step by the writes, so going
+ * back to an older build still reads it right.
+ *
+ * sql/permissions.sql is the same to run by hand.
+ */
+function ensurePermissionTables(PDO $pdo)
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    try {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS role_permissions (
+              role       VARCHAR(30) NOT NULL,
+              permission VARCHAR(64) NOT NULL,
+              allowed    TINYINT(1)  NOT NULL,
+              updated_by INT             NULL,
+              updated_at TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+              PRIMARY KEY (role, permission)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS admin_permission_overrides (
+              admin_id   INT         NOT NULL,
+              permission VARCHAR(64) NOT NULL,
+              allowed    TINYINT(1)  NOT NULL,
+              updated_by INT             NULL,
+              updated_at TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+              PRIMARY KEY (admin_id, permission)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        $pdo->exec("
+            INSERT IGNORE INTO admin_permission_overrides (admin_id, permission, allowed)
+            SELECT id, 'inquiries.read', 1 FROM admins
+            WHERE role = 'account_manager' AND inquiries_access = 1
+        ");
+    } catch (PDOException $e) {
+        // Read-only DB user: every role keeps its defaults until
+        // sql/permissions.sql is run by hand.
     }
 }
 
@@ -1858,7 +1907,7 @@ class PortalWriteError extends RuntimeException
  */
 function projectScopeSql(array $actor)
 {
-    if (($actor["role"] ?? "") === "owner") {
+    if (can($actor, "projects.view_all")) {
         return ["", []];
     }
 
@@ -1905,6 +1954,8 @@ function normalisePortalLink($link)
     return $link;
 }
 
+// can() and the permission catalog - most callers of the helpers above need them.
+require_once __DIR__ . "/permissions.php";
 /**
  * Direct messages between admins - admin-messages.html, through
  * api/admin-messages.php.

@@ -13,7 +13,7 @@ $stmt->execute([$token]);
 $currentAdmin = $stmt->fetch();
 
 // Only the owner distributes Admin accounts to a Super Admin / Account Manager.
-if (!$currentAdmin || $currentAdmin["role"] !== "owner") {
+if (!$currentAdmin || !can($currentAdmin, "admins.manage", $pdo)) {
     echo json_encode([
         "success" => false,
         "message" => "Unauthorized"

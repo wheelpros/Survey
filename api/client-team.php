@@ -77,13 +77,13 @@ try {
     respond(false, "Authentication database error.", [], 500);
 }
 
-// Clients Management, which this panel is part of, is not open to seo_admin.
-if ($actor["role"] === "seo_admin") {
+// Clients Management, which this panel is part of, needs clients.details.
+if (!can($actor, "clients.details", $pdo)) {
     respond(false, "Clients Management is not available to your role.", [], 403);
 }
 
 $actorId = (int) $actor["id"];
-$isOwner = $actor["role"] === "owner";
+$seesAll = can($actor, "clients.view_all", $pdo);
 
 /*
 | Everyone the actor may add to or remove from a team, keyed by id. Removing
@@ -243,9 +243,9 @@ try {
         respond(false, "User not found.", [], 404);
     }
 
-    // The owner sees every client; anyone else only the ones they are on the
+    // clients.view_all sees every client; anyone else only the ones they are on the
     // team of - the same scope as the client list.
-    if (!$isOwner) {
+    if (!$seesAll) {
         $mine = $pdo->prepare("
             SELECT 1 FROM admin_user_assignments
             WHERE admin_id = ? AND user_id = ?

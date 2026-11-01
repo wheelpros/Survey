@@ -535,6 +535,46 @@ export const settings = {
     .describe("Everyone on the team but the Director"),
 };
 
+// ── Permissions (the Director's) ────────────────────────────────────────
+
+const roleKey = z.enum(["seo_admin", "super_admin", "account_manager"]);
+
+export const permissions = {
+  permissions: z
+    .array(
+      z.object({
+        key: text.describe("What set_role_permissions and set_admin_permissions take, e.g. content.create"),
+        area: text,
+        label: text,
+        director_only: z.boolean().describe("true: stays with the Director, can't be given to anyone"),
+        default_roles: z.array(roleKey).describe("The roles that get it before the Director changes anything"),
+      })
+    )
+    .describe("Every permission, in the order Settings shows them"),
+  roles: z.array(
+    z.object({
+      role: roleKey,
+      role_name: text,
+      allowed: z.array(text).describe("The permission keys everyone in this role gets today"),
+    })
+  ),
+  admins: z
+    .array(
+      z.object({
+        id,
+        role: roleKey,
+        role_name: text,
+        active: z.boolean(),
+        exceptions: z
+          .array(z.object({ key: text, allowed: z.boolean().describe("true: allowed; false: denied") }))
+          .describe("Their exceptions, which beat their role"),
+        effective: z.array(text).describe("Every permission key they hold today"),
+        untrusted_content: untrusted({ name: text }),
+      })
+    )
+    .describe("Everyone on the team but the Director, who holds every permission"),
+};
+
 // ── Whoami ──────────────────────────────────────────────────────────────
 
 export const whoami = {

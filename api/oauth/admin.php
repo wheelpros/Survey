@@ -28,7 +28,7 @@ $p = currentPrincipal($pdo);
 if (!$p || $p["via"] !== "session") {
     oauthReply(401, ["success" => false, "message" => "Please sign in"]);
 }
-if ($p["kind"] !== "admin" || $p["role"] !== "owner") {
+if (!can($p, "settings.manage", $pdo)) {
     oauthReply(403, ["success" => false, "message" => "Only the Director can change AI access"]);
 }
 

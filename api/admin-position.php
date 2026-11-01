@@ -46,7 +46,7 @@ if (!$caller) {
     positionReply(false, "Unauthorized");
 }
 
-if (($caller["role"] ?? "") !== "owner") {
+if (!can($caller, "admins.manage", $pdo)) {
     positionReply(false, "Only the owner can change positions.");
 }
 

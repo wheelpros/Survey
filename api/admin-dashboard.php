@@ -86,7 +86,7 @@ try {
 
     // The Director also gets the Team overview - their whole dashboard: every
     // person's tasks they can see. Other roles get no `team` key.
-    $team = in_array($admin["role"], TEAM_DASHBOARD_ROLES, true) ? teamDashboardItems($pdo, $admin) : null;
+    $team = can($admin, "team.overview", $pdo) ? teamDashboardItems($pdo, $admin) : null;
 } catch (Throwable $e) {
     response(false, "Could not load your dashboard.", [], 500);
 }

@@ -80,7 +80,7 @@ $params = [];
 
 $where = [];
 
-if ($currentAdmin["role"] !== "owner") {
+if (!can($currentAdmin, "forms.responses", $pdo)) {
     $sql .= "
         LEFT JOIN admin_user_assignments aua
             ON aua.user_id = sr.user_id

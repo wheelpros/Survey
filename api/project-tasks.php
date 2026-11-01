@@ -400,7 +400,7 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
            tasks plus their own. */
 
         $seesEveryDraft =
-            in_array($admin["role"], ["owner", "account_manager"], true)
+            can($admin, "tasks.see_drafts")
             || (int) $project["account_manager_admin_id"] === (int) $admin["id"];
 
         $sql = "

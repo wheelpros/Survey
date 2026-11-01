@@ -27,13 +27,13 @@ function respond($success, $message = "", $extra = [], $code = 200)
 | Authenticate the admin
 |--------------------------------------------------------------------------
 |
-| Every admin role but seo_admin may view a user - the same roles that see
-| Clients Management, which is the only page that opens this one. An Admin
-| works on content, not on client accounts, and gets a 403 on read and write.
+| Whoever holds clients.details may view a user - by default every role but
+| seo_admin, the same people who see Clients Management, the only page that
+| opens this one. Anyone else gets a 403 on read and write.
 |
 | The role is read alongside the id because one thing on this page is narrower
 | than the page: the internal note below is the account manager's and the
-| owner's to write.
+| owner's to write (clients.edit).
 |
 */
 
@@ -61,16 +61,17 @@ try {
     respond(false, "Authentication database error.", [], 500);
 }
 
-if (($admin["role"] ?? "") === "seo_admin") {
+if (!can($admin, "clients.details", $pdo)) {
     respond(false, "Clients Management is not available to your role.", [], 403);
 }
 
 /* Who may change what is on this page: the internal note, and the client's own
    details. Every other admin reads both and no more.
 
-   Approving, rejecting and deleting are not in here - those stay the owner's
-   alone, enforced by api/admin-users.php and api/delete-client.php. */
-$canManageNotes = in_array($admin["role"] ?? "", ["owner", "account_manager"], true);
+   Approving, rejecting and deleting are not in here - those are
+   clients.approve and clients.delete, enforced by api/admin-users.php and
+   api/delete-client.php. */
+$canManageNotes = can($admin, "clients.edit", $pdo);
 $canEditDetails = $canManageNotes;
 
 /*

@@ -76,7 +76,7 @@ if ($file["owner_type"] === "task") {
     ensureContentColumns($pdo);
     $sql = "SELECT 1 FROM content c WHERE c.id = ?";
     $params = [(int) $file["owner_id"]];
-    if (!contentSeesAll((string) $admin["role"])) {
+    if (!contentSeesAll($admin)) {
         [$visibleSql, $visibleParams] = contentVisibleSql("c", (int) $admin["id"]);
         $sql .= " AND " . $visibleSql;
         $params = array_merge($params, $visibleParams);

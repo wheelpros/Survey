@@ -1282,6 +1282,56 @@ select.client-filter{
 /* Reset-by-email block inside the Files password panel. */
 .reset-lead{margin:0 0 18px;font-size:13.5px;line-height:1.65;color:#667085}
 
+/* ── Permissions (Settings > Permissions) ─────────────────────────────────── */
+.perm-tabs{display:inline-flex;gap:4px;padding:4px;background:#f2f4f7;border-radius:10px;margin-bottom:20px}
+.perm-tabs button{border:none;background:none;padding:8px 14px;border-radius:8px;font:inherit;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer}
+.perm-tabs button[aria-selected="true"]{background:#fff;color:var(--text);box-shadow:0 1px 3px rgba(16,24,40,.1)}
+.perm-tabs button:focus-visible,.perm-reset:focus-visible,.perm-check input:focus-visible{outline:2px solid var(--nav-active);outline-offset:2px}
+.perm-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+.perm-table{width:100%;border-collapse:collapse;font-size:14px;min-width:560px}
+.perm-table th,.perm-table td{padding:11px 14px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+.perm-table tbody:last-child tr:last-child > *{border-bottom:none}
+.perm-table thead th{font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;background:#fafbfc}
+.perm-table tbody th[scope="row"]{font-weight:500;color:var(--text)}
+.perm-table .perm-col{text-align:center;width:150px}
+.perm-area th{background:#fafbfc;padding:0}
+.perm-fold{display:flex;align-items:center;gap:10px;width:100%;padding:13px 14px;border:none;background:none;font:inherit;font-size:12px;font-weight:800;color:var(--nav-active);text-transform:uppercase;letter-spacing:.04em;text-align:left;cursor:pointer}
+.perm-fold:hover{background:#f2f4f7}
+.perm-fold:focus-visible{outline:2px solid var(--nav-active);outline-offset:-2px}
+.perm-fold svg{width:14px;height:14px;flex:none;transition:transform .15s ease}
+.perm-fold[aria-expanded="true"] svg{transform:rotate(90deg)}
+.perm-count{font-weight:700;color:var(--muted)}
+.perm-note{margin-left:auto;font-size:11px;font-weight:700;letter-spacing:0;text-transform:none;color:var(--brand);background:#fff1f1;border-radius:999px;padding:3px 9px}
+.perm-group.is-collapsed tr:not(.perm-area){display:none}
+.perm-group.is-collapsed .perm-area > th{border-bottom:1px solid var(--line)}
+@media (prefers-reduced-motion: reduce){.perm-fold svg{transition:none}}
+.perm-locked th[scope="row"]{color:var(--muted)}
+.perm-lock{display:inline-block;font-size:11px;font-weight:700;color:var(--muted);background:#f2f4f7;border-radius:999px;padding:3px 9px}
+.perm-check{position:relative;display:inline-flex;align-items:center;justify-content:center;margin:0;font-size:inherit;cursor:pointer}
+.perm-check input{width:18px;height:18px;margin:0;accent-color:var(--nav-active);cursor:pointer}
+.perm-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--brand)}
+.perm-check .perm-dot{position:absolute;top:-4px;right:-10px}
+.perm-legend{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;color:var(--muted)}
+.perm-reset{display:block;margin:4px auto 0;border:none;background:none;padding:0;font:inherit;font-size:11px;font-weight:700;color:var(--brand);text-transform:none;letter-spacing:0;cursor:pointer}
+.perm-reset:hover{text-decoration:underline}
+.panel-body .perm-select{width:auto;min-width:150px;margin:0;padding:8px 10px;font-size:13px}
+.panel-body .perm-select.is-set{border-color:var(--nav-active);font-weight:700}
+.perm-empty{color:var(--muted);text-align:center;padding:24px}
+.perm-combo{position:relative;max-width:440px}
+.panel-body .perm-combo input[type="text"]{padding-right:40px}
+.perm-combo-icon{position:absolute;right:14px;top:17px;width:16px;height:16px;color:var(--muted);pointer-events:none}
+.perm-combo-list{position:absolute;z-index:20;left:0;right:0;top:calc(100% - 10px);max-height:240px;overflow-y:auto;margin:0;padding:6px;list-style:none;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 28px rgba(16,24,40,.12)}
+.perm-combo-list li{padding:10px 12px;border-radius:8px;font-size:14px;color:var(--text);cursor:pointer}
+.perm-combo-list li.is-active{background:#f2f4f7}
+.perm-combo-list li[aria-selected="true"]{font-weight:700}
+.perm-combo-list .perm-combo-empty{color:var(--muted);cursor:default}
+.perm-foot{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:20px;flex-wrap:wrap}
+.perm-foot .status{margin:0 auto 0 0}
+.perm-save{padding:12px 18px;font-size:13px}
+.perm-foot .ghost-btn{padding:12px 18px;border:1px solid #dfe3ea;border-radius:10px;background:#fff;color:#101828;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.perm-foot .ghost-btn:hover:not(:disabled){background:#f6f7f9}
+.perm-save:disabled,.perm-foot .ghost-btn:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:700px){.perm-table .perm-col{width:auto}}
 </style>
 
 <script>
@@ -1329,6 +1379,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 </script>
 <link rel="stylesheet" href="assets/shell.css?v=6" />
+<script src="assets/permissions.js?v=1"></script>
 </head>
 
 <body>
@@ -1761,6 +1812,398 @@ document.addEventListener("DOMContentLoaded", function () {
         </div>
     </div>
 </div>
+<!-- What each role may do, and one person's exceptions (api/permissions-admin.php).
+     The Director's alone; the endpoints check every one of these again. -->
+<div id="permissionsSection" style="display:none;">
+<div class="panel">
+  <div class="panel-head">
+    <h1>Permissions</h1>
+    <p>Choose what each role can do, then make exceptions for one person. A change applies on their next click &ndash; nobody is signed out.</p>
+  </div>
+
+  <div class="panel-body">
+    <div class="perm-tabs" role="tablist" aria-label="Permissions view">
+      <button type="button" role="tab" id="permTabRoles" aria-selected="true" aria-controls="permRoles" onclick="showPermView('roles')">By role</button>
+      <button type="button" role="tab" id="permTabPeople" aria-selected="false" aria-controls="permPeople" onclick="showPermView('people')">One person</button>
+    </div>
+
+    <div id="permRoles" role="tabpanel" aria-labelledby="permTabRoles">
+      <div class="perm-scroll">
+        <table class="perm-table" id="permRoleTable">
+          <tbody><tr><td class="perm-empty">Loading permissions...</td></tr></tbody>
+        </table>
+      </div>
+      <p class="perm-legend"><span class="perm-dot" aria-hidden="true"></span> Changed from the portal's default</p>
+    </div>
+
+    <div id="permPeople" role="tabpanel" aria-labelledby="permTabPeople" hidden>
+      <label for="permAdminSearch">Person</label>
+      <div class="perm-combo">
+        <input type="text" id="permAdminSearch" role="combobox" aria-expanded="false" aria-controls="permAdminList"
+               aria-autocomplete="list" autocomplete="off" placeholder="Search by name or role"
+               onfocus="openPermPeople()" oninput="openPermPeople()" onkeydown="permComboKey(event)" onblur="closePermPeople()">
+        <svg class="perm-combo-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <input type="hidden" id="permAdminSelect">
+        <ul id="permAdminList" class="perm-combo-list" role="listbox" aria-label="People" hidden onmousedown="event.preventDefault()"></ul>
+      </div>
+      <div class="perm-scroll">
+        <table class="perm-table" id="permPersonTable"><tbody></tbody></table>
+      </div>
+    </div>
+
+    <div class="perm-foot">
+      <div id="permStatus" class="status" role="status"></div>
+      <button type="button" class="ghost-btn" id="permUndoBtn" onclick="undoPermChanges()" disabled>Undo</button>
+      <button type="button" class="action-btn btn perm-save" id="permSaveBtn" onclick="savePermChanges()" disabled>Save changes</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+/*
+|------------------------------------------------------------------------------
+| Settings > Permissions
+|------------------------------------------------------------------------------
+|
+| Two views over one GET of api/permissions-admin.php: a grid of every
+| permission against the three roles, and one person's exceptions to their
+| role. Edits stay on the page until Save; a value that matches the default
+| (or, for a person, their role) is sent as "default" so nothing is stored
+| that would stop a later change from reaching them.
+|
+*/
+let permData = null;
+let permRoleEdits = {};    // role -> { perm: bool }
+let permPersonEdits = {};  // admin id -> { perm: true | false | null }
+
+function permEsc(s){
+  return String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[c]);
+}
+
+async function loadPermissions(){
+  try {
+    const res = await fetch("api/permissions-admin.php", { headers: { Authorization: "Bearer " + localStorage.getItem("admin_token") } });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message || "Could not load permissions.");
+    permData = data.data;
+    permRoleEdits = {};
+    permPersonEdits = {};
+    renderPermRoles();
+    renderPermAdminSelect();
+    renderPermPerson();
+    syncPermButtons();
+  } catch (error) {
+    document.querySelector("#permRoleTable tbody").innerHTML =
+      `<tr><td class="perm-empty">${permEsc(error.message || "Could not load permissions.")}</td></tr>`;
+  }
+}
+
+function showPermView(view){
+  document.getElementById("permRoles").hidden = view !== "roles";
+  document.getElementById("permPeople").hidden = view !== "people";
+  document.getElementById("permTabRoles").setAttribute("aria-selected", view === "roles");
+  document.getElementById("permTabPeople").setAttribute("aria-selected", view === "people");
+}
+
+/* The catalog in its areas, in the order api/permissions.php lists them. */
+function permGroups(){
+  const groups = [];
+  permData.catalog.forEach(p => {
+    let g = groups.find(x => x.area === p.area);
+    if (!g) groups.push(g = { area: p.area, label: p.area_label, items: [] });
+    g.items.push(p);
+  });
+  return groups;
+}
+
+function roleValue(role, key){
+  const edit = (permRoleEdits[role] || {})[key];
+  return edit !== undefined ? edit : permData.matrix[role][key];
+}
+
+function renderPermRoles(){
+  const roles = permData.roles;
+  let html = `<thead><tr><th scope="col">Permission</th>${roles.map(r =>
+    `<th scope="col" class="perm-col">${permEsc(r.name)}
+       <button type="button" class="perm-reset" onclick="resetPermRole('${r.key}')">Reset to default</button></th>`).join("")}</tr></thead>`;
+
+  permGroups().forEach(g => {
+    const changed = g.items.filter(p => !p.owner_only)
+      .reduce((n, p) => n + roles.filter(r => roleValue(r.key, p.key) !== p.defaults.includes(r.key)).length, 0);
+    html += permAreaHead("roles", g, roles.length + 1, changed ? `${changed} changed` : "");
+    g.items.forEach(p => {
+      html += `<tr${p.owner_only ? ' class="perm-locked"' : ""}><th scope="row">${permEsc(p.label)}</th>`;
+      roles.forEach(r => {
+        if (p.owner_only) {
+          html += `<td class="perm-col"><span class="perm-lock">Director</span></td>`;
+          return;
+        }
+        const on = roleValue(r.key, p.key);
+        const changed = on !== p.defaults.includes(r.key);
+        html += `<td class="perm-col"><label class="perm-check">
+          <input type="checkbox" ${on ? "checked" : ""} onchange="editPermRole('${r.key}','${p.key}',this.checked)"
+                 aria-label="${permEsc(r.name)}: ${permEsc(p.label)}">
+          ${changed ? '<span class="perm-dot" title="Changed from the default"></span>' : ""}</label></td>`;
+      });
+      html += "</tr>";
+    });
+    html += "</tbody>";
+  });
+
+  document.getElementById("permRoleTable").innerHTML = html;
+}
+
+/*
+| Each area is a section that folds, so the panel starts as a short list of
+| headings. Which ones are open is remembered per view while the page is up;
+| a folded heading still says how many things in it were changed.
+*/
+const permOpen = { roles: new Set(), people: new Set() };
+
+function permAreaHead(view, g, cols, note){
+  const open = permOpen[view].has(g.area);
+  return `<tbody class="perm-group${open ? "" : " is-collapsed"}"><tr class="perm-area"><th scope="rowgroup" colspan="${cols}">
+    <button type="button" class="perm-fold" aria-expanded="${open}" onclick="togglePermArea('${view}','${g.area}')">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>${permEsc(g.label)}</span>
+      <span class="perm-count">${g.items.filter(p => view === "roles" || !p.owner_only).length}</span>
+      ${note ? `<span class="perm-note">${permEsc(note)}</span>` : ""}
+    </button></th></tr>`;
+}
+
+function togglePermArea(view, area){
+  if (permOpen[view].has(area)) permOpen[view].delete(area);
+  else permOpen[view].add(area);
+  if (view === "roles") renderPermRoles();
+  else renderPermPerson();
+}
+
+function editPermRole(role, key, on){
+  permRoleEdits[role] = permRoleEdits[role] || {};
+  if (on === permData.matrix[role][key]) delete permRoleEdits[role][key];
+  else permRoleEdits[role][key] = on;
+  renderPermRoles();
+  renderPermPerson();
+  syncPermButtons();
+}
+
+/* Every box in the column back to the portal's default - saved with the rest. */
+function resetPermRole(role){
+  permData.catalog.forEach(p => {
+    if (!p.owner_only) editPermRole(role, p.key, p.defaults.includes(role));
+  });
+}
+
+/*
+| The person picker: a search box over a list that scrolls past a few rows,
+| so a big team stays one short control. The chosen id lives in the hidden
+| #permAdminSelect; the box shows that person's name whenever it is closed.
+*/
+let permComboActive = -1;
+
+function permPersonLabel(a){
+  const n = Object.keys(a.overrides).length;
+  return `${a.name} - ${a.role_name}${a.active ? "" : " (deactivated)"}${n ? ` - ${n} exception${n > 1 ? "s" : ""}` : ""}`;
+}
+
+function renderPermAdminSelect(){
+  const hidden = document.getElementById("permAdminSelect");
+  if (!permData.admins.some(a => String(a.id) === hidden.value)) {
+    hidden.value = permData.admins.length ? String(permData.admins[0].id) : "";
+  }
+  const chosen = permData.admins.find(a => String(a.id) === hidden.value);
+  const box = document.getElementById("permAdminSearch");
+  box.value = chosen ? permPersonLabel(chosen) : "";
+  box.placeholder = permData.admins.length ? "Search by name or role" : "No admins yet";
+}
+
+function permPeopleMatches(){
+  const box = document.getElementById("permAdminSearch");
+  const chosen = permData.admins.find(a => String(a.id) === document.getElementById("permAdminSelect").value);
+  // The box still showing the chosen person's label means "not searching yet".
+  const q = chosen && box.value === permPersonLabel(chosen) ? "" : box.value.trim().toLowerCase();
+  return permData.admins.filter(a => !q || (a.name + " " + a.role_name).toLowerCase().includes(q));
+}
+
+function openPermPeople(){
+  if (!permData) return;
+  const list = document.getElementById("permAdminList");
+  const matches = permPeopleMatches();
+  const current = document.getElementById("permAdminSelect").value;
+  permComboActive = Math.max(0, matches.findIndex(a => String(a.id) === current));
+  list.innerHTML = matches.length
+    ? matches.map((a, i) => `<li role="option" id="permOpt${a.id}" aria-selected="${String(a.id) === current}"
+          class="${i === permComboActive ? "is-active" : ""}" onclick="pickPermPerson(${a.id})">${permEsc(permPersonLabel(a))}</li>`).join("")
+    : `<li class="perm-combo-empty">No one matches</li>`;
+  list.hidden = false;
+  document.getElementById("permAdminSearch").setAttribute("aria-expanded", "true");
+  syncPermComboActive();
+}
+
+function closePermPeople(){
+  document.getElementById("permAdminList").hidden = true;
+  document.getElementById("permAdminSearch").setAttribute("aria-expanded", "false");
+  document.getElementById("permAdminSearch").removeAttribute("aria-activedescendant");
+  renderPermAdminSelect();
+}
+
+function pickPermPerson(id){
+  document.getElementById("permAdminSelect").value = String(id);
+  closePermPeople();
+  renderPermPerson();
+}
+
+function syncPermComboActive(){
+  const options = [...document.querySelectorAll("#permAdminList [role=option]")];
+  options.forEach((li, i) => li.classList.toggle("is-active", i === permComboActive));
+  const active = options[permComboActive];
+  const box = document.getElementById("permAdminSearch");
+  if (active) {
+    box.setAttribute("aria-activedescendant", active.id);
+    active.scrollIntoView({ block: "nearest" });
+  } else {
+    box.removeAttribute("aria-activedescendant");
+  }
+}
+
+function permComboKey(e){
+  const list = document.getElementById("permAdminList");
+  const matches = permPeopleMatches();
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    e.preventDefault();
+    if (list.hidden) { openPermPeople(); return; }
+    const step = e.key === "ArrowDown" ? 1 : -1;
+    permComboActive = Math.min(matches.length - 1, Math.max(0, permComboActive + step));
+    syncPermComboActive();
+  } else if (e.key === "Enter") {
+    if (!list.hidden && matches[permComboActive]) {
+      e.preventDefault();
+      pickPermPerson(matches[permComboActive].id);
+    }
+  } else if (e.key === "Escape") {
+    e.target.blur();
+  }
+}
+
+function personValue(admin, key){
+  const edits = permPersonEdits[admin.id] || {};
+  return key in edits ? edits[key] : (key in admin.overrides ? admin.overrides[key] : null);
+}
+
+function renderPermPerson(){
+  const table = document.getElementById("permPersonTable");
+  const admin = permData && permData.admins.find(a => String(a.id) === document.getElementById("permAdminSelect").value);
+  if (!admin) { table.innerHTML = ""; return; }
+
+  let html = `<thead><tr><th scope="col">Permission</th><th scope="col" class="perm-col">${permEsc(admin.role_name)} gets</th><th scope="col" class="perm-col">${permEsc(admin.name)}</th></tr></thead>`;
+  permGroups().forEach(g => {
+    if (g.items.every(p => p.owner_only)) return;
+    const set = g.items.filter(p => !p.owner_only && personValue(admin, p.key) !== null).length;
+    html += permAreaHead("people", g, 3, set ? `${set} exception${set > 1 ? "s" : ""}` : "");
+    g.items.forEach(p => {
+      if (p.owner_only) return;
+      const fromRole = roleValue(admin.role, p.key);
+      const v = personValue(admin, p.key);
+      html += `<tr><th scope="row">${permEsc(p.label)}</th>
+        <td class="perm-col">${fromRole ? "Yes" : "No"}</td>
+        <td class="perm-col"><select class="perm-select${v === null ? "" : " is-set"}" onchange="editPermPerson(${admin.id},'${p.key}',this.value)"
+              aria-label="${permEsc(admin.name)}: ${permEsc(p.label)}">
+          <option value="default"${v === null ? " selected" : ""}>As role (${fromRole ? "yes" : "no"})</option>
+          <option value="allow"${v === true ? " selected" : ""}>Allow</option>
+          <option value="deny"${v === false ? " selected" : ""}>Deny</option>
+        </select></td></tr>`;
+    });
+    html += "</tbody>";
+  });
+  table.innerHTML = html;
+}
+
+function editPermPerson(adminId, key, choice){
+  const admin = permData.admins.find(a => a.id === adminId);
+  const value = choice === "allow" ? true : choice === "deny" ? false : null;
+  const saved = key in admin.overrides ? admin.overrides[key] : null;
+  permPersonEdits[adminId] = permPersonEdits[adminId] || {};
+  if (value === saved) delete permPersonEdits[adminId][key];
+  else permPersonEdits[adminId][key] = value;
+  renderPermPerson();
+  syncPermButtons();
+}
+
+function pendingPermCount(){
+  return [...Object.values(permRoleEdits), ...Object.values(permPersonEdits)]
+    .reduce((n, edits) => n + Object.keys(edits).length, 0);
+}
+
+function syncPermButtons(){
+  const n = pendingPermCount();
+  document.getElementById("permSaveBtn").disabled = n === 0;
+  document.getElementById("permUndoBtn").disabled = n === 0;
+  document.getElementById("permSaveBtn").textContent = n ? `Save ${n} change${n > 1 ? "s" : ""}` : "Save changes";
+}
+
+function undoPermChanges(){
+  permRoleEdits = {};
+  permPersonEdits = {};
+  renderPermRoles();
+  renderPermPerson();
+  syncPermButtons();
+  setPermStatus("");
+}
+
+function setPermStatus(text, isError){
+  const el = document.getElementById("permStatus");
+  el.textContent = text;
+  el.classList.toggle("error", !!isError);
+}
+
+async function savePermChanges(){
+  const requests = [];
+  Object.entries(permRoleEdits).forEach(([role, edits]) => {
+    const changes = {};
+    Object.entries(edits).forEach(([key, on]) => {
+      const def = permData.catalog.find(p => p.key === key).defaults.includes(role);
+      changes[key] = on === def ? "default" : on;
+    });
+    if (Object.keys(changes).length) requests.push({ role, changes });
+  });
+  Object.entries(permPersonEdits).forEach(([id, edits]) => {
+    const changes = {};
+    Object.entries(edits).forEach(([key, v]) => { changes[key] = v === null ? "default" : v; });
+    if (Object.keys(changes).length) requests.push({ admin_id: Number(id), changes });
+  });
+
+  document.getElementById("permSaveBtn").disabled = true;
+  setPermStatus("Saving...");
+
+  try {
+    for (const body of requests) {
+      const res = await fetch("api/permissions-admin.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + localStorage.getItem("admin_token") },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message || "Could not save.");
+      if (body.role) delete permRoleEdits[body.role];
+      else delete permPersonEdits[body.admin_id];
+      permData = data.data;
+    }
+    setPermStatus("Saved. It applies on their next click - nobody is signed out.");
+  } catch (error) {
+    setPermStatus(error.message || "Could not save.", true);
+  }
+  renderPermRoles();
+  renderPermAdminSelect();
+  renderPermPerson();
+  syncPermButtons();
+}
+
+if (adminCan("permissions.manage")) {
+  document.getElementById("permissionsSection").style.display = "block";
+  loadPermissions();
+}
+</script>
 <script>
 // ✅ تعريفات مرة واحدة بس
 let adminToken = localStorage.getItem("admin_token");
@@ -1772,8 +2215,8 @@ if (!adminToken || !adminUser.role) {
 }
 
 // Clients Management is open to every admin, so the sidebar no longer hides it.
-// Distribute Admins and Available Admins (which holds the Add / Edit admin popup) are owner-only.
-if (adminUser.role === "owner") {
+// Distribute Admins and Available Admins (which holds the Add / Edit admin popup) need admins.manage.
+if (adminCan("admins.manage")) {
 
     const distributeAdmins = document.getElementById("distributeAdminsSection");
     const availableAdmins = document.getElementById("availableAdminsSection");
@@ -1793,8 +2236,8 @@ if (adminUser.role === "owner") {
     if (availableAdmins) availableAdmins.style.display = "none";
 }
 
-// Website Logo and Login Page Slideshow are owner-only settings.
-if (adminUser.role === "owner") {
+// Website Logo and Login Page Slideshow need settings.manage.
+if (adminCan("settings.manage")) {
     const logoSection = document.getElementById("logoSection");
     const slideshowSection = document.getElementById("slideshowSection");
 
@@ -3365,24 +3808,6 @@ if (adminUser.role === "owner") {
 <script src="assets/confirm.js?v=1"></script>
 <script src="assets/shell.js?v=6"></script>
 <script src="assets/sources-lock.js?v=1"></script>
-<script src="assets/role-nav.js?v=5"></script>
-<script>
-/* The calendar belongs to the roles that deal with clients. A plain seo_admin
-   works on content, so the link comes out of their sidebar. api/calendar.php
-   and the page itself refuse the role too - this only hides a dead link. */
-(function () {
-  var CALENDAR_ROLES = ["owner", "super_admin", "account_manager"];
-
-  var role = "";
-  try {
-    role = (JSON.parse(localStorage.getItem("admin_user") || "{}") || {}).role || "";
-  } catch (e) {}
-
-  if (!role || CALENDAR_ROLES.indexOf(role) !== -1) return;
-
-  document.querySelectorAll('a[href*="admin-calendar.html"]')
-    .forEach(function (link) { link.remove(); });
-})();
-</script>
+<script src="assets/role-nav.js?v=6"></script>
 </body>
 </html>
