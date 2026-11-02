@@ -615,6 +615,7 @@ require __DIR__ . "/clients.php";
 require __DIR__ . "/settings.php";
 require __DIR__ . "/events.php";
 require __DIR__ . "/permissions.php";
+require __DIR__ . "/announcements.php";
 
 if (in_array("--fixtures", $argv, true)) {
     file_put_contents(

@@ -361,6 +361,8 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
                 "task"        => $task,
                 "project"     => $project,
                 "attachments" => attachmentsFor($pdo, "task", [$task["id"]])[(int) $task["id"]] ?? [],
+                // The client's, downloadable from their project page once live.
+                "client_attachments" => attachmentsFor($pdo, CLIENT_PHASE_FILES_OWNER, [$task["id"]])[(int) $task["id"]] ?? [],
                 "admin_id"    => (int) $admin["id"],
                 "admin_role"  => $admin["role"],
                 "can_edit"    => $canEdit,
@@ -604,8 +606,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         ? (array) ($_POST["keep_attachments"] ?? [])
         : null;
 
+    // The client's files, the same contract under client_attachments.
+    $clientFileUploads = uploadedFiles("client_attachments");
+    $keepClientFiles   = ($_POST["keep_client_attachments_sent"] ?? "") === "1"
+        ? (array) ($_POST["keep_client_attachments"] ?? [])
+        : null;
+
     try {
         array_map("checkAttachment", $fileUploads);
+        array_map("checkAttachment", $clientFileUploads);
     } catch (PortalWriteError $e) {
         response(false, $e->getMessage(), [], 400);
     }
@@ -668,7 +677,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $id = saveProjectTask($pdo, $admin, $project, $existing, $fields);
         $taskSaved = true;
 
-        $removedFiles = saveAttachments($pdo, "task", $id, $keepFiles, $fileUploads, $admin["id"]);
+        $removedFiles = array_merge(
+            saveAttachments($pdo, "task", $id, $keepFiles, $fileUploads, $admin["id"]),
+            saveAttachments($pdo, CLIENT_PHASE_FILES_OWNER, $id, $keepClientFiles, $clientFileUploads, $admin["id"])
+        );
 
         $newcomers = [];
         if ($teammateIds !== null) {

@@ -23,6 +23,9 @@
 | resolved against `users` first and `admins` second, and nothing downstream
 | trusts an id from the request. Writing is owner-only on top of that.
 |
+| The checks, the fan-out and the read rule are in announcement-writes.php,
+| shared with api/v1 (send_announcement, get_announcement).
+|
 | The table is ensureAnnouncementsTable() in db.php, mirrored by
 | sql/announcements.sql.
 |
@@ -39,8 +42,7 @@ if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") {
 }
 
 require_once "db.php";
-require_once "notify.php";
-require_once "events.php";
+require_once "announcement-writes.php";
 
 function reply($success, $message = "", $extra = [], $code = 200)
 {
@@ -180,34 +182,9 @@ if ($action === "get") {
         reply(false, "Announcement not found.", [], 404);
     }
 
-    $stmt = $pdo->prepare("
-        SELECT COUNT(*)
-        FROM notifications
-        WHERE announcement_id = ? AND recipient_kind = ? AND recipient_id = ?
-    ");
-    $stmt->execute([$id, $kind, $me]);
-    $isRecipient = (int) $stmt->fetchColumn() > 0;
-
-    $stmt = $pdo->prepare("
-        SELECT a.id, a.audience, a.title, a.body, a.event_date, a.image_path,
-               a.created_by_admin_id, a.created_at,
-               UNIX_TIMESTAMP(a.created_at) AS created_ts,
-               admins.name AS created_by_name
-        FROM announcements a
-        LEFT JOIN admins ON admins.id = a.created_by_admin_id
-        WHERE a.id = ?
-        LIMIT 1
-    ");
-    $stmt->execute([$id]);
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    $row = announcementFor($pdo, $kind, $me, $id);
 
     if (!$row) {
-        reply(false, "Announcement not found.", [], 404);
-    }
-
-    $isAuthor = $kind === "admin" && (int) $row["created_by_admin_id"] === $me;
-
-    if (!$isRecipient && !$isAuthor) {
         reply(false, "Announcement not found.", [], 404);
     }
 
@@ -328,95 +305,17 @@ if ($action === "create" || ($_SERVER["REQUEST_METHOD"] === "POST" && $action ==
         );
     }
 
-    $audience    = trim($_POST["audience"] ?? "");
-    $scope       = trim($_POST["scope"] ?? "all");
-    $title       = trim($_POST["title"] ?? "");
-    $description = trim($_POST["description"] ?? "");
-    $eventDate   = trim($_POST["event_date"] ?? "");
+    $audience = trim($_POST["audience"] ?? "");
+    $scope    = trim($_POST["scope"] ?? "all");
+    $posted   = $_POST["recipient_ids"] ?? "";
 
-    if (!in_array($audience, ["team", "client"], true)) {
-        reply(false, "Choose a team or a client announcement.", [], 400);
-    }
-
-    if (!in_array($scope, ["all", "specific"], true)) {
-        reply(false, "Choose who this goes to.", [], 400);
-    }
-
-    if ($title === "") {
-        reply(false, "Give the announcement a title.", [], 400);
-    }
-
-    if (mb_strlen($title) > 200) {
-        reply(false, "Title is too long (200 characters max).", [], 400);
-    }
-
-    if (mb_strlen($description) > 5000) {
-        reply(false, "Description is too long (5000 characters max).", [], 400);
-    }
-
-    if ($eventDate !== "") {
-        $parsed = DateTime::createFromFormat("Y-m-d", $eventDate);
-
-        if (!$parsed || $parsed->format("Y-m-d") !== $eventDate) {
-            reply(false, "Enter a valid date.", [], 400);
-        }
-    }
-
-    /*
-    | Recipients come back from the audience's own table, so an id that is not
-    | an active admin - or not an approved client - simply does not survive the
-    | lookup. A client id posted to a team announcement matches nothing.
-    */
-    $recipientKind = $audience === "team" ? "admin" : "user";
-
-    if ($scope === "all") {
-
-        if ($audience === "team") {
-            $stmt = $pdo->prepare("SELECT id FROM admins WHERE active = 1 AND id <> ?");
-            $stmt->execute([$me]);
-        } else {
-            $stmt = $pdo->query("SELECT id FROM users WHERE approved = 1");
-        }
-
-        $recipientIds = array_map("intval", $stmt->fetchAll(PDO::FETCH_COLUMN));
-
-    } else {
-
-        $posted = $_POST["recipient_ids"] ?? "";
-        $posted = is_array($posted) ? $posted : explode(",", (string) $posted);
-
-        $posted = array_values(array_unique(array_filter(
-            array_map("intval", $posted),
-            function ($id) {
-                return $id > 0;
-            }
-        )));
-
-        if (!$posted) {
-            reply(false, "Pick at least one person.", [], 400);
-        }
-
-        $placeholders = implode(",", array_fill(0, count($posted), "?"));
-
-        if ($audience === "team") {
-            $stmt = $pdo->prepare("
-                SELECT id FROM admins
-                WHERE active = 1 AND id <> ? AND id IN ($placeholders)
-            ");
-            $stmt->execute(array_merge([$me], $posted));
-        } else {
-            $stmt = $pdo->prepare("
-                SELECT id FROM users
-                WHERE approved = 1 AND id IN ($placeholders)
-            ");
-            $stmt->execute($posted);
-        }
-
-        $recipientIds = array_map("intval", $stmt->fetchAll(PDO::FETCH_COLUMN));
-    }
-
-    if (!$recipientIds) {
-        reply(false, "Nobody to send this to.", [], 400);
+    try {
+        [$title, $description, $eventDate] = checkAnnouncement($audience, $scope,
+            $_POST["title"] ?? "", $_POST["description"] ?? "", $_POST["event_date"] ?? "");
+        $recipientIds = announcementRecipientIds($pdo, $me, $audience, $scope,
+            is_array($posted) ? $posted : explode(",", (string) $posted));
+    } catch (PortalWriteError $e) {
+        reply(false, $e->getMessage(), [], $e->status);
     }
 
     /*
@@ -433,52 +332,14 @@ if ($action === "create" || ($_SERVER["REQUEST_METHOD"] === "POST" && $action ==
 
     $imagePath = uploadAnnouncementImage($_FILES["image"] ?? null, $uploadDir);
 
-    /*
-    | Save, then fan out - never the other way round, and never inside a
-    | transaction (rule 2 in notify.php).
-    */
-
     try {
-        $stmt = $pdo->prepare("
-            INSERT INTO announcements
-                (audience, title, body, event_date, image_path, created_by_admin_id)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ");
-
-        $stmt->execute([
-            $audience,
-            $title,
-            $description !== "" ? $description : null,
-            $eventDate !== "" ? $eventDate : null,
-            $imagePath,
-            $me,
-        ]);
-
-        $announcementId = (int) $pdo->lastInsertId();
-
-        logEvent($pdo, EVENT_ANNOUNCEMENT_SENT, "announcement", $announcementId, $title,
-            "Sent announcement \"" . $title . "\" to " . $audience);
-
-    } catch (PDOException $e) {
+        $announcementId = createAnnouncement($pdo, $me, $audience, $recipientIds,
+            $title, $description, $eventDate, $imagePath);
+    } catch (PortalWriteError $e) {
         // Nothing references the file now, so it would sit there forever.
         deleteAnnouncementImage($imagePath);
-        reply(false, "Could not save the announcement.", [], 500);
+        reply(false, $e->getMessage(), [], $e->status);
     }
-
-    // The inbox line is a preview; the panel shows the description in full.
-    $preview = $description !== ""
-        ? mb_substr(preg_replace('/\s+/u', " ", $description), 0, 160)
-        : "";
-
-    notifyAnnouncement(
-        $pdo,
-        $recipientKind,
-        $recipientIds,
-        $announcementId,
-        $title,
-        $preview,
-        $me
-    );
 
     $count = count($recipientIds);
 

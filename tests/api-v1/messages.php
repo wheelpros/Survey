@@ -122,3 +122,71 @@ check("messages: before= pages back to the start", count($older["messages"]) ===
 $names = array_column($r["people"] ?? [], "name");
 check("messages: the people list is the active team but me", in_array("Amy", $names, true)
     && !in_array("Sam", $names, true) && !in_array("Dee", $names, true), json_encode($names));
+
+// ── 4. Through api/v1 (the MCP) ──────────────────────────────────────────
+//
+// The same chats, for an admin's own connection: reading and marking read
+// directly, sending through prepare/confirm. Still only the two people in
+// a chat, and still nothing in the notifications inbox.
+
+[$status, $r] = get("messages.php", $sa);
+$c = $r["data"]["items"][0] ?? [];
+check("v1 messages: Sam lists his chat", $status === 200 && count($r["data"]["items"]) === 1
+    && $c["with"]["name"] === "Amy" && $c["untrusted_content"]["last_message"] === "Bulk 55"
+    && $c["last_is_mine"] === false && $r["data"]["next_cursor"] === null, "HTTP $status " . json_encode($r));
+$fixtures["list_my_conversations"] = $r["data"] ?? null;
+
+[$status, $r] = get("messages.php?with=3&limit=2", $sa);
+check("v1 messages: a thread is newest first, paged", $status === 200 && count($r["data"]["items"]) === 2
+    && $r["data"]["items"][0]["untrusted_content"]["body"] === "Bulk 55" && $r["data"]["items"][0]["mine"] === false
+    && is_string($r["data"]["next_cursor"]) && $r["data"]["with"]["name"] === "Amy", "HTTP $status " . json_encode($r));
+$fixtures["get_conversation"] = $r["data"] ?? null;
+
+[, $next] = get("messages.php?with=3&limit=2&cursor=" . urlencode($r["data"]["next_cursor"]), $sa);
+check("v1 messages: the cursor carries on", ($next["data"]["items"][0]["untrusted_content"]["body"] ?? null) === "Bulk 53",
+    json_encode($next));
+
+[$status, $r] = get("messages.php?people=1", $sa);
+$names = array_column($r["data"]["items"] ?? [], "name");
+check("v1 messages: the people list is the active team but me", $status === 200 && in_array("Amy", $names, true)
+    && !in_array("Sam", $names, true) && !in_array("Dee", $names, true), json_encode($r));
+$fixtures["list_message_people"] = $r["data"] ?? null;
+
+[, $r] = get("messages.php", $owner);
+check("v1 messages: the Director doesn't see other people's chats", ($r["data"]["items"] ?? null) === [], json_encode($r));
+[$status, $r] = get("messages.php?with=3", $owner);
+check("v1 messages: the Director's own thread with Amy is empty", $status === 200 && $r["data"]["items"] === [], json_encode($r));
+[$status] = get("messages.php?with=9999", $sa);
+check("v1 messages: an unknown admin is not found", $status === 404, "HTTP $status");
+[$status] = get("messages.php?with=2", $sa);
+check("v1 messages: a chat with yourself is refused", $status === 422, "HTTP $status");
+[$status] = get("messages.php", "tok-client");
+check("v1 messages: a client is refused", $status === 403, "HTTP $status");
+[$status] = get("messages.php", $mcpToken, ["X-MCP-Key" => $mcpKey]);
+check("v1 messages: a connection without messages:read is refused", $status === 403, "HTTP $status");
+
+// Back to unread on both sides, then Sam reads his.
+$pdo->exec("UPDATE admin_conversations SET low_last_read_id = 0, high_last_read_id = 0");
+[$status, $r] = post("api/v1/messages.php", $sa, ["with" => 3]);
+check("v1 messages: marking read", $status === 200 && $r["data"]["marked"] === true && $r["data"]["unread_count"] === 0,
+    "HTTP $status " . json_encode($r));
+$fixtures["mark_conversation_read"] = $r["data"] ?? null;
+[$status] = post("api/v1/messages.php", $am2, ["with" => 3]);
+check("v1 messages: marking read needs a conversation", $status === 404, "HTTP $status");
+
+[$prep, $done] = change("v1 messages: send_message", $sa, "send_message", ["to" => 3, "body" => "  Sent by the assistant  "]);
+check("v1 messages: the summary names who and what", strpos($prep["data"]["summary"] ?? "", "Amy") !== false
+    && strpos($prep["data"]["summary"], "\"Sent by the assistant\"") !== false, json_encode($prep));
+$last = one($pdo, "SELECT sender_id, body FROM admin_messages ORDER BY id DESC LIMIT 1");
+check("v1 messages: it lands in the chat as Sam", (int) $last["sender_id"] === 2 && $last["body"] === "Sent by the assistant"
+    && ($done["data"]["result"]["message_id"] ?? 0) > 0, json_encode($last));
+[, $r] = msgGet("action=count", $am);
+check("v1 messages: Amy sees it unread on the page", ($r["unread"] ?? 0) >= 1, json_encode($r));
+
+refusedChange("v1 messages: a switched-off admin can't receive", $sa, "send_message", ["to" => 6, "body" => "Hi Dee"], 400);
+refusedChange("v1 messages: not to yourself", $sa, "send_message", ["to" => 2, "body" => "me"], 400);
+refusedChange("v1 messages: not empty", $sa, "send_message", ["to" => 3, "body" => "   "], 422);
+refusedChange("v1 messages: a client can't send", "tok-client", "send_message", ["to" => 3, "body" => "Hello"], 404);
+
+check("v1 messages: still nothing in the notifications inbox",
+    (int) one($pdo, "SELECT COUNT(*) AS n FROM notifications WHERE body LIKE '%assistant%' OR title LIKE '%assistant%'")["n"] === 0);

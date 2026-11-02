@@ -1368,7 +1368,7 @@
       }
     </script>
     <link rel="stylesheet" href="assets/shell.css?v=6" />
-  <script src="assets/permissions.js?v=1"></script>
+  <script src="assets/permissions.js?v=2"></script>
   </head>
 
   <body>
@@ -1398,163 +1398,8 @@
             </svg>
           </button>
         </div>
-        <nav class="side-nav">
-          <a href="admin-dashboard.html" title="Dashboard">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
-            <span>Dashboard</span>
-          </a>
-          <a href="admin.html" title="Forms">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M9 11l3 3L22 4" />
-              <path
-                d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"
-              />
-            </svg>
-            <span>Forms</span>
-          </a>
-          <a href="admin-content.html" class="active" title="Content">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <rect x="3" y="3" width="18" height="18" rx="2.5" />
-              <path d="M3 9h18" />
-              <path d="M9 21V9" />
-            </svg>
-            <span>Content</span>
-          </a>
-          <a href="project-management.html" title="Project Management">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <rect x="2" y="7" width="20" height="14" rx="2" />
-              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-            </svg>
-            <span>Project Management</span>
-          </a>
-          <a href="inquiries.html" title="Inquiries">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path
-                d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
-              />
-            </svg>
-            <span>Inquiries</span>
-          </a>
-          <a
-            href="clients-management.html"
-            id="clientsManagementLink"
-            title="Clients Management"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
-            <span>Clients Management</span>
-          </a>
-          <a href="sources-files.html" title="Files">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path
-                d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
-              />
-            </svg>
-            <span>Files</span>
-          </a>
-          <a href="admin-calendar.html" title="Calendar">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-              <line x1="16" y1="2" x2="16" y2="6" />
-              <line x1="8" y1="2" x2="8" y2="6" />
-              <line x1="3" y1="10" x2="21" y2="10" />
-            </svg>
-            <span>Calendar</span>
-          </a>
-          <a href="admin-messages.html" title="Messages">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z"/></svg>
-            <span>Messages</span>
-            <em class="nav-badge" id="msgBadge" hidden></em>
-          </a>
-          <a href="admin-notifications.html" title="Notifications">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M18 8a6 6 0 1 0-12 0c0 6-3 7-3 7h18s-3-1-3-7" />
-              <path d="M13.7 21a2 2 0 0 1-3.4 0" />
-            </svg>
-            <span>Notifications</span>
-            <em class="nav-badge" id="notifBadge" hidden></em>
-          </a>
-          <a href="event-log.html" title="Tracking">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 2"/><path d="M3.05 11a9 9 0 1 1 .5 4"/><path d="M3 4v5h5"/></svg>
-            <span>Tracking</span>
-          </a>
-          <a href="settings.html" title="Settings">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <circle cx="12" cy="12" r="3" />
-              <path
-                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
-              />
-            </svg>
-            <span>Settings</span>
-          </a>
-        </nav>
+        <nav class="side-nav"></nav>
+        <script src="assets/admin-nav.js?v=1"></script>
       </div>
 
       <button
@@ -2242,6 +2087,7 @@
       </div>
     </div>
 
+    <script src="assets/file-list.js?v=1"></script>
     <script>
       const adminToken = localStorage.getItem("admin_token");
       const adminUser = JSON.parse(localStorage.getItem("admin_user") || "{}");
@@ -3452,113 +3298,17 @@
       /* ── Attachments ── */
       let maxFiles = 5;
       let maxFileBytes = 8 * 1024 * 1024;
-      const FILE_EXTS = ["pdf", "txt", "md", "doc", "docx", "xls", "xlsx"];
 
-      function fileSize(bytes) {
-        bytes = Number(bytes) || 0;
-        return bytes >= 1024 * 1024
-          ? (bytes / 1024 / 1024).toFixed(1) + " MB"
-          : Math.max(1, Math.round(bytes / 1024)) + " KB";
-      }
-
-      function extOf(name) {
-        const m = /\.([a-z0-9]+)$/i.exec(name || "");
-        return m ? m[1].toLowerCase() : "";
-      }
-
-      /* One list of files: kept ones from the server and new ones to upload.
-         Two of them - the team's under Teammates, the client's under Media
-         Assets - each saved under its own field names. */
-      function makeFileList(ids) {
-        let kept = []; // [{id, name, ext, size}] from the server
-        let added = []; // [File]
-        let touched = false;
-
-        function error(message) {
-          const box = document.getElementById(ids.error);
-          box.textContent = message || "";
-          box.classList.toggle("show", Boolean(message));
-        }
-
-        function add(files) {
-          error("");
-          const room = maxFiles - kept.length - added.length;
-          if (files.length > room) {
-            error("Up to " + maxFiles + " files can be attached.");
-            files = files.slice(0, Math.max(room, 0));
-          }
-          for (const file of files) {
-            if (!FILE_EXTS.includes(extOf(file.name))) {
-              error("Only PDF, TXT, MD, Word and Excel files can be attached.");
-              continue;
-            }
-            if (file.size > maxFileBytes) {
-              error('"' + file.name + '" is larger than ' + Math.round(maxFileBytes / 1024 / 1024) + " MB.");
-              continue;
-            }
-            added.push(file);
-            touched = true;
-          }
-          paint();
-        }
-
-        function remove(kind, index) {
-          if (kind === "kept") kept.splice(index, 1);
-          else added.splice(index, 1);
-          touched = true;
-          error("");
-          paint();
-        }
-
-        function paint() {
-          const rows = kept
-            .map((f, i) => ({ name: f.name, size: f.size, kind: "kept", i }))
-            .concat(added.map((f, i) => ({ name: f.name, size: f.size, kind: "new", i })));
-
-          document.getElementById(ids.list).innerHTML = rows
-            .map(
-              (r) =>
-                '<li><span class="ext">' + esc(extOf(r.name) || "file") + "</span>" +
-                '<span class="fname" dir="auto" title="' + esc(r.name) + '">' + esc(r.name) + "</span>" +
-                "<small>" + fileSize(r.size) + "</small>" +
-                '<button type="button" aria-label="Remove ' + esc(r.name) + '" onclick="' + ids.name +
-                ".remove('" + r.kind + "'," + r.i + ')">&times;</button></li>',
-            )
-            .join("");
-
-          document.getElementById(ids.addBtn).hidden = rows.length >= maxFiles;
-        }
-
-        document.getElementById(ids.input).addEventListener("change", function () {
-          add(Array.from(this.files || []));
-          this.value = "";
-        });
-
-        return {
-          remove,
-          load(files) {
-            kept = (files || []).slice();
-            added = [];
-            touched = false;
-            paint();
-          },
-          /* keep_<field>[] is what stays, <field>[] the new files, and
-             keep_<field>_sent says the list was sent - only when changed. */
-          appendTo(form, field) {
-            if (!touched) return;
-            form.append("keep_" + field + "_sent", "1");
-            kept.forEach((f) => form.append("keep_" + field + "[]", f.id));
-            added.forEach((file) => form.append(field + "[]", file));
-          },
-        };
-      }
-
+      /* Two lists (assets/file-list.js) - the team's under Teammates, the
+         client's in its own panel - each saved under its own field names. */
+      const fileLimits = () => ({ maxFiles, maxFileBytes });
       const teamFiles = makeFileList({
         name: "teamFiles", list: "fileList", addBtn: "fileAddBtn", input: "fileInput", error: "fileError",
+        limits: fileLimits,
       });
       const clientFiles = makeFileList({
         name: "clientFiles", list: "clientFileList", addBtn: "clientFileAddBtn",
-        input: "clientFileInput", error: "clientFileError",
+        input: "clientFileInput", error: "clientFileError", limits: fileLimits,
       });
 
       /** {admin_id: note} for every row on the table, as the API takes it. */
@@ -4038,6 +3788,6 @@
     <script src="assets/confirm.js?v=1"></script>
     <script src="assets/shell.js?v=6"></script>
     <script src="assets/sources-lock.js?v=1"></script>
-    <script src="assets/role-nav.js?v=6"></script>
+    <script src="assets/role-nav.js?v=7"></script>
   </body>
 </html>

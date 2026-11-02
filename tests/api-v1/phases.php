@@ -265,6 +265,7 @@ $found = array_values(array_filter($got["data"]["tasks"] ?? [], function ($t) us
 check("v1 phases: get_project shows the people", $found && $found[0]["phase_label"] === "Design"
     && count($found[0]["teammates"]) === 3 && count($found[0]["assignments"]) === 2
     && $found[0]["done_count"] === "0 of 2" && $found[0]["can_delete"] === true && $found[0]["attachments"] === []
+    && $found[0]["client_attachments"] === []
     && $found[0]["untrusted_content"]["notes"] === "Use the new palette", json_encode($found));
 
 [$status, $got] = get("projects.php?id=500&teammates=1", $owner);

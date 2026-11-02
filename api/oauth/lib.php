@@ -45,6 +45,7 @@ const STAFF_SCOPES = [
     "calendar:read", "calendar:write",
     "projects:read", "projects:write",
     "notifications:read", "notifications:write",
+    "messages:read", "messages:write", "announcements:write",
     "settings:read", "settings:write", "admins:write",
     "events:read",
 ];
@@ -68,11 +69,14 @@ const SCOPE_DESCRIPTIONS = [
     "projects:write"      => "Post project updates and change tasks",
     "notifications:read"  => "See your notifications",
     "notifications:write" => "Mark your notifications as read",
+    "messages:read"       => "Read your direct messages with other admins",
+    "messages:write"      => "Send direct messages to other admins as you, and mark your chats read",
+    "announcements:write" => "Send announcements to the team or to clients",
     "settings:read"       => "See the portal settings: website address, logo, login slides and the admin team",
     "settings:write"      => "Change the website address, logo and login page slides",
     "admins:write"        => "Add and edit admins (name, email, position, role), switch them on or off, and assign them to managers",
     "events:read"         => "See Tracking: what every admin changed, and when",
-    "self:read"           => "See your meetings, content, forms, projects and notifications",
+    "self:read"           => "See your meetings, content, forms, projects, notifications and announcements",
     "self:write"          => "Request and answer meetings, fill in your forms, mark notifications read",
 ];
 

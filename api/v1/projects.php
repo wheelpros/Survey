@@ -50,6 +50,20 @@ const PROJECT_SQL = "
     LEFT JOIN admins m ON m.id = p.account_manager_admin_id
 ";
 
+/** One phase's files as the API shows them: the name is typed by a person. */
+function phaseFilesOut(array $files, $projectId, $taskId)
+{
+    return array_map(function ($f) use ($projectId, $taskId) {
+        return [
+            "id" => $f["id"],
+            "ext" => $f["ext"],
+            "size" => $f["size"],
+            "page_url" => APP_URL . "/project-task-details.html?project=" . (int) $projectId . "&id=" . (int) $taskId,
+            "untrusted_content" => ["name" => $f["name"]],
+        ];
+    }, $files);
+}
+
 /** Teammates and assignments for $taskIds, keyed by task id. */
 function phasePeopleFor(PDO $pdo, array $taskIds)
 {
@@ -290,11 +304,13 @@ if ($id !== null) {
     // The people on every phase, one query per list rather than one per phase.
     $people = phasePeopleFor($pdo, array_map("intval", array_column($rows, "id")));
 
-    // Staff-only files: metadata here; the team downloads them on the phase page.
+    // Files: metadata here; the team downloads them on the phase page. "task"
+    // ones are the team's, CLIENT_PHASE_FILES_OWNER ones the client's.
     ensureAttachmentsTable($pdo);
     $files = attachmentsFor($pdo, "task", array_column($rows, "id"));
+    $clientFiles = attachmentsFor($pdo, CLIENT_PHASE_FILES_OWNER, array_column($rows, "id"));
 
-    $tasks = array_map(function ($r) use ($people, $files, $p, $project) {
+    $tasks = array_map(function ($r) use ($people, $files, $clientFiles, $p, $project) {
         $taskId = (int) $r["id"];
         $assigned = $people["assignments"][$taskId] ?? [];
         $doneCount = count(array_filter($assigned, function ($x) { return $x["status"] === "done"; }));
@@ -310,15 +326,8 @@ if ($id !== null) {
             "can_delete" => canEditTask($p, $r),
             "cover_url" => $r["image_path"] ? APP_URL . "/" . $r["image_path"] : null,
             "gallery" => array_map(function ($path) { return APP_URL . "/" . $path; }, taskGallery($r)),
-            "attachments" => array_map(function ($f) use ($project, $taskId) {
-                return [
-                    "id" => $f["id"],
-                    "ext" => $f["ext"],
-                    "size" => $f["size"],
-                    "page_url" => APP_URL . "/project-task-details.html?project=" . (int) $project["id"] . "&id=" . $taskId,
-                    "untrusted_content" => ["name" => $f["name"]],
-                ];
-            }, $files[$taskId] ?? []),
+            "attachments" => phaseFilesOut($files[$taskId] ?? [], (int) $project["id"], $taskId),
+            "client_attachments" => phaseFilesOut($clientFiles[$taskId] ?? [], (int) $project["id"], $taskId),
             "scheduled_date" => v1NullableString($r["scheduled_date"]),
             "scheduled_time" => $r["scheduled_time"] === null ? null : substr((string) $r["scheduled_time"], 0, 5),
             "link" => v1NullableString($r["link"]),

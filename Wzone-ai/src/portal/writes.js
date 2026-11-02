@@ -14,9 +14,9 @@
 // stateless (see ../server.js), so the confirmation is a token instead -
 // the same reasoning as the public server's inquiry submission.
 //
-// Marking notifications read (mark_notifications_read for staff,
-// mark_my_notifications_read for a client) is the one write that skips
-// this: it only ever touches the person's own inbox.
+// Marking read (mark_notifications_read and mark_conversation_read for
+// staff, mark_my_notifications_read for a client) skips this: it only ever
+// moves the person's own read markers.
 
 import { z } from "zod";
 
@@ -354,6 +354,40 @@ export const WRITE_TOOLS = [
     input: {
       id: recordId("The meeting's id - from list_pending_approvals (waiting_on_you)"),
       decision: z.enum(["accept", "decline"]),
+    },
+  },
+  // ── Messages and announcements ───────────────────────────────────────
+  {
+    name: "send_message",
+    scope: "messages:write",
+    title: "Send a direct message",
+    description:
+      "Sends another admin a direct message from you, in the portal's Messages. Messages are private to the " +
+      "two of you. Write what the person asked you to say - it goes out under their name." + TWO_STEP,
+    input: {
+      to: recordId("The admin's id - from list_my_conversations or list_message_people"),
+      body: z.string().min(1).max(2000).describe("The message, as it will appear"),
+    },
+  },
+  {
+    name: "send_announcement",
+    scope: "announcements:write",
+    title: "Send an announcement",
+    description:
+      "Sends an announcement to the team (admins) or to clients: everyone in that audience, or the people " +
+      "you name. Each gets a notification and can open it in full. No image - attach one in the portal." + TWO_STEP,
+    input: {
+      audience: z.enum(["team", "client"]).describe("team: admins; client: the clients' portal accounts"),
+      scope: z.enum(["all", "specific"]).optional().describe("all (default): everyone in the audience; specific: only recipients"),
+      recipients: z
+        .array(z.number().int().positive())
+        .min(1)
+        .max(500)
+        .optional()
+        .describe("With scope specific: admin ids (from get_settings) or client ids (from search_clients)"),
+      title: z.string().min(1).max(200),
+      description: z.string().max(5000).optional(),
+      event_date: date("The date it is about, if any").optional(),
     },
   },
   {
@@ -748,6 +782,29 @@ export function registerWriteTools(server, { auth, requestId, scopes }) {
     : scopes.includes("self:write")
       ? { name: "mark_my_notifications_read", path: "me/notifications.php" }
       : null;
+
+  // Marking a chat read moves only your own read marker; they see "Seen".
+  if (scopes.includes("messages:write")) {
+    server.registerTool(
+      "mark_conversation_read",
+      {
+        title: "Mark a conversation read",
+        description: "Marks your messages from one admin read, up to the latest. They see your last message as Seen.",
+        inputSchema: { with: recordId("The other admin's id") },
+        outputSchema: S.markedConversationRead,
+        annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      },
+      async ({ with: other }) =>
+        portalCall({
+          auth,
+          requestId,
+          tool: "mark_conversation_read",
+          path: "messages.php",
+          body: { with: other },
+          schema: z.object(S.markedConversationRead),
+        })
+    );
+  }
 
   if (markRead) {
     server.registerTool(

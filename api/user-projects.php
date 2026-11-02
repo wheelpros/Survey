@@ -235,10 +235,19 @@ if (isset($_GET["id"])) {
         ");
 
         $stmt->execute([$clientId, (int) $project["id"]]);
+        $tasks = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Each live phase's files for the client; downloaded via api/attachment.php.
+        require_once __DIR__ . "/upload-helpers.php";
+        $files = attachmentsFor($pdo, CLIENT_PHASE_FILES_OWNER, array_column($tasks, "id"));
+        foreach ($tasks as &$task) {
+            $task["files"] = $files[(int) $task["id"]] ?? [];
+        }
+        unset($task);
 
         response(true, "Project loaded.", [
             "project" => $project,
-            "tasks"   => $stmt->fetchAll(PDO::FETCH_ASSOC),
+            "tasks"   => $tasks,
         ]);
 
     } catch (Throwable $e) {

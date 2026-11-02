@@ -535,7 +535,10 @@ function deleteProjectTask(PDO $pdo, array $task)
         "Deleted phase \"" . $title . "\"" . ($projectTitle !== "" ? " from " . $projectTitle : ""), $clientId);
     $pdo->prepare("DELETE FROM project_task_teammates WHERE task_id = ?")->execute([$id]);
     $pdo->prepare("DELETE FROM project_task_assignments WHERE task_id = ?")->execute([$id]);
-    $files = deleteAttachmentRows($pdo, "task", $id);
+    $files = array_merge(
+        deleteAttachmentRows($pdo, "task", $id),
+        deleteAttachmentRows($pdo, CLIENT_PHASE_FILES_OWNER, $id)
+    );
 
     deleteUploadedFiles(array_merge(
         $files,
