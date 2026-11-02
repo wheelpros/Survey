@@ -40,9 +40,14 @@
 | from an emailed link; none passes through the assistant), roles, switching
 | them on or off, and who manages whom. remove_login_slide is the one delete.
 |
+| Messages and announcements reach other people, so they go through prepare
+| too: send_message (any admin, to another admin - message-writes.php) and
+| send_announcement (announcements.send - announcement-writes.php, without
+| an image).
+|
 | Deliberately missing: deleting anything else, unpublishing content, opening
-| an inquiry, sending an announcement, a client's account, and the files
-| password. Those stay in the portal.
+| an inquiry, a client's account, and the files password. Those stay in the
+| portal.
 |
 | Each handler is for staff, or - with "kind" => "user" - for a client acting
 | on their own account (the self:* scopes). changes.php never lets one reach
@@ -58,6 +63,8 @@ require_once __DIR__ . "/../content-writes.php";
 require_once __DIR__ . "/../content-image-fetch.php";
 require_once __DIR__ . "/../admin-settings-writes.php";
 require_once __DIR__ . "/../upload-helpers.php";
+require_once __DIR__ . "/../message-writes.php";
+require_once __DIR__ . "/../announcement-writes.php";
 
 const V1_CONFIRM_TTL = 900; // 15 minutes to say yes
 
@@ -1635,6 +1642,87 @@ function v1WriteHandlers()
                 ensureNotificationsTable($pdo);
                 answerClientMeetingRequest($pdo, $p, $a["id"], $a["decision"] === "accept" ? "approved" : "rejected", true);
                 return ["meeting_id" => $a["id"], "status" => $a["decision"] === "accept" ? "approved" : "rejected"];
+            },
+        ],
+
+        // ── Messages and announcements ───────────────────────────────────
+
+        "send_message" => [
+            "scope" => "messages:write",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                $to = argInt($a, "to");
+                $body = argText($a, "body", MESSAGE_MAX_CHARS);
+                ensureAdminColumns($pdo);
+                ensureAdminMessageTables($pdo);
+                [$body, $other] = checkMessage($pdo, $p["id"], $to, $body);
+                return [
+                    "args" => ["to" => $to, "body" => $body],
+                    "summary" => "Send " . $other["name"] . " a direct message from you: " . quoteFor($body)
+                        . ". They see it in Messages.",
+                    "preview" => [
+                        "to" => ["id" => $other["id"], "name" => $other["name"], "role" => $other["role"]],
+                        "untrusted_content" => ["body" => $body],
+                    ],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                $row = sendMessage($pdo, $p["id"], $a["to"], $a["body"]);
+                return ["message_id" => (int) $row["id"], "to" => $a["to"]];
+            },
+        ],
+
+        "send_announcement" => [
+            "scope" => "announcements:write",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                if (!can($p, "announcements.send", $pdo)) {
+                    throw new PortalWriteError("You do not have permission to send announcements.", 403);
+                }
+                $audience = argEnum($a, "audience", ["team", "client"]);
+                $scope = argEnum($a, "scope", ["all", "specific"], "all");
+                $posted = $scope === "specific" ? argList($a, "recipients", 1, 500) : [];
+                foreach ($posted as $id) {
+                    if (!is_int($id) || $id <= 0) {
+                        throw new PortalWriteError("recipients must be a list of ids.");
+                    }
+                }
+                $title = argText($a, "title", ANNOUNCEMENT_TITLE_MAX);
+                $description = argText($a, "description", ANNOUNCEMENT_BODY_MAX, false);
+                $eventDate = argDate($a, "event_date");
+
+                ensureAnnouncementsTable($pdo);
+                [$title, $description, $eventDate] = checkAnnouncement($audience, $scope, $title, $description, $eventDate ?? "");
+                $ids = announcementRecipientIds($pdo, $p["id"], $audience, $scope, $posted);
+
+                // Names for the person to check, the first few of a long list.
+                $marks = implode(",", array_fill(0, min(count($ids), 10), "?"));
+                $stmt = $pdo->prepare("SELECT name FROM " . ($audience === "team" ? "admins" : "users")
+                    . " WHERE id IN ($marks) ORDER BY name");
+                $stmt->execute(array_slice($ids, 0, 10));
+                $names = $stmt->fetchAll(PDO::FETCH_COLUMN);
+                $who = $scope === "all"
+                    ? ($audience === "team" ? "the whole team" : "every client") . " (" . count($ids) . ")"
+                    : implode(", ", $names) . (count($ids) > 10 ? " and " . (count($ids) - 10) . " more" : "");
+
+                return [
+                    "args" => ["audience" => $audience, "scope" => $scope, "recipients" => $ids,
+                               "title" => $title, "description" => $description, "event_date" => $eventDate],
+                    "summary" => "Send the " . ($audience === "team" ? "team" : "client") . " announcement " . quoteFor($title)
+                        . ($eventDate !== null ? " (dated $eventDate)" : "") . " to $who. Each of them gets a notification.",
+                    "preview" => [
+                        "audience" => $audience,
+                        "recipient_count" => count($ids),
+                        "event_date" => $eventDate,
+                        "untrusted_content" => ["title" => $title, "description" => $description],
+                    ],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                ensureAnnouncementsTable($pdo);
+                // Prepare ran again on confirm, so the list is today's.
+                $ids = announcementRecipientIds($pdo, $p["id"], $a["audience"], "specific", $a["recipients"]);
+                $id = createAnnouncement($pdo, $p["id"], $a["audience"], $ids,
+                    $a["title"], $a["description"], $a["event_date"]);
+                return ["announcement_id" => $id, "sent" => count($ids)];
             },
         ],
 

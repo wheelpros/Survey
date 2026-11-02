@@ -11,6 +11,7 @@ export const STAFF_SCOPES = [
   "calendar:read", "calendar:write",
   "projects:read", "projects:write",
   "notifications:read", "notifications:write",
+  "messages:read", "messages:write", "announcements:write",
   "settings:read", "settings:write", "admins:write",
   "events:read",
 ];

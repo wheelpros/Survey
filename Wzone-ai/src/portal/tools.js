@@ -391,6 +391,51 @@ export const READ_TOOLS = [
     path: "notifications.php",
     query: ({ unread, ...rest }) => ({ ...rest, unread: unread ? 1 : undefined }),
   },
+  {
+    name: "get_announcement",
+    scope: "notifications:read",
+    title: "One announcement",
+    description:
+      "An announcement in full - title, description and date. Its notification only carries a preview; " +
+      "the id is the notification's announcement_id. Only ones you were sent or wrote.",
+    input: { id: recordId("The announcement_id from list_my_notifications") },
+    output: S.announcement,
+    path: "announcements.php",
+  },
+
+  // ── Messages (direct chats with other admins) ───────────────────────────
+  {
+    name: "list_my_conversations",
+    scope: "messages:read",
+    title: "My message conversations",
+    description:
+      "Your direct chats with other admins, the latest message first, with how many you haven't read. " +
+      "Private to the two people in each - nobody else, the Director included, can read yours.",
+    input: { ...paging },
+    output: S.conversations,
+    path: "messages.php",
+  },
+  {
+    name: "get_conversation",
+    scope: "messages:read",
+    title: "One message conversation",
+    description:
+      "The messages between you and one other admin, newest first. Reading does not mark them read - " +
+      "use mark_conversation_read for that. Reply with send_message.",
+    input: { with: recordId("The other admin's id - from list_my_conversations or list_message_people"), ...paging },
+    output: S.conversation,
+    path: "messages.php",
+  },
+  {
+    name: "list_message_people",
+    scope: "messages:read",
+    title: "Who I can message",
+    description: "The active admins you can start a chat with, by name.",
+    input: {},
+    output: S.messagePeople,
+    path: "messages.php",
+    query: () => ({ people: 1 }),
+  },
 
   // ── Event log (the Director's) ───────────────────────────────────────────
   {
@@ -540,6 +585,17 @@ export const READ_TOOLS = [
     output: S.notifications,
     path: "me/notifications.php",
     query: ({ unread, ...rest }) => ({ ...rest, unread: unread ? 1 : undefined }),
+  },
+  {
+    name: "get_my_announcement",
+    scope: "self:read",
+    title: "One announcement",
+    description:
+      "An announcement W|ZONE sent you, in full - the notification only carries a preview. The id is the " +
+      "notification's announcement_id.",
+    input: { id: recordId("The announcement_id from my_notifications") },
+    output: S.announcement,
+    path: "me/announcements.php",
   },
 ];
 

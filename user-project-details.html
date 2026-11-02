@@ -136,6 +136,14 @@ body{background:#f7f8fc;color:var(--text)}
 .detail .field .caption a{color:var(--nav-active)}
 .detail .field.wide{grid-column:1/-1}
 
+/* Files the team shared: plain download links, one per line. */
+.file-links{list-style:none;display:grid;gap:6px;font-size:15px;line-height:1.55}
+.file-links a{color:var(--nav-active);text-decoration:underline;text-underline-offset:2px;overflow-wrap:anywhere}
+.file-links a:hover{color:var(--brand)}
+.file-links small{color:var(--muted);font-size:13px}
+.file-error{color:var(--brand);font-size:13px;margin-top:6px}
+.file-error:empty{display:none}
+
 /* Portrait media sits beside the copy. */
 .detail.is-vertical{grid-template-columns:300px 1fr}
 .detail.is-vertical .detail-media{aspect-ratio:9/16}
@@ -448,6 +456,13 @@ body{background:#f7f8fc;color:var(--text)}
             <div class="field wide">
               <h5>Update</h5>
               <div class="caption" id="detailDescription" dir="auto"></div>
+            </div>
+
+            <!-- Files the team shared with the client. See renderFiles(). -->
+            <div class="field wide" id="detailFilesField" hidden>
+              <h5>Files</h5>
+              <ul class="file-links" id="detailFiles"></ul>
+              <p class="file-error" id="detailFilesError" role="alert"></p>
             </div>
 
             <div class="detail-footer">
@@ -1038,11 +1053,55 @@ function openTask(id){
     sanitizeRichText(task.description) || "—";
 
   renderLink(task);
+  renderFiles(task);
 
   document.getElementById("detailScheduled").textContent = whenFor(task);
   document.getElementById("detailStatus").textContent    = badgeFor(task).text;
 
   document.getElementById("detailWrap").scrollIntoView({ behavior:"smooth", block:"start" });
+}
+
+function fileSize(bytes){
+  bytes = Number(bytes) || 0;
+  return bytes >= 1024 * 1024 ? (bytes / 1024 / 1024).toFixed(1) + " MB"
+       : Math.max(1, Math.round(bytes / 1024)) + " KB";
+}
+
+/* One text link per file. A click fetches it with the token in the header
+   (api/attachment.php) and saves the blob, so the token never goes in a URL. */
+function renderFiles(task){
+  const files = Array.isArray(task.files) ? task.files : [];
+  document.getElementById("detailFilesField").hidden = !files.length;
+  document.getElementById("detailFilesError").textContent = "";
+  document.getElementById("detailFiles").innerHTML = files.map(f =>
+    '<li><a href="#" dir="auto" onclick="downloadFile(event, ' + Number(f.id) + ')"'
+    + ' data-name="' + esc(f.name) + '">' + esc(f.name) + "</a> <small>· " + fileSize(f.size) + "</small></li>"
+  ).join("");
+}
+
+async function downloadFile(event, id){
+  event.preventDefault();
+  const link = event.currentTarget;
+  const error = document.getElementById("detailFilesError");
+  error.textContent = "";
+
+  try {
+    const res = await fetch("api/attachment.php?id=" + encodeURIComponent(id), {
+      headers: { Authorization: "Bearer " + token },
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+
+    const url = URL.createObjectURL(await res.blob());
+    const save = document.createElement("a");
+    save.href = url;
+    save.download = link.dataset.name || "file";
+    document.body.appendChild(save);
+    save.click();
+    save.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (err) {
+    error.textContent = "Could not download that file. Please try again.";
+  }
 }
 
 function closeTask(){

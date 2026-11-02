@@ -55,6 +55,11 @@ const ATTACHMENT_SERVE_TYPES = [
    stay the team's. */
 const CLIENT_FILES_OWNER = "client_post";
 
+/* A phase's files for its client - downloadable from the client's project
+   page once the phase is live. The phase's own "task" attachments stay the
+   team's. */
+const CLIENT_PHASE_FILES_OWNER = "client_task";
+
 /* A phase's gallery, beside its cover: shown on the phase page only. */
 const TASK_GALLERY_MAX_IMAGES = 5;
 

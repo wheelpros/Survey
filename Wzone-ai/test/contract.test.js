@@ -11,7 +11,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import { READ_TOOLS } from "../src/portal/tools.js";
-import { confirmedChange, markedRead, preparedChange, whoami } from "../src/portal/schemas.js";
+import { confirmedChange, markedConversationRead, markedRead, preparedChange, whoami } from "../src/portal/schemas.js";
 
 const fixtures = JSON.parse(readFileSync(new URL("./fixtures/api-v1.json", import.meta.url), "utf8"));
 
@@ -23,6 +23,7 @@ const outputs = [
   ["confirm_change", confirmedChange],
   ["mark_notifications_read", markedRead],
   ["mark_my_notifications_read", markedRead],
+  ["mark_conversation_read", markedConversationRead],
 ];
 
 describe("api/v1 contract", () => {

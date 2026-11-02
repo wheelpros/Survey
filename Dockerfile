@@ -20,6 +20,11 @@ RUN { \
       echo "error_log = /dev/stderr"; \
     } > /usr/local/etc/php/conf.d/app.ini
 
+# Pages and scripts revalidate on every load so a deploy is seen at once
+# (docker/cache-headers.conf). mod_headers is off in this image by default.
+RUN a2enmod headers
+COPY docker/cache-headers.conf /etc/apache2/conf-enabled/cache-headers.conf
+
 COPY . /var/www/html/
 
 RUN chown -R www-data:www-data /var/www/html

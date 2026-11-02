@@ -11,7 +11,7 @@
 | Presentation only: every endpoint checks the permission again, so a hidden
 | button is a tidier page, never the rule.
 |
-|   <script src="assets/permissions.js?v=1"></script>
+|   <script src="assets/permissions.js?v=2"></script>
 |
 | In <head>, so the page's own script can ask straight away.
 |

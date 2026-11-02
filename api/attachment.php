@@ -15,7 +15,10 @@
 | The one exception is a post's files for its client (CLIENT_FILES_OWNER):
 | a client's portal token may download those, only once the post is live
 | and only when it is for their company or for everyone - the same rule as
-| api/user-content.php. A client asking for anything else gets the 404.
+| api/user-content.php. A phase's files for its client (CLIENT_PHASE_FILES_OWNER)
+| work the same way: a live phase on one of the client's own projects, as
+| api/user-projects.php shows them. A client asking for anything else gets
+| the 404.
 |
 | The pages fetch this with the token in the header and save the blob, so
 | the token never goes in a URL.
@@ -85,8 +88,19 @@ if ($client) {
         ");
         $stmt->execute([(int) $file["owner_id"], contentNow(), $company, $company]);
         $visible = (bool) $stmt->fetchColumn();
+    } elseif ($file["owner_type"] === CLIENT_PHASE_FILES_OWNER) {
+        // A live phase on one of their own projects - api/user-projects.php's rule.
+        ensureProjectTables($pdo);
+        $stmt = $pdo->prepare("
+            SELECT 1 FROM project_tasks t
+            JOIN projects p ON p.id = t.project_id
+            WHERE t.id = ? AND p.client_id = ? AND " . TASK_IS_LIVE_SQL . "
+            LIMIT 1
+        ");
+        $stmt->execute([(int) $file["owner_id"], (int) $client["id"]]);
+        $visible = (bool) $stmt->fetchColumn();
     }
-} elseif ($file["owner_type"] === "task") {
+} elseif ($file["owner_type"] === "task" || $file["owner_type"] === CLIENT_PHASE_FILES_OWNER) {
     ensureProjectTables($pdo);
     [$scopeSql, $scopeParams] = projectScopeSql($admin);
     $stmt = $pdo->prepare("

@@ -1,86 +1,16 @@
 /*
 |------------------------------------------------------------------------------
-| Sidebar links that not every admin role may see
+| The admin session check, on every admin page
 |------------------------------------------------------------------------------
 |
-| The sidebar markup is copied across every admin page, so trimming it per role
-| in each file means the same edit eight times and a link left behind whenever a
-| page is added. This does it in one place: include the script and any link in
-| the table below disappears for anyone without its permission
-| (api/permissions.php - the Director holds them all).
+| Which sidebar links an admin sees is decided in assets/admin-nav.js; this
+| file only keeps the stored role and permissions in step with the database.
 |
-| Matching is on the href, so no page needs an id or a class added to its markup.
+|   <script src="assets/role-nav.js?v=7"></script>
 |
-| This is presentation only. Every page and endpoint listed here checks the
-| permission itself - a hidden link is a tidier sidebar, never a permission.
-|
-|   <script src="assets/role-nav.js?v=1"></script>
-|
-| Add it beside the existing notifications.js tag, at the end of <body>.
+| At the end of <body>, beside notifications.js.
 |
 */
-
-(function () {
-
-  var RESTRICTED = [
-    {
-      // Client meetings.
-      href: "admin-calendar.html",
-      perm: "calendar.use"
-    },
-    {
-      // Clients Management.
-      href: "clients-management.html",
-      perm: "clients.details"
-    },
-    {
-      // Inquiries: the Director, and whoever was given access.
-      href: "inquiries.html",
-      perm: "inquiries.read"
-    },
-    {
-      // The event log: what every admin changed (api/admin-events.php).
-      href: "event-log.html",
-      perm: "events.view"
-    }
-  ];
-
-  function currentRole() {
-    try {
-      return (JSON.parse(localStorage.getItem("admin_user") || "{}") || {}).role || "";
-    } catch (error) {
-      // A corrupt admin_user should not take the whole sidebar down with it.
-      return "";
-    }
-  }
-
-  function apply() {
-    var role = currentRole();
-
-    // Not logged in as an admin: the page's own auth check is already
-    // redirecting, so leave the markup alone.
-    if (!role) return;
-
-    RESTRICTED.forEach(function (rule) {
-
-      if (window.adminCan ? window.adminCan(rule.perm) : role === "owner") return;
-
-      // Both the bare name and any path or query form of it.
-      document
-        .querySelectorAll('a[href*="' + rule.href + '"]')
-        .forEach(function (link) {
-          link.remove();
-        });
-    });
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", apply);
-  } else {
-    apply();
-  }
-
-})();
 
 /*
 |------------------------------------------------------------------------------

@@ -45,6 +45,9 @@ jobs:
       - name: PHP files parse
         run: find . -name "*.php" -not -path "./PHPMailer/*" -not -path "*/node_modules/*" -print0 | xargs -0 -n1 php -l > /dev/null
 
+      - name: Admin pages share one sidebar
+        run: php tests/sidebar-check.php
+
       - name: api/v1 permission matrix (and fresh contract fixtures)
         run: php tests/api-v1/run.php --fixtures
 

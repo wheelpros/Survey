@@ -15,6 +15,7 @@ const ALL_STAFF = [
   "inquiries:read", "inquiries:write", "content:read", "content:write",
   "calendar:read", "calendar:write", "projects:read", "projects:write",
   "notifications:read", "notifications:write",
+  "messages:read", "messages:write", "announcements:write",
   "settings:read", "settings:write", "admins:write", "events:read",
 ];
 
@@ -49,6 +50,8 @@ function fakePortal({ scopes, v1 } = {}) {
       "forms.php": q.has("id") ? "get_form" : q.has("queue") ? "list_forms_awaiting_review" : "list_forms",
       "projects.php": q.has("teammates") ? "list_phase_teammates" : q.has("mine") ? "list_my_phases" : q.has("tasks") ? "list_my_tasks" : q.has("id") ? "get_project" : "list_projects",
       "notifications.php": "list_my_notifications",
+      "messages.php": q.has("people") ? "list_message_people" : q.has("with") ? "get_conversation" : "list_my_conversations",
+      "announcements.php": "get_announcement",
       "events.php": "list_admin_events",
       "calendar.php": q.has("id") ? "get_meeting" : q.has("pending") ? "list_pending_approvals" : "get_calendar",
     }[path];
@@ -108,7 +111,7 @@ describe("private server: per-person tools", () => {
     const c = await connect();
     const staff = (t) => !t.scope.startsWith("self:");
     expect(await toolNames(c)).toEqual(
-      ["whoami", "confirm_change", "mark_notifications_read",
+      ["whoami", "confirm_change", "mark_notifications_read", "mark_conversation_read",
        ...READ_TOOLS.filter(staff).map((t) => t.name), ...WRITE_TOOLS.filter(staff).map((t) => t.name)].sort()
     );
     expect((await c.listResourceTemplates()).resourceTemplates.map((r) => r.uriTemplate).sort())
@@ -117,9 +120,9 @@ describe("private server: per-person tools", () => {
       .toEqual(["client_weekly_report", "meeting_prep", "my_phases", "onboard_new_client", "plan_month_content", "review_queue", "triage_new_leads"]);
     const { tools } = await c.listTools();
     expect(tools.every((t) => t.outputSchema)).toBe(true);
-    // Only the two tools that actually change something are not read-only.
+    // Only the tools that actually change something are not read-only.
     expect(tools.filter((t) => t.annotations?.readOnlyHint !== true).map((t) => t.name).sort())
-      .toEqual(["confirm_change", "mark_notifications_read"]);
+      .toEqual(["confirm_change", "mark_conversation_read", "mark_notifications_read"]);
     await c.close();
   });
 

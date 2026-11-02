@@ -84,6 +84,10 @@ const SCOPE_PERMISSIONS = [
     "projects:write"      => null,
     "notifications:read"  => null,
     "notifications:write" => null,
+    // Any admin can message any other, as on the Messages page.
+    "messages:read"       => null,
+    "messages:write"      => null,
+    "announcements:write" => "announcements.send",
     "settings:read"       => "settings.manage",
     "settings:write"      => "settings.manage",
     "admins:write"        => "admins.manage",

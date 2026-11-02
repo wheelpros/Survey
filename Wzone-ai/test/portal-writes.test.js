@@ -280,6 +280,34 @@ describe("private server: confirmed changes", () => {
     await c.close();
   });
 
+  it("marks a chat read directly, but sends a message only through confirm_change", async () => {
+    const upstream = fakePortal({
+      scopes: [...SEO, "messages:read", "messages:write"],
+      v1: (path) => path === "messages.php" ? jsonResponse(200, { ok: true, data: fixtures.mark_conversation_read }) : null,
+    });
+    const c = await connect();
+    const read = await c.callTool({ name: "mark_conversation_read", arguments: { with: 3 } });
+    expect(read.structuredContent).toEqual(fixtures.mark_conversation_read);
+
+    const sent = await c.callTool({ name: "send_message", arguments: { to: 3, body: "On my way" } });
+    expect(sent.content[0].text).toMatch(/^NOTHING HAS CHANGED YET/);
+    expect(posts(upstream).map((p) => [p.path, p.body])).toEqual([
+      ["messages.php", { with: 3 }],
+      ["changes.php", { action: "prepare", tool: "send_message", args: { to: 3, body: "On my way" } }],
+    ]);
+    await c.close();
+  });
+
+  it("offers sending messages and announcements only with their scopes", async () => {
+    fakePortal({ scopes: SEO });
+    const c = await connect();
+    const names = (await c.listTools()).tools.map((t) => t.name);
+    for (const n of ["send_message", "mark_conversation_read", "send_announcement"]) {
+      expect(names).not.toContain(n);
+    }
+    await c.close();
+  });
+
   it("doesn't claim a timed-out change failed", async () => {
     fakePortal({
       scopes: SEO,

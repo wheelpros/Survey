@@ -345,6 +345,18 @@ export const projectDetail = {
           )
           .optional()
           .describe("Files attached for the team - never shown to the client"),
+        client_attachments: z
+          .array(
+            z.object({
+              id,
+              ext: text,
+              size: id.describe("Bytes"),
+              page_url: text.describe("The phase page, where the team downloads it"),
+              untrusted_content: untrusted({ name: text }),
+            })
+          )
+          .optional()
+          .describe("Files for the client - they download them from their project page once the phase is live"),
         scheduled_date: maybe.describe("The due date"),
         scheduled_time: maybe,
         link: maybe,
@@ -459,11 +471,66 @@ export const notifications = {
       read: z.boolean(),
       link: maybe.describe("The portal page it opens"),
       is_announcement: z.boolean(),
+      announcement_id: id.nullable().describe("Open it in full with get_announcement (a client: get_my_announcement)"),
       created_at: dateTime,
       untrusted_content: untrusted({ title: text, body: text }),
     })
   ),
   unread_count: id,
+};
+
+export const announcement = {
+  id,
+  audience: z.enum(["team", "client"]),
+  event_date: maybe.describe("The date it is about, if any"),
+  image_url: maybe,
+  created_by_name: maybe,
+  created_at: dateTime,
+  untrusted_content: untrusted({ title: text, description: text }),
+};
+
+// ── Messages (direct chats between admins) ──────────────────────────────
+
+const messagePerson = z.object({
+  id,
+  name: text,
+  role: text.describe("owner is the Director"),
+  position: maybe,
+  active: z.boolean().describe("false: switched off, can't receive messages"),
+  removed: z.boolean(),
+});
+
+export const conversations = {
+  ...page(
+    z.object({
+      with: messagePerson,
+      unread: id.describe("Messages from them you haven't read"),
+      last_message_at: dateTime,
+      last_is_mine: z.boolean(),
+      untrusted_content: untrusted({ last_message: text }),
+    })
+  ),
+  unread_count: id.describe("Unread messages across every conversation"),
+};
+
+export const conversation = {
+  with: messagePerson,
+  ...page(
+    z.object({
+      id,
+      mine: z.boolean().describe("You sent it"),
+      created_at: dateTime,
+      untrusted_content: untrusted({ body: text }),
+    })
+  ),
+  their_last_read_id: id.describe("The last of your messages they have seen; 0 for none"),
+};
+
+export const messagePeople = page(messagePerson);
+
+export const markedConversationRead = {
+  marked: z.boolean(),
+  unread_count: id.describe("Unread messages left across every conversation"),
 };
 
 // ── Event log (the Director's) ─────────────────────────────────────────────

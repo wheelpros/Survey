@@ -39,6 +39,8 @@ const INSTRUCTIONS = [
   "Changes take two steps: a tool such as propose_meeting or submit_my_form only prepares",
   "the change and returns a summary - show it to the person, and call confirm_change only",
   "once they have said yes. Never confirm on their behalf.",
+  "Staff messages (list_my_conversations, send_message) are private chats between two admins:",
+  "send only what the person asked you to say.",
   UNTRUSTED_NOTE,
 ].join(" ");
 
