@@ -28,7 +28,7 @@ W|ZONE runs a single Coolify app from this folder, on `mcp.websitezone.co.uk`, w
 
 | Endpoint | Login | Who | What |
 |---|---|---|---|
-| `https://mcp.websitezone.co.uk/mcp` | yes (OAuth, the person's portal account) | staff, and clients if the owner allows it | the portal as that person: read tools for every area, and changes the person confirms (below). This is the address to add as a connector in Claude |
+| `https://mcp.websitezone.co.uk/mcp` | yes (OAuth, the person's portal account) | staff, and clients if the Director allows it | the portal as that person: read tools for every area, and changes the person confirms (below). This is the address to add as a connector in Claude |
 | `https://mcp.websitezone.co.uk/public/mcp` | none | anyone with a consultation link | the inquiry tools above |
 
 The two can't share one path. Claude decides whether to sign the person in from how `/mcp` answers, so a path is either behind a login or it isn't.
@@ -69,8 +69,8 @@ Claude ──/mcp, Bearer wzat_…──▶ mcp.websitezone.co.uk ─introspect 
 - **`api/v1` only accepts an MCP token when the call also carries `X-MCP-Key`.** A token copied out of a client can't be replayed against the portal directly. Every MCP call is recorded in `mcp_audit_log`.
 - **People stay in control:**
   - **Connected apps** (`connected-apps.html`, linked from Profile and Settings) lists each connection with what it may do, and has a Disconnect button.
-  - The **owner** decides whether clients may connect at all. This is off by default, and turning it off ends every existing client connection.
-  - The owner also sees recent AI activity across the portal.
+  - The **Director** decides whether clients may connect at all. This is off by default, and turning it off ends every existing client connection.
+  - The Director also sees recent AI activity across the portal.
 
 ## What the private server offers
 
@@ -79,15 +79,15 @@ Each person gets only the tools their connection's scopes allow, so a client nev
 | Scope | Tools | Who sees which records (same as the browser) |
 |---|---|---|
 | always | `whoami` | your own account and scopes |
-| `clients:read` | `search_clients`, `get_client_overview`, `get_client_team`, `get_my_client_note` | the owner: every client; everyone else: the clients assigned to them. Notes are private to whoever wrote them |
-| `forms:read` | `list_forms`, `get_form`, `list_forms_awaiting_review`, `list_form_responses`, `get_form_response` | forms: the owner and account managers see all, others the forms they wrote. Responses: from your assigned clients |
-| `inquiries:read` | `list_inquiries`, `get_inquiry_form`, `list_inquiry_leads`, `get_inquiry_lead` | the owner, and account managers with inquiries access |
-| `content:read` | `list_content`, `get_content`, `list_content_types` | the owner and account managers see all posts, others their own |
+| `clients:read` | `search_clients`, `get_client_overview`, `get_client_team`, `get_my_client_note` | the Director: every client; everyone else: the clients assigned to them. Notes are private to whoever wrote them |
+| `forms:read` | `list_forms`, `get_form`, `list_forms_awaiting_review`, `list_form_responses`, `get_form_response` | forms: the Director and account managers see all, others the forms they wrote. Responses: from your assigned clients |
+| `inquiries:read` | `list_inquiries`, `get_inquiry_form`, `list_inquiry_leads`, `get_inquiry_lead` | the Director, and account managers with inquiries access |
+| `content:read` | `list_content`, `get_content`, `list_content_types` | the Director and account managers see all posts, others their own |
 | `calendar:read` | `get_calendar`, `list_pending_approvals`, `get_meeting` | meetings of your assigned clients; closed to SEO admins |
-| `projects:read` | `list_projects`, `get_project` | your clients' projects, the ones you manage, and the ones you're a member of; drafts as on the project page |
+| `projects:read` | `list_projects`, `get_project`, `list_my_tasks`, `get_dashboard` | your clients' projects, the ones you manage, and the ones you're a member of; drafts as on the project page |
 | `notifications:read` | `list_my_notifications` | your own inbox |
-| `settings:read` | `get_settings` | the owner only: website address, logo, login slides and the admin team (roles, on/off, who manages whom). Never a password, token or the files password |
-| `events:read` | `list_admin_events` | the owner only: the event log - every change an admin made, in the portal or through an assistant, with who, when and a summary. The same rows as the portal's Event log page, kept 12 months |
+| `settings:read` | `get_settings` | the Director only: website address, logo, login slides and the admin team (roles, on/off, who manages whom). Never a password, token or the files password |
+| `events:read` | `list_admin_events` | the Director and whoever they give it: Tracking - every change an admin made, in the portal or through an assistant, with who, when and a summary. The same rows as the portal's Tracking page, kept 12 months |
 
 - **`get_client_overview`** answers "tell me about client X" in one call: profile, team, open forms, recent responses, upcoming and recent content, upcoming meetings, active projects. A section the connection has no scope for is left out and named in `not_included`.
 - **Lists are paged by cursor.** Pass `next_cursor` back as `cursor`. Rows never repeat or go missing when new ones arrive between pages.
@@ -109,7 +109,7 @@ Each person gets only the tools their connection's scopes allow, so a client nev
 | `content:write` | `list_content_teammates` | who can be put on a post: its client's team (account managers, Super Admins and Admins assigned to it) |
 | `content:write` | `create_content_draft` | saves a **draft** post, with its orientation, priority, team notes and team (each new teammate is notified). Images are given as up to 5 public `https://` links (Google Drive and Dropbox share links are turned into the file behind them; a chat attachment has no link, so the tool tells the assistant to walk the person through a storage connector or a shared link); the portal downloads and checks them on confirm (JPG/PNG/WEBP/GIF, 3 MB each), never from a private address |
 | `content:write` | `update_content_draft` | changes the given fields of a **draft** post, its team notes and team included; `images` and `team` replace the whole set (`[]` removes them). Scheduled and published posts are edited in the portal |
-| `content:write` | `publish_content` | schedules a **draft** for a date and time, or publishes it now - owner and account managers only, as in the portal. The client is notified when it goes live |
+| `content:write` | `publish_content` | schedules a **draft** for a date and time, or publishes it now - the Director and account managers only, as in the portal. The client is notified when it goes live |
 | `calendar:write` | `propose_meeting` | asks a client for a meeting: every account at their company that you can reach, in the portal and by email, as the calendar page does |
 | `calendar:write` | `respond_to_meeting` | accepts or declines a client's pending request |
 | `projects:write` | `post_project_update` | adds an update to a project, published (the client is told once it's live) or as a draft |
@@ -119,11 +119,11 @@ Each person gets only the tools their connection's scopes allow, so a client nev
 | `settings:write` | `set_logo` | replaces the logo from a public `https://` link (PNG or JPG), downloaded and checked on confirm like post images |
 | `settings:write` | `add_login_slide`, `update_login_slide`, `reorder_login_slides`, `remove_login_slide` | the sign-in page slideshow: add one from a link (at least 600 × 800 px, up to 5 slides), change its text, reorder them, or remove one and its image |
 | `admins:write` | `add_admin` | adds an Admin, Super Admin or Account Manager. **No password passes through the assistant**: they are emailed a link to choose one, good for 3 days |
-| `admins:write` | `change_admin_role` | changes a role (never to or from owner, never your own). They are signed out and pick it up on their next sign-in |
+| `admins:write` | `change_admin_role` | changes a role (never to or from Director, never your own). They are signed out and pick it up on their next sign-in |
 | `admins:write` | `set_admin_active` | stops an admin signing in, or lets them again; nothing of theirs is removed. Never yourself |
 | `admins:write` | `assign_admins_to_manager` | sets exactly who a Super Admin or Account Manager manages |
 
-`settings:*` and `admins:write` are the owner's alone. The consent page lists them on their own lines, so the owner can connect an assistant without handing it the team.
+`settings:*` and `admins:write` are the Director's alone. The consent page lists them on their own lines, so the Director can connect an assistant without handing it the team.
 
 Every other change takes two steps, through [`api/v1/changes.php`](../api/v1/changes.php):
 
@@ -153,7 +153,7 @@ Elicitation would be the protocol's way to ask, but this server is stateless, so
 
 ### Clients
 
-A client can connect their own AI assistant only when the owner has turned on **Allow clients to connect AI assistants** on the Connected apps page. It is off by default. Turning it off ends every client connection at once, because PHP re-checks the switch on every request.
+A client can connect their own AI assistant only when the Director has turned on **Allow clients to connect AI assistants** on the Connected apps page. It is off by default. Turning it off ends every client connection at once, because PHP re-checks the switch on every request.
 
 A client's connection sees only that client's own records, from [`api/v1/me/`](../api/v1/me). The client's id comes from the token, never from an argument, and each file uses the same rule as the client's own page. Staff tools are never registered for a client, and the client tools are never registered for staff.
 
@@ -243,11 +243,11 @@ npx @modelcontextprotocol/inspector
 
 The PHP side has its own test, a permission matrix in [`tests/api-v1/run.php`](../tests/api-v1/run.php) at the repo root:
 
-1. It seeds one person per role (owner, super admin, both kinds of account manager, SEO admin, a deactivated admin, clients).
+1. It seeds one person per role (Director, super admin, both kinds of account manager, SEO admin, a deactivated admin, clients).
 2. It serves the real endpoints with `php -S`.
 3. It checks that each role sees exactly the records its browser page shows, and is refused (403 or 404, never an empty success) everything else. It also covers cursors, parameter checks, MCP tokens and the audit log.
 4. [`tests/api-v1/writes.php`](../tests/api-v1/writes.php) checks the changes. The browser endpoints that now use the shared write functions must behave as before (messages, review gate, notifications). Every change goes through prepare and confirm, and is stopped by a missing scope, an invisible record, a stale state, or a reused, expired, altered or borrowed confirmation.
-5. [`tests/api-v1/clients.php`](../tests/api-v1/clients.php) checks a client's connection: nothing until the owner's switch is on, and cut off when it goes off. A client sees only their own records, never what their pages hide (unreleased forms, draft posts, draft or future project updates, a meeting they declined). Each client change works and is refused in each wrong case. The pages that now share the client's write code still behave as before.
+5. [`tests/api-v1/clients.php`](../tests/api-v1/clients.php) checks a client's connection: nothing until the Director's switch is on, and cut off when it goes off. A client sees only their own records, never what their pages hide (unreleased forms, draft posts, draft or future project updates, a meeting they declined). Each client change works and is refused in each wrong case. The pages that now share the client's write code still behave as before.
 
 The runner's PHP server sends no email, either way the portal sends it: SMTP goes to a closed local port and `mail()` to `/bin/true`. `SURVEY_WEBHOOK_URL` is set empty, so no test answer ever reaches the real Google sheet.
 

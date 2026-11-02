@@ -49,7 +49,7 @@ export const READ_TOOLS = [
     scope: "clients:read",
     title: "Find clients",
     description:
-      "Lists the clients you can see - every client for the owner, otherwise the ones " +
+      "Lists the clients you can see - every client for the Director, otherwise the ones " +
       "assigned to you - optionally matching a name, email or company. " + ORDER +
       " Use it to find a client's id for the other tools.",
     input: { query: z.string().max(100).optional().describe("Part of a name, email or company"), ...paging },
@@ -99,7 +99,7 @@ export const READ_TOOLS = [
     scope: "forms:read",
     title: "List forms",
     description:
-      "Forms built for clients. The owner and account managers see every form; " +
+      "Forms built for clients. The Director and account managers see every form; " +
       "everyone else the forms they wrote. " + ORDER,
     input: {
       client: clientId.optional(),
@@ -124,7 +124,7 @@ export const READ_TOOLS = [
     title: "Forms awaiting review",
     description:
       "The review queue: forms waiting for approval before their client can see them. " +
-      "Reviewers (the owner, account managers) see the whole queue; anyone else their " +
+      "Reviewers (the Director, account managers) see the whole queue; anyone else their " +
       "own forms still waiting. Approving and returning happen in the portal.",
     input: { ...paging },
     output: S.reviewQueue,
@@ -205,7 +205,7 @@ export const READ_TOOLS = [
     scope: "content:read",
     title: "List content",
     description:
-      "Posts written for clients. The owner and account managers see them all; everyone " +
+      "Posts written for clients. The Director and account managers see them all; everyone " +
       "else their own. Newest first - or, with from/to, forward in time like a calendar. " +
       "A scheduled post goes live on its own when its time comes.",
     input: {
@@ -365,6 +365,20 @@ export const READ_TOOLS = [
     path: "projects.php",
     query: () => ({ tasks: 1 }),
   },
+  {
+    name: "get_dashboard",
+    scope: "projects:read",
+    title: "Admin dashboard",
+    description:
+      "What the admin dashboard page shows you: your tasks with their counts and due dates, how many " +
+      "projects you can see, and for the Director the Team overview - everyone's tasks, what is overdue " +
+      "and what needs attention. The same reply as list_my_tasks; start here for \"what's on my " +
+      "dashboard?\" or \"how is the team doing?\".",
+    input: {},
+    output: S.myTasks,
+    path: "projects.php",
+    query: () => ({ tasks: 1 }),
+  },
 
   // ── Notifications ─────────────────────────────────────────────────────
   {
@@ -378,11 +392,11 @@ export const READ_TOOLS = [
     query: ({ unread, ...rest }) => ({ ...rest, unread: unread ? 1 : undefined }),
   },
 
-  // ── Event log (the owner's) ───────────────────────────────────────────
+  // ── Event log (the Director's) ───────────────────────────────────────────
   {
     name: "list_admin_events",
     scope: "events:read",
-    title: "Event log",
+    title: "Tracking",
     description:
       "What every admin changed in the portal - in the browser or through an AI assistant - with who, " +
       "when and a one-line summary: projects, phases, content, forms, inquiries, meetings, clients, the " +
@@ -405,7 +419,7 @@ export const READ_TOOLS = [
     path: "events.php",
   },
 
-  // ── Settings (the owner's) ────────────────────────────────────────────
+  // ── Settings (the Director's) ────────────────────────────────────────────
   {
     name: "get_settings",
     scope: "settings:read",
