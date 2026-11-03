@@ -180,9 +180,11 @@ check("v1 messages: the summary names who and what", strpos($prep["data"]["summa
 $last = one($pdo, "SELECT sender_id, body FROM admin_messages ORDER BY id DESC LIMIT 1");
 check("v1 messages: it lands in the chat as Sam", (int) $last["sender_id"] === 2 && $last["body"] === "Sent by the assistant"
     && ($done["data"]["result"]["message_id"] ?? 0) > 0, json_encode($last));
+// $sa is Sam's session token, so the row says web; events.php checks that a
+// write with a real MCP token says mcp.
 $event = one($pdo, "SELECT * FROM admin_events WHERE action = 'message.sent' ORDER BY id DESC LIMIT 1");
-check("v1 messages: Tracking has who messaged whom, via the assistant, never the text", $event
-    && (int) $event["actor_admin_id"] === 2 && $event["via"] === "mcp" && $event["target_type"] === "admin"
+check("v1 messages: Tracking has who messaged whom and when, never the text", $event
+    && (int) $event["actor_admin_id"] === 2 && $event["via"] === "web" && $event["target_type"] === "admin"
     && (int) $event["target_id"] === 3 && strpos($event["summary"], "Amy") !== false
     && strpos(json_encode($event), "Sent by the assistant") === false, json_encode($event));
 [, $r] = msgGet("action=count", $am);
