@@ -356,9 +356,11 @@ export const READ_TOOLS = [
       "are a teammate on, and content posts you are on (when this connection can read content), each " +
       "with your own status (todo, in_progress, done) and due date, soonest first, plus the counts and how " +
       "many projects you can see. Change a phase with set_my_phase_status and a post with set_my_post_status. " +
-      "For the Director it also returns team: the Team overview - one row per phase or post, with everyone " +
+      "For the Director it also returns team: the Team overview - one row for every phase and post (with or " +
+      "without people on it), with everyone " +
       "on it and their own status, the item's status (todo = New until someone starts, in_progress once " +
-      "anyone has, done when everyone is done or the phase is complete or the post is published), how many " +
+      "anyone has, done when everyone is done or the phase is complete or the post is published; a scheduled " +
+      "post is at least in_progress), how many " +
       "are done, whether it is overdue, the counts, and what needs attention (phases nobody is assigned to, " +
       "forms to review, meeting requests waiting). Start here for \"what's on my dashboard?\", \"how is the " +
       "team doing?\" or \"what's late?\". Other people's statuses are read-only: each person sets their own.",

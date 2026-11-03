@@ -257,6 +257,7 @@ select.client-filter{
 .cell small.progress{display:block;margin-top:4px;font-size:11px;font-weight:700;color:var(--muted)}
 .attention{background:#fff7e6;border:1px solid #fde68a;border-radius:12px;padding:10px 14px;margin:0 0 14px;font-size:12px;color:#7c4a03}
 .attention a{color:inherit;font-weight:800}
+.who-cell b.nobody{color:var(--muted);font-weight:600}
 .status-pill{display:inline-flex;align-items:center;padding:4px 10px;border-radius:20px;border:1px solid;font-size:11px;font-weight:800;white-space:nowrap}
 .status-pill.done{color:#17803d;background:#e8faef;border-color:#b8e7c8}
 .status-pill.in_progress{color:#b45309;background:#fff7e6;border-color:#fde68a}
@@ -665,7 +666,8 @@ function donutSvg(done, doing, fresh){
 const FILTERS = [["all", "All"], ["todo", "New"], ["in_progress", "In progress"], ["done", "Done"]];
 
 /* ── Team overview (the Director's dashboard) ─────────────────────────────
-   One row per phase and per content post, read-only, with everyone on it:
+   One row for every phase and content post, read-only, with everyone on it
+   (or "Nobody yet"):
    the same donut, cards and groups as My tasks. An item is New until
    someone starts, In progress once anyone has, Done when everyone is done
    (or the phase is complete, or the post is published) - worked out by
@@ -792,7 +794,7 @@ function paintTeamGroups(){
 
   if (!shown.length) {
     box.innerHTML = '<div class="empty-state"><h3>Nothing here</h3><p>'
-      + (team.tasks.length ? "No team task matches these filters." : "Nobody is assigned to a phase or a post yet.")
+      + (team.tasks.length ? "No team task matches these filters." : "There are no phases or content posts yet.")
       + "</p></div>";
     pager.hidden = true;
     return;
@@ -853,7 +855,9 @@ function teamRow(task, group){
   const status = statusFor(task);
   const progress = task.progress && task.progress.total > 1 && teamPerson === "all"
     ? '<small class="progress">' + Number(task.progress.done) + "/" + Number(task.progress.total) + " done</small>" : "";
-  const names = people.length === 1 ? '<b dir="auto">' + esc(people[0].name) + "</b>" : "";
+  // Nobody on it yet reads as such, in the same muted grey as a missing date.
+  const names = people.length === 1 ? '<b dir="auto">' + esc(people[0].name) + "</b>"
+    : people.length ? "" : '<b class="nobody">Nobody yet</b>';
 
   return '<div class="row team ' + group + '">'
     + '<div class="row-title"><a href="' + esc(task.href) + '" dir="auto">' + esc(task.title) + "</a>"

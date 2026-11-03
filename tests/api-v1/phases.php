@@ -188,24 +188,34 @@ check("team: the Director sees everyone's phases, one row each", count($sean601)
     && in_array("Sean", array_column($sean601[0]["people"] ?? [], "name"), true)
     && count(teamItems($d, "assignment", $phaseId)) === 1, json_encode($d["team"] ?? null));
 // An item is done when all its people are, in progress once anyone has
-// started, otherwise New - or done outright when the phase is complete or
-// the post published.
-$wrong = array_filter($d["team"]["tasks"] ?? [], function ($t) {
+// started, otherwise New - and its own state (a complete phase, a scheduled
+// or published post) can only move it further on, never back.
+$rank = ["todo" => 0, "in_progress" => 1, "done" => 2];
+$wrong = array_filter($d["team"]["tasks"] ?? [], function ($t) use ($rank) {
     $states = array_column($t["people"], "status");
     $done = count(array_keys($states, "done", true));
     if ($t["progress"]["done"] !== $done || $t["progress"]["total"] !== count($states)) {
         return true;
     }
-    if ($done === count($states)) {
-        return $t["status"] !== "done";
+    if ($states && $done === count($states)) {
+        $fromPeople = "done";
+    } elseif ($done > 0 || in_array("in_progress", $states, true)) {
+        $fromPeople = "in_progress";
+    } else {
+        $fromPeople = "todo";
     }
-    if ($t["status"] === "done") {
-        return false;   // a complete phase or a published post
-    }
-    $started = $done > 0 || in_array("in_progress", $states, true);
-    return $t["status"] !== ($started ? "in_progress" : "todo");
+    return $rank[$t["status"]] < $rank[$fromPeople];
 });
 check("team: an item's status comes from its people", !$wrong, json_encode(array_values($wrong)));
+// Every phase and post is listed, with or without people on it.
+$listed = array_map(function ($t) { return $t["kind"] . ":" . $t["id"]; }, $d["team"]["tasks"] ?? []);
+$missing = array_filter($d["team"]["attention"]["unassigned_phases"] ?? [], function ($u) use ($listed) {
+    return !in_array("assignment:" . $u["id"], $listed, true);
+});
+check("team: a phase with nobody on it is still listed", !$missing, json_encode(array_values($missing)));
+$posts = (int) $pdo->query("SELECT COUNT(*) FROM content")->fetchColumn();
+check("team: every post is listed", count(array_filter($listed, function ($k) { return strpos($k, "content:") === 0; })) === $posts,
+    "$posts posts, listed: " . json_encode($listed));
 $tally = ["todo" => 0, "in_progress" => 0, "done" => 0, "overdue" => 0];
 foreach ($d["team"]["tasks"] ?? [] as $t) {
     $tally[$t["status"]]++;
