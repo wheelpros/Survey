@@ -264,8 +264,8 @@ function pruneAdminEvents(PDO $pdo)
 /**
  * [WHERE parts, params] for the log's filters, each optional and already
  * checked by the caller: actor_id (int), area (an EVENT_AREAS key), client_id
- * (int), from / to (Y-m-d, inclusive), q (text matched against the summary,
- * the target and the admin's name).
+ * (int), from / to (Y-m-d, inclusive; days in tz, an IANA zone, or UTC), q
+ * (text matched against the summary, the target and the admin's name).
  */
 function adminEventFilters(array $f)
 {
@@ -284,13 +284,19 @@ function adminEventFilters(array $f)
         $where[] = "client_id = ?";
         $params[] = (int) $f["client_id"];
     }
+    /* A day starts at midnight where the person is (tz, an IANA zone the
+       browser sends), not where the database is; without one, a UTC day. */
+    $zone = new DateTimeZone("UTC");
+    if (!empty($f["tz"]) && in_array($f["tz"], DateTimeZone::listIdentifiers(), true)) {
+        $zone = new DateTimeZone($f["tz"]);
+    }
     if (!empty($f["from"])) {
-        $where[] = "created_at >= ?";
-        $params[] = $f["from"] . " 00:00:00";
+        $where[] = "created_at >= FROM_UNIXTIME(?)";
+        $params[] = (new DateTime($f["from"] . " 00:00:00", $zone))->getTimestamp();
     }
     if (!empty($f["to"])) {
-        $where[] = "created_at < ? + INTERVAL 1 DAY";
-        $params[] = $f["to"] . " 00:00:00";
+        $where[] = "created_at < FROM_UNIXTIME(?)";
+        $params[] = (new DateTime($f["to"] . " 00:00:00", $zone))->modify("+1 day")->getTimestamp();
     }
     if (isset($f["q"]) && $f["q"] !== "") {
         $like = "%" . addcslashes($f["q"], "%_\\") . "%";

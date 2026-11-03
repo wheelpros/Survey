@@ -84,11 +84,15 @@ Each person gets only the tools their connection's scopes allow, so a client nev
 | `inquiries:read` | `list_inquiries`, `get_inquiry_form`, `list_inquiry_leads`, `get_inquiry_lead` | the Director, and account managers with inquiries access |
 | `content:read` | `list_content`, `get_content`, `list_content_types` | the Director and account managers see all posts, others their own |
 | `calendar:read` | `get_calendar`, `list_pending_approvals`, `get_meeting` | meetings of your assigned clients; closed to SEO admins |
-| `projects:read` | `list_projects`, `get_project`, `list_my_tasks`, `get_dashboard` | your clients' projects, the ones you manage, and the ones you're a member of; drafts as on the project page |
+| `projects:read` | `list_projects`, `get_project`, `get_dashboard` | your clients' projects, the ones you manage, and the ones you're a member of; drafts as on the project page |
 | `notifications:read` | `list_my_notifications` | your own inbox |
+| `messages:read` | `list_messages`, `read_chat`, `list_message_people` | the portal's Messages page: your own chats with other admins, private to the two of you (the Director included) |
+| `messages:write` | `send_message`, `mark_chat_read` | you send as yourself, after you confirm; marking read moves only your own read marker |
 | `settings:read` | `get_settings` | the Director only: website address, logo, login slides and the admin team (roles, on/off, who manages whom). Never a password, token or the files password |
-| `events:read` | `list_admin_events` | the Director and whoever they give it: Tracking - every change an admin made, in the portal or through an assistant, with who, when and a summary. The same rows as the portal's Tracking page, kept 12 months |
+| `events:read` | `get_tracking` | the Director and whoever they give it: Tracking - every change an admin made, in the portal or through an assistant, with who, when and a summary. The same rows as the portal's Tracking page, kept 12 months |
 
+- **Tool names follow the portal's sidebar**: Dashboard is `get_dashboard`, Messages is `list_messages` / `read_chat` / `send_message`, Tracking is `get_tracking`. Their times are ISO-8601 UTC (`2026-11-03T14:30:09Z`).
+- **A connection keeps the scopes it was approved with.** A scope added later never reaches it: `whoami` lists it under `missing_scopes`, and the fix is to disconnect the app and connect it again.
 - **`get_client_overview`** answers "tell me about client X" in one call: profile, team, open forms, recent responses, upcoming and recent content, upcoming meetings, active projects. A section the connection has no scope for is left out and named in `not_included`.
 - **Lists are paged by cursor.** Pass `next_cursor` back as `cursor`. Rows never repeat or go missing when new ones arrive between pages.
 - **Resources:** `client://{id}`, `project://{id}` and `form://{id}` hold the same data as the overview and `get_*` tools, for attaching as context. Listing them returns only what the caller can see (up to 100 of each).

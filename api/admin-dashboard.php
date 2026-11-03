@@ -12,7 +12,8 @@
 | show and how many projects they can see.
 |
 | The Director also gets `team`: the Team overview - their whole dashboard -
-| every person's tasks, with what needs attention (teamDashboardItems() in
+| one row per phase and post, with everyone on it and their own status, and
+| what needs attention (teamDashboardItems() in
 | task-writes.php). Everyone else, account managers included, sees My tasks.
 |
 | Read-only. Changing "My status" posts to the endpoint that owns the thing:

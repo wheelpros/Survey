@@ -1446,7 +1446,7 @@ function v1WriteHandlers()
                 $stmt->execute([$id, (int) $p["id"]]);
                 $mine = $stmt->fetch();
                 if (!$mine) {
-                    throw new PortalWriteError("You aren't on a post with that id - list_my_tasks shows yours.", 403);
+                    throw new PortalWriteError("You aren't on a post with that id - get_dashboard shows yours.", 403);
                 }
                 if ((string) $mine["status"] === $status) {
                     throw new PortalWriteError("Nothing to change - your status on that post is already " . strtolower(TASK_ASSIGNMENT_STATUSES[$status]) . ".", 409);
@@ -1483,7 +1483,7 @@ function v1WriteHandlers()
                 $stmt->execute([$id, (int) $p["id"]]);
                 $mine = $stmt->fetch();
                 if (!$mine) {
-                    throw new PortalWriteError("You aren't on a post with that id - list_my_tasks shows yours.", 403);
+                    throw new PortalWriteError("You aren't on a post with that id - get_dashboard shows yours.", 403);
                 }
                 if (((int) $mine["is_done"] === 1) === $done) {
                     throw new PortalWriteError("Nothing to change - your box on that post is already " . ($done ? "ticked." : "unticked."), 409);

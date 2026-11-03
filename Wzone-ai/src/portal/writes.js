@@ -14,7 +14,7 @@
 // stateless (see ../server.js), so the confirmation is a token instead -
 // the same reasoning as the public server's inquiry submission.
 //
-// Marking read (mark_notifications_read and mark_conversation_read for
+// Marking read (mark_notifications_read and mark_chat_read for
 // staff, mark_my_notifications_read for a client) skips this: it only ever
 // moves the person's own read markers.
 
@@ -360,12 +360,13 @@ export const WRITE_TOOLS = [
   {
     name: "send_message",
     scope: "messages:write",
-    title: "Send a direct message",
+    title: "Messages: send",
     description:
-      "Sends another admin a direct message from you, in the portal's Messages. Messages are private to the " +
+      "Sends another admin a message from you on the portal's Messages page - a new chat or a reply in one " +
+      "(read it first with read_chat). Messages are private to the " +
       "two of you. Write what the person asked you to say - it goes out under their name." + TWO_STEP,
     input: {
-      to: recordId("The admin's id - from list_my_conversations or list_message_people"),
+      to: recordId("The admin's id - from list_messages or list_message_people"),
       body: z.string().min(1).max(2000).describe("The message, as it will appear"),
     },
   },
@@ -437,9 +438,9 @@ export const WRITE_TOOLS = [
     title: "Set my status on a post",
     description:
       "Moves your own row in a content post's Assigned table: todo, in_progress or done. Only your own row " +
-      "changes, whatever your role. list_my_tasks shows the posts you are on." + TWO_STEP,
+      "changes, whatever your role. get_dashboard shows the posts you are on." + TWO_STEP,
     input: {
-      id: recordId("The post's id - from list_my_tasks or list_content"),
+      id: recordId("The post's id - from get_dashboard or list_content"),
       status: z.enum(["todo", "in_progress", "done"]),
     },
   },
@@ -449,9 +450,9 @@ export const WRITE_TOOLS = [
     title: "Tick my box on a post",
     description:
       "The older form of set_my_post_status: true sets your status on the post to done, false back to " +
-      "todo. Only your own row changes. list_my_tasks shows the posts you are on." + TWO_STEP,
+      "todo. Only your own row changes. get_dashboard shows the posts you are on." + TWO_STEP,
     input: {
-      id: recordId("The post's id - from list_my_tasks or list_content"),
+      id: recordId("The post's id - from get_dashboard or list_content"),
       done: z.boolean().describe("true ticks it, false unticks it"),
     },
   },
@@ -786,10 +787,10 @@ export function registerWriteTools(server, { auth, requestId, scopes }) {
   // Marking a chat read moves only your own read marker; they see "Seen".
   if (scopes.includes("messages:write")) {
     server.registerTool(
-      "mark_conversation_read",
+      "mark_chat_read",
       {
-        title: "Mark a conversation read",
-        description: "Marks your messages from one admin read, up to the latest. They see your last message as Seen.",
+        title: "Messages: mark a chat read",
+        description: "Marks a chat on the Messages page read, up to the latest message, and clears its unread count. They see your last message as Seen.",
         inputSchema: { with: recordId("The other admin's id") },
         outputSchema: S.markedConversationRead,
         annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
@@ -798,7 +799,7 @@ export function registerWriteTools(server, { auth, requestId, scopes }) {
         portalCall({
           auth,
           requestId,
-          tool: "mark_conversation_read",
+          tool: "mark_chat_read",
           path: "messages.php",
           body: { with: other },
           schema: z.object(S.markedConversationRead),

@@ -283,11 +283,11 @@ describe("private server: confirmed changes", () => {
   it("marks a chat read directly, but sends a message only through confirm_change", async () => {
     const upstream = fakePortal({
       scopes: [...SEO, "messages:read", "messages:write"],
-      v1: (path) => path === "messages.php" ? jsonResponse(200, { ok: true, data: fixtures.mark_conversation_read }) : null,
+      v1: (path) => path === "messages.php" ? jsonResponse(200, { ok: true, data: fixtures.mark_chat_read }) : null,
     });
     const c = await connect();
-    const read = await c.callTool({ name: "mark_conversation_read", arguments: { with: 3 } });
-    expect(read.structuredContent).toEqual(fixtures.mark_conversation_read);
+    const read = await c.callTool({ name: "mark_chat_read", arguments: { with: 3 } });
+    expect(read.structuredContent).toEqual(fixtures.mark_chat_read);
 
     const sent = await c.callTool({ name: "send_message", arguments: { to: 3, body: "On my way" } });
     expect(sent.content[0].text).toMatch(/^NOTHING HAS CHANGED YET/);
@@ -302,7 +302,7 @@ describe("private server: confirmed changes", () => {
     fakePortal({ scopes: SEO });
     const c = await connect();
     const names = (await c.listTools()).tools.map((t) => t.name);
-    for (const n of ["send_message", "mark_conversation_read", "send_announcement"]) {
+    for (const n of ["send_message", "mark_chat_read", "send_announcement"]) {
       expect(names).not.toContain(n);
     }
     await c.close();

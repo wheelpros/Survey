@@ -48,11 +48,11 @@ function fakePortal({ scopes, v1 } = {}) {
       "me.php": "whoami",
       "clients.php": q.get("part") === "team" ? "get_client_team" : q.get("part") === "note" ? "get_my_client_note" : q.has("id") ? "get_client_overview" : "search_clients",
       "forms.php": q.has("id") ? "get_form" : q.has("queue") ? "list_forms_awaiting_review" : "list_forms",
-      "projects.php": q.has("teammates") ? "list_phase_teammates" : q.has("mine") ? "list_my_phases" : q.has("tasks") ? "list_my_tasks" : q.has("id") ? "get_project" : "list_projects",
+      "projects.php": q.has("teammates") ? "list_phase_teammates" : q.has("mine") ? "list_my_phases" : q.has("tasks") ? "get_dashboard" : q.has("id") ? "get_project" : "list_projects",
       "notifications.php": "list_my_notifications",
-      "messages.php": q.has("people") ? "list_message_people" : q.has("with") ? "get_conversation" : "list_my_conversations",
+      "messages.php": q.has("people") ? "list_message_people" : q.has("with") ? "read_chat" : "list_messages",
       "announcements.php": "get_announcement",
-      "events.php": "list_admin_events",
+      "events.php": "get_tracking",
       "calendar.php": q.has("id") ? "get_meeting" : q.has("pending") ? "list_pending_approvals" : "get_calendar",
     }[path];
     return pick ? jsonResponse(200, { ok: true, data: fixtures[pick] }) : jsonResponse(404, { ok: false, error: { code: "not_found", message: "No such thing" } });
@@ -111,7 +111,7 @@ describe("private server: per-person tools", () => {
     const c = await connect();
     const staff = (t) => !t.scope.startsWith("self:");
     expect(await toolNames(c)).toEqual(
-      ["whoami", "confirm_change", "mark_notifications_read", "mark_conversation_read",
+      ["whoami", "confirm_change", "mark_notifications_read", "mark_chat_read",
        ...READ_TOOLS.filter(staff).map((t) => t.name), ...WRITE_TOOLS.filter(staff).map((t) => t.name)].sort()
     );
     expect((await c.listResourceTemplates()).resourceTemplates.map((r) => r.uriTemplate).sort())
@@ -122,7 +122,7 @@ describe("private server: per-person tools", () => {
     expect(tools.every((t) => t.outputSchema)).toBe(true);
     // Only the tools that actually change something are not read-only.
     expect(tools.filter((t) => t.annotations?.readOnlyHint !== true).map((t) => t.name).sort())
-      .toEqual(["confirm_change", "mark_conversation_read", "mark_notifications_read"]);
+      .toEqual(["confirm_change", "mark_chat_read", "mark_notifications_read"]);
     await c.close();
   });
 
@@ -133,7 +133,7 @@ describe("private server: per-person tools", () => {
     expect(names).toContain("get_client_overview");
     expect(names).not.toContain("get_calendar");
     expect(names).not.toContain("list_inquiry_leads");
-    expect(names).not.toContain("list_admin_events");
+    expect(names).not.toContain("get_tracking");
     const prompts = (await c.listPrompts()).prompts.map((p) => p.name);
     expect(prompts).not.toContain("meeting_prep");
     expect(prompts).not.toContain("triage_new_leads");
@@ -152,8 +152,8 @@ describe("private server: per-person tools", () => {
     await c.callTool({ name: "get_calendar", arguments: { from: "2026-10-01", client: 10 } });
     await c.callTool({ name: "list_phase_teammates", arguments: { id: 500 } });
     await c.callTool({ name: "list_my_phases", arguments: {} });
-    await c.callTool({ name: "list_my_tasks", arguments: {} });
-    await c.callTool({ name: "list_admin_events", arguments: { area: "project", actor_id: 4, from: "2026-10-01", q: "logo" } });
+    await c.callTool({ name: "get_dashboard", arguments: {} });
+    await c.callTool({ name: "get_tracking", arguments: { area: "project", actor_id: 4, from: "2026-10-01", q: "logo" } });
 
     const calls = v1Calls(upstream).map(({ url }) => `${url.pathname.replace("/api/v1/", "")}?${url.searchParams}`);
     expect(calls).toEqual([
@@ -184,7 +184,7 @@ describe("private server: per-person tools", () => {
     const types = await c.callTool({ name: "list_my_notifications", arguments: {} });
     expect(types.structuredContent.unread_count).toBe(1);
 
-    const events = await c.callTool({ name: "list_admin_events", arguments: {} });
+    const events = await c.callTool({ name: "get_tracking", arguments: {} });
     expect(events.isError).toBeFalsy();
     expect(events.structuredContent.items.length).toBeGreaterThan(0);
     expect(events.content[0].text).toMatch(/^Fields named untrusted_content/);

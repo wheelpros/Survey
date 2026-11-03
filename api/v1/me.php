@@ -27,6 +27,16 @@ $data = [
 
 if ($p["via"] === "mcp") {
     $data["connected_app"] = $p["client_name"];
+
+    /* What the person's role allows but this connection was never given -
+       scopes added after it was approved (a grant never grows). Their tools
+       stay hidden until the app is disconnected and connected again. */
+    $missing = array_values(array_diff(scopesAllowedFor($pdo, $p), $p["scopes"]));
+    $data["missing_scopes"] = $missing;
+    if ($missing) {
+        $data["missing_scopes_note"] = "This connection was approved before these were available. "
+            . "To get them, disconnect this app, connect it again and approve.";
+    }
 }
 
 if ($p["kind"] === "admin") {

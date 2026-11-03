@@ -23,7 +23,7 @@ const outputs = [
   ["confirm_change", confirmedChange],
   ["mark_notifications_read", markedRead],
   ["mark_my_notifications_read", markedRead],
-  ["mark_conversation_read", markedConversationRead],
+  ["mark_chat_read", markedConversationRead],
 ];
 
 describe("api/v1 contract", () => {

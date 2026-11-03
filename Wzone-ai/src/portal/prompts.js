@@ -164,7 +164,7 @@ const PROMPTS = [
       [
         "Go through my tasks.",
         "",
-        "1. Call list_my_tasks. If it's empty, say so and stop.",
+        "1. Call get_dashboard. If its items are empty, say so and stop.",
         "2. Group them: late (due before today and not done) · due this week · the rest in",
         "   progress · not started · done. Give each its project or client and due date.",
         "3. For a phase that is late or due this week, call get_project for its project and say",
