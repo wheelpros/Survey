@@ -556,7 +556,7 @@ export const adminEvents = page(
   z.object({
     id,
     action: text.describe("<area>.<verb>, e.g. project.updated, admin.role_changed"),
-    area: text.describe("client, project, phase, content, form, inquiry, meeting, source, announcement, admin or settings"),
+    area: text.describe("client, project, phase, content, form, inquiry, meeting, source, announcement, message, admin or settings"),
     area_label: text,
     actor: z.object({ id, role: text }).describe("The admin who made the change"),
     via: z.enum(["web", "mcp"]).describe("mcp when it was done through an AI assistant"),

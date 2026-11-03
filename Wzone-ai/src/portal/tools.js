@@ -401,7 +401,8 @@ export const READ_TOOLS = [
     description:
       "The portal's Messages page: your chats with other admins, the latest first, each with the last " +
       "message and how many you haven't read. Open one with read_chat, write with send_message. " +
-      "Private to the two people in each - nobody else, the Director included, can read yours.",
+      "Private to the two people in each - nobody else, the Director included, can read yours. Tracking records " +
+      "who messaged whom and when, never the text.",
     input: { ...paging },
     output: S.conversations,
     path: "messages.php",
@@ -437,16 +438,17 @@ export const READ_TOOLS = [
     description:
       "The portal's Tracking page: what every admin changed in the portal - in the browser or through an " +
       "AI assistant - with who, when (ISO-8601 UTC: show it in the person's own time) and a one-line " +
-      "summary: projects, phases, content, forms, inquiries, meetings, clients, the team and settings. " +
+      "summary: projects, phases, content, forms, inquiries, meetings, clients, the team, settings, and who " +
+      "messaged whom (never the text). " +
       ORDER + " Kept for 12 months. Filter by admin (an id from get_settings), area, client (from " +
       "search_clients), dates (UTC days) or text. Use it for \"what did Sara do this week?\" or " +
       "\"who deleted that project?\".",
     input: {
       actor_id: recordId("Only this admin's changes - an id from get_settings").optional(),
       area: z
-        .enum(["client", "project", "phase", "content", "form", "inquiry", "meeting", "source", "announcement", "admin", "settings"])
+        .enum(["client", "project", "phase", "content", "form", "inquiry", "meeting", "source", "announcement", "message", "admin", "settings"])
         .optional()
-        .describe("Only one area; admin means changes to the team"),
+        .describe("Only one area; admin means changes to the team, message means who messaged whom (never the text)"),
       client_id: recordId("Only changes about this client - from search_clients").optional(),
       from: date("On or after this day").optional(),
       to: date("On or before this day").optional(),

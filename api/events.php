@@ -91,6 +91,9 @@ const EVENT_ROLE_PERMISSIONS      = "admin.role_permissions_changed";
 
 const EVENT_SETTINGS_CHANGED      = "settings.changed";
 
+// Who messaged whom, and when - never the text.
+const EVENT_MESSAGE_SENT          = "message.sent";
+
 // The page's Area filter, in the order it shows them.
 const EVENT_AREAS = [
     "client"       => "Clients",
@@ -102,6 +105,7 @@ const EVENT_AREAS = [
     "meeting"      => "Meetings",
     "source"       => "Source files",
     "announcement" => "Announcements",
+    "message"      => "Messages",
     "admin"        => "Team",
     "settings"     => "Settings",
 ];

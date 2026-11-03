@@ -10,13 +10,16 @@
 |
 | Private: every lookup is by the caller and one other admin, so a caller
 | only ever reaches a conversation they are one of the two people in - the
-| Director included. Nothing here writes to the event log or the
-| notifications inbox.
+| Director included. Sending writes one Tracking row - who messaged whom,
+| and when - and never the text. Nothing here writes to the notifications
+| inbox.
 |
 | The caller has run ensureAdminColumns() and ensureAdminMessageTables()
 | before any of this (DDL commits implicitly).
 |
 */
+
+require_once __DIR__ . "/events.php";
 
 const MESSAGE_MAX_CHARS = 2000;
 const MESSAGE_PAGE_SIZE = 50;
@@ -138,7 +141,7 @@ function checkMessage(PDO $pdo, $me, $otherId, $rawBody)
 function sendMessage(PDO $pdo, $me, $otherId, $rawBody)
 {
     $me = (int) $me;
-    [$body] = checkMessage($pdo, $me, $otherId, $rawBody);
+    [$body, $other] = checkMessage($pdo, $me, $otherId, $rawBody);
     $otherId = (int) $otherId;
 
     require_once __DIR__ . "/rate-limit.php";
@@ -170,6 +173,10 @@ function sendMessage(PDO $pdo, $me, $otherId, $rawBody)
         $column = myReadColumn($conversation, $me);
         $pdo->prepare("UPDATE admin_conversations SET last_message_id = ?, $column = ?, updated_at = NOW() WHERE id = ?")
             ->execute([$messageId, $messageId, (int) $conversation["id"]]);
+
+        // Tracking: that a message went, to whom and when - never what it said.
+        logEvent($pdo, EVENT_MESSAGE_SENT, "admin", $otherId, $other["name"],
+            "Sent a message to " . $other["name"]);
 
         $pdo->commit();
     } catch (Throwable $e) {
