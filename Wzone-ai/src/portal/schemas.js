@@ -431,7 +431,7 @@ export const myTasks = {
                 untrusted_content: untrusted({ name: text }),
               })
             )
-            .describe("Everyone on the phase or post"),
+            .describe("Everyone on the phase or post - empty when nobody is on it yet"),
           title: text,
           belongs_to: text.describe("The project, or the client for a post"),
           due_date: maybe,
@@ -439,7 +439,8 @@ export const myTasks = {
           status: z
             .string()
             .describe(
-              "todo (shown as New: nobody has started), in_progress (someone has started or is done) or " +
+              "todo (shown as New: nobody has started), in_progress (someone has started or is done, or the post " +
+                "is scheduled) or " +
                 "done (everyone is done, or the phase is complete, or the post is published)"
             ),
           progress: z.object({ done: id, total: id }).describe("How many of its people are done"),
@@ -458,7 +459,7 @@ export const myTasks = {
       }),
     })
     .optional()
-    .describe("The Team overview - the Director's only: one row per phase or post, with its people"),
+    .describe("The Team overview - the Director's only: one row for every phase and post, with its people"),
 };
 
 export const myPhases = {

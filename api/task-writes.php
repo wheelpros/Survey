@@ -712,15 +712,16 @@ function myDashboardItems(PDO $pdo, array $actor)
 }
 
 /**
- * The Team overview for the Director: one row per phase and per content post
- * that has people on it - phases inside projectScopeSql() (all of them for
- * the Director), posts by their assignees - each with its people and their
+ * The Team overview for the Director: one row per phase and per content post -
+ * every phase inside projectScopeSql() (all of them for the Director) and
+ * every post, with or without people on it - each with its people and their
  * own statuses, the item's status, its progress and whether it is overdue.
  *
  * An item's status comes from its people: done when every one of them is
- * done (or the phase is complete, or the post is published), in progress
- * once anyone has started, otherwise todo (New). People who were removed or
- * deactivated are left out.
+ * done, in progress once anyone has started, otherwise todo (New). Its own
+ * state can only move it on: a complete phase or a published post is done,
+ * a scheduled post at least in progress. With nobody on it, its own state
+ * alone decides. People who were removed or deactivated are left out.
  * Plus the counts (with overdue), how many projects, and what needs
  * attention: phases nobody is assigned to (they can never complete), forms
  * waiting for review, and meeting requests waiting for a reply.
@@ -749,44 +750,49 @@ function teamDashboardItems(PDO $pdo, array $actor)
 
     $items = [];   // keyed by kind:id, so each item collects its people
 
-    // Phases: the people assigned, then teammates who are not also assigned.
+    // Every phase in scope, whether or not anyone is on it yet.
     $stmt = $pdo->prepare("
-        SELECT s.admin_id, s.status, NULL AS is_done, a.name AS admin_name, a.avatar_path,
-               t.id AS task_id, t.title, t.scheduled_date, t.phase_label, t.is_complete,
+        SELECT t.id AS task_id, t.title, t.scheduled_date, t.phase_label, t.is_complete,
                p.id AS project_id, p.title AS project_title
-        FROM project_task_assignments s
-        JOIN project_tasks t ON t.id = s.task_id
-        JOIN projects p      ON p.id = t.project_id
-        JOIN admins a        ON a.id = s.admin_id AND a.active = 1
+        FROM project_tasks t
+        JOIN projects p ON p.id = t.project_id
         WHERE 1 = 1" . $scope . "
+    ");
+    $stmt->execute($scopeParams);
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        $items["assignment:" . (int) $r["task_id"]] = [
+            "kind" => "assignment",
+            "id" => (int) $r["task_id"],
+            "people" => [],
+            "title" => (string) $r["title"],
+            "chip" => (string) $r["project_title"],
+            "due_date" => $r["scheduled_date"],
+            "label" => $r["phase_label"],
+            // A complete phase is done; otherwise its people decide.
+            "floor" => (int) $r["is_complete"] === 1 ? "done" : "todo",
+            "href" => "project-task-details.html?project=" . (int) $r["project_id"] . "&id=" . (int) $r["task_id"],
+        ];
+    }
+
+    // Their people: those assigned, then teammates who are not also assigned.
+    $stmt = $pdo->prepare("
+        SELECT s.task_id, s.admin_id, s.status, NULL AS is_done, a.name AS admin_name, a.avatar_path
+        FROM project_task_assignments s
+        JOIN admins a ON a.id = s.admin_id AND a.active = 1
         UNION ALL
-        SELECT m.admin_id, NULL AS status, m.is_done, a.name AS admin_name, a.avatar_path,
-               t.id AS task_id, t.title, t.scheduled_date, t.phase_label, t.is_complete,
-               p.id AS project_id, p.title AS project_title
+        SELECT m.task_id, m.admin_id, NULL AS status, m.is_done, a.name AS admin_name, a.avatar_path
         FROM project_task_teammates m
-        JOIN project_tasks t ON t.id = m.task_id
-        JOIN projects p      ON p.id = t.project_id
-        JOIN admins a        ON a.id = m.admin_id AND a.active = 1
+        JOIN admins a ON a.id = m.admin_id AND a.active = 1
         WHERE NOT EXISTS (
             SELECT 1 FROM project_task_assignments s
             WHERE s.task_id = m.task_id AND s.admin_id = m.admin_id
-        )" . $scope . "
+        )
     ");
-    $stmt->execute(array_merge($scopeParams, $scopeParams));
+    $stmt->execute();
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
         $key = "assignment:" . (int) $r["task_id"];
         if (!isset($items[$key])) {
-            $items[$key] = [
-                "kind" => "assignment",
-                "id" => (int) $r["task_id"],
-                "people" => [],
-                "title" => (string) $r["title"],
-                "chip" => (string) $r["project_title"],
-                "due_date" => $r["scheduled_date"],
-                "label" => $r["phase_label"],
-                "finished" => (int) $r["is_complete"] === 1,
-                "href" => "project-task-details.html?project=" . (int) $r["project_id"] . "&id=" . (int) $r["task_id"],
-            ];
+            continue;   // a phase outside the scope
         }
         $status = $r["status"] !== null
             ? $ownStatus($r["status"])
@@ -796,27 +802,35 @@ function teamDashboardItems(PDO $pdo, array $actor)
 
     try {
         ensureContentColumns($pdo);
-        $stmt = $pdo->query("
-            SELECT ca.admin_id, ca.status, ca.is_done, a.name AS admin_name, a.avatar_path,
-                   c.id, c.title, c.client, c.type_label, c.content_type, c.post_date, c.status AS post_status
+
+        // Every post, as the Content page lists them: a draft is New, a
+        // scheduled post at least In progress, a published one Done.
+        $floors = ["draft" => "todo", "scheduled" => "in_progress", "published" => "done"];
+        foreach ($pdo->query("
+            SELECT id, title, client, type_label, content_type, post_date, status
+            FROM content
+        ")->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $items["content:" . (int) $r["id"]] = [
+                "kind" => "content",
+                "id" => (int) $r["id"],
+                "people" => [],
+                "title" => (string) $r["title"],
+                "chip" => trim((string) $r["client"]) !== "" ? (string) $r["client"] : "Content",
+                "due_date" => $r["post_date"],
+                "label" => $r["type_label"] ?: $r["content_type"],
+                "floor" => $floors[(string) $r["status"]] ?? "todo",
+                "href" => "admin-content-form.html?id=" . (int) $r["id"],
+            ];
+        }
+
+        foreach ($pdo->query("
+            SELECT ca.content_id, ca.admin_id, ca.status, ca.is_done, a.name AS admin_name, a.avatar_path
             FROM content_assignees ca
-            JOIN content c ON c.id = ca.content_id
-            JOIN admins a  ON a.id = ca.admin_id AND a.active = 1
-        ");
-        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
-            $key = "content:" . (int) $r["id"];
+            JOIN admins a ON a.id = ca.admin_id AND a.active = 1
+        ")->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $key = "content:" . (int) $r["content_id"];
             if (!isset($items[$key])) {
-                $items[$key] = [
-                    "kind" => "content",
-                    "id" => (int) $r["id"],
-                    "people" => [],
-                    "title" => (string) $r["title"],
-                    "chip" => trim((string) $r["client"]) !== "" ? (string) $r["client"] : "Content",
-                    "due_date" => $r["post_date"],
-                    "label" => $r["type_label"] ?: $r["content_type"],
-                    "finished" => (string) $r["post_status"] === "published",
-                    "href" => "admin-content-form.html?id=" . (int) $r["id"],
-                ];
+                continue;
             }
             $status = array_key_exists((string) $r["status"], TASK_ASSIGNMENT_STATUSES)
                 ? (string) $r["status"]
@@ -839,14 +853,18 @@ function teamDashboardItems(PDO $pdo, array $actor)
         $done = count(array_filter($item["people"], function ($p) { return $p["status"] === "done"; }));
         $started = $done > 0 || count(array_filter($item["people"], function ($p) { return $p["status"] === "in_progress"; })) > 0;
 
-        if ($item["finished"] || ($total > 0 && $done === $total)) {
-            $item["status"] = "done";
+        if ($total > 0 && $done === $total) {
+            $status = "done";
         } elseif ($started) {
-            $item["status"] = "in_progress";
+            $status = "in_progress";
         } else {
-            $item["status"] = "todo";
+            $status = "todo";
         }
-        unset($item["finished"]);
+        // The item's own state can only move it on: a complete phase or a
+        // published post is done, a scheduled post at least in progress.
+        $rank = array_flip(array_keys(TASK_ASSIGNMENT_STATUSES));
+        $item["status"] = $rank[$item["floor"]] > $rank[$status] ? $item["floor"] : $status;
+        unset($item["floor"]);
 
         $item["progress"] = ["done" => $done, "total" => $total];
         $item["overdue"] = $item["status"] !== "done" && $item["due_date"] && substr((string) $item["due_date"], 0, 10) < $today;
