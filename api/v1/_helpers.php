@@ -208,6 +208,16 @@ function v1DateTime($value)
     return substr((string) $value, 0, 19);
 }
 
+/**
+ * A moment as ISO-8601 UTC ("2026-11-03T14:30:09Z") from a Unix epoch -
+ * UNIX_TIMESTAMP() of the column - so an assistant turns it into the
+ * person's own time instead of reading UTC as theirs.
+ */
+function v1Time($epoch)
+{
+    return gmdate("Y-m-d\\TH:i:s\\Z", (int) $epoch);
+}
+
 function v1NullableString($value)
 {
     return $value === null || $value === "" ? null : (string) $value;

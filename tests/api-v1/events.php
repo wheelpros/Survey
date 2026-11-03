@@ -113,12 +113,12 @@ $ownerMcp = "wzat_" . str_repeat("e", 43);
 seed($pdo, "mcp_grants", [["id" => 9, "client_id" => "c1", "principal_kind" => "admin", "principal_id" => 1,
     "scopes" => "settings:read", "resource" => "https://mcp.test/mcp"]]);
 seed($pdo, "mcp_tokens", [["token_hash" => tokenHash($ownerMcp), "kind" => "access", "grant_id" => 9, "expires_at" => time() + 3600]]);
-[$status, $r] = get("events.php", $ownerMcp, ["X-MCP-Key" => $mcpKey, "X-MCP-Tool" => "list_admin_events"]);
+[$status, $r] = get("events.php", $ownerMcp, ["X-MCP-Key" => $mcpKey, "X-MCP-Tool" => "get_tracking"]);
 check("events: an owner connection without events:read", $status === 403 && $r["error"]["code"] === "insufficient_scope", "HTTP $status " . json_encode($r));
 $pdo->prepare("UPDATE mcp_grants SET scopes = 'settings:read events:read' WHERE id = 9")->execute();
-[$status, $r] = get("events.php?limit=10", $ownerMcp, ["X-MCP-Key" => $mcpKey, "X-MCP-Tool" => "list_admin_events"]);
+[$status, $r] = get("events.php?limit=10", $ownerMcp, ["X-MCP-Key" => $mcpKey, "X-MCP-Tool" => "get_tracking"]);
 check("events: an owner connection with it", $status === 200 && count($r["data"]["items"]) === 10, "HTTP $status " . json_encode($r));
-$fixtures["list_admin_events"] = $r["data"] ?? null;
+$fixtures["get_tracking"] = $r["data"] ?? null;
 
 // ── 3. Retention ─────────────────────────────────────────────────────────
 

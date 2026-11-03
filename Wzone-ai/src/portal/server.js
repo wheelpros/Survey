@@ -32,14 +32,17 @@ const INSTRUCTIONS = [
   "This server is the client portal, acting as the person who connected it -",
   "a staff member or a client. Every tool returns only what that person can see in the",
   "portal; a 'not found' can mean it exists but isn't theirs to see.",
-  "Start with whoami if unsure what this connection can do. Staff: for anything about one",
+  "Start with whoami if unsure what this connection can do; if it lists missing_scopes, tell",
+  "the person to disconnect and reconnect the app to get those tools. The portal's pages map",
+  "to tools: Dashboard is get_dashboard, Messages is list_messages / read_chat / send_message,",
+  "Tracking is get_tracking. Staff: for anything about one",
   "client, get_client_overview answers most questions in one call, and search_clients finds",
   "the client's id. Clients: my_overview shows what's waiting on them and what's coming up.",
   "Lists are paged: pass next_cursor back as cursor for more.",
   "Changes take two steps: a tool such as propose_meeting or submit_my_form only prepares",
   "the change and returns a summary - show it to the person, and call confirm_change only",
   "once they have said yes. Never confirm on their behalf.",
-  "Staff messages (list_my_conversations, send_message) are private chats between two admins:",
+  "Staff messages (list_messages, read_chat, send_message) are private chats between two admins:",
   "send only what the person asked you to say.",
   UNTRUSTED_NOTE,
 ].join(" ");
@@ -59,7 +62,8 @@ export function buildPortalServer({ requestId, auth }) {
       description:
         "Shows which portal account this connection acts as - name, " +
         "role, and what it is allowed to do (its scopes) - and, for staff, " +
-        "how many clients they can see. Use it when unsure whether something " +
+        "how many clients they can see, plus missing_scopes: what their role allows but this " +
+        "connection was never given (reconnect to get them). Use it when unsure whether something " +
         "is possible before trying.",
       inputSchema: {},
       outputSchema: S.whoami,

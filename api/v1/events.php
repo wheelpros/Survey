@@ -4,7 +4,7 @@
 | The event log - what every admin changed, for whoever holds events.view.
 |
 |   GET events.php?actor_id=&area=&client_id=&from=&to=&q=&cursor=&limit=
-|       list_admin_events
+|       get_tracking
 |
 | Scope events:read, which needs events.view - the Director, and anyone they
 | gave it to (SCOPE_PERMISSIONS in auth.php); it is checked again here so a
@@ -48,7 +48,7 @@ if ($after !== null) {
 }
 
 $stmt = $pdo->prepare("
-    SELECT *
+    SELECT *, UNIX_TIMESTAMP(created_at) AS created_ts
     FROM admin_events
     " . ($where ? "WHERE " . implode(" AND ", $where) : "") . "
     ORDER BY id DESC
@@ -73,7 +73,7 @@ v1Reply(200, v1Page($stmt->fetchAll(), $limit, function ($r) {
         "target_type" => $row["target_type"],
         "target_id" => $row["target_id"],
         "client_id" => $row["client_id"],
-        "created_at" => $row["created_at"],
+        "created_at" => v1Time($row["created_ts"]),
         "untrusted_content" => [
             "summary" => $row["summary"],
             "actor_name" => $row["actor_name"],

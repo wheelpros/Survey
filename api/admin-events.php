@@ -10,7 +10,8 @@
 | token, gets a 403 (the AI reads the same log through api/v1/events.php,
 | behind its own scope).
 |
-|   GET ?action=list&page=&limit=&actor_id=&area=&client_id=&from=&to=&q=
+|   GET ?action=list&page=&limit=&actor_id=&area=&client_id=&from=&to=&tz=&q=
+|       (tz: the browser's IANA zone, so from / to are its own days)
 |       { items, total, page, total_pages }, newest first
 |   GET ?action=filters
 |       { admins, clients, areas } for the filter dropdowns
@@ -116,6 +117,7 @@ $date = function ($name) {
     "client_id" => (int) ($_GET["client_id"] ?? 0),
     "from"      => $date("from"),
     "to"        => $date("to"),
+    "tz"        => (string) ($_GET["tz"] ?? ""),
     "q"         => mb_substr(trim((string) ($_GET["q"] ?? "")), 0, 100),
 ]);
 

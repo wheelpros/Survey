@@ -341,39 +341,27 @@ export const READ_TOOLS = [
     description:
       "Only the phases you are assigned to, with your status on each (todo, in_progress, done) and " +
       "what you noted. For everything on the admin dashboard - teammate phases and content posts " +
-      "too - use list_my_tasks. Change your own status with set_my_phase_status.",
+      "too - use get_dashboard. Change your own status with set_my_phase_status.",
     input: {},
     output: S.myPhases,
     path: "projects.php",
     query: () => ({ mine: 1 }),
   },
   {
-    name: "list_my_tasks",
-    scope: "projects:read",
-    title: "My tasks",
-    description:
-      "Everything on your admin dashboard's My tasks: phases you are assigned to, phases you are a " +
-      "teammate on, and content posts you are on (when this connection can read content), each " +
-      "with your own status and due date, soonest first, plus the counts. Change a phase with " +
-      "set_my_phase_status and a post with set_my_post_status. For the Director it " +
-      "also returns team: the dashboard's Team overview - everyone's tasks, each with its " +
-      "person, status and whether it is overdue, the counts, and what needs attention (phases nobody is " +
-      "assigned to, forms to review, meeting requests waiting). Use it for \"what's late across the team?\". " +
-      "Other people's statuses are read-only: each person sets their own.",
-    input: {},
-    output: S.myTasks,
-    path: "projects.php",
-    query: () => ({ tasks: 1 }),
-  },
-  {
     name: "get_dashboard",
     scope: "projects:read",
-    title: "Admin dashboard",
+    title: "Dashboard",
     description:
-      "What the admin dashboard page shows you: your tasks with their counts and due dates, how many " +
-      "projects you can see, and for the Director the Team overview - everyone's tasks, what is overdue " +
-      "and what needs attention. The same reply as list_my_tasks; start here for \"what's on my " +
-      "dashboard?\" or \"how is the team doing?\".",
+      "What the portal's Dashboard page shows you. Your own tasks: phases you are assigned to, phases you " +
+      "are a teammate on, and content posts you are on (when this connection can read content), each " +
+      "with your own status (todo, in_progress, done) and due date, soonest first, plus the counts and how " +
+      "many projects you can see. Change a phase with set_my_phase_status and a post with set_my_post_status. " +
+      "For the Director it also returns team: the Team overview - one row per phase or post, with everyone " +
+      "on it and their own status, the item's status (todo = New until someone starts, in_progress once " +
+      "anyone has, done when everyone is done or the phase is complete or the post is published), how many " +
+      "are done, whether it is overdue, the counts, and what needs attention (phases nobody is assigned to, " +
+      "forms to review, meeting requests waiting). Start here for \"what's on my dashboard?\", \"how is the " +
+      "team doing?\" or \"what's late?\". Other people's statuses are read-only: each person sets their own.",
     input: {},
     output: S.myTasks,
     path: "projects.php",
@@ -403,50 +391,53 @@ export const READ_TOOLS = [
     path: "announcements.php",
   },
 
-  // ── Messages (direct chats with other admins) ───────────────────────────
+  // ── Messages (the portal's Messages page: direct chats with other admins) ──
   {
-    name: "list_my_conversations",
+    name: "list_messages",
     scope: "messages:read",
-    title: "My message conversations",
+    title: "Messages: my chats",
     description:
-      "Your direct chats with other admins, the latest message first, with how many you haven't read. " +
+      "The portal's Messages page: your chats with other admins, the latest first, each with the last " +
+      "message and how many you haven't read. Open one with read_chat, write with send_message. " +
       "Private to the two people in each - nobody else, the Director included, can read yours.",
     input: { ...paging },
     output: S.conversations,
     path: "messages.php",
   },
   {
-    name: "get_conversation",
+    name: "read_chat",
     scope: "messages:read",
-    title: "One message conversation",
+    title: "Messages: read a chat",
     description:
-      "The messages between you and one other admin, newest first. Reading does not mark them read - " +
-      "use mark_conversation_read for that. Reply with send_message.",
-    input: { with: recordId("The other admin's id - from list_my_conversations or list_message_people"), ...paging },
+      "Every message between you and one other admin, newest first, page by page - what the chat shows on " +
+      "the Messages page. Reading does not clear the unread count - use mark_chat_read for that. Reply " +
+      "with send_message.",
+    input: { with: recordId("The other admin's id - from list_messages or list_message_people"), ...paging },
     output: S.conversation,
     path: "messages.php",
   },
   {
     name: "list_message_people",
     scope: "messages:read",
-    title: "Who I can message",
-    description: "The active admins you can start a chat with, by name.",
+    title: "Messages: who I can message",
+    description: "The active admins you can start a chat with on the Messages page, by name.",
     input: {},
     output: S.messagePeople,
     path: "messages.php",
     query: () => ({ people: 1 }),
   },
 
-  // ── Event log (the Director's) ───────────────────────────────────────────
+  // ── Tracking (the Director's) ───────────────────────────────────────────
   {
-    name: "list_admin_events",
+    name: "get_tracking",
     scope: "events:read",
     title: "Tracking",
     description:
-      "What every admin changed in the portal - in the browser or through an AI assistant - with who, " +
-      "when and a one-line summary: projects, phases, content, forms, inquiries, meetings, clients, the " +
-      "team and settings. " + ORDER + " Kept for 12 months. Filter by admin (an id from get_settings), " +
-      "area, client (from search_clients), dates or text. Use it for \"what did Sara do this week?\" or " +
+      "The portal's Tracking page: what every admin changed in the portal - in the browser or through an " +
+      "AI assistant - with who, when (ISO-8601 UTC: show it in the person's own time) and a one-line " +
+      "summary: projects, phases, content, forms, inquiries, meetings, clients, the team and settings. " +
+      ORDER + " Kept for 12 months. Filter by admin (an id from get_settings), area, client (from " +
+      "search_clients), dates (UTC days) or text. Use it for \"what did Sara do this week?\" or " +
       "\"who deleted that project?\".",
     input: {
       actor_id: recordId("Only this admin's changes - an id from get_settings").optional(),

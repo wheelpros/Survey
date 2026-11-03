@@ -3,10 +3,10 @@
 /*
 | Messages - the caller's own direct chats with other admins.
 |
-|   GET  messages.php?cursor=&limit=              list_my_conversations
-|   GET  messages.php?with=7&cursor=&limit=       get_conversation (newest first)
+|   GET  messages.php?cursor=&limit=              list_messages
+|   GET  messages.php?with=7&cursor=&limit=       read_chat (newest first)
 |   GET  messages.php?people=1                    list_message_people
-|   POST messages.php {"with": 7}                 mark_conversation_read
+|   POST messages.php {"with": 7}                 mark_chat_read
 |
 | Sending goes through prepare/confirm (send_message in _writes.php), the
 | same as any other change that reaches another person.
@@ -99,7 +99,7 @@ if (isset($_GET["with"])) {
     }
 
     $stmt = $pdo->prepare("
-        SELECT id, sender_id, body, created_at
+        SELECT id, sender_id, body, created_at, UNIX_TIMESTAMP(created_at) AS created_ts
         FROM admin_messages
         WHERE conversation_id = ?" . ($after !== null ? " AND id < ?" : "") . "
         ORDER BY id DESC
@@ -113,7 +113,7 @@ if (isset($_GET["with"])) {
         return [
             "id" => (int) $m["id"],
             "mine" => (int) $m["sender_id"] === $me,
-            "created_at" => (string) $m["created_at"],
+            "created_at" => v1Time($m["created_ts"]),
             "untrusted_content" => ["body" => (string) $m["body"]],
         ];
     });
@@ -131,7 +131,7 @@ if (isset($_GET["with"])) {
 $stmt = $pdo->prepare("
     SELECT c.*,
            IF(c.admin_low = :me1, c.admin_high, c.admin_low) AS other_id,
-           m.body AS last_body, m.sender_id AS last_sender_id, m.created_at AS last_at,
+           m.body AS last_body, m.sender_id AS last_sender_id, UNIX_TIMESTAMP(m.created_at) AS last_ts,
            (SELECT COUNT(*) FROM admin_messages u
              WHERE u.conversation_id = c.id AND u.sender_id <> :me2
                AND u.id > IF(c.admin_low = :me3, c.low_last_read_id, c.high_last_read_id)) AS unread
@@ -154,7 +154,7 @@ $page = v1Page($stmt->fetchAll(), $limit, function ($c) {
     return [
         "with" => messagePerson(messageAdmin($pdo, $c["other_id"])),
         "unread" => (int) $c["unread"],
-        "last_message_at" => (string) $c["last_at"],
+        "last_message_at" => v1Time($c["last_ts"]),
         "last_is_mine" => (int) $c["last_sender_id"] === $me,
         "untrusted_content" => [
             "last_message" => mb_strlen($body) > 200 ? mb_substr($body, 0, 199) . "…" : $body,

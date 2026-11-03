@@ -7,7 +7,7 @@
 |   GET projects.php?id=N                             get_project
 |   GET projects.php?id=N&teammates=1                 list_phase_teammates
 |   GET projects.php?mine=1                           list_my_phases
-|   GET projects.php?tasks=1                          list_my_tasks
+|   GET projects.php?tasks=1                          get_dashboard
 |
 | A project's tasks are its phases. Each carries the people on it: teammates
 | (each ticks their own box done) and assignments (who worked on it, what
@@ -172,7 +172,7 @@ if (!empty($_GET["tasks"])) {
     ];
 
     /* The dashboard's Team overview, for the Director:
-       every person's tasks they can see, with overdue and what needs
+       one row per phase and post they can see, with its people, overdue and what needs
        attention. Posts, forms and meetings only for a connection that may
        read them. */
     if (can($p, "team.overview", $pdo)) {
@@ -196,12 +196,22 @@ if (!empty($_GET["tasks"])) {
                     // assignment | content
                     "kind" => $t["kind"],
                     "id" => (int) $t["id"],
-                    "person" => ["id" => (int) $t["person"]["id"], "untrusted_content" => ["name" => (string) $t["person"]["name"]]],
+                    // One row per phase or post: everyone on it, with their own status
+                    "people" => array_map(function ($person) {
+                        return [
+                            "id" => (int) $person["id"],
+                            "status" => (string) $person["status"],
+                            "untrusted_content" => ["name" => (string) $person["name"]],
+                        ];
+                    }, $t["people"]),
                     "title" => (string) $t["title"],
                     "belongs_to" => (string) $t["chip"],
                     "due_date" => v1NullableString($t["due_date"]),
                     "label" => v1NullableString($t["label"]),
+                    // done when everyone is done (or the phase is complete, the post
+                    // published), in_progress once anyone has started, otherwise todo
                     "status" => (string) $t["status"],
+                    "progress" => ["done" => (int) $t["progress"]["done"], "total" => (int) $t["progress"]["total"]],
                     "overdue" => (bool) $t["overdue"],
                     "link" => (string) $t["href"],
                 ];

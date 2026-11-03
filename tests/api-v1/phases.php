@@ -173,8 +173,8 @@ check("dashboard: someone on nothing sees none", ($d["success"] ?? false) && ($d
 [$status] = pageGet("api/admin-dashboard.php", "tok-nobody");
 check("dashboard: a bad token is a 401", $status === 401, "HTTP $status");
 
-// The Team overview: the Director sees every person's tasks; nobody else
-// gets one.
+// The Team overview: the Director sees every phase and post once, with its
+// people; nobody else gets one.
 /** The team items about phase $id. */
 function teamItems(array $d, $kind, $id)
 {
@@ -184,8 +184,28 @@ function teamItems(array $d, $kind, $id)
 }
 [, $d] = pageGet("api/admin-dashboard.php", $owner);
 $sean601 = teamItems($d, "assignment", 601);
-check("team: the Director sees everyone's phases", count($sean601) === 1 && $sean601[0]["person"]["name"] === "Sean"
+check("team: the Director sees everyone's phases, one row each", count($sean601) === 1
+    && in_array("Sean", array_column($sean601[0]["people"] ?? [], "name"), true)
     && count(teamItems($d, "assignment", $phaseId)) === 1, json_encode($d["team"] ?? null));
+// An item is done when all its people are, in progress once anyone has
+// started, otherwise New - or done outright when the phase is complete or
+// the post published.
+$wrong = array_filter($d["team"]["tasks"] ?? [], function ($t) {
+    $states = array_column($t["people"], "status");
+    $done = count(array_keys($states, "done", true));
+    if ($t["progress"]["done"] !== $done || $t["progress"]["total"] !== count($states)) {
+        return true;
+    }
+    if ($done === count($states)) {
+        return $t["status"] !== "done";
+    }
+    if ($t["status"] === "done") {
+        return false;   // a complete phase or a published post
+    }
+    $started = $done > 0 || in_array("in_progress", $states, true);
+    return $t["status"] !== ($started ? "in_progress" : "todo");
+});
+check("team: an item's status comes from its people", !$wrong, json_encode(array_values($wrong)));
 $tally = ["todo" => 0, "in_progress" => 0, "done" => 0, "overdue" => 0];
 foreach ($d["team"]["tasks"] ?? [] as $t) {
     $tally[$t["status"]]++;
@@ -201,7 +221,7 @@ foreach (["account manager" => $am, "super admin" => $sa, "admin" => $seo] as $w
     check("team: a $who has no Team overview", ($d["success"] ?? false) && !array_key_exists("team", $d), json_encode(array_keys($d)));
 }
 [$status, $v1] = get("projects.php?tasks=1", $owner);
-check("team v1: list_my_tasks carries the Team overview for the Director", $status === 200
+check("team v1: get_dashboard carries the Team overview for the Director", $status === 200
     && count(array_filter($v1["data"]["team"]["items"] ?? [], function ($t) { return $t["id"] === 601 && $t["kind"] === "assignment"; })) === 1
     && isset($v1["data"]["team"]["counts"]["overdue"]), json_encode($v1["data"]["team"] ?? null));
 foreach (["an account manager" => $am, "an Admin" => $seo] as $who => $token) {
@@ -294,7 +314,7 @@ change("v1 phases: the Director deletes it", $owner, "delete_task", ["id" => $v1
 check("v1 phases: deleted with its people", one($pdo, "SELECT id FROM project_tasks WHERE id = ?", [$v1Phase]) === false
     && phasePeople($pdo, "project_task_assignments", $v1Phase) === [] && phasePeople($pdo, "project_task_teammates", $v1Phase) === []);
 
-// ── list_my_tasks and set_my_post_done (api/v1) ─────────────────────────
+// ── get_dashboard and set_my_post_done (api/v1) ─────────────────────────
 
 /** The v1 task items of $kind about $id. */
 function v1TaskItems(array $d, $kind, $id)

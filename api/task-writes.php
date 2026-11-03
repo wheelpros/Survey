@@ -712,10 +712,15 @@ function myDashboardItems(PDO $pdo, array $actor)
 }
 
 /**
- * The Team overview for the Director: every person's row in an Assigned
- * table - phase assignments inside projectScopeSql() (all of them for the
- * Director), and post assignees - each with who it is, its status and
- * whether it is overdue.
+ * The Team overview for the Director: one row per phase and per content post
+ * that has people on it - phases inside projectScopeSql() (all of them for
+ * the Director), posts by their assignees - each with its people and their
+ * own statuses, the item's status, its progress and whether it is overdue.
+ *
+ * An item's status comes from its people: done when every one of them is
+ * done (or the phase is complete, or the post is published), in progress
+ * once anyone has started, otherwise todo (New). People who were removed or
+ * deactivated are left out.
  * Plus the counts (with overdue), how many projects, and what needs
  * attention: phases nobody is assigned to (they can never complete), forms
  * waiting for review, and meeting requests waiting for a reply.
@@ -730,83 +735,135 @@ function teamDashboardItems(PDO $pdo, array $actor)
     $scope = $scopeSql !== "" ? " AND " . $scopeSql : "";
     $today = date("Y-m-d");
 
-    $person = function ($r) {
-        return ["id" => (int) $r["admin_id"], "name" => (string) $r["admin_name"], "avatar_path" => $r["avatar_path"] ?: null];
+    $ownStatus = function ($status) {
+        return array_key_exists((string) $status, TASK_ASSIGNMENT_STATUSES) ? (string) $status : "todo";
+    };
+    $person = function ($r, $status) {
+        return [
+            "id" => (int) $r["admin_id"],
+            "name" => (string) $r["admin_name"],
+            "avatar_path" => $r["avatar_path"] ?: null,
+            "status" => $status,
+        ];
     };
 
-    $items = [];
+    $items = [];   // keyed by kind:id, so each item collects its people
 
+    // Phases: the people assigned, then teammates who are not also assigned.
     $stmt = $pdo->prepare("
-        SELECT s.status, s.admin_id, a.name AS admin_name, a.avatar_path,
-               t.id AS task_id, t.title, t.scheduled_date, t.phase_label,
+        SELECT s.admin_id, s.status, NULL AS is_done, a.name AS admin_name, a.avatar_path,
+               t.id AS task_id, t.title, t.scheduled_date, t.phase_label, t.is_complete,
                p.id AS project_id, p.title AS project_title
         FROM project_task_assignments s
         JOIN project_tasks t ON t.id = s.task_id
         JOIN projects p      ON p.id = t.project_id
-        LEFT JOIN admins a   ON a.id = s.admin_id
+        JOIN admins a        ON a.id = s.admin_id AND a.active = 1
         WHERE 1 = 1" . $scope . "
+        UNION ALL
+        SELECT m.admin_id, NULL AS status, m.is_done, a.name AS admin_name, a.avatar_path,
+               t.id AS task_id, t.title, t.scheduled_date, t.phase_label, t.is_complete,
+               p.id AS project_id, p.title AS project_title
+        FROM project_task_teammates m
+        JOIN project_tasks t ON t.id = m.task_id
+        JOIN projects p      ON p.id = t.project_id
+        JOIN admins a        ON a.id = m.admin_id AND a.active = 1
+        WHERE NOT EXISTS (
+            SELECT 1 FROM project_task_assignments s
+            WHERE s.task_id = m.task_id AND s.admin_id = m.admin_id
+        )" . $scope . "
     ");
-    $stmt->execute($scopeParams);
+    $stmt->execute(array_merge($scopeParams, $scopeParams));
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
-        $items[] = [
-            "kind" => "assignment",
-            "id" => (int) $r["task_id"],
-            "person" => $person($r),
-            "title" => (string) $r["title"],
-            "chip" => (string) $r["project_title"],
-            "due_date" => $r["scheduled_date"],
-            "label" => $r["phase_label"],
-            "status" => (string) $r["status"],
-            "href" => "project-task-details.html?project=" . (int) $r["project_id"] . "&id=" . (int) $r["task_id"],
-        ];
+        $key = "assignment:" . (int) $r["task_id"];
+        if (!isset($items[$key])) {
+            $items[$key] = [
+                "kind" => "assignment",
+                "id" => (int) $r["task_id"],
+                "people" => [],
+                "title" => (string) $r["title"],
+                "chip" => (string) $r["project_title"],
+                "due_date" => $r["scheduled_date"],
+                "label" => $r["phase_label"],
+                "finished" => (int) $r["is_complete"] === 1,
+                "href" => "project-task-details.html?project=" . (int) $r["project_id"] . "&id=" . (int) $r["task_id"],
+            ];
+        }
+        $status = $r["status"] !== null
+            ? $ownStatus($r["status"])
+            : ((int) $r["is_done"] === 1 ? "done" : "todo");
+        $items[$key]["people"][] = $person($r, $status);
     }
 
     try {
         ensureContentColumns($pdo);
         $stmt = $pdo->query("
             SELECT ca.admin_id, ca.status, ca.is_done, a.name AS admin_name, a.avatar_path,
-                   c.id, c.title, c.client, c.type_label, c.content_type, c.post_date
+                   c.id, c.title, c.client, c.type_label, c.content_type, c.post_date, c.status AS post_status
             FROM content_assignees ca
-            JOIN content c     ON c.id = ca.content_id
-            LEFT JOIN admins a ON a.id = ca.admin_id
+            JOIN content c ON c.id = ca.content_id
+            JOIN admins a  ON a.id = ca.admin_id AND a.active = 1
         ");
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
-            $items[] = [
-                "kind" => "content",
-                "id" => (int) $r["id"],
-                "person" => $person($r),
-                "title" => (string) $r["title"],
-                "chip" => trim((string) $r["client"]) !== "" ? (string) $r["client"] : "Content",
-                "due_date" => $r["post_date"],
-                "label" => $r["type_label"] ?: $r["content_type"],
-                "status" => array_key_exists((string) $r["status"], TASK_ASSIGNMENT_STATUSES)
-                    ? (string) $r["status"]
-                    : ((int) $r["is_done"] === 1 ? "done" : "todo"),
-                "href" => "admin-content-form.html?id=" . (int) $r["id"],
-            ];
+            $key = "content:" . (int) $r["id"];
+            if (!isset($items[$key])) {
+                $items[$key] = [
+                    "kind" => "content",
+                    "id" => (int) $r["id"],
+                    "people" => [],
+                    "title" => (string) $r["title"],
+                    "chip" => trim((string) $r["client"]) !== "" ? (string) $r["client"] : "Content",
+                    "due_date" => $r["post_date"],
+                    "label" => $r["type_label"] ?: $r["content_type"],
+                    "finished" => (string) $r["post_status"] === "published",
+                    "href" => "admin-content-form.html?id=" . (int) $r["id"],
+                ];
+            }
+            $status = array_key_exists((string) $r["status"], TASK_ASSIGNMENT_STATUSES)
+                ? (string) $r["status"]
+                : ((int) $r["is_done"] === 1 ? "done" : "todo");
+            $items[$key]["people"][] = $person($r, $status);
         }
     } catch (Throwable $e) {
         // A database without the content tables costs the overview its posts.
     }
 
-    // Soonest due first, undated last; then by person.
-    usort($items, function ($a, $b) {
-        $da = $a["due_date"] ?: "9999-12-31";
-        $db = $b["due_date"] ?: "9999-12-31";
-        return $da === $db ? strcmp($a["person"]["name"], $b["person"]["name"]) : strcmp($da, $db);
-    });
+    $items = array_values($items);
 
     $counts = array_fill_keys(array_keys(TASK_ASSIGNMENT_STATUSES), 0) + ["overdue" => 0];
     foreach ($items as &$item) {
-        $item["overdue"] = $item["status"] !== "done" && $item["due_date"] && substr((string) $item["due_date"], 0, 10) < $today;
-        if (isset($counts[$item["status"]])) {
-            $counts[$item["status"]]++;
+        usort($item["people"], function ($a, $b) {
+            return strcmp($a["name"], $b["name"]);
+        });
+
+        $total = count($item["people"]);
+        $done = count(array_filter($item["people"], function ($p) { return $p["status"] === "done"; }));
+        $started = $done > 0 || count(array_filter($item["people"], function ($p) { return $p["status"] === "in_progress"; })) > 0;
+
+        if ($item["finished"] || ($total > 0 && $done === $total)) {
+            $item["status"] = "done";
+        } elseif ($started) {
+            $item["status"] = "in_progress";
+        } else {
+            $item["status"] = "todo";
         }
+        unset($item["finished"]);
+
+        $item["progress"] = ["done" => $done, "total" => $total];
+        $item["overdue"] = $item["status"] !== "done" && $item["due_date"] && substr((string) $item["due_date"], 0, 10) < $today;
+
+        $counts[$item["status"]]++;
         if ($item["overdue"]) {
             $counts["overdue"]++;
         }
     }
     unset($item);
+
+    // Soonest due first, undated last; then by title.
+    usort($items, function ($a, $b) {
+        $da = $a["due_date"] ?: "9999-12-31";
+        $db = $b["due_date"] ?: "9999-12-31";
+        return $da === $db ? strcmp($a["title"], $b["title"]) : strcmp($da, $db);
+    });
 
     $stmt = $pdo->prepare("SELECT COUNT(*) FROM projects p WHERE 1 = 1" . $scope);
     $stmt->execute($scopeParams);

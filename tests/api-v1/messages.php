@@ -134,13 +134,13 @@ $c = $r["data"]["items"][0] ?? [];
 check("v1 messages: Sam lists his chat", $status === 200 && count($r["data"]["items"]) === 1
     && $c["with"]["name"] === "Amy" && $c["untrusted_content"]["last_message"] === "Bulk 55"
     && $c["last_is_mine"] === false && $r["data"]["next_cursor"] === null, "HTTP $status " . json_encode($r));
-$fixtures["list_my_conversations"] = $r["data"] ?? null;
+$fixtures["list_messages"] = $r["data"] ?? null;
 
 [$status, $r] = get("messages.php?with=3&limit=2", $sa);
 check("v1 messages: a thread is newest first, paged", $status === 200 && count($r["data"]["items"]) === 2
     && $r["data"]["items"][0]["untrusted_content"]["body"] === "Bulk 55" && $r["data"]["items"][0]["mine"] === false
     && is_string($r["data"]["next_cursor"]) && $r["data"]["with"]["name"] === "Amy", "HTTP $status " . json_encode($r));
-$fixtures["get_conversation"] = $r["data"] ?? null;
+$fixtures["read_chat"] = $r["data"] ?? null;
 
 [, $next] = get("messages.php?with=3&limit=2&cursor=" . urlencode($r["data"]["next_cursor"]), $sa);
 check("v1 messages: the cursor carries on", ($next["data"]["items"][0]["untrusted_content"]["body"] ?? null) === "Bulk 53",
@@ -170,7 +170,7 @@ $pdo->exec("UPDATE admin_conversations SET low_last_read_id = 0, high_last_read_
 [$status, $r] = post("api/v1/messages.php", $sa, ["with" => 3]);
 check("v1 messages: marking read", $status === 200 && $r["data"]["marked"] === true && $r["data"]["unread_count"] === 0,
     "HTTP $status " . json_encode($r));
-$fixtures["mark_conversation_read"] = $r["data"] ?? null;
+$fixtures["mark_chat_read"] = $r["data"] ?? null;
 [$status] = post("api/v1/messages.php", $am2, ["with" => 3]);
 check("v1 messages: marking read needs a conversation", $status === 404, "HTTP $status");
 
