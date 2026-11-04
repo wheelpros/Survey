@@ -3,8 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Wzone - Help Center</title>
-    <meta name="description" content="Get help with Wzone. Browse guides, FAQs, and contact our support team." />
+    <title>Help Center</title>
+<script src="assets/brand.js" defer></script>
+    <meta name="description" content="Get help with the portal. Browse guides, FAQs, and contact our support team." />
 
     <style>
       * {
@@ -607,6 +608,7 @@
           </button>
           <div class="account-menu" role="menu">
             <a role="menuitem" href="profile.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Profile</span></a>
+            <a role="menuitem" href="team.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Team</span></a>
             <button role="menuitem" type="button" class="danger" onclick="logout()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>Logout</span></button>
           </div>
         </div>
@@ -719,26 +721,26 @@
           </div>
 
           <!-- Contact Us -->
-          <div class="contact-section">
+          <div class="contact-section" data-brand-section hidden>
             <div class="section-label">CONTACT US</div>
             <h2 class="section-title">Still need help? Pick the channel that works for you</h2>
 
             <div class="contact-grid">
-              <div class="contact-card">
+              <div class="contact-card" data-brand-card hidden>
                 <div class="contact-icon">💬</div>
                 <div>
                   <h4>WhatsApp Support</h4>
                   <p>Live chat with a specialist within minutes.</p>
-                  <a href="https://wa.me/447733366986" target="_blank" class="contact-btn whatsapp">Open Chat</a>
+                  <a data-brand-support="whatsapp" target="_blank" rel="noopener" class="contact-btn whatsapp">Open Chat</a>
                 </div>
               </div>
 
-              <div class="contact-card">
+              <div class="contact-card" data-brand-card hidden>
                 <div class="contact-icon">✉</div>
                 <div>
                   <h4>Email</h4>
                   <p>Send us the details and we will get back to you.</p>
-                  <a href="mailto:info@wzone.london" class="contact-btn email">Open Email</a>
+                  <a data-brand-support="email" class="contact-btn email">Open Email</a>
                 </div>
               </div>
             </div>

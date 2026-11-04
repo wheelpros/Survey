@@ -11,7 +11,8 @@
 | form marked completed, the client's admins notified, the CSV email, and
 | the Google Apps Script copy.
 |
-| $user is the client: ["id", "name", "email"]. $answers is the page's shape,
+| $user is the person submitting, with their account_id (withClientAccount()):
+| the form and its answers belong to the account, and submitted_by says who. $answers is the page's shape,
 | [{questionId, questionLabel, answer}]. $files is the page's $_FILES["files"]
 | (uploads keyed by question id), or null - api/v1 never uploads, so a form
 | with a file question has to be finished on the page.
@@ -54,7 +55,7 @@ function submitSurveyResponse(PDO $pdo, array $user, $surveyId, array $answers, 
         throw new PortalWriteError("Survey ID and answers are required");
     }
 
-    $survey = loadClientSurvey($pdo, $user["id"], $surveyId);
+    $survey = loadClientSurvey($pdo, $user["account_id"], $surveyId);
 
     if (!$survey) {
         throw new PortalWriteError("Survey not found", 404);
@@ -87,16 +88,28 @@ function submitSurveyResponse(PDO $pdo, array $user, $surveyId, array $answers, 
 
     try {
 
+        // One submission per form, however many people are on the account: of two
+        // at the same moment the second waits here, then finds it taken. First, so
+        // the one that loses has saved nothing.
+        $claim = $pdo->prepare("UPDATE surveys SET status = 'completed' WHERE id = ? AND status = 'pending'");
+        $claim->execute([$survey["id"]]);
+
+        if ($claim->rowCount() === 0) {
+            throw new PortalWriteError("This survey has already been submitted", 409);
+        }
+
         $responseStmt = $pdo->prepare("
             INSERT INTO survey_responses
-            (user_id, survey_id, survey_title, status)
-            VALUES (?, ?, ?, 'completed')
+            (user_id, survey_id, survey_title, status, submitted_by_id, submitted_by_name)
+            VALUES (?, ?, ?, 'completed', ?, ?)
         ");
 
         $responseStmt->execute([
-            $user["id"],
+            $user["account_id"],
             $survey["id"],
-            $survey["title"]
+            $survey["title"],
+            $user["id"],
+            $user["name"]
         ]);
 
         $responseId = (int) $pdo->lastInsertId();
@@ -109,8 +122,8 @@ function submitSurveyResponse(PDO $pdo, array $user, $surveyId, array $answers, 
 
         $fileStmt = $pdo->prepare("
             INSERT INTO survey_uploaded_files
-            (response_id, question_id, user_id, original_name, stored_name, file_path, file_type, file_size)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            (response_id, question_id, user_id, uploaded_by_id, original_name, stored_name, file_path, file_type, file_size)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
 
         foreach ($answers as &$answer) {
@@ -150,7 +163,7 @@ function submitSurveyResponse(PDO $pdo, array $user, $surveyId, array $answers, 
                         );
                     }
 
-                    $folderPath = $uploadRoot . "/" . $user["id"] . "/" . $responseId;
+                    $folderPath = $uploadRoot . "/" . $user["account_id"] . "/" . $responseId;
 
                     if (!is_dir($folderPath)) {
                         mkdir($folderPath, 0777, true);
@@ -167,6 +180,7 @@ function submitSurveyResponse(PDO $pdo, array $user, $surveyId, array $answers, 
                     $fileStmt->execute([
                         $responseId,
                         $questionId,
+                        $user["account_id"],
                         $user["id"],
                         $originalName,
                         $storedName,
@@ -204,15 +218,11 @@ function submitSurveyResponse(PDO $pdo, array $user, $surveyId, array $answers, 
         }
         unset($answer);
 
-        $updateStmt = $pdo->prepare("
-            UPDATE surveys
-            SET status = 'completed'
-            WHERE id = ?
-        ");
-        $updateStmt->execute([$survey["id"]]);
-
         $pdo->commit();
 
+    } catch (PortalWriteError $e) {
+        $pdo->rollBack();
+        throw $e;
     } catch (Throwable $e) {
         $pdo->rollBack();
         throw new PortalWriteError($e->getMessage() ?: "Could not submit the survey", 422);
@@ -239,20 +249,14 @@ function submitSurveyResponse(PDO $pdo, array $user, $surveyId, array $answers, 
 }
 
 /*
-| A copy of every submission to the Google Apps Script that keeps the
-| spreadsheet. SURVEY_WEBHOOK_URL overrides the address; set but empty, it
-| turns the copy off (the api/v1 tests do, so no test answer ever lands in
-| the real sheet).
+| A copy of every submission to a script that keeps a spreadsheet, for an
+| install that wants one: SURVEY_WEBHOOK_URL is its address. There is no
+| default, because one install's answers must never reach another's sheet.
 */
-const SURVEY_WEBHOOK_DEFAULT = "https://script.google.com/macros/s/AKfycby8A1MrVhrB0ebOnDp7p2qJtYz9YH8NcM-KW3NIleEX_meVHvWO2rn_jPtdJXiS79MX/exec";
-
 function sendSurveyToSheet($user, $survey, $answers)
 {
     $url = getenv("SURVEY_WEBHOOK_URL");
-    if ($url === false) {
-        $url = SURVEY_WEBHOOK_DEFAULT;
-    }
-    if ($url === "") {
+    if ($url === false || $url === "") {
         return;
     }
 
@@ -288,9 +292,14 @@ function sendSurveyToSheet($user, $survey, $answers)
     curl_close($ch);
 }
 
+/* The same copy by email, to RESPONSE_COPY_EMAIL if this install sets one. */
 function sendSurveyEmail($user, $survey, $answers)
 {
-    $to = "seowzone@gmail.com";
+    $to = getenv("RESPONSE_COPY_EMAIL");
+    if ($to === false || $to === "") {
+        return;
+    }
+
     $subject = "New Survey Response - " . $survey["title"];
 
     $csv = "User Name,User Email,Survey Title\n";
@@ -306,7 +315,9 @@ function sendSurveyEmail($user, $survey, $answers)
     $fileName = "survey-response-" . date("Y-m-d-H-i-s") . ".csv";
     $boundary = md5(time());
 
-    $headers = "From: W Zone Portal <no-reply@wzone.local>\r\n";
+    // The name comes from Settings: no line breaks may reach the header.
+    $fromName = str_replace(["\r", "\n"], "", portalName());
+    $headers = "From: " . $fromName . " <" . (string) getenv("SMTP_USER") . ">\r\n";
     $headers .= "MIME-Version: 1.0\r\n";
     $headers .= "Content-Type: multipart/mixed; boundary=\"" . $boundary . "\"\r\n";
 

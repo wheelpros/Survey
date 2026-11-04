@@ -26,9 +26,10 @@ $scope = v1ClientScopeSql($p, "sr.user_id");
 
 const RESPONSE_SQL = "
     SELECT sr.id, sr.survey_id, sr.survey_title, sr.user_id, sr.submitted_at,
-           u.name AS user_name, u.email AS user_email, u.company_name
+           COALESCE(sr.submitted_by_name, u.name) AS user_name, COALESCE(s.email, u.email) AS user_email, u.company_name
     FROM survey_responses sr
     JOIN users u ON u.id = sr.user_id
+    LEFT JOIN users s ON s.id = sr.submitted_by_id
 ";
 
 function responseItem(array $r)

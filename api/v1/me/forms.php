@@ -21,7 +21,7 @@ ensureSurveyColumns($pdo);
 $id = v1IntParam("id");
 
 if ($id !== null) {
-    $form = loadClientSurvey($pdo, $p["id"], $id);
+    $form = loadClientSurvey($pdo, $p["account_id"], $id);
     if (!$form) {
         v1Error(404, "not_found", "No form of yours with that id.");
     }
@@ -67,7 +67,7 @@ if ($id !== null) {
             WHERE sr.survey_id = ? AND sr.user_id = ?
             ORDER BY sa.id ASC
         ");
-        $a->execute([$id, $p["id"]]);
+        $a->execute([$id, $p["account_id"]]);
         $data["my_answers"] = [
             "untrusted_content" => [
                 "answers" => array_map(function ($r) {
@@ -86,7 +86,7 @@ if ($id !== null) {
 
 $limit = v1Limit();
 $after = v1IdCursor();
-$parts = [["assigned_user_id = ? AND status IN ('pending', 'completed')", [$p["id"]]]];
+$parts = [["assigned_user_id = ? AND status IN ('pending', 'completed')", [$p["account_id"]]]];
 $status = v1EnumParam("status", ["pending", "completed"]);
 if ($status !== null) {
     $parts[] = ["status = ?", [$status]];

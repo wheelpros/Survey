@@ -7,16 +7,7 @@ header("Content-Type: application/json");
 $headers = getallheaders();
 $token = str_replace("Bearer ","",$headers["Authorization"] ?? "");
 
-$stmt = $pdo->prepare("
-SELECT id
-FROM users
-WHERE session_token=?
-LIMIT 1
-");
-
-$stmt->execute([$token]);
-
-$user = $stmt->fetch();
+$user = clientFromSessionToken($pdo, $token);
 
 if(!$user){
     echo json_encode([
@@ -43,7 +34,7 @@ WHERE usf.user_id=?
 ORDER BY usf.assigned_at DESC
 ");
 
-$stmt->execute([$user["id"]]);
+$stmt->execute([$user["account_id"]]);
 
 echo json_encode([
     "success"=>true,

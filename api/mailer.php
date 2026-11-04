@@ -26,8 +26,10 @@ require_once __DIR__ . "/../PHPMailer/src/SMTP.php";
 
 use PHPMailer\PHPMailer\PHPMailer;
 
-/* Links in the emails point here - the address the reset emails already use. */
-const APP_URL = "https://survey.websitezone.co.uk";
+/* Links in the emails point here: this install's own address, from the
+   environment. Never worked out from the request - its Host header is whatever
+   the sender says, and a reset link built from that goes to the sender's site. */
+define("APP_URL", rtrim(mailerSetting("APP_URL", ""), "/"));
 
 function mailerSetting(string $name, string $fallback): string
 {
@@ -37,17 +39,30 @@ function mailerSetting(string $name, string $fallback): string
 
 /**
  * Points $mail at the portal's mailbox, from the environment only - set
- * SMTP_HOST, SMTP_PORT, SMTP_USER and SMTP_PASS on the PHP app in Coolify
- * (runtime, not build time). There is no password in this file: one in git
- * is one anybody with the repository or its history has.
+ * APP_URL, SMTP_HOST, SMTP_PORT, SMTP_USER and SMTP_PASS on the PHP app in
+ * Coolify (runtime, not build time; docker/portal.env.example lists them).
+ * There is no password in this file: one in git is one anybody with the
+ * repository or its history has.
  *
- * Returns false, and logs which setting is missing, when the password isn't
- * set - every caller then reports "could not send" as it would for a mail
- * server that is down. Used by every email the portal sends:
- * sendPortalEmail() below, forgot-password.php and sources-lock.php.
+ * Returns false, and logs which setting is missing, when one isn't set - every
+ * caller then reports "could not send" as it would for a mail server that is
+ * down. Used by every email the portal sends: sendPortalEmail() below,
+ * forgot-password.php and sources-lock.php. All of them carry a link, so with
+ * no APP_URL they would all arrive broken.
  */
 function configurePortalSmtp(PHPMailer $mail): bool
 {
+    if (APP_URL === "") {
+        error_log("mailer: APP_URL is not set - no email can be sent");
+        return false;
+    }
+
+    $username = mailerSetting("SMTP_USER", "");
+    if ($username === "") {
+        error_log("mailer: SMTP_USER is not set - no email can be sent");
+        return false;
+    }
+
     $password = getenv("SMTP_PASS");
     if ($password === false || $password === "") {
         error_log("mailer: SMTP_PASS is not set - no email can be sent");
@@ -57,7 +72,7 @@ function configurePortalSmtp(PHPMailer $mail): bool
     $mail->isSMTP();
     $mail->Host = mailerSetting("SMTP_HOST", "smtp.hostinger.com");
     $mail->SMTPAuth = true;
-    $mail->Username = mailerSetting("SMTP_USER", "survey@wzonevr.com");
+    $mail->Username = $username;
     $mail->Password = $password;
     $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
     $mail->Port = (int) mailerSetting("SMTP_PORT", "587");
@@ -91,7 +106,7 @@ function sendPortalEmail(array $recipients, string $subject, string $html): int
         // Several recipients share one connection instead of a login each.
         $mail->SMTPKeepAlive = true;
 
-        $mail->setFrom($mail->Username, "W Zone Portal");
+        $mail->setFrom($mail->Username, portalName());
         $mail->isHTML(true);
         $mail->Subject = $subject;
         $mail->Body = $html;
@@ -206,7 +221,7 @@ function adminEmailHtml(string $heading, string $intro, array $rows, string $pag
     <a href='{$url}' style='display:inline-block;background:#1b1e3a;color:#ffffff;text-decoration:none;font-weight:bold;font-size:14px;padding:12px 20px;border-radius:10px'>{$e($button)}</a>
   </div>
   <p style='max-width:520px;margin:14px auto 0;font-size:12px;color:#98a2b3;text-align:center'>
-    Sent by the W Zone portal because this is waiting on you.
+    Sent by {$e(portalName())} because this is waiting on you.
   </p>
 </div>";
 }
@@ -332,7 +347,7 @@ function emailClientsAboutMeetingRequest(array $clients, string $adminName, stri
 
     $html = adminEmailHtml(
         "New meeting request",
-        "The W Zone team would like to meet. Accept or decline it in your portal.",
+        "Your account team would like to meet. Accept or decline it in your portal.",
         [
             "From"  => $adminName,
             "Topic" => $topic,

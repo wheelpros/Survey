@@ -77,7 +77,7 @@ function checkWebsiteAddress($website)
     $website = trim((string) $website);
 
     if ($website !== "" && normaliseWebUrl($website) === "") {
-        throw new PortalWriteError("That does not look like a web address. Try something like wzone.london");
+        throw new PortalWriteError("That does not look like a web address. Try something like example.com");
     }
 
     return $website;
@@ -96,6 +96,56 @@ function saveWebsiteAddress(PDO $pdo, $website)
     }
 
     logEvent($pdo, EVENT_SETTINGS_CHANGED, "settings", 0, "Website address", "Changed the website address to " . $website);
+}
+
+/*
+|--------------------------------------------------------------------------
+| Branding
+|--------------------------------------------------------------------------
+*/
+
+/** The four values as they will be stored, "" clearing each one. */
+function checkBrandSettings(array $input)
+{
+    $brand = [
+        "portal_name" => trim((string) ($input["portal_name"] ?? "")),
+        "legal_name" => trim((string) ($input["legal_name"] ?? "")),
+        "support_email" => strtolower(trim((string) ($input["support_email"] ?? ""))),
+        "support_whatsapp" => trim((string) ($input["support_whatsapp"] ?? "")),
+    ];
+
+    if (mb_strlen($brand["portal_name"]) > 80 || mb_strlen($brand["legal_name"]) > 120) {
+        throw new PortalWriteError("Keep the portal name under 80 characters and the legal name under 120.");
+    }
+
+    if ($brand["support_email"] !== "" && !filter_var($brand["support_email"], FILTER_VALIDATE_EMAIL)) {
+        throw new PortalWriteError("That does not look like an email address.");
+    }
+
+    if ($brand["support_whatsapp"] !== "") {
+        $brand["support_whatsapp"] = normaliseWhatsApp($brand["support_whatsapp"]);
+
+        if ($brand["support_whatsapp"] === "") {
+            throw new PortalWriteError("Start the WhatsApp number with its country code, like +44 7911 123456.");
+        }
+    }
+
+    return $brand;
+}
+
+function saveBrandSettings(PDO $pdo, array $brand)
+{
+    $error = "";
+
+    foreach ($brand as $key => $value) {
+        if (!setSiteSetting($pdo, $key, $value, $error)) {
+            throw new PortalWriteError($error === ""
+                ? "Could not save the branding"
+                : "Could not save the branding: " . $error, 500);
+        }
+    }
+
+    logEvent($pdo, EVENT_SETTINGS_CHANGED, "settings", 0, "Branding", "Changed the portal's branding");
 }
 
 /*
@@ -909,7 +959,7 @@ function emailNewAdminWelcome(PDO $pdo, $adminId, $name, $email, $role, $ownerNa
         ->execute([$token, date("Y-m-d H:i:s", time() + NEW_ADMIN_LINK_TTL), (int) $adminId]);
 
     $html = adminEmailHtml(
-        "You've been added to the W Zone portal",
+        "You've been added to " . portalName($pdo),
         trim((string) $ownerName) . " added you as " . adminRoleName($role)
             . ". Choose a password to sign in. The link works for 3 days.",
         ["Name" => $name, "Email" => $email, "Role" => adminRoleName($role)],
@@ -917,7 +967,7 @@ function emailNewAdminWelcome(PDO $pdo, $adminId, $name, $email, $role, $ownerNa
         "Choose your password"
     );
 
-    return sendPortalEmail([["email" => $email, "name" => $name]], "Your W Zone portal account", $html) > 0;
+    return sendPortalEmail([["email" => $email, "name" => $name]], "Your " . portalName($pdo) . " account", $html) > 0;
 }
 
 /*

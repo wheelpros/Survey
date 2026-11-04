@@ -1509,6 +1509,33 @@ document.addEventListener("DOMContentLoaded", function () {
   </div>
 </div>
 
+<!-- What this portal calls itself: emails, page titles, the footer and the
+     Help page's contact options. Empty means the neutral default, or for a
+     support channel, that the Help page doesn't offer it. -->
+<div class="panel">
+  <div class="panel-head">
+    <h1>Portal Branding</h1>
+    <p>The name your clients and team see in emails, page titles and footers, and how they reach you for help.</p>
+  </div>
+  <div class="panel-body">
+    <label for="brandPortalName" style="margin-top:0;">Portal name</label>
+    <input type="text" id="brandPortalName" maxlength="80" placeholder="Client Portal" autocomplete="off">
+
+    <label for="brandLegalName">Legal name in the footer</label>
+    <input type="text" id="brandLegalName" maxlength="120" placeholder="Same as the portal name" autocomplete="off">
+
+    <label for="brandSupportEmail">Support email</label>
+    <input type="email" id="brandSupportEmail" placeholder="help@example.com" autocomplete="off" spellcheck="false">
+
+    <label for="brandSupportWhatsapp">Support WhatsApp number</label>
+    <input type="tel" id="brandSupportWhatsapp" placeholder="+44 7911 123456" autocomplete="off">
+
+    <button class="primary" onclick="saveBranding()" style="margin-top:15px;">Save Branding</button>
+
+    <div id="brandStatus" class="status"></div>
+  </div>
+</div>
+
 <!-- The address behind the logo. Same panel group as the logo because it is
      the same thing to a visitor: a public page shows the logo, and clicking it
      is how they get to the website. Leaving it empty leaves the logo as a
@@ -1520,7 +1547,7 @@ document.addEventListener("DOMContentLoaded", function () {
   </div>
   <div class="panel-body">
     <label for="websiteUrl" style="margin-top:0;">Website URL</label>
-    <input type="url" id="websiteUrl" placeholder="https://wzone.london"
+    <input type="url" id="websiteUrl" placeholder="https://example.com"
            autocomplete="off" spellcheck="false">
 
     <button class="primary" onclick="saveWebsiteUrl()" style="margin-top:15px;">Save Website URL</button>
@@ -1608,13 +1635,13 @@ document.addEventListener("DOMContentLoaded", function () {
 </div>
 </div>
 
-<!-- AI assistants connected through the W|ZONE MCP server. Every admin has
+<!-- AI assistants connected through the portal's MCP server. Every admin has
      their own connections; the owner also gets the client-access switch and
      the portal-wide AI activity on the same page. -->
 <div class="panel">
   <div class="panel-head">
     <h1>Connected apps</h1>
-    <p>AI assistants you've allowed to use your W|ZONE account. The Director also controls whether clients may connect one, and sees recent AI activity.</p>
+    <p>AI assistants you've allowed to use your account. The Director also controls whether clients may connect one, and sees recent AI activity.</p>
   </div>
   <div class="panel-body">
     <a class="primary" href="connected-apps.html" style="display:inline-flex;align-items:center;padding:0 18px;height:44px;border-radius:12px;text-decoration:none;">Manage connected apps</a>
@@ -2214,7 +2241,10 @@ async function loadWebsiteUrl() {
 
         const data = await res.json();
 
-        if (data.success) field.value = data.websiteUrl || "";
+        if (data.success) {
+            field.value = data.websiteUrl || "";
+            paintBranding(data.brand || {});
+        }
 
     } catch (error) {
         // Leave the field empty: saving still works, it just does not start
@@ -2246,6 +2276,48 @@ async function saveWebsiteUrl() {
 
         status.className = data.success ? "status" : "status error";
         status.innerText = data.message || (data.success ? "Saved." : "Could not save.");
+
+    } catch (error) {
+        status.className = "status error";
+        status.innerText = "Connection error. Please try again.";
+    }
+}
+
+function paintBranding(brand) {
+    document.getElementById("brandPortalName").value = brand.portal_name || "";
+    document.getElementById("brandLegalName").value = brand.legal_name || "";
+    document.getElementById("brandSupportEmail").value = brand.support_email || "";
+    document.getElementById("brandSupportWhatsapp").value = brand.support_whatsapp || "";
+}
+
+async function saveBranding() {
+    const status = document.getElementById("brandStatus");
+
+    status.className = "status";
+    status.innerText = "Saving...";
+
+    try {
+        const res = await fetch("api/settings.php", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: "Bearer " + adminToken
+            },
+            body: JSON.stringify({
+                action: "save_branding",
+                portal_name: document.getElementById("brandPortalName").value,
+                legal_name: document.getElementById("brandLegalName").value,
+                support_email: document.getElementById("brandSupportEmail").value,
+                support_whatsapp: document.getElementById("brandSupportWhatsapp").value
+            })
+        });
+
+        const data = await res.json();
+
+        status.className = data.success ? "status" : "status error";
+        status.innerText = data.message || (data.success ? "Saved." : "Could not save.");
+
+        if (data.success) paintBranding(data.brand);
 
     } catch (error) {
         status.className = "status error";

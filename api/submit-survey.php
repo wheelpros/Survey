@@ -33,14 +33,7 @@ if (!$surveyId || !count($answers)) {
     exit;
 }
 
-$stmt = $pdo->prepare("
-    SELECT id, name, email, approved
-    FROM users
-    WHERE session_token = ?
-    LIMIT 1
-");
-$stmt->execute([$token]);
-$user = $stmt->fetch();
+$user = clientFromSessionToken($pdo, $token);
 
 if (!$user || (int)$user["approved"] !== 1) {
     echo json_encode([

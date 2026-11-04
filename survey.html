@@ -567,7 +567,7 @@ async function loadSurvey(){
     window.loadedFiles = data.files || {};
     if(data.survey.status === "completed"){
       document.getElementById("completedBox").innerHTML =
-        `<div class="completed">This survey has already been submitted.</div>`;
+        `<div class="completed">This survey has already been submitted${data.submitted_by ? " by " + esc(data.submitted_by) : ""}.</div>`;
 
       document.getElementById("submitBtn").style.display = "none";
       // the confirm gate belongs to the fill-in flow only

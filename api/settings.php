@@ -46,7 +46,15 @@ if($_SERVER["REQUEST_METHOD"]=="GET"){
 
         // The public website address, exactly as it was typed - the branding
         // panel edits it, so it must not be handed back normalised.
-        "websiteUrl"=>getSiteSetting($pdo, "website_url", "")
+        "websiteUrl"=>getSiteSetting($pdo, "website_url", ""),
+
+        // As saved, so an unset name shows as empty rather than as the default.
+        "brand"=>[
+            "portal_name"=>getSiteSetting($pdo, "portal_name", ""),
+            "legal_name"=>getSiteSetting($pdo, "legal_name", ""),
+            "support_email"=>getSiteSetting($pdo, "support_email", ""),
+            "support_whatsapp"=>getSiteSetting($pdo, "support_whatsapp", "")
+        ]
     ]);
 
     exit;
@@ -182,6 +190,37 @@ if($_SERVER["REQUEST_METHOD"]=="POST"){
             "message"=>$website === ""
                 ? "Website address cleared - the logo is no longer a link."
                 : "Website address saved."
+        ]);
+
+        exit;
+    }
+
+    // The name, footer and support channels the portal shows as its own.
+    if(($input["action"] ?? "")=="save_branding"){
+
+        if (!can($admin, "settings.manage", $pdo)) {
+            echo json_encode([
+                "success"=>false,
+                "message"=>"Unauthorized"
+            ]);
+            exit;
+        }
+
+        try {
+            $brand = checkBrandSettings($input);
+            saveBrandSettings($pdo, $brand);
+        } catch (PortalWriteError $e) {
+            echo json_encode([
+                "success"=>false,
+                "message"=>$e->getMessage()
+            ]);
+            exit;
+        }
+
+        echo json_encode([
+            "success"=>true,
+            "message"=>"Branding saved.",
+            "brand"=>$brand
         ]);
 
         exit;

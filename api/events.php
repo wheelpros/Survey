@@ -45,6 +45,9 @@ const EVENT_CLIENT_DELETED        = "client.deleted";
 const EVENT_CLIENT_TEAM_CHANGED   = "client.team_changed";
 const EVENT_CLIENT_NOTE_SAVED     = "client.note_saved";
 const EVENT_CLIENT_UPDATED        = "client.updated";
+const EVENT_CLIENT_TEAMMATE_REMOVED = "client.teammate_removed";
+const EVENT_CLIENT_OWNER_CHANGED = "client.owner_changed";
+const EVENT_CLIENT_ACCOUNTS_MERGED = "client.accounts_merged";
 
 const EVENT_PROJECT_CREATED       = "project.created";
 const EVENT_PROJECT_UPDATED       = "project.updated";

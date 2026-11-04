@@ -120,7 +120,7 @@ if ($method === "GET") {
         $usersStmt = $pdo->query("
             SELECT id, name, email, company_name
             FROM users
-            WHERE approved = 1
+            WHERE approved = 1 AND account_owner_id IS NULL
             ORDER BY COALESCE(NULLIF(company_name, ''), name) ASC
         ");
 
@@ -131,7 +131,7 @@ if ($method === "GET") {
             FROM users
             INNER JOIN admin_user_assignments aua
                 ON aua.user_id = users.id
-            WHERE users.approved = 1
+            WHERE users.approved = 1 AND users.account_owner_id IS NULL
             AND aua.admin_id = ?
             ORDER BY COALESCE(NULLIF(users.company_name, ''), users.name) ASC
         ");

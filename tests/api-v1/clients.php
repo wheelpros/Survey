@@ -195,6 +195,7 @@ if (in_array("--fixtures", $argv, true)) {
         "my_projects" => "me/projects.php",
         "get_my_project" => "me/projects.php?id=500",
         "my_notifications" => "me/notifications.php",
+        "my_team" => "me/team.php",
     ] as $tool => $path) {
         [$status, $body] = get($path, $alice);
         check("fixture $tool", $status === 200, "HTTP $status " . json_encode($body));

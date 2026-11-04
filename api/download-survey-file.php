@@ -23,20 +23,13 @@ $admin = $stmt->fetch();
 $ownerId = null;
 
 if (!$admin) {
-    $stmt = $pdo->prepare("
-        SELECT id
-        FROM users
-        WHERE session_token = ? AND approved = 1
-        LIMIT 1
-    ");
-    $stmt->execute([$token]);
-    $user = $stmt->fetch();
+    $user = clientFromSessionToken($pdo, $token);
 
     if (!$user) {
         die("Unauthorized");
     }
 
-    $ownerId = (int)$user["id"];
+    $ownerId = (int)$user["account_id"];
 }
 
 if ($ownerId === null) {

@@ -68,6 +68,14 @@ if ($method === "POST") {
         exit;
     }
 
+    // A teammate joined through their owner's invite: there is nothing to decide.
+    $isTeammate = $pdo->prepare("SELECT 1 FROM users WHERE id = ? AND account_owner_id IS NOT NULL LIMIT 1");
+    $isTeammate->execute([$userId]);
+    if ($isTeammate->fetchColumn()) {
+        echo json_encode(["success" => false, "message" => "That person is on a client's team, not a registration."]);
+        exit;
+    }
+
     if ($action === "approve") {
         $stmt = $pdo->prepare("UPDATE users SET approved = 1 WHERE id = ?");
         $stmt->execute([$userId]);
@@ -124,6 +132,7 @@ if (can($currentAdmin, "clients.view_all", $pdo)) {
     $stmt = $pdo->query("
         SELECT id, name, email, company_name, approved, created_at
         FROM users
+        WHERE account_owner_id IS NULL
         ORDER BY created_at DESC
     ");
     $users = $stmt->fetchAll();
@@ -134,7 +143,7 @@ if (can($currentAdmin, "clients.view_all", $pdo)) {
         SELECT u.id, u.name, u.email, u.company_name, u.approved, u.created_at
         FROM users u
         INNER JOIN admin_user_assignments a ON a.user_id = u.id
-        WHERE a.admin_id = ?
+        WHERE a.admin_id = ? AND u.account_owner_id IS NULL
         ORDER BY u.created_at DESC
     ");
     $stmt->execute([$myId]);

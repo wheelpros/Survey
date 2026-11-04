@@ -132,7 +132,7 @@ if(!$user && !$admin){
 }
 
 $resetLink = 
-"https://survey.websitezone.co.uk/reset-password.html?token=".$token;
+APP_URL . "/reset-password.html?token=".$token;
 
 $mail = new PHPMailer(true);
 
@@ -150,7 +150,7 @@ try {
 
     $mail->setFrom(
         $mail->Username,
-        "Survey from WZone"
+        portalName($pdo)
     );
 
 

@@ -18,17 +18,9 @@ if (!$token) {
 
 ensureUserProfileColumns($pdo);
 
-$stmt = $pdo->prepare("
-    SELECT id, name, email, approved, profile_image
-    FROM users
-    WHERE session_token = ?
-    LIMIT 1
-");
+$user = clientFromSessionToken($pdo, $token);
 
-$stmt->execute([$token]);
-$user = $stmt->fetch();
-
-if (!$user || (int)$user["approved"] !== 1) {
+if (!$user) {
     echo json_encode([
         "success" => false,
         "message" => "Unauthorized"
@@ -37,9 +29,13 @@ if (!$user || (int)$user["approved"] !== 1) {
 }
 
 $name = trim($_POST["name"] ?? "");
-$companyName = trim($_POST["company_name"] ?? "");
-$website = trim($_POST["website"] ?? "");
-$description = trim($_POST["description"] ?? "");
+/* Not taken from the request: the company name decides which posts and files
+   this account can see, so changing it is for staff (admin-user-details.php). */
+$companyName = $user["company_name"];
+// The website and description are the company's: the owner's to edit, and a
+// teammate's request just keeps what's there.
+$website = $user["is_account_owner"] ? trim($_POST["website"] ?? "") : (string) $user["website"];
+$description = $user["is_account_owner"] ? trim($_POST["description"] ?? "") : (string) $user["description"];
 $phone = trim($_POST["phone"] ?? "");
 $whatsappInput = trim($_POST["whatsapp"] ?? "");
 $profileImage = $user["profile_image"];
@@ -127,7 +123,7 @@ if (!empty($_FILES["profile_image"]["name"])) {
 $stmt = $pdo->prepare("
     UPDATE users
     SET name = ?, profile_image = ?,
-        company_name = ?, website = ?, description = ?, phone = ?,
+        website = ?, description = ?, phone = ?,
         whatsapp = ?
     WHERE id = ?
 ");
@@ -135,9 +131,8 @@ $stmt = $pdo->prepare("
 $stmt->execute([
     $name,
     $profileImage,
-    $companyName,
-    $website,
-    $description,
+    $user["is_account_owner"] ? $website : null,
+    $user["is_account_owner"] ? $description : null,
     $phone,
     $whatsapp === "" ? null : $whatsapp,
     $user["id"]

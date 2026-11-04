@@ -1,0 +1,872 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Team</title>
+<script src="assets/brand.js" defer></script>
+
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: Arial, sans-serif;
+      }
+      :root {
+        --brand: #c9000b;
+        --nav-active: #1b1e3a;
+        --text: #101828;
+        --muted: #667085;
+        --line: #eaecf0;
+        --sidebar-w: 260px;
+      }
+      body {
+        background: #f7f8fc;
+        color: var(--text);
+      }
+      .app {
+        display: flex;
+        min-height: 100vh;
+      }
+
+      /* ── Sidebar ── */
+      .sidebar {
+        width: var(--sidebar-w);
+        background: #fff;
+        border-right: 1px solid var(--line);
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        padding: 26px 12px 18px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+      .side-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        min-height: 36px;
+        margin-bottom: 26px;
+        padding: 0 2px;
+      }
+      .logo {
+        flex: 1;
+        min-width: 0;
+      }
+      .logo img {
+        width: 132px;
+        max-width: 100%;
+        height: auto;
+        display: block;
+      }
+      .sidebar-toggle {
+        width: 34px;
+        height: 34px;
+        flex: none;
+        border-radius: 9px;
+        border: none;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.15s, color 0.15s;
+      }
+      .sidebar-toggle:hover {
+        background: #f2f4f8;
+        color: var(--text);
+      }
+      .sidebar-toggle svg {
+        width: 18px;
+        height: 18px;
+      }
+      .nav a {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        text-decoration: none;
+        color: var(--muted);
+        padding: 8px 10px;
+        border-radius: 9px;
+        margin-bottom: 2px;
+        font-size: 14px;
+        font-weight: 600;
+        transition: background 0.15s, color 0.15s;
+      }
+      .nav a svg {
+        width: 17px;
+        height: 17px;
+        flex: none;
+      }
+      .nav a:hover {
+        background: #f6f7f9;
+        color: var(--text);
+      }
+      .nav a.active {
+        background: var(--nav-active);
+        color: #fff;
+      }
+      /* The account card opens a dropup; it is the only route to profile and logout. */
+      .account {
+        position: relative;
+      }
+      .account-menu {
+        position: absolute;
+        bottom: calc(100% + 8px);
+        left: 0;
+        min-width: 200px;
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        box-shadow: 0 16px 40px rgba(16, 24, 40, 0.14);
+        padding: 6px;
+        display: none;
+        z-index: 200;
+      }
+      .account.open .account-menu {
+        display: block;
+      }
+      .account-menu a,
+      .account-menu button {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border: none;
+        background: transparent;
+        border-radius: 9px;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text);
+        text-align: left;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      .account-menu a:hover,
+      .account-menu button:hover {
+        background: #f6f7f9;
+      }
+      .account-menu svg {
+        width: 16px;
+        height: 16px;
+        flex: none;
+        color: var(--muted);
+      }
+      .account-menu .danger,
+      .account-menu .danger svg {
+        color: var(--brand);
+      }
+      .account-menu .danger:hover {
+        background: #fff5f5;
+      }
+      .user-card {
+        width: 100%;
+        font: inherit;
+        text-align: left;
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 10px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        cursor: pointer;
+        transition: background 0.15s, border-color 0.15s;
+      }
+      .user-card:hover,
+      .user-card.active {
+        background: #fafbfc;
+        border-color: #d7dae0;
+      }
+      .avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: #dce3ff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 13px;
+        color: #3745a4;
+        background-size: cover;
+        background-position: center;
+        flex: none;
+      }
+      .user-meta {
+        flex: 1;
+        min-width: 0;
+      }
+      .user-meta h4 {
+        font-size: 13px;
+        font-weight: 700;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .user-meta p {
+        font-size: 11px;
+        color: #98a2b3;
+      }
+      .user-dots {
+        color: #98a2b3;
+        flex: none;
+      }
+
+      /* ── Main / header ── */
+      .main {
+        margin-left: var(--sidebar-w);
+        width: calc(100% - var(--sidebar-w));
+      }
+      .content {
+        padding: 34px 44px;
+      }
+
+      /* ── Page header: the same block every other page uses ── */
+      .page-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 24px;
+        margin-bottom: 28px;
+      }
+      .page-title h1 {
+        font-size: 30px;
+        margin-bottom: 8px;
+      }
+      .page-title p {
+        color: var(--muted);
+        font-size: 14px;
+        max-width: 620px;
+      }
+      .card {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 26px;
+        margin-bottom: 22px;
+      }
+      .card h2 {
+        font-size: 16px;
+        margin-bottom: 4px;
+      }
+      .card .hint {
+        color: var(--muted);
+        font-size: 13px;
+        margin-bottom: 22px;
+      }
+      .photo-row {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+      .photo {
+        width: 84px;
+        height: 84px;
+        border-radius: 50%;
+        background: #dce3ff;
+        color: #3745a4;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 28px;
+        background-size: cover;
+        background-position: center;
+        flex: none;
+      }
+      .photo-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .ghost-btn {
+        border: 1px solid #dfe3ea;
+        background: #fff;
+        color: var(--text);
+        border-radius: 10px;
+        padding: 10px 16px;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .ghost-btn:hover {
+        background: #f6f7f9;
+      }
+      .fields {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+      .field.wide {
+        grid-column: 1 / -1;
+      }
+      .field label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 13px;
+        font-weight: 800;
+      }
+      .field input,
+      .field textarea {
+        width: 100%;
+        border: 1px solid #dfe3ea;
+        border-radius: 12px;
+        padding: 0 14px;
+        height: 46px;
+        font-size: 14px;
+        outline: none;
+        background: #fff;
+        color: var(--text);
+      }
+      .field textarea {
+        height: 120px;
+        padding: 13px 14px;
+        resize: vertical;
+        line-height: 1.5;
+      }
+      .field input:focus,
+      .field textarea:focus {
+        border-color: var(--nav-active);
+        box-shadow: 0 0 0 3px rgba(27, 30, 58, 0.08);
+      }
+      .field input[readonly] {
+        background: #f6f7f9;
+        color: var(--muted);
+      }
+      .field .note {
+        margin-top: 6px;
+        font-size: 12px;
+        color: #98a2b3;
+      }
+      .actions {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex-wrap: wrap;
+      }
+      .save-btn {
+        height: 46px;
+        padding: 0 26px;
+        border: none;
+        background: var(--nav-active);
+        color: #fff;
+        border-radius: 12px;
+        font-weight: 800;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      .save-btn:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+      .status {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      /* Claims no space (nor a flex gap) until there is something to say. */
+      .status:empty {
+        display: none;
+      }
+      .status.ok {
+        color: #067647;
+      }
+      .status.err {
+        color: var(--brand);
+      }
+      /* ── Collapsible sidebar ── */
+      :root.sidebar-collapsed {
+        --sidebar-w: 78px;
+      }
+      .sidebar,
+      .main {
+        transition: width 0.18s ease, margin-left 0.18s ease;
+      }
+      :root.sidebar-collapsed .sidebar {
+        padding: 26px 4px 18px;
+      }
+      /* Collapsed to 78px the wordmark is illegible, so the head keeps only the toggle. */
+      :root.sidebar-collapsed .side-head {
+        justify-content: center;
+        margin-bottom: 22px;
+      }
+      :root.sidebar-collapsed .logo {
+        display: none;
+      }
+      :root.sidebar-collapsed .nav a {
+        width: 38px;
+        height: 38px;
+        padding: 0;
+        margin: 0 auto 4px;
+        border-radius: 10px;
+        justify-content: center;
+      }
+      :root.sidebar-collapsed .nav a span {
+        display: none;
+      }
+      /* The user card is the route to this page — collapse it, never hide it. */
+      :root.sidebar-collapsed .user-card {
+        justify-content: center;
+        padding: 8px;
+      }
+      :root.sidebar-collapsed .user-meta,
+      :root.sidebar-collapsed .user-dots {
+        display: none;
+      }
+
+      /* ── Responsive ── */
+      @media (max-width: 950px) {
+        /* Force-collapsed below this width, so the head has nothing left to show. */
+        .side-head {
+          display: none;
+        }
+        .content {
+          padding: 24px 18px 40px;
+        }
+        .fields {
+          grid-template-columns: 1fr;
+        }
+      }
+/* ── Unread badge on the Notifications nav item ──
+   Collapsed, the sidebar hides labels, so the count degrades to a dot on
+   the icon - the same affordance the old topbar bell had. */
+.nav a{position:relative}
+.nav-badge{
+  margin-left:auto;font-style:normal;font-size:11px;font-weight:800;line-height:1;
+  min-width:18px;padding:3px 6px;border-radius:9px;
+  background:var(--brand);color:#fff;text-align:center;
+}
+.nav-badge[hidden]{display:none}
+.nav a.active .nav-badge{background:#fff;color:var(--nav-active)}
+:root.sidebar-collapsed .nav-badge{
+  position:absolute;top:4px;right:8px;margin:0;
+  width:8px;height:8px;min-width:0;padding:0;border-radius:50%;
+  font-size:0;border:2px solid #fff;
+}
+    </style>
+
+    <script>
+      // Runs before paint so the collapsed state never flashes open on load.
+      (function () {
+        var root = document.documentElement;
+        var KEY = "wz_sidebar_collapsed";
+        var MOBILE = 950;
+        var DRAWER = 768;   // below this the sidebar is a drawer, never a rail
+        function prefersCollapsed() {
+          return localStorage.getItem(KEY) === "1";
+        }
+        function apply() {
+          root.classList.toggle(
+            "sidebar-collapsed",
+            window.innerWidth > DRAWER && (window.innerWidth <= MOBILE || prefersCollapsed())
+          );
+        }
+        window.toggleSidebar = function () {
+          if (window.innerWidth <= MOBILE) return; // forced collapsed, nothing to toggle
+          localStorage.setItem(KEY, prefersCollapsed() ? "0" : "1");
+          apply();
+        };
+        apply();
+        window.addEventListener("resize", apply);
+      })();
+
+      // Sidebar account card -> dropup with Profile / Logout.
+      (function () {
+        function menu() { return document.getElementById("account"); }
+        function close() {
+          var el = menu();
+          if (!el || !el.classList.contains("open")) return;
+          el.classList.remove("open");
+          el.querySelector(".user-card").setAttribute("aria-expanded", "false");
+        }
+        window.toggleAccountMenu = function () {
+          var el = menu();
+          var open = el.classList.toggle("open");
+          el.querySelector(".user-card").setAttribute("aria-expanded", open ? "true" : "false");
+        };
+        document.addEventListener("click", function (e) {
+          var el = menu();
+          if (el && !el.contains(e.target)) close();
+        });
+        document.addEventListener("keydown", function (e) {
+          if (e.key === "Escape") close();
+        });
+      })();
+    </script>
+  <link rel="stylesheet" href="assets/shell.css?v=6" />
+  <style>
+    .team-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+    .team-head h2 { margin: 0; }
+    .team-head .save-btn { white-space: nowrap; }
+    .team-empty { color: var(--muted); font-size: 14px; padding: 8px 0; }
+
+    /* One list for people and invites. It answers to the card's own width, not
+       the screen's, so the sidebar opening or closing lays it out correctly too. */
+    .card { container-type: inline-size; }
+    .team-list { list-style: none; margin: 0; padding: 0; }
+    .team-row {
+      display: grid;
+      grid-template-columns: 40px minmax(0, 1fr) 150px var(--team-actions, auto);
+      align-items: center;
+      gap: 4px 14px;
+      padding: 14px 0;
+      border-top: 1px solid var(--line);
+    }
+    .team-row:last-child { padding-bottom: 0; }
+    .team-initial {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #eef0f6;
+      color: var(--nav-active);
+      font-size: 15px;
+      font-weight: 700;
+    }
+    .team-who { min-width: 0; }
+    .team-who strong { display: block; font-size: 14px; overflow-wrap: anywhere; }
+    .team-who span { display: block; margin-top: 2px; font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+    .team-meta { font-size: 13px; color: var(--muted); white-space: nowrap; }
+    .team-meta b { display: block; color: var(--text); font-weight: 700; }
+    .team-actions { display: flex; gap: 8px; }
+    .team-actions { justify-content: flex-end; }
+    .team-actions:empty { display: none; }
+    #people { --team-actions: 92px; }
+    #invites { --team-actions: 172px; }
+    .team-actions .ghost-btn { min-height: 40px; white-space: nowrap; }
+
+    @container (max-width: 560px) {
+      .team-head .save-btn { width: 100%; }
+      .team-row { grid-template-columns: 40px minmax(0, 1fr); }
+      .team-meta { grid-column: 2; white-space: normal; }
+      .team-meta b { display: inline; }
+      .team-meta b::after { content: " · "; color: var(--muted); font-weight: 400; }
+      .team-actions { grid-column: 1 / -1; margin-top: 10px; justify-content: stretch; }
+      .team-actions .ghost-btn { flex: 1; min-height: 44px; }
+    }
+
+    #inviteBox label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+    #inviteBox input { width: 100%; height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 16px; }
+    #inviteBox form { padding: 20px 24px 24px; }
+    #inviteBox .save-btn { width: 100%; margin-top: 16px; }
+  </style>
+  </head>
+
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <div>
+          <div class="side-head">
+            <div class="logo">
+              <img src="logo.png" alt="Logo" onerror="this.remove()" />
+            </div>
+            <button class="sidebar-toggle" type="button" onclick="toggleSidebar()" title="Toggle sidebar" aria-label="Toggle sidebar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9.5 4v16"/></svg>
+            </button>
+          </div>
+
+          <nav class="nav">
+            <a href="dashboard.html" title="Dashboard">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+              <span>Dashboard</span>
+            </a>
+            <a href="forms.html" title="Forms">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>
+              <span>Forms</span>
+            </a>
+            <a href="user-projects.html" title="Projects">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+              <span>Projects</span>
+            </a>
+            <a href="content.html" title="Content">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+              <span>Content</span>
+            </a>
+            <a href="notifications.html" title="Notifications">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 6-3 7-3 7h18s-3-1-3-7"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+              <span>Notifications</span>
+              <em class="nav-badge" id="notifBadge" hidden></em>
+            </a>
+            <a href="help.html" title="Help Center">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M9.5 9.5a2.6 2.6 0 1 1 3.4 2.5c-.6.2-.9.8-.9 1.4v.4"/><path d="M12 17h.01"/></svg>
+              <span>Help Center</span>
+            </a>
+          </nav>
+        </div>
+
+        <div class="account" id="account">
+          <button class="user-card active" type="button" onclick="toggleAccountMenu()" aria-haspopup="true" aria-expanded="false" title="Account">
+            <div class="avatar" id="sideAvatar">U</div>
+            <div class="user-meta">
+              <h4 id="sideName">User</h4>
+              <p>Pro Member</p>
+            </div>
+            <svg class="user-dots" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
+          </button>
+          <div class="account-menu" role="menu">
+            <a role="menuitem" href="profile.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Profile</span></a>
+            <a role="menuitem" href="team.html" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Team</span></a>
+            <button role="menuitem" type="button" class="danger" onclick="logout()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>Logout</span></button>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main">
+
+        <section class="content">
+          <div class="page-head">
+            <div class="page-title">
+              <h1>Team</h1>
+              <p>The people at your company who can use this portal, each with their own login.</p>
+            </div>
+          </div>
+
+          <div class="status" id="status" role="status"></div>
+
+          <div class="card">
+            <div class="team-head">
+              <div>
+                <h2>People</h2>
+                <p class="hint" id="seats"></p>
+              </div>
+              <button class="save-btn" type="button" id="inviteBtn" hidden onclick="openInvite()">Invite teammate</button>
+            </div>
+            <div id="people"><p class="team-empty">Loading...</p></div>
+          </div>
+
+          <div class="card" id="invitesCard" hidden>
+            <h2>Pending invites</h2>
+            <p class="hint">Each holds a place on the team until it's accepted, expires or is revoked.</p>
+            <div id="invites"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="acct-modal" id="inviteModal">
+      <div class="acct-box" id="inviteBox" role="dialog" aria-modal="true" aria-labelledby="inviteTitle">
+        <div class="acct-head">
+          <h2 id="inviteTitle">Invite a teammate</h2>
+          <button type="button" onclick="closeInvite()" aria-label="Close">&times;</button>
+        </div>
+        <form id="inviteForm">
+          <label for="inviteEmail">Their work email</label>
+          <input type="email" id="inviteEmail" required autocomplete="off" spellcheck="false" />
+          <p class="hint" style="margin-top:8px">They'll get a link to set a password. It works for 3 days.</p>
+          <div class="status" id="inviteStatus" role="alert"></div>
+          <button class="save-btn" type="submit" id="inviteSend">Send invite</button>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      const token = localStorage.getItem("portal_token");
+      if (!token) {
+        window.location.href = "login.html";
+      }
+
+      const statusEl = document.getElementById("status");
+
+      function esc(value) {
+        const el = document.createElement("div");
+        el.textContent = value == null ? "" : String(value);
+        return el.innerHTML.replace(/"/g, "&quot;");
+      }
+
+      function logout() {
+        localStorage.clear();
+        window.location.href = "login.html";
+      }
+
+      function paintAccount() {
+        let user = {};
+        try { user = JSON.parse(localStorage.getItem("portal_user") || "{}"); } catch (e) {}
+
+        document.getElementById("sideName").innerText = user.name || "User";
+
+        const avatar = document.getElementById("sideAvatar");
+        if (user.profile_image) {
+          avatar.innerText = "";
+          avatar.style.backgroundImage = `url('${user.profile_image}')`;
+        } else {
+          avatar.innerText = (user.name || "User").charAt(0).toUpperCase();
+        }
+      }
+
+      function setStatus(el, message, kind) {
+        el.innerText = message;
+        el.className = "status" + (kind ? " " + kind : "");
+      }
+
+      function formatDate(value) {
+        const date = new Date(String(value).replace(" ", "T"));
+        return isNaN(date) ? "" : date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+      }
+
+      function paint(team) {
+        const teammates = team.people.filter(p => !p.is_owner).length;
+        const held = teammates + team.invites.filter(i => !i.expired).length;
+
+        document.getElementById("seats").innerText = team.can_manage
+          ? `${held} of ${team.max_teammates} teammate places used`
+          : "The account owner manages the team.";
+
+        const inviteBtn = document.getElementById("inviteBtn");
+        inviteBtn.hidden = !team.can_manage;
+        inviteBtn.disabled = held >= team.max_teammates;
+        inviteBtn.title = inviteBtn.disabled ? "Remove someone or revoke an invite to add another." : "";
+
+        document.getElementById("people").innerHTML = `
+          <ul class="team-list">${team.people.map(p => `
+            <li class="team-row">
+              <div class="team-initial" aria-hidden="true">${esc(String(p.name).charAt(0).toUpperCase())}</div>
+              <div class="team-who">
+                <strong dir="auto">${esc(p.name)}</strong>
+                <span>${esc(p.email)}</span>
+              </div>
+              <div class="team-meta"><b>${p.is_owner ? "Owner" : "Teammate"}</b>Joined ${esc(formatDate(p.joined_at))}</div>
+              ${team.can_manage ? `<div class="team-actions">${p.is_owner ? "" : `<button class="ghost-btn" type="button" data-remove="${Number(p.id)}" data-name="${esc(p.name)}" aria-label="Remove ${esc(p.name)}">Remove</button>`}</div>` : ""}
+            </li>`).join("")}
+          </ul>`;
+
+        document.getElementById("invitesCard").hidden = !team.invites.length;
+        document.getElementById("invites").innerHTML = !team.invites.length ? "" : `
+          <ul class="team-list">${team.invites.map(i => `
+            <li class="team-row">
+              <div class="team-initial" aria-hidden="true">${esc(String(i.email).charAt(0).toUpperCase())}</div>
+              <div class="team-who"><strong>${esc(i.email)}</strong></div>
+              <div class="team-meta"><b>${i.expired ? "Expired" : "Pending"}</b>${i.expired ? "" : "Until " + esc(formatDate(i.expires_at))}</div>
+              <div class="team-actions">
+                <button class="ghost-btn" type="button" data-resend="${Number(i.id)}" aria-label="Resend the invite to ${esc(i.email)}">Resend</button>
+                <button class="ghost-btn" type="button" data-revoke="${Number(i.id)}" data-email="${esc(i.email)}" aria-label="Revoke the invite to ${esc(i.email)}">Revoke</button>
+              </div>
+            </li>`).join("")}
+          </ul>`;
+      }
+
+      async function api(body) {
+        const res = await fetch("api/my-team.php", body ? {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+          body: JSON.stringify(body)
+        } : { headers: { Authorization: "Bearer " + token } });
+
+        if (res.status === 401) {
+          logout();
+        }
+
+        return res.json();
+      }
+
+      async function load() {
+        try {
+          const data = await api();
+          if (data.success) {
+            paint(data.team);
+          } else {
+            setStatus(statusEl, data.message || "Could not load your team.", "err");
+          }
+        } catch (error) {
+          setStatus(statusEl, "Could not load your team. Check your connection and try again.", "err");
+        }
+      }
+
+      async function act(body) {
+        setStatus(statusEl, "");
+        try {
+          const data = await api(body);
+          setStatus(statusEl, data.message || "", data.success && data.emailed !== false ? "ok" : "err");
+          if (data.team) paint(data.team);
+        } catch (error) {
+          setStatus(statusEl, "That didn't go through. Check your connection and try again.", "err");
+        }
+      }
+
+      document.querySelector("main").addEventListener("click", async function (event) {
+        const button = event.target.closest("button");
+        if (!button) return;
+
+        if (button.dataset.remove) {
+          const ok = await askConfirm({
+            title: "Remove teammate",
+            text: button.dataset.name + " will lose access straight away. Anything they've already submitted stays on the account.",
+            action: "Remove"
+          });
+          if (ok) act({ action: "remove", id: Number(button.dataset.remove) });
+        }
+
+        if (button.dataset.revoke) {
+          const ok = await askConfirm({
+            title: "Revoke invite",
+            text: "The link sent to " + button.dataset.email + " will stop working.",
+            action: "Revoke"
+          });
+          if (ok) act({ action: "revoke", id: Number(button.dataset.revoke) });
+        }
+
+        if (button.dataset.resend) {
+          act({ action: "resend", id: Number(button.dataset.resend) });
+        }
+      });
+
+      const modal = document.getElementById("inviteModal");
+      const inviteStatus = document.getElementById("inviteStatus");
+
+      function openInvite() {
+        setStatus(inviteStatus, "");
+        document.getElementById("inviteForm").reset();
+        modal.classList.add("show");
+        document.getElementById("inviteEmail").focus();
+      }
+
+      function closeInvite() {
+        modal.classList.remove("show");
+        document.getElementById("inviteBtn").focus();
+      }
+
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape" && modal.classList.contains("show")) closeInvite();
+      });
+
+      document.getElementById("inviteForm").addEventListener("submit", async function (event) {
+        event.preventDefault();
+
+        const send = document.getElementById("inviteSend");
+        send.disabled = true;
+        setStatus(inviteStatus, "");
+
+        try {
+          const data = await api({ action: "invite", email: document.getElementById("inviteEmail").value.trim() });
+
+          if (data.success) {
+            paint(data.team);
+            setStatus(statusEl, data.message, data.emailed ? "ok" : "err");
+            closeInvite();
+          } else {
+            setStatus(inviteStatus, data.message || "Could not send the invite.", "err");
+          }
+        } catch (error) {
+          setStatus(inviteStatus, "That didn't go through. Check your connection and try again.", "err");
+        } finally {
+          send.disabled = false;
+        }
+      });
+
+      paintAccount();
+      load();
+    </script>
+  <script src="assets/confirm.js?v=1"></script>
+  <script src="assets/notifications.js?v=2"></script>
+  <script src="assets/shell.js?v=6"></script>
+</body>
+</html>

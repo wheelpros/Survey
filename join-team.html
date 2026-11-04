@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Join your team</title>
+<script src="assets/brand.js" defer></script>
+
+<style>
+*{box-sizing:border-box;font-family:Arial,sans-serif}
+
+body{
+  margin:0;
+  min-height:100vh;
+  background:#f6f7fb;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  color:#101828;
+}
+
+.card{
+  width:100%;
+  max-width:420px;
+  background:#fff;
+  border-radius:24px;
+  padding:34px;
+  box-shadow:0 14px 35px rgba(0,0,0,.08);
+}
+
+/* Same logo treatment as the sidebar: logo.png when the admin has
+   uploaded one, the bundled wordmark otherwise. */
+.brand{
+  text-align:center;
+  margin-bottom:26px;
+}
+
+.brand img{
+  width:132px;
+  max-width:100%;
+  height:auto;
+  display:inline-block;
+}
+
+.auth-foot{
+  margin:26px 0 0;
+  text-align:center;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.4px;
+  text-transform:uppercase;
+  color:#98a1ad;
+}
+
+h1{
+  font-size:24px;
+  margin:0 0 8px;
+}
+
+.lede{
+  color:#667085;
+  font-size:14px;
+  line-height:1.5;
+  margin:0 0 24px;
+}
+
+label{
+  display:block;
+  font-size:13px;
+  font-weight:400;
+  margin-bottom:8px;
+}
+
+.password-box{
+  position:relative;
+  margin-bottom:18px;
+}
+
+input{
+  width:100%;
+  height:54px;
+  border:1px solid #dfe3ea;
+  background:#f1f3f6;
+  border-radius:12px;
+  padding:0 50px 0 15px;
+  font-size:14px;
+  color:#101828;
+  outline:none;
+}
+
+input:focus{
+  border-color:#1b1e3a;
+  background:#fff;
+  box-shadow:0 0 0 3px rgba(27,30,58,.10);
+}
+
+.toggle-password{
+  position:absolute;
+  right:15px;
+  top:50%;
+  transform:translateY(-50%);
+  cursor:pointer;
+  user-select:none;
+  color:#666;
+  display:flex;
+}
+
+.toggle-password:hover{
+  color:#1b1e3a;
+}
+
+.hint{
+  font-size:12px;
+  color:#98a2b3;
+  margin:-10px 0 18px;
+}
+
+button{
+  width:100%;
+  height:56px;
+  border:none;
+  background:#1b1e3a;
+  color:#fff;
+  border-radius:12px;
+  font-size:15px;
+  font-weight:800;
+  cursor:pointer;
+}
+
+button:hover{
+  background:#282c50;
+}
+
+button:disabled{
+  opacity:.6;
+  cursor:default;
+}
+
+.status{
+  margin-top:14px;
+  text-align:center;
+  font-size:13px;
+  line-height:1.5;
+  color:#667085;
+}
+
+/* Claims no space until there is something to say. */
+.status:empty{
+  display:none;
+}
+
+.status.ok{
+  color:#067647;
+  font-weight:700;
+}
+
+.status.err{
+  color:#c9000b;
+  font-weight:700;
+}
+
+.foot{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  margin-top:22px;
+  padding-top:20px;
+  border-top:1px solid #eef1f5;
+  font-size:13px;
+  font-weight:700;
+}
+
+.foot a{
+  color:#1b1e3a;
+  text-decoration:none;
+}
+
+.foot a:hover{
+  text-decoration:underline;
+}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+  <div class="brand">
+    <img src="logo.png" alt="Logo"
+         onerror="this.remove()">
+  </div>
+
+  <h1 id="title">Join your team</h1>
+  <p class="lede" id="lede">Checking your invitation...</p>
+
+  <form id="joinForm" hidden>
+    <label for="email">Email</label>
+    <div class="password-box">
+      <input type="email" id="email" readonly>
+    </div>
+
+    <label for="name">Your name</label>
+    <div class="password-box">
+      <input type="text" id="name" autocomplete="name" maxlength="150">
+    </div>
+
+    <label for="password">Choose a password</label>
+    <div class="password-box">
+      <input type="password" id="password" placeholder="At least 8 characters" autocomplete="new-password">
+    </div>
+
+    <button type="submit" id="joinBtn">Join the team</button>
+    <div class="status" id="status" role="alert"></div>
+  </form>
+
+  <div class="foot">
+    <a href="login.html">&larr; Back to login</a>
+  </div>
+
+  <p class="auth-foot">&copy; <span class="yr"></span> <span data-brand="legal">Client Portal</span>. All rights reserved.</p>
+</div>
+
+<script>
+document.querySelectorAll(".yr").forEach(el => el.textContent = new Date().getFullYear());
+
+const token = new URLSearchParams(location.search).get("token") || "";
+const form = document.getElementById("joinForm");
+const lede = document.getElementById("lede");
+const status = document.getElementById("status");
+const joinBtn = document.getElementById("joinBtn");
+
+function setStatus(message, kind){
+  status.innerText = message;
+  status.className = "status" + (kind ? " " + kind : "");
+}
+
+async function loadInvite(){
+  try{
+    const res = await fetch("api/accept-invite.php?token=" + encodeURIComponent(token));
+    const data = await res.json();
+
+    if(!data.success){
+      lede.innerText = data.message || "This invitation is no longer valid.";
+      return;
+    }
+
+    const invite = data.invite;
+    lede.innerText = invite.invited_by + " invited you to join "
+      + (invite.company || "their team") + ". Set up your login to get started.";
+    document.getElementById("email").value = invite.email;
+    form.hidden = false;
+    document.getElementById("name").focus();
+  }catch(error){
+    lede.innerText = "Could not check your invitation. Check your connection and reload this page.";
+  }
+}
+
+form.addEventListener("submit", async function(event){
+  event.preventDefault();
+
+  const name = document.getElementById("name").value.trim();
+  const password = document.getElementById("password").value;
+
+  if(!name){
+    setStatus("Enter your name.", "err");
+    return;
+  }
+  if(password.length < 8){
+    setStatus("Choose a password of at least 8 characters.", "err");
+    return;
+  }
+
+  joinBtn.disabled = true;
+  setStatus("");
+
+  try{
+    const res = await fetch("api/accept-invite.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, name, password })
+    });
+    const data = await res.json();
+
+    if(data.success){
+      form.hidden = true;
+      document.getElementById("title").innerText = "You're on the team";
+      lede.innerText = data.message;
+      return;
+    }
+
+    setStatus(data.message || "Could not join the team.", "err");
+  }catch(error){
+    setStatus("That didn't go through. Check your connection and try again.", "err");
+  }
+
+  joinBtn.disabled = false;
+});
+
+loadInvite();
+</script>
+</body>
+</html>

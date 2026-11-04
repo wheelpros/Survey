@@ -364,7 +364,7 @@ function fill(data) {
 
   document.getElementById("vMeta").innerHTML = `
     <span>${ICON.clock} Submitted ${WZI.escapeHtml(WZI.fmtDateTime(response.submitted_at))}</span>
-    ${response.source === "mcp" ? `<span class="via-ai" title="Sent by an AI assistant through the W|ZONE MCP server, after the person confirmed their answers">via AI assistant</span>` : ``}
+    ${response.source === "mcp" ? `<span class="via-ai" title="Sent by an AI assistant through the MCP server, after the person confirmed their answers">via AI assistant</span>` : ``}
     ${place ? `<span class="lead-place">${place}</span>` : ``}
   `;
 

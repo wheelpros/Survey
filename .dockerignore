@@ -11,6 +11,7 @@ tests/
 .gitignore
 .env
 .env.*
+docker/*.example
 *.md
 Dockerfile
 .dockerignore

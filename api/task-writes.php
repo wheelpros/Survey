@@ -988,9 +988,8 @@ function announceTaskIfLive(PDO $pdo, array $actor, array $project, $taskId, $ti
         $stmt->execute([(int) $taskId]);
 
         if ($stmt->rowCount() > 0) {
-            notify(
+            notifyClientAccount(
                 $pdo,
-                "user",
                 (int) $project["client_id"],
                 NOTIFY_PROJECT_UPDATE,
                 "New update on " . $project["title"],

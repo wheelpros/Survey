@@ -660,6 +660,40 @@ export const WRITE_TOOLS = [
   },
 
   // ── A client's own account (self:write) ───────────────────────────────
+  // A client's team (self:write, account owner only)
+  {
+    name: "invite_teammate",
+    scope: "self:write",
+    title: "Invite a teammate",
+    description:
+      "Emails someone a link to join your account, up to 4 teammates counting pending invites. " +
+      "They then see everything on the account. Only the account owner can do this." + TWO_STEP,
+    input: { email: z.string().email().max(190).describe("Their email address") },
+  },
+  {
+    name: "resend_team_invite",
+    scope: "self:write",
+    title: "Resend a team invite",
+    description: "Sends a pending invite again with a new link (my_team lists them). The old link stops working." + TWO_STEP,
+    input: { id: recordId("The invite's id") },
+  },
+  {
+    name: "revoke_team_invite",
+    scope: "self:write",
+    title: "Revoke a team invite",
+    description: "Cancels a pending invite (my_team lists them), so its link stops working." + TWO_STEP,
+    input: { id: recordId("The invite's id") },
+  },
+  {
+    name: "remove_teammate",
+    scope: "self:write",
+    title: "Remove a teammate",
+    description:
+      "Takes someone off your account (my_team lists them). They lose access straight away; what " +
+      "they've submitted stays on the account. Only the account owner can do this." + TWO_STEP,
+    input: { id: recordId("The person's id") },
+  },
+
   {
     name: "request_meeting",
     scope: "self:write",

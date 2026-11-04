@@ -17,16 +17,7 @@ if (!$token) {
 
 ensureUserProfileColumns($pdo);
 
-$stmt = $pdo->prepare("
-    SELECT id, name, email, approved, profile_image,
-           company_name, website, description, phone, whatsapp
-    FROM users
-    WHERE session_token = ?
-    LIMIT 1
-");
-
-$stmt->execute([$token]);
-$user = $stmt->fetch();
+$user = clientFromSessionToken($pdo, $token);
 
 if (!$user || (int)$user["approved"] !== 1) {
     echo json_encode([
@@ -47,6 +38,7 @@ echo json_encode([
         "website" => $user["website"],
         "description" => $user["description"],
         "phone" => $user["phone"],
-        "whatsapp" => $user["whatsapp"]
+        "whatsapp" => $user["whatsapp"],
+        "is_account_owner" => $user["is_account_owner"]
     ]
 ]);

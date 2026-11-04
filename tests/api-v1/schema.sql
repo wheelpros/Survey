@@ -11,6 +11,9 @@ CREATE TABLE users (
   password      VARCHAR(255) NOT NULL DEFAULT '',
   session_token VARCHAR(255)     NULL,
   approved      TINYINT(1)   NOT NULL DEFAULT 0,
+  profile_image VARCHAR(255)     NULL,
+  reset_token   VARCHAR(64)      NULL,
+  reset_expires DATETIME         NULL,
   created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -87,6 +90,21 @@ CREATE TABLE survey_uploaded_files (
   file_path     VARCHAR(255) NOT NULL,
   file_type     VARCHAR(100)     NULL,
   file_size     INT              NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE source_files (
+  id            INT AUTO_INCREMENT PRIMARY KEY,
+  original_name VARCHAR(255) NOT NULL,
+  file_path     VARCHAR(255) NOT NULL,
+  file_size     INT              NULL,
+  uploaded_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE user_source_files (
+  id          INT AUTO_INCREMENT PRIMARY KEY,
+  file_id     INT       NOT NULL,
+  user_id     INT       NOT NULL,
+  assigned_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- sql/content.sql (+ content_priority_notes.sql)

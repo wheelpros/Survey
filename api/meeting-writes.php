@@ -49,6 +49,7 @@ function meetingScopedClients(PDO $pdo, array $admin)
         return $pdo->query("
             SELECT id, name, email, company_name, approved
             FROM users
+            WHERE account_owner_id IS NULL
             ORDER BY name ASC
         ")->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -57,7 +58,7 @@ function meetingScopedClients(PDO $pdo, array $admin)
         SELECT u.id, u.name, u.email, u.company_name, u.approved
         FROM users u
         INNER JOIN admin_user_assignments a ON a.user_id = u.id
-        WHERE a.admin_id = ?
+        WHERE a.admin_id = ? AND u.account_owner_id IS NULL
         ORDER BY u.name ASC
     ");
     $stmt->execute([$admin["id"]]);
@@ -102,10 +103,9 @@ function requestMeetingFromClients(PDO $pdo, array $admin, array $targets, $comp
         ]);
         $ids[] = (int) $pdo->lastInsertId();
 
-        // One notification per account, matching the one row each of them got.
-        notify(
+        // One row per account, and everyone on it is told.
+        notifyClientAccount(
             $pdo,
-            "user",
             (int) $target["id"],
             NOTIFY_APPOINTMENT_REQUEST,
             "Meeting request from " . $admin["name"],
@@ -122,7 +122,12 @@ function requestMeetingFromClients(PDO $pdo, array $admin, array $targets, $comp
 
     // Each client by email too: the request needs their answer, and the
     // portal only shows it to someone who happens to sign in.
-    emailClientsAboutMeetingRequest($targets, (string) $admin["name"], $topic, $date, $time, $notes);
+    $people = [];
+    foreach ($targets as $target) {
+        $people = array_merge($people, clientAccountPeople($pdo, $target["id"]));
+    }
+
+    emailClientsAboutMeetingRequest($people, (string) $admin["name"], $topic, $date, $time, $notes);
 
     return $ids;
 }
@@ -171,9 +176,8 @@ function answerClientMeetingRequest(PDO $pdo, array $admin, $appointmentId, $sta
         . "'s meeting request \"" . ($row["topic"] ?? "Meeting") . "\" on " . $row["date"] . " at " . $row["time"],
         $row["user_id"]);
 
-    notify(
+    notifyClientAccount(
         $pdo,
-        "user",
         (int) $row["user_id"],
         NOTIFY_APPOINTMENT_ANSWERED,
         $status === "approved" ? "Your meeting was confirmed" : "Your meeting request was declined",
@@ -192,7 +196,7 @@ function answerClientMeetingRequest(PDO $pdo, array $admin, $appointmentId, $sta
 |--------------------------------------------------------------------------
 |
 | dashboard.html's "Send a new request" and its accept / decline buttons,
-| shared with api/v1. $user is the client: ["id", "name", "company_name"].
+| shared with api/v1. $user is the person asking, with their account (withClientAccount()).
 */
 
 /**
@@ -211,17 +215,19 @@ function requestMeetingFromAdmins(PDO $pdo, array $user, $date, $time, $topic, $
 
     $stmt = $pdo->prepare("
         INSERT INTO appointments
-            (user_id, title, date, time, status, topic, notes, requested_by, client)
-        VALUES (?, ?, ?, ?, 'pending', ?, ?, 'user', ?)
+            (user_id, title, date, time, status, topic, notes, requested_by, client, requested_by_id, requested_by_name)
+        VALUES (?, ?, ?, ?, 'pending', ?, ?, 'user', ?, ?, ?)
     ");
     $stmt->execute([
-        $user["id"],
+        $user["account_id"],
         $topic,
         $date,
         $time,
         $topic,
         $notes !== "" ? $notes : null,
-        $user["company_name"] ?? null
+        $user["company_name"] ?? null,
+        $user["id"],
+        $user["name"]
     ]);
 
     $appointmentId = (int) $pdo->lastInsertId();
@@ -229,7 +235,7 @@ function requestMeetingFromAdmins(PDO $pdo, array $user, $date, $time, $topic, $
     // Opens this request on the calendar, not just the calendar.
     notifyAdminsAboutUser(
         $pdo,
-        meetingAdminIdsForUser($pdo, (int) $user["id"]),
+        meetingAdminIdsForUser($pdo, (int) $user["account_id"]),
         (int) $user["id"],
         NOTIFY_APPOINTMENT_REQUEST,
         "Meeting request from " . $user["name"],
@@ -239,7 +245,7 @@ function requestMeetingFromAdmins(PDO $pdo, array $user, $date, $time, $topic, $
 
     // The same admins, by email: a request left unseen in the portal is a
     // client left waiting for an answer.
-    emailAdminsAboutMeetingRequest($pdo, (int) $user["id"], (string) $user["name"], $topic, $date, $time, $notes, $appointmentId);
+    emailAdminsAboutMeetingRequest($pdo, (int) $user["account_id"], (string) $user["name"], $topic, $date, $time, $notes, $appointmentId);
 
     return $appointmentId;
 }
@@ -263,22 +269,24 @@ function answerAdminMeetingRequest(PDO $pdo, array $user, $appointmentId, $statu
         WHERE id = ? AND user_id = ? AND requested_by = 'admin'
         LIMIT 1
     ");
-    $lookup->execute([(int) $appointmentId, $user["id"]]);
+    $lookup->execute([(int) $appointmentId, $user["account_id"]]);
     $request = $lookup->fetch(PDO::FETCH_ASSOC);
 
     if (!$request) {
         throw new PortalWriteError("That meeting request isn't yours to answer.", 404);
     }
-    if ($onlyIfPending && $request["status"] !== "pending") {
-        throw new PortalWriteError("That meeting request has already been answered.", 409);
-    }
-
+    // The first answer stands, for everyone on the account: of two at the same
+    // moment the second finds nothing still pending.
     $stmt = $pdo->prepare("
         UPDATE appointments
-        SET status = ?
-        WHERE id = ? AND user_id = ? AND requested_by = 'admin'
+        SET status = ?, responded_by_id = ?, responded_by_name = ?, responded_at = NOW()
+        WHERE id = ? AND user_id = ? AND requested_by = 'admin' AND status = 'pending'
     ");
-    $stmt->execute([$status, (int) $appointmentId, $user["id"]]);
+    $stmt->execute([$status, $user["id"], $user["name"], (int) $appointmentId, $user["account_id"]]);
+
+    if ($stmt->rowCount() === 0) {
+        throw new PortalWriteError("That meeting request has already been answered.", 409);
+    }
 
     if ((int) $request["admin_id"] > 0) {
         notify(

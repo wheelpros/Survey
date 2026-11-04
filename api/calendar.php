@@ -66,14 +66,7 @@ ensureUserProfileColumns($pdo);
 ensureAppointmentTables($pdo);
 ensureNotificationsTable($pdo);
 
-$stmt = $pdo->prepare("
-    SELECT id, name, email, company_name
-    FROM users
-    WHERE session_token = ?
-    LIMIT 1
-");
-$stmt->execute([$token]);
-$user = $stmt->fetch(PDO::FETCH_ASSOC);
+$user = clientFromSessionToken($pdo, $token);
 
 $admin = null;
 
@@ -182,7 +175,7 @@ if ($action === "get_user_calendar" && $user) {
           AND NOT (a.status = 'rejected' AND a.requested_by = 'admin')
         ORDER BY a.date DESC, a.time DESC
     ");
-    $stmt->execute([$user["id"]]);
+    $stmt->execute([$user["account_id"]]);
     $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     reply(true, "", [

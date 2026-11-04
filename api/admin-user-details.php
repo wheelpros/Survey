@@ -89,11 +89,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $input = json_decode(file_get_contents("php://input"), true) ?: [];
     $action = $input["action"] ?? "";
 
-    if (!in_array($action, ["save_notes", "save_details"], true)) {
+    if (!in_array($action, ["save_notes", "save_details", "remove_teammate", "change_owner", "merge_preview", "merge"], true)) {
         respond(false, "Unknown action.", [], 400);
     }
 
-    if (!$canEditDetails) {
+    $accountAction = in_array($action, ["change_owner", "merge_preview", "merge"], true);
+
+    if ($accountAction && !can($admin, "clients.manage_accounts", $pdo)) {
+        respond(false, "Only the Director can change a client's owner or merge accounts.", [], 403);
+    }
+
+    if (!$canEditDetails && !$accountAction) {
         respond(false, "Only an account manager or the Director can edit a client.", [], 403);
     }
 
@@ -120,6 +126,62 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     | number saved here and a number saved there end up in the same shape.
     |
     */
+
+    if ($accountAction) {
+        require_once "client-account-writes.php";
+
+        $sourceId = (int) ($input["source_id"] ?? 0);
+
+        try {
+            if ($action === "change_owner") {
+                $done = changeClientOwner($pdo, $admin, $targetId, (int) ($input["person_id"] ?? 0));
+                respond(true, $done["new_owner"] . " is now the owner of this account.");
+            }
+
+            if ($action === "merge_preview") {
+                respond(true, "", ["plan" => clientMergePlan($pdo, $sourceId, $targetId)]);
+            }
+
+            $plan = mergeClientAccounts($pdo, $admin, $sourceId, $targetId);
+            respond(true, $plan["source"]["name"] . "'s account has been merged into this one.");
+
+        } catch (PortalWriteError $e) {
+            respond(false, $e->getMessage(), [], $e->status);
+        }
+    }
+
+    /*
+    | Taking someone off a client's team - the same as the owner doing it, plus
+    | a line in the event log. Only for a client this admin works on.
+    */
+    if ($action === "remove_teammate") {
+
+        if (!can($admin, "clients.view_all", $pdo)) {
+            $assigned = $pdo->prepare("SELECT 1 FROM admin_user_assignments WHERE admin_id = ? AND user_id = ? LIMIT 1");
+            $assigned->execute([(int) $admin["id"], $targetId]);
+
+            if (!$assigned->fetchColumn()) {
+                respond(false, "User not found.", [], 404);
+            }
+        }
+
+        require_once "client-team-writes.php";
+
+        try {
+            $person = deleteTeammate($pdo, $targetId, (int) ($input["person_id"] ?? 0));
+        } catch (PortalWriteError $e) {
+            respond(false, $e->getMessage(), [], $e->status);
+        }
+
+        $who = eventClientName($pdo, $targetId);
+        logEvent($pdo, EVENT_CLIENT_TEAMMATE_REMOVED, "user", $targetId, $who,
+            "Removed " . $person["name"] . " from " . $who . "'s team", $targetId);
+
+        notify($pdo, "user", $targetId, NOTIFY_CLIENT_TEAM_CHANGED,
+            $person["name"] . " was removed from your team", "", "team.html", "admin", (int) $admin["id"]);
+
+        respond(true, $person["name"] . " is no longer on this team.");
+    }
 
     if ($action === "save_details") {
 
@@ -154,12 +216,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         }
 
         try {
-            $check = $pdo->prepare("SELECT id FROM users WHERE id = ? LIMIT 1");
+            $check = $pdo->prepare("SELECT id, company_name FROM users WHERE id = ? AND account_owner_id IS NULL LIMIT 1");
             $check->execute([$targetId]);
+            $current = $check->fetch(PDO::FETCH_ASSOC);
 
-            if (!$check->fetch()) {
+            if (!$current) {
                 respond(false, "User not found.", [], 404);
             }
+
+            $pdo->beginTransaction();
 
             $save = $pdo->prepare("
                 UPDATE users
@@ -176,7 +241,26 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 $targetId
             ]);
 
+            /* Posts find their client by this name, so a rename takes them along -
+               unless another approved account still answers to the old name, whose
+               posts these also are. Clearing the name leaves them where they are. */
+            $oldCompany = trim((string) $current["company_name"]);
+
+            if ($oldCompany !== "" && $company !== "" && $oldCompany !== $company) {
+                $shared = $pdo->prepare("SELECT COUNT(*) FROM users WHERE approved = 1 AND company_name = ? AND id <> ?");
+                $shared->execute([$oldCompany, $targetId]);
+
+                if ((int) $shared->fetchColumn() === 0) {
+                    $pdo->prepare("UPDATE content SET client = ? WHERE client = ?")->execute([$company, $oldCompany]);
+                }
+            }
+
+            $pdo->commit();
+
         } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
             respond(false, "Could not save the details.", [], 500);
         }
 
@@ -255,7 +339,7 @@ try {
             company_name, website, description,
             profile_image, approved, created_at
         FROM users
-        WHERE id = ?
+        WHERE id = ? AND account_owner_id IS NULL
         LIMIT 1
     ");
 
@@ -274,6 +358,16 @@ if (!$user) {
    rule wa.me needs everywhere, and an empty string is the page's cue that there
    is no icon to draw. */
 $user["whatsapp_link"] = whatsAppLink($user["whatsapp"] ?? "");
+
+/* Approving a sign-up gives it that company's posts and files, so the page warns
+   when the name it typed is already an approved account's. */
+$user["company_matches"] = 0;
+
+if ((int) $user["approved"] !== 1 && trim((string) $user["company_name"]) !== "") {
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE approved = 1 AND company_name = ? AND id <> ?");
+    $stmt->execute([trim($user["company_name"]), $userId]);
+    $user["company_matches"] = (int) $stmt->fetchColumn();
+}
 
 /* The internal note, and only this admin's own: a note is private to whoever
    wrote it, so another admin's note about this client is not fetched here and
@@ -364,8 +458,20 @@ $content = fetchList($pdo, "
 /* Who works on this client is not in here: the page's Team panel loads it
    from api/client-team.php, which also decides who may change it. */
 
+/* The client's own people, and who has been invited - separate from the staff
+   in the Team panel. */
+$people = array_values(array_filter(clientAccountPeople($pdo, $userId), function ($person) {
+    return !empty($person["account_owner_id"]);
+}));
+
+require_once "client-team-writes.php";
+
 respond(true, "User loaded.", [
     "user"         => $user,
+    "people"       => array_map(function ($person) {
+        return ["id" => (int) $person["id"], "name" => $person["name"], "email" => $person["email"], "joined_at" => $person["created_at"]];
+    }, $people),
+    "invites"      => clientPendingInvites($pdo, $userId),
 
     /* Presentation only - the POST above checks the role itself. The page uses
        these to decide whether the note and the details are fields or text. */

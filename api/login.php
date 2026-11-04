@@ -19,7 +19,7 @@ ensureUserProfileColumns($pdo);
 
 $stmt = $pdo->prepare("
     SELECT id, name, email, password, approved, profile_image,
-           company_name, website, description, phone
+           company_name, website, description, phone, account_owner_id
     FROM users
     WHERE email = ?
     LIMIT 1
@@ -54,6 +54,17 @@ $stmt = $pdo->prepare("
 
 $stmt->execute([$token, $user["id"]]);
 
+// A teammate's company details are their account's.
+$user = withClientAccount($pdo, $user);
+
+if (!$user) {
+    echo json_encode([
+        "success" => false,
+        "message" => "Invalid email or password"
+    ]);
+    exit;
+}
+
 echo json_encode([
     "success" => true,
     "message" => "Login successful",
@@ -66,6 +77,7 @@ echo json_encode([
         "company_name" => $user["company_name"],
         "website" => $user["website"],
         "description" => $user["description"],
-        "phone" => $user["phone"]
+        "phone" => $user["phone"],
+        "is_account_owner" => $user["is_account_owner"]
     ]
 ]);

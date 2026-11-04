@@ -15,14 +15,7 @@ if (!$token || !$surveyId) {
     exit;
 }
 
-$stmt = $pdo->prepare("
-    SELECT id, name, email, approved
-    FROM users
-    WHERE session_token = ?
-    LIMIT 1
-");
-$stmt->execute([$token]);
-$user = $stmt->fetch();
+$user = clientFromSessionToken($pdo, $token);
 
 if (!$user || (int)$user["approved"] !== 1) {
     echo json_encode(["success" => false, "message" => "Unauthorized"]);
@@ -37,7 +30,7 @@ $stmt = $pdo->prepare("
       AND status IN ('pending', 'completed')
     LIMIT 1
 ");
-$stmt->execute([$surveyId, $user["id"]]);
+$stmt->execute([$surveyId, $user["account_id"]]);
 $survey = $stmt->fetch();
 
 if (!$survey) {
@@ -65,7 +58,7 @@ if ($survey["status"] === "completed") {
         WHERE sr.survey_id = ? AND sr.user_id = ?
         ORDER BY sa.id ASC
     ");
-    $aStmt->execute([$surveyId, $user["id"]]);
+    $aStmt->execute([$surveyId, $user["account_id"]]);
     $answers = $aStmt->fetchAll();
 
     // survey_answers only stores the file name, so the actual upload has to be
@@ -77,17 +70,22 @@ if ($survey["status"] === "completed") {
         WHERE sr.survey_id = ? AND suf.user_id = ?
         ORDER BY suf.id ASC
     ");
-    $fStmt->execute([$surveyId, $user["id"]]);
+    $fStmt->execute([$surveyId, $user["account_id"]]);
 
     foreach ($fStmt->fetchAll() as $f) {
         $files[(int)$f["question_id"]] = $f;
     }
 }
 
+$stmt = $pdo->prepare("SELECT submitted_by_name FROM survey_responses WHERE survey_id = ? AND user_id = ? ORDER BY id DESC LIMIT 1");
+$stmt->execute([$surveyId, $user["account_id"]]);
+$submittedBy = $stmt->fetchColumn() ?: null;
+
 echo json_encode([
     "success" => true,
     "survey" => $survey,
     "questions" => $questions,
     "answers" => $answers,
-    "files" => (object)$files
+    "files" => (object)$files,
+    "submitted_by" => $submittedBy
 ]);

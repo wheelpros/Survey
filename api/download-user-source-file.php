@@ -5,16 +5,7 @@ require_once "db.php";
 $token=$_GET["token"] ?? "";
 $fileId=(int)($_GET["id"] ?? 0);
 
-$stmt=$pdo->prepare("
-SELECT id
-FROM users
-WHERE session_token=?
-LIMIT 1
-");
-
-$stmt->execute([$token]);
-
-$user=$stmt->fetch();
+$user = clientFromSessionToken($pdo, $token);
 
 if(!$user){
     exit("Unauthorized");
@@ -37,7 +28,7 @@ LIMIT 1
 ");
 
 $stmt->execute([
-    $user["id"],
+    $user["account_id"],
     $fileId
 ]);
 

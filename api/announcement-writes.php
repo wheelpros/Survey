@@ -87,8 +87,9 @@ function announcementRecipientIds(PDO $pdo, $senderId, $audience, $scope, array 
             $stmt = $pdo->prepare("SELECT id FROM admins WHERE active = 1 AND id <> ? AND id IN ($marks)");
             $stmt->execute(array_merge([(int) $senderId], $posted));
         } else {
-            $stmt = $pdo->prepare("SELECT id FROM users WHERE approved = 1 AND id IN ($marks)");
-            $stmt->execute($posted);
+            // Staff pick an account, and everyone on it gets the announcement.
+            $stmt = $pdo->prepare("SELECT id FROM users WHERE approved = 1 AND (id IN ($marks) OR account_owner_id IN ($marks))");
+            $stmt->execute(array_merge($posted, $posted));
         }
         $ids = array_map("intval", $stmt->fetchAll(PDO::FETCH_COLUMN));
     }

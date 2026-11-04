@@ -38,7 +38,7 @@ const ME_PROJECT_SELECT = "
 $id = v1IntParam("id");
 if ($id !== null) {
     $stmt = $pdo->prepare(ME_PROJECT_SELECT . " WHERE p.id = ? AND p.client_id = ? LIMIT 1");
-    $stmt->execute([$id, $p["id"]]);
+    $stmt->execute([$id, $p["account_id"]]);
     $project = $stmt->fetch();
     if (!$project) {
         v1Error(404, "not_found", "No project of yours with that id.");
@@ -51,7 +51,7 @@ if ($id !== null) {
         WHERE t.project_id = ? AND " . TASK_IS_LIVE_SQL . "
         ORDER BY t.scheduled_date IS NULL, t.scheduled_date ASC, t.id DESC
     ");
-    $stmt->execute([$p["id"], $id]);
+    $stmt->execute([$p["account_id"], $id]);
 
     $data = meProjectItem($project);
     $data["untrusted_content"] = ["description" => v1PlainText($project["description"] ?? "", 4000)];
@@ -71,5 +71,5 @@ if ($id !== null) {
 }
 
 $stmt = $pdo->prepare(ME_PROJECT_SELECT . " WHERE p.client_id = ? ORDER BY p.start_date DESC, p.id DESC");
-$stmt->execute([$p["id"]]);
+$stmt->execute([$p["account_id"]]);
 v1Reply(200, ["items" => array_map("meProjectItem", $stmt->fetchAll())]);

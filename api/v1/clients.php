@@ -35,10 +35,11 @@ if ($id === null) {
     $limit = v1Limit();
     $after = v1IdCursor();
 
-    $parts = [v1ClientScopeSql($p, "u.id")];
+    $parts = [v1ClientScopeSql($p, "u.id"), ["u.account_owner_id IS NULL", []]];
     if ($query !== "") {
         $like = "%" . $query . "%";
-        $parts[] = ["(u.name LIKE ? OR u.email LIKE ? OR u.company_name LIKE ?)", [$like, $like, $like]];
+        $parts[] = ["(u.name LIKE ? OR u.email LIKE ? OR u.company_name LIKE ?
+            OR EXISTS (SELECT 1 FROM users t WHERE t.account_owner_id = u.id AND (t.name LIKE ? OR t.email LIKE ?)))", [$like, $like, $like, $like, $like]];
     }
     if ($after !== null) {
         $parts[] = ["u.id < ?", [$after]];

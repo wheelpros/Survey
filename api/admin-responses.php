@@ -61,10 +61,11 @@ $sql = "
         sr.user_id,
         sr.submitted_at,
         sr.survey_title,
-        u.name,
-        u.email
+        COALESCE(sr.submitted_by_name, u.name) AS name,
+        COALESCE(s.email, u.email) AS email
     FROM survey_responses sr
     INNER JOIN users u ON u.id = sr.user_id
+    LEFT JOIN users s ON s.id = sr.submitted_by_id
 ";
 
 $params = [];

@@ -76,6 +76,22 @@ const USER_PROFILE_COLUMNS = [
 ];
 
 /*
+| The column in each table that says which client a row belongs to, holding
+| that client's users.id. The names differ, so nothing can find them by
+| looking for `user_id`: delete-client.php erases through this list.
+*/
+const CLIENT_TENANT_COLUMNS = [
+    "surveys"                => "assigned_user_id",
+    "survey_responses"       => "user_id",
+    "survey_uploaded_files"  => "user_id",
+    "appointments"           => "user_id",
+    "projects"               => "client_id",
+    "user_source_files"      => "user_id",
+    "admin_user_assignments" => "user_id",
+    "client_admin_notes"     => "user_id",
+];
+
+/*
 | What an admin is called in the sidebar and the account popup: their job
 | ("SEO Specialist"), set when the owner adds them and editable on Settings.
 | An admin without one - everybody added before this - shows their name.
@@ -642,6 +658,39 @@ function getSiteSetting(PDO $pdo, $key, $default = "")
     }
 
     return $row["setting_value"];
+}
+
+/*
+| Who this portal says it is. Each install belongs to one company, so nothing
+| that company's clients see may name another one - emails and pages read these,
+| and a new install reads as a plain "Client Portal" until the Director fills
+| them in on Settings.
+*/
+const PORTAL_NAME_DEFAULT = "Client Portal";
+
+/**
+ * The name in emails and page titles. $pdo is optional because the mail helpers
+ * are called from many places that have no connection in hand.
+ */
+function portalName(?PDO $pdo = null)
+{
+    $pdo = $pdo ?? ($GLOBALS["pdo"] ?? null);
+
+    return $pdo ? getSiteSetting($pdo, "portal_name", PORTAL_NAME_DEFAULT) : PORTAL_NAME_DEFAULT;
+}
+
+/**
+ * What api/brand.php hands to every page, signed in or not - so display values
+ * only. legal_name is the footer's "(c) ..."; it falls back to the portal name.
+ */
+function brandSettings(PDO $pdo)
+{
+    return [
+        "portal_name" => portalName($pdo),
+        "legal_name" => getSiteSetting($pdo, "legal_name", ""),
+        "support_email" => getSiteSetting($pdo, "support_email", ""),
+        "support_whatsapp" => getSiteSetting($pdo, "support_whatsapp", ""),
+    ];
 }
 
 /**
@@ -2010,4 +2059,15 @@ function ensureAdminMessageTables(PDO $pdo)
         // Read-only DB user: run sql/admin_messages.sql by hand. Until then
         // the Messages page says it can't load.
     }
+}
+
+/*
+| Client teams. Run here rather than endpoint by endpoint because every client
+| lookup and every staff client list reads these columns. The test runner calls
+| it itself, after it has rebuilt the tables.
+*/
+require_once __DIR__ . "/client-account.php";
+
+if (PHP_SAPI !== "cli") {
+    ensureClientTeamSchema($pdo);
 }

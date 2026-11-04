@@ -222,6 +222,7 @@ function scopedClients(PDO $pdo, array $admin)
         $stmt = $pdo->query("
             SELECT id, name, email, company_name
             FROM users
+            WHERE account_owner_id IS NULL
             ORDER BY name ASC
         ");
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -231,7 +232,7 @@ function scopedClients(PDO $pdo, array $admin)
         SELECT u.id, u.name, u.email, u.company_name
         FROM users u
         INNER JOIN admin_user_assignments a ON a.user_id = u.id
-        WHERE a.admin_id = ?
+        WHERE a.admin_id = ? AND u.account_owner_id IS NULL
         ORDER BY u.name ASC
     ");
     $stmt->execute([$admin["id"]]);

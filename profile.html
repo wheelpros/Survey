@@ -3,7 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Wzone Profile</title>
+    <title>Profile</title>
+<script src="assets/brand.js" defer></script>
 
     <style>
       * {
@@ -556,6 +557,7 @@
           </button>
           <div class="account-menu" role="menu">
             <a role="menuitem" href="profile.html" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Profile</span></a>
+            <a role="menuitem" href="team.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Team</span></a>
             <button role="menuitem" type="button" class="danger" onclick="logout()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>Logout</span></button>
           </div>
         </div>
@@ -619,7 +621,8 @@
               <div class="fields">
                 <div class="field">
                   <label for="fCompany">Company name</label>
-                  <input type="text" id="fCompany" name="company_name" />
+                  <input type="text" id="fCompany" readonly aria-describedby="fCompanyHint" />
+                  <p class="hint" id="fCompanyHint">Ask your account team to change this.</p>
                 </div>
                 <div class="field">
                   <label for="fWebsite">Website</label>
@@ -641,11 +644,17 @@
             </div>
           </form>
 
-          <!-- AI assistants connected to this account through the W|ZONE
+          <div class="card">
+            <h2>Team</h2>
+            <p class="hint">The people at your company who can use this portal, each with their own login.</p>
+            <a class="ghost-btn" href="team.html" style="display:inline-flex;align-items:center;text-decoration:none;margin-top:6px">Open team</a>
+          </div>
+
+          <!-- AI assistants connected to this account through the portal's
                MCP server - listing and disconnecting live on their own page. -->
           <div class="card">
             <h2>Connected apps</h2>
-            <p class="hint">AI assistants you've allowed to use your W|ZONE account. See what each can do, or disconnect it.</p>
+            <p class="hint">AI assistants you've allowed to use your account. See what each can do, or disconnect it.</p>
             <a class="ghost-btn" href="connected-apps.html" style="display:inline-flex;align-items:center;text-decoration:none;margin-top:6px">Manage connected apps</a>
           </div>
         </section>
@@ -689,6 +698,13 @@
         document.getElementById("fCompany").value = user.company_name || "";
         document.getElementById("fWebsite").value = user.website || "";
         document.getElementById("fDescription").value = user.description || "";
+
+        // The company's details are the owner's to change; the server holds to
+        // that too. Older saved sessions have no flag, and count as the owner
+        // until the check-auth reply arrives.
+        const teammate = user.is_account_owner === false;
+        document.getElementById("fWebsite").readOnly = teammate;
+        document.getElementById("fDescription").readOnly = teammate;
 
         document.getElementById("sideName").innerText = user.name || "User";
         paintPhoto(document.getElementById("sideAvatar"), savedImage, user.name);
@@ -766,7 +782,6 @@
         formData.append("name", name);
         formData.append("phone", document.getElementById("fPhone").value.trim());
         formData.append("whatsapp", whatsapp);
-        formData.append("company_name", document.getElementById("fCompany").value.trim());
         formData.append("website", document.getElementById("fWebsite").value.trim());
         formData.append("description", document.getElementById("fDescription").value.trim());
 
