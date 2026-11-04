@@ -572,6 +572,17 @@ export const READ_TOOLS = [
     path: "me/projects.php",
   },
   {
+    name: "my_team",
+    scope: "self:read",
+    title: "My team",
+    description:
+      "The people on your account, who each have their own login, and its pending invites if you " +
+      "own the account. can_manage says whether you do.",
+    input: {},
+    output: S.myTeam,
+    path: "me/team.php",
+  },
+  {
     name: "my_notifications",
     scope: "self:read",
     title: "My notifications",

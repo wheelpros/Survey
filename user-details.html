@@ -101,6 +101,8 @@ td a{color:var(--nav-active);font-weight:700}
 .head-decide .delete-btn{background:#fff;color:var(--brand);border:1px solid #f0d2d4}
 .head-decide .delete-btn:hover{background:#fff5f5}
 .head-decide .btn:disabled{opacity:.55;cursor:not-allowed}
+.merge-row{display:flex;gap:12px;flex-wrap:wrap;align-items:center;padding:16px 28px}
+.merge-row select{min-width:240px;max-width:100%;height:40px}
 .company-match{margin:0;padding:14px 28px;background:#fff8e6;border-top:1px solid #f4e3b5;color:#7a5a00;font-size:13px;font-weight:600}
 @media(max-width:700px){
   .profile-head{align-items:flex-start}
@@ -1373,16 +1375,23 @@ function clientPeoplePanel(data){
   const people = data.people || [];
   const invites = data.invites || [];
 
-  if(!people.length && !invites.length) return "";
+  const canManageAccounts = adminCan("clients.manage_accounts");
+
+  if(!people.length && !invites.length && !canManageAccounts) return "";
 
   const rows = people.map(person => `
     <tr>
       <td dir="auto">${esc(person.name)}</td>
       <td>${esc(person.email)}</td>
       <td>Joined ${formatDate(person.joined_at)}</td>
-      <td>${canManageClientPeople(data)
-        ? `<button class="btn action-btn" type="button" data-person="${Number(person.id)}" data-name="${esc(person.name)}" onclick="removeClientPerson(this)">Remove</button>`
-        : ""}</td>
+      <td><div class="actions">
+        ${canManageAccounts
+          ? `<button class="btn action-btn" type="button" data-person="${Number(person.id)}" data-name="${esc(person.name)}" onclick="makeClientOwner(this)">Make owner</button>`
+          : ""}
+        ${canManageClientPeople(data)
+          ? `<button class="btn action-btn" type="button" data-person="${Number(person.id)}" data-name="${esc(person.name)}" onclick="removeClientPerson(this)">Remove</button>`
+          : ""}
+      </div></td>
     </tr>`).concat(invites.map(invite => `
     <tr>
       <td>Invited</td>
@@ -1397,8 +1406,91 @@ function clientPeoplePanel(data){
         <h2>Client's people</h2>
         <p>Teammates the account owner has added. Each has their own login to this client's account.</p>
       </div>
-      <div class="table-wrap"><table><tbody>${rows}</tbody></table></div>
+      ${rows ? `<div class="table-wrap"><table><tbody>${rows}</tbody></table></div>` : ""}
+      ${canManageAccounts ? `
+        <div class="merge-row">
+          <button class="btn action-btn" type="button" onclick="startClientMerge()">Merge another account into this one</button>
+          <select id="mergeSource" aria-label="Account to merge in" hidden onchange="previewClientMerge(this.value)"></select>
+        </div>` : ""}
     </div>`;
+}
+
+async function clientAccountAction(body){
+  const res = await fetch("api/admin-user-details.php", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: "Bearer " + adminToken
+    },
+    body: JSON.stringify(Object.assign({ id: Number(userId) }, body))
+  });
+
+  return res.json();
+}
+
+async function makeClientOwner(button){
+  const ok = await askConfirm({
+    title : "Change the account's owner",
+    text  : button.dataset.name + " will manage this account's team and company details. The current owner becomes a teammate. Both stay signed in as themselves.",
+    action: "Make owner",
+    word  : "OWNER"
+  });
+
+  if(!ok) return;
+
+  const data = await clientAccountAction({ action: "change_owner", person_id: Number(button.dataset.person) });
+
+  alert(data.message);
+
+  if(data.success) window.location.reload();
+}
+
+async function startClientMerge(){
+  const select = document.getElementById("mergeSource");
+
+  const res = await fetch("api/admin-users.php", { headers: { Authorization: "Bearer " + adminToken } });
+  const data = await res.json();
+
+  const accounts = (data.users || []).filter(user => Number(user.approved) === 1 && Number(user.id) !== Number(userId));
+
+  select.innerHTML = `<option value="">Choose an account...</option>` + accounts.map(user =>
+    `<option value="${Number(user.id)}" dir="auto">${esc(user.company_name || user.name)} (${esc(user.email)})</option>`
+  ).join("");
+  select.hidden = false;
+  select.focus();
+}
+
+async function previewClientMerge(sourceId){
+  if(!sourceId) return;
+
+  const preview = await clientAccountAction({ action: "merge_preview", source_id: Number(sourceId) });
+
+  if(!preview.success){
+    alert(preview.message);
+    return;
+  }
+
+  const plan = preview.plan;
+  const counts = plan.counts;
+
+  const ok = await askConfirm({
+    title : "Merge accounts",
+    text  : (plan.source.company_name || plan.source.name) + " will move into this account: "
+          + counts.people + " people, " + counts.forms + " forms, " + counts.projects + " projects, "
+          + counts.meetings + " meetings and " + counts.files + " files. "
+          + (plan.names_differ ? "Their company names are different, so check these really are the same company. " : "")
+          + "This cannot be undone.",
+    action: "Merge accounts",
+    word  : "MERGE"
+  });
+
+  if(!ok) return;
+
+  const data = await clientAccountAction({ action: "merge", source_id: Number(sourceId) });
+
+  alert(data.message);
+
+  if(data.success) window.location.reload();
 }
 
 function canManageClientPeople(data){

@@ -157,6 +157,9 @@ $pdo->beginTransaction();
 
 try {
 
+    // Uploads moved here by a merge stay in the old account's folder.
+    $surveyUploads = clientRowValues($pdo, $byTable, "survey_uploaded_files", "file_path", "user_id = ?", [$userId]);
+
     // Forms, with their questions, answers and upload records.
     $surveyIds = clientRowValues($pdo, $byTable, "surveys", "id", "assigned_user_id = ?", [$userId]);
     $responseIds = clientRowValues($pdo, $byTable, "survey_responses", "id", "user_id = ?", [$userId]);
@@ -271,6 +274,16 @@ try {
 | live under one folder named for their id (survey-submit.php).
 */
 deleteUploadedFiles($files);
+
+$surveyRoot = realpath(dirname(__DIR__) . "/uploads/survey-files");
+
+foreach ($surveyUploads as $path) {
+    $full = realpath((string) $path);
+
+    if ($surveyRoot && $full && strpos($full, $surveyRoot . DIRECTORY_SEPARATOR) === 0) {
+        @unlink($full);
+    }
+}
 
 $surveyFolder = dirname(__DIR__) . "/uploads/survey-files/" . $userId;
 

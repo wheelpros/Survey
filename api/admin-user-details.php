@@ -89,11 +89,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $input = json_decode(file_get_contents("php://input"), true) ?: [];
     $action = $input["action"] ?? "";
 
-    if (!in_array($action, ["save_notes", "save_details", "remove_teammate"], true)) {
+    if (!in_array($action, ["save_notes", "save_details", "remove_teammate", "change_owner", "merge_preview", "merge"], true)) {
         respond(false, "Unknown action.", [], 400);
     }
 
-    if (!$canEditDetails) {
+    $accountAction = in_array($action, ["change_owner", "merge_preview", "merge"], true);
+
+    if ($accountAction && !can($admin, "clients.manage_accounts", $pdo)) {
+        respond(false, "Only the Director can change a client's owner or merge accounts.", [], 403);
+    }
+
+    if (!$canEditDetails && !$accountAction) {
         respond(false, "Only an account manager or the Director can edit a client.", [], 403);
     }
 
@@ -120,6 +126,29 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     | number saved here and a number saved there end up in the same shape.
     |
     */
+
+    if ($accountAction) {
+        require_once "client-account-writes.php";
+
+        $sourceId = (int) ($input["source_id"] ?? 0);
+
+        try {
+            if ($action === "change_owner") {
+                $done = changeClientOwner($pdo, $admin, $targetId, (int) ($input["person_id"] ?? 0));
+                respond(true, $done["new_owner"] . " is now the owner of this account.");
+            }
+
+            if ($action === "merge_preview") {
+                respond(true, "", ["plan" => clientMergePlan($pdo, $sourceId, $targetId)]);
+            }
+
+            $plan = mergeClientAccounts($pdo, $admin, $sourceId, $targetId);
+            respond(true, $plan["source"]["name"] . "'s account has been merged into this one.");
+
+        } catch (PortalWriteError $e) {
+            respond(false, $e->getMessage(), [], $e->status);
+        }
+    }
 
     /*
     | Taking someone off a client's team - the same as the owner doing it, plus

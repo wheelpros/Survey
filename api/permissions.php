@@ -50,6 +50,7 @@ const PERMISSIONS = [
     "clients.edit"       => ["area" => "clients", "label" => "Edit client details and internal notes", "roles" => ["account_manager"]],
     "clients.approve"    => ["area" => "clients", "label" => "Approve or reject new registrations", "roles" => []],
     "clients.delete"     => ["area" => "clients", "label" => "Delete a client", "roles" => []],
+    "clients.manage_accounts" => ["area" => "clients", "label" => "Change a client's owner or merge client accounts", "roles" => []],
 
     // Forms
     "forms.review"       => ["area" => "forms", "label" => "See every form and approve or return them", "roles" => ["account_manager"]],

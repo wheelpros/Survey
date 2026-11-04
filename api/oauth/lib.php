@@ -77,7 +77,7 @@ const SCOPE_DESCRIPTIONS = [
     "admins:write"        => "Add and edit admins (name, email, position, role), switch them on or off, and assign them to managers",
     "events:read"         => "See Tracking: what every admin changed, and when",
     "self:read"           => "See your meetings, content, forms, projects, notifications and announcements",
-    "self:write"          => "Request and answer meetings, fill in your forms, mark notifications read",
+    "self:write"          => "Request and answer meetings, fill in your forms, mark notifications read, and manage your team if you own the account",
 ];
 
 const OAUTH_REQUEST_TTL = 900;            // to approve or deny on the consent page

@@ -65,6 +65,8 @@ require_once __DIR__ . "/../admin-settings-writes.php";
 require_once __DIR__ . "/../upload-helpers.php";
 require_once __DIR__ . "/../message-writes.php";
 require_once __DIR__ . "/../announcement-writes.php";
+require_once __DIR__ . "/../client-team-writes.php";
+require_once __DIR__ . "/../rate-limit.php";
 
 const V1_CONFIRM_TTL = 900; // 15 minutes to say yes
 
@@ -614,6 +616,35 @@ function savePhaseGallery(PDO $pdo, array $task, array $urls)
     }
     deleteUploadedFiles(array_diff(taskGallery($task), $images));
     return count($images);
+}
+
+/** An open invite on the caller's own account, or a refusal. */
+function openTeamInvite(PDO $pdo, array $p, $inviteId)
+{
+    $owner = clientRow($pdo, $p);
+    requireAccountOwner($owner);
+
+    $stmt = $pdo->prepare("
+        SELECT id, email FROM client_invites
+        WHERE id = ? AND account_id = ? AND accepted_at IS NULL AND revoked_at IS NULL
+        LIMIT 1
+    ");
+    $stmt->execute([(int) $inviteId, $owner["account_id"]]);
+    $invite = $stmt->fetch();
+
+    if (!$invite) {
+        throw new PortalWriteError("That invite is no longer open.", 404);
+    }
+
+    return $invite;
+}
+
+/** The same limit as my-team.php: each of these emails an address someone typed. */
+function requireTeamInviteQuota(PDO $pdo, array $owner)
+{
+    if (rateLimited($pdo, "client-invite:" . (int) $owner["id"], 20, 20, 3600)) {
+        throw new PortalWriteError("That's a lot of invites at once. Try again in a while.", 429);
+    }
 }
 
 /** A client's own users row, for the shared writes that name them. */
@@ -2471,6 +2502,93 @@ function v1WriteHandlers()
         ],
 
         // ── A client's own account ───────────────────────────────────────
+
+        // A client's team
+        // The rules are client-team-writes.php's, the same as team.html's.
+
+        "invite_teammate" => [
+            "scope" => "self:write",
+            "kind" => "user",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                requireAccountOwner(clientRow($pdo, $p));
+                $email = strtolower(argText($a, "email", 190));
+                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    throw new PortalWriteError("That does not look like an email address.");
+                }
+                return [
+                    "args" => ["email" => $email],
+                    "summary" => "Invite " . $email . " to your team. They get an email with a link to set a password, and then see everything on this account.",
+                    "preview" => ["email" => $email],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                $owner = clientRow($pdo, $p);
+                requireTeamInviteQuota($pdo, $owner);
+                $sent = inviteTeammate($pdo, $owner, $a["email"]);
+                return ["invite_id" => $sent["id"], "emailed" => $sent["emailed"]];
+            },
+        ],
+
+        "resend_team_invite" => [
+            "scope" => "self:write",
+            "kind" => "user",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                $invite = openTeamInvite($pdo, $p, argInt($a, "id"));
+                return [
+                    "args" => ["id" => (int) $invite["id"]],
+                    "summary" => "Send " . $invite["email"] . " a new invitation link. The old link stops working.",
+                    "preview" => ["email" => $invite["email"]],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                $owner = clientRow($pdo, $p);
+                requireTeamInviteQuota($pdo, $owner);
+                $sent = resendClientInvite($pdo, $owner, $a["id"]);
+                return ["invite_id" => $sent["id"], "emailed" => $sent["emailed"]];
+            },
+        ],
+
+        "revoke_team_invite" => [
+            "scope" => "self:write",
+            "kind" => "user",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                $invite = openTeamInvite($pdo, $p, argInt($a, "id"));
+                return [
+                    "args" => ["id" => (int) $invite["id"]],
+                    "summary" => "Revoke the invitation sent to " . $invite["email"] . ". Its link stops working.",
+                    "preview" => ["email" => $invite["email"]],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                revokeClientInvite($pdo, clientRow($pdo, $p), $a["id"]);
+                return ["revoked" => true];
+            },
+        ],
+
+        "remove_teammate" => [
+            "scope" => "self:write",
+            "kind" => "user",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                $owner = clientRow($pdo, $p);
+                requireAccountOwner($owner);
+                $id = argInt($a, "id");
+                $stmt = $pdo->prepare("SELECT id, name, email FROM users WHERE id = ? AND account_owner_id = ? LIMIT 1");
+                $stmt->execute([$id, $owner["account_id"]]);
+                $person = $stmt->fetch();
+                if (!$person) {
+                    throw new PortalWriteError("That person isn't on your team.", 404);
+                }
+                return [
+                    "args" => ["id" => (int) $person["id"]],
+                    "summary" => "Remove " . $person["email"] . " from your team. They lose access straight away; what they've already submitted stays on the account.",
+                    "preview" => ["email" => $person["email"], "untrusted_content" => ["name" => $person["name"]]],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                removeTeammate($pdo, clientRow($pdo, $p), $a["id"]);
+                return ["removed" => true];
+            },
+        ],
 
         "request_meeting" => [
             "scope" => "self:write",

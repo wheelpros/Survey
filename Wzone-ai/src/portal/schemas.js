@@ -480,6 +480,28 @@ export const myPhases = {
 
 // ── Notifications ───────────────────────────────────────────────────────
 
+export const myTeam = {
+  people: z.array(
+    z.object({
+      id,
+      name: z.string(),
+      email: z.string(),
+      is_owner: z.boolean(),
+      joined_at: z.string(),
+    }).strict()
+  ),
+  max_teammates: z.number().int(),
+  can_manage: z.boolean(),
+  invites: z.array(
+    z.object({
+      id,
+      email: z.string(),
+      expires_at: z.string(),
+      expired: z.boolean(),
+    }).strict()
+  ),
+};
+
 export const notifications = {
   ...page(
     z.object({
