@@ -239,20 +239,14 @@ function submitSurveyResponse(PDO $pdo, array $user, $surveyId, array $answers, 
 }
 
 /*
-| A copy of every submission to the Google Apps Script that keeps the
-| spreadsheet. SURVEY_WEBHOOK_URL overrides the address; set but empty, it
-| turns the copy off (the api/v1 tests do, so no test answer ever lands in
-| the real sheet).
+| A copy of every submission to a script that keeps a spreadsheet, for an
+| install that wants one: SURVEY_WEBHOOK_URL is its address. There is no
+| default, because one install's answers must never reach another's sheet.
 */
-const SURVEY_WEBHOOK_DEFAULT = "https://script.google.com/macros/s/AKfycby8A1MrVhrB0ebOnDp7p2qJtYz9YH8NcM-KW3NIleEX_meVHvWO2rn_jPtdJXiS79MX/exec";
-
 function sendSurveyToSheet($user, $survey, $answers)
 {
     $url = getenv("SURVEY_WEBHOOK_URL");
-    if ($url === false) {
-        $url = SURVEY_WEBHOOK_DEFAULT;
-    }
-    if ($url === "") {
+    if ($url === false || $url === "") {
         return;
     }
 
@@ -288,9 +282,14 @@ function sendSurveyToSheet($user, $survey, $answers)
     curl_close($ch);
 }
 
+/* The same copy by email, to RESPONSE_COPY_EMAIL if this install sets one. */
 function sendSurveyEmail($user, $survey, $answers)
 {
-    $to = "seowzone@gmail.com";
+    $to = getenv("RESPONSE_COPY_EMAIL");
+    if ($to === false || $to === "") {
+        return;
+    }
+
     $subject = "New Survey Response - " . $survey["title"];
 
     $csv = "User Name,User Email,Survey Title\n";
@@ -306,7 +305,9 @@ function sendSurveyEmail($user, $survey, $answers)
     $fileName = "survey-response-" . date("Y-m-d-H-i-s") . ".csv";
     $boundary = md5(time());
 
-    $headers = "From: W Zone Portal <no-reply@wzone.local>\r\n";
+    // The name comes from Settings: no line breaks may reach the header.
+    $fromName = str_replace(["\r", "\n"], "", portalName());
+    $headers = "From: " . $fromName . " <" . (string) getenv("SMTP_USER") . ">\r\n";
     $headers .= "MIME-Version: 1.0\r\n";
     $headers .= "Content-Type: multipart/mixed; boundary=\"" . $boundary . "\"\r\n";
 

@@ -3,8 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Wzone - Help Center</title>
-    <meta name="description" content="Get help with Wzone. Browse guides, FAQs, and contact our support team." />
+    <title>Help Center</title>
+<script src="assets/brand.js" defer></script>
+    <meta name="description" content="Get help with the portal. Browse guides, FAQs, and contact our support team." />
 
     <style>
       * {
@@ -719,26 +720,26 @@
           </div>
 
           <!-- Contact Us -->
-          <div class="contact-section">
+          <div class="contact-section" data-brand-section hidden>
             <div class="section-label">CONTACT US</div>
             <h2 class="section-title">Still need help? Pick the channel that works for you</h2>
 
             <div class="contact-grid">
-              <div class="contact-card">
+              <div class="contact-card" data-brand-card hidden>
                 <div class="contact-icon">💬</div>
                 <div>
                   <h4>WhatsApp Support</h4>
                   <p>Live chat with a specialist within minutes.</p>
-                  <a href="https://wa.me/447733366986" target="_blank" class="contact-btn whatsapp">Open Chat</a>
+                  <a data-brand-support="whatsapp" target="_blank" rel="noopener" class="contact-btn whatsapp">Open Chat</a>
                 </div>
               </div>
 
-              <div class="contact-card">
+              <div class="contact-card" data-brand-card hidden>
                 <div class="contact-icon">✉</div>
                 <div>
                   <h4>Email</h4>
                   <p>Send us the details and we will get back to you.</p>
-                  <a href="mailto:info@wzone.london" class="contact-btn email">Open Email</a>
+                  <a data-brand-support="email" class="contact-btn email">Open Email</a>
                 </div>
               </div>
             </div>

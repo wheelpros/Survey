@@ -380,7 +380,7 @@ if ($action === "forgot") {
 
     $stmt->execute([$token, $admin["id"]]);
 
-    $resetLink = "https://survey.websitezone.co.uk/sources-reset.html?token=" . $token;
+    $resetLink = APP_URL . "/sources-reset.html?token=" . $token;
 
     $mail = new PHPMailer\PHPMailer\PHPMailer(true);
 
@@ -392,7 +392,7 @@ if ($action === "forgot") {
             throw new RuntimeException("Mail is not configured");
         }
 
-        $mail->setFrom($mail->Username, "Survey from WZone");
+        $mail->setFrom($mail->Username, portalName($pdo));
         $mail->addAddress($admin["email"], $admin["name"]);
 
         $mail->isHTML(true);

@@ -24,6 +24,7 @@ RUN { \
 # (docker/cache-headers.conf). mod_headers is off in this image by default.
 RUN a2enmod headers
 COPY docker/cache-headers.conf /etc/apache2/conf-enabled/cache-headers.conf
+COPY docker/site-files.conf /etc/apache2/conf-enabled/site-files.conf
 
 COPY . /var/www/html/
 

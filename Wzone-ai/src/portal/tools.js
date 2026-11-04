@@ -586,7 +586,7 @@ export const READ_TOOLS = [
     scope: "self:read",
     title: "One announcement",
     description:
-      "An announcement W|ZONE sent you, in full - the notification only carries a preview. The id is the " +
+      "An announcement your account team sent you, in full - the notification only carries a preview. The id is the " +
       "notification's announcement_id.",
     input: { id: recordId("The announcement_id from my_notifications") },
     output: S.announcement,

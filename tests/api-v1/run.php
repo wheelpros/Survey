@@ -248,7 +248,7 @@ $server = proc_open(
     // run must never log in to the real mail account or send anything.
     // SURVEY_WEBHOOK_URL empty: no test answer ever reaches the real Google
     // sheet a submitted form is copied to.
-    array_merge(getenv(), ["MCP_UPSTREAM_KEY" => $mcpKey, "SMTP_HOST" => "127.0.0.1", "SMTP_PORT" => "9", "SURVEY_WEBHOOK_URL" => ""])
+    array_merge(getenv(), ["MCP_UPSTREAM_KEY" => $mcpKey, "APP_URL" => "http://portal.test", "SMTP_HOST" => "127.0.0.1", "SMTP_PORT" => "9"])
 );
 register_shutdown_function(function () use ($server) {
     proc_terminate($server);
@@ -612,6 +612,7 @@ require __DIR__ . "/messages.php";
 require __DIR__ . "/positions.php";
 require __DIR__ . "/clients.php";
 require __DIR__ . "/client-safety.php";
+require __DIR__ . "/branding.php";
 require __DIR__ . "/settings.php";
 require __DIR__ . "/events.php";
 require __DIR__ . "/permissions.php";

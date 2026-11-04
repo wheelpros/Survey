@@ -660,6 +660,39 @@ function getSiteSetting(PDO $pdo, $key, $default = "")
     return $row["setting_value"];
 }
 
+/*
+| Who this portal says it is. Each install belongs to one company, so nothing
+| that company's clients see may name another one - emails and pages read these,
+| and a new install reads as a plain "Client Portal" until the Director fills
+| them in on Settings.
+*/
+const PORTAL_NAME_DEFAULT = "Client Portal";
+
+/**
+ * The name in emails and page titles. $pdo is optional because the mail helpers
+ * are called from many places that have no connection in hand.
+ */
+function portalName(?PDO $pdo = null)
+{
+    $pdo = $pdo ?? ($GLOBALS["pdo"] ?? null);
+
+    return $pdo ? getSiteSetting($pdo, "portal_name", PORTAL_NAME_DEFAULT) : PORTAL_NAME_DEFAULT;
+}
+
+/**
+ * What api/brand.php hands to every page, signed in or not - so display values
+ * only. legal_name is the footer's "(c) ..."; it falls back to the portal name.
+ */
+function brandSettings(PDO $pdo)
+{
+    return [
+        "portal_name" => portalName($pdo),
+        "legal_name" => getSiteSetting($pdo, "legal_name", ""),
+        "support_email" => getSiteSetting($pdo, "support_email", ""),
+        "support_whatsapp" => getSiteSetting($pdo, "support_whatsapp", ""),
+    ];
+}
+
 /**
  * Writes one setting. Returns false when the write did not happen, so the
  * caller can say so instead of reporting a save that never landed, and fills

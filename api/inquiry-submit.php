@@ -49,7 +49,7 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
 }
 
 if (!isMcpServer()) {
-    reply(403, ["success" => false, "message" => "This endpoint is only for the W|ZONE MCP server"]);
+    reply(403, ["success" => false, "message" => "This endpoint is only for the MCP server"]);
 }
 
 if (rateLimited($pdo, "inquiry-submit-mcp", MCP_SUBMIT_MAX_PER_MINUTE, MCP_SUBMIT_MAX_PER_MINUTE)) {
