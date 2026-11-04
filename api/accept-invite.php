@@ -55,4 +55,4 @@ try {
     acceptReply(false, $e->getMessage(), [], $e->status);
 }
 
-acceptReply(true, "You're on the team. Sign in with your email and new password.", ["email" => $invite["email"]]);
+acceptReply(true, "Sign in with your email and new password to get started.", ["email" => $invite["email"]]);

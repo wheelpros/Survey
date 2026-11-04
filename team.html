@@ -505,14 +505,56 @@
   <style>
     .team-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
     .team-head h2 { margin: 0; }
-    .team-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-    .team-table th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 700; padding: 10px 12px; border-bottom: 1px solid var(--line); }
-    .team-table td { padding: 12px; border-bottom: 1px solid var(--line); vertical-align: middle; overflow-wrap: anywhere; }
-    .team-table tr:last-child td { border-bottom: none; }
-    .team-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
-    .team-actions .ghost-btn, .team-head .save-btn { white-space: nowrap; }
-    .team-role { color: var(--muted); }
+    .team-head .save-btn { white-space: nowrap; }
     .team-empty { color: var(--muted); font-size: 14px; padding: 8px 0; }
+
+    /* One list for people and invites. It answers to the card's own width, not
+       the screen's, so the sidebar opening or closing lays it out correctly too. */
+    .card { container-type: inline-size; }
+    .team-list { list-style: none; margin: 0; padding: 0; }
+    .team-row {
+      display: grid;
+      grid-template-columns: 40px minmax(0, 1fr) 150px var(--team-actions, auto);
+      align-items: center;
+      gap: 4px 14px;
+      padding: 14px 0;
+      border-top: 1px solid var(--line);
+    }
+    .team-row:last-child { padding-bottom: 0; }
+    .team-initial {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #eef0f6;
+      color: var(--nav-active);
+      font-size: 15px;
+      font-weight: 700;
+    }
+    .team-who { min-width: 0; }
+    .team-who strong { display: block; font-size: 14px; overflow-wrap: anywhere; }
+    .team-who span { display: block; margin-top: 2px; font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+    .team-meta { font-size: 13px; color: var(--muted); white-space: nowrap; }
+    .team-meta b { display: block; color: var(--text); font-weight: 700; }
+    .team-actions { display: flex; gap: 8px; }
+    .team-actions { justify-content: flex-end; }
+    .team-actions:empty { display: none; }
+    #people { --team-actions: 92px; }
+    #invites { --team-actions: 172px; }
+    .team-actions .ghost-btn { min-height: 40px; white-space: nowrap; }
+
+    @container (max-width: 560px) {
+      .team-head .save-btn { width: 100%; }
+      .team-row { grid-template-columns: 40px minmax(0, 1fr); }
+      .team-meta { grid-column: 2; white-space: normal; }
+      .team-meta b { display: inline; }
+      .team-meta b::after { content: " · "; color: var(--muted); font-weight: 400; }
+      .team-actions { grid-column: 1 / -1; margin-top: 10px; justify-content: stretch; }
+      .team-actions .ghost-btn { flex: 1; min-height: 44px; }
+    }
+
     #inviteBox label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px; }
     #inviteBox input { width: 100%; height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 16px; }
     #inviteBox form { padding: 20px 24px 24px; }
@@ -676,7 +718,7 @@
         const held = teammates + team.invites.filter(i => !i.expired).length;
 
         document.getElementById("seats").innerText = team.can_manage
-          ? `${held} of ${team.max_teammates} teammates added`
+          ? `${held} of ${team.max_teammates} teammate places used`
           : "The account owner manages the team.";
 
         const inviteBtn = document.getElementById("inviteBtn");
@@ -685,35 +727,31 @@
         inviteBtn.title = inviteBtn.disabled ? "Remove someone or revoke an invite to add another." : "";
 
         document.getElementById("people").innerHTML = `
-          <table class="team-table">
-            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Joined</th>${team.can_manage ? "<th></th>" : ""}</tr></thead>
-            <tbody>${team.people.map(p => `
-              <tr>
-                <td dir="auto">${esc(p.name)}</td>
-                <td>${esc(p.email)}</td>
-                <td class="team-role">${p.is_owner ? "Owner" : "Teammate"}</td>
-                <td>${esc(formatDate(p.joined_at))}</td>
-                ${team.can_manage ? `<td><div class="team-actions">${p.is_owner ? "" :
-                  `<button class="ghost-btn" type="button" data-remove="${Number(p.id)}" data-name="${esc(p.name)}">Remove</button>`}</div></td>` : ""}
-              </tr>`).join("")}
-            </tbody>
-          </table>`;
+          <ul class="team-list">${team.people.map(p => `
+            <li class="team-row">
+              <div class="team-initial" aria-hidden="true">${esc(String(p.name).charAt(0).toUpperCase())}</div>
+              <div class="team-who">
+                <strong dir="auto">${esc(p.name)}</strong>
+                <span>${esc(p.email)}</span>
+              </div>
+              <div class="team-meta"><b>${p.is_owner ? "Owner" : "Teammate"}</b>Joined ${esc(formatDate(p.joined_at))}</div>
+              ${team.can_manage ? `<div class="team-actions">${p.is_owner ? "" : `<button class="ghost-btn" type="button" data-remove="${Number(p.id)}" data-name="${esc(p.name)}" aria-label="Remove ${esc(p.name)}">Remove</button>`}</div>` : ""}
+            </li>`).join("")}
+          </ul>`;
 
         document.getElementById("invitesCard").hidden = !team.invites.length;
         document.getElementById("invites").innerHTML = !team.invites.length ? "" : `
-          <table class="team-table">
-            <thead><tr><th>Email</th><th>Status</th><th></th></tr></thead>
-            <tbody>${team.invites.map(i => `
-              <tr>
-                <td>${esc(i.email)}</td>
-                <td class="team-role">${i.expired ? "Expired" : "Expires " + esc(formatDate(i.expires_at))}</td>
-                <td><div class="team-actions">
-                  <button class="ghost-btn" type="button" data-resend="${Number(i.id)}">Resend</button>
-                  <button class="ghost-btn" type="button" data-revoke="${Number(i.id)}" data-email="${esc(i.email)}">Revoke</button>
-                </div></td>
-              </tr>`).join("")}
-            </tbody>
-          </table>`;
+          <ul class="team-list">${team.invites.map(i => `
+            <li class="team-row">
+              <div class="team-initial" aria-hidden="true">${esc(String(i.email).charAt(0).toUpperCase())}</div>
+              <div class="team-who"><strong>${esc(i.email)}</strong></div>
+              <div class="team-meta"><b>${i.expired ? "Expired" : "Pending"}</b>${i.expired ? "" : "Until " + esc(formatDate(i.expires_at))}</div>
+              <div class="team-actions">
+                <button class="ghost-btn" type="button" data-resend="${Number(i.id)}" aria-label="Resend the invite to ${esc(i.email)}">Resend</button>
+                <button class="ghost-btn" type="button" data-revoke="${Number(i.id)}" data-email="${esc(i.email)}" aria-label="Revoke the invite to ${esc(i.email)}">Revoke</button>
+              </div>
+            </li>`).join("")}
+          </ul>`;
       }
 
       async function api(body) {
