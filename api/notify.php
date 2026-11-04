@@ -41,6 +41,7 @@ const NOTIFY_CONTENT_ASSIGNED     = "content_assigned";
 const NOTIFY_ANNOUNCEMENT         = "announcement";
 const NOTIFY_PROJECT_ASSIGNED     = "project_assigned";
 const NOTIFY_PROJECT_UPDATE       = "project_update";
+const NOTIFY_CLIENT_TEAM_CHANGED  = "client_team_changed";
 
 /**
  * One row for one recipient. $kind is 'user' or 'admin', naming the table
@@ -207,6 +208,31 @@ function reviewerAdminIds(PDO $pdo): array
 }
 
 /**
+ * One notification for each person on a client account, each with their own
+ * read state. Same rule as notify(): never inside a transaction.
+ */
+function notifyClientAccount(
+    PDO $pdo,
+    int $accountId,
+    string $type,
+    string $title,
+    string $body = "",
+    string $link = "",
+    string $actorKind = "",
+    int $actorId = 0
+) {
+    try {
+        $people = clientAccountPeopleIds($pdo, $accountId);
+    } catch (Throwable $e) {
+        return;
+    }
+
+    foreach ($people as $id) {
+        notify($pdo, "user", $id, $type, $title, $body, $link, $actorKind, $actorId);
+    }
+}
+
+/**
  * Every approved client who would actually see this post on content.html.
  *
  * The audience test user-content.php applies in reverse: a blank client means
@@ -234,9 +260,13 @@ function notifyUsersAtCompany(
             $stmt = $pdo->query("SELECT id FROM users WHERE approved = 1");
         } else {
             $stmt = $pdo->prepare("
-                SELECT id FROM users WHERE approved = 1 AND company_name = ?
+                SELECT id FROM users
+                WHERE approved = 1 AND (
+                    company_name = ?
+                    OR account_owner_id IN (SELECT o.id FROM (SELECT id, company_name FROM users WHERE approved = 1) o WHERE o.company_name = ?)
+                )
             ");
-            $stmt->execute([$company]);
+            $stmt->execute([$company, $company]);
         }
         $ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
     } catch (Throwable $e) {

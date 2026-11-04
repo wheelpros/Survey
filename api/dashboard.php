@@ -17,15 +17,7 @@ if (!$token) {
     exit;
 }
 
-$stmt = $pdo->prepare("
-    SELECT id, name, email, approved, profile_image
-    FROM users
-    WHERE session_token = ?
-    LIMIT 1
-");
-
-$stmt->execute([$token]);
-$user = $stmt->fetch();
+$user = clientFromSessionToken($pdo, $token);
 
 if (!$user || (int)$user["approved"] !== 1) {
     echo json_encode([
@@ -35,7 +27,7 @@ if (!$user || (int)$user["approved"] !== 1) {
     exit;
 }
 
-$userId = $user["id"];
+$userId = $user["account_id"];
 
 // Only forms released to the client. "pending_review" is still with a
 // reviewer and "rejected" was sent back to its creator: the client never

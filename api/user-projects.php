@@ -99,18 +99,9 @@ $token = trim($matches[1]);
 
 try {
 
-    $stmt = $pdo->prepare("
-        SELECT id, approved
-        FROM users
-        WHERE session_token = ?
-        LIMIT 1
-    ");
+    $user = clientFromSessionToken($pdo, $token);
 
-    $stmt->execute([$token]);
-
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$user || (int) $user["approved"] !== 1) {
+    if (!$user) {
         response(false, "Invalid session token.", EMPTY_LIST, 401);
     }
 
@@ -118,7 +109,7 @@ try {
     response(false, "Authentication database error.", EMPTY_LIST, 500);
 }
 
-$clientId = (int) $user["id"];
+$clientId = (int) $user["account_id"];
 
 ensureProjectTables($pdo);
 ensureNotificationsTable($pdo);

@@ -2060,3 +2060,14 @@ function ensureAdminMessageTables(PDO $pdo)
         // the Messages page says it can't load.
     }
 }
+
+/*
+| Client teams. Run here rather than endpoint by endpoint because every client
+| lookup and every staff client list reads these columns. The test runner calls
+| it itself, after it has rebuilt the tables.
+*/
+require_once __DIR__ . "/client-account.php";
+
+if (PHP_SAPI !== "cli") {
+    ensureClientTeamSchema($pdo);
+}

@@ -78,9 +78,7 @@ if (!$token) {
 // and MySQL commits implicitly around DDL. Same rule api/notify.php states.
 ensureAnnouncementsTable($pdo);
 
-$stmt = $pdo->prepare("SELECT id FROM users WHERE session_token = ? LIMIT 1");
-$stmt->execute([$token]);
-$user = $stmt->fetch(PDO::FETCH_ASSOC);
+$user = clientFromSessionToken($pdo, $token);
 
 $admin = null;
 
@@ -139,7 +137,7 @@ if ($action === "recipients") {
     $stmt = $pdo->query("
         SELECT id, name, email, company_name
         FROM users
-        WHERE approved = 1
+        WHERE approved = 1 AND account_owner_id IS NULL
         ORDER BY name ASC
     ");
     $clients = $stmt->fetchAll(PDO::FETCH_ASSOC);

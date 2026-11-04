@@ -54,11 +54,9 @@ $admin = $stmt->fetch(PDO::FETCH_ASSOC);
 
 $client = null;
 if (!$admin) {
-    $stmt = $pdo->prepare("SELECT id, approved, company_name FROM users WHERE session_token = ? LIMIT 1");
-    $stmt->execute([$token]);
-    $client = $stmt->fetch(PDO::FETCH_ASSOC);
+    $client = clientFromSessionToken($pdo, $token);
 
-    if (!$client || (int) $client["approved"] !== 1) {
+    if (!$client) {
         attachmentFail("Unauthorized.", 401);
     }
 }
@@ -97,7 +95,7 @@ if ($client) {
             WHERE t.id = ? AND p.client_id = ? AND " . TASK_IS_LIVE_SQL . "
             LIMIT 1
         ");
-        $stmt->execute([(int) $file["owner_id"], (int) $client["id"]]);
+        $stmt->execute([(int) $file["owner_id"], (int) $client["account_id"]]);
         $visible = (bool) $stmt->fetchColumn();
     }
 } elseif ($file["owner_type"] === "task" || $file["owner_type"] === CLIENT_PHASE_FILES_OWNER) {

@@ -45,18 +45,9 @@ try {
     ensureUserProfileColumns($pdo);
     ensureContentColumns($pdo);
 
-    $stmt = $pdo->prepare("
-        SELECT id, approved, company_name
-        FROM users
-        WHERE session_token = ?
-        LIMIT 1
-    ");
+    $user = clientFromSessionToken($pdo, $token);
 
-    $stmt->execute([$token]);
-
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$user || (int) $user["approved"] !== 1) {
+    if (!$user) {
         http_response_code(401);
         echo json_encode([
             "success" => false,

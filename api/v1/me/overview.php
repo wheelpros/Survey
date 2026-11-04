@@ -26,7 +26,7 @@ $meetings = $pdo->prepare("
     ORDER BY a.date ASC, a.time ASC
     LIMIT 10
 ");
-$meetings->execute([$p["id"], $today]);
+$meetings->execute([$p["account_id"], $today]);
 $meetings = array_map("meMeetingItem", $meetings->fetchAll());
 
 // Every request W|ZONE sent that the client hasn't answered, however far out.
@@ -37,7 +37,7 @@ $waiting = $pdo->prepare("
     WHERE a.user_id = ? AND a.requested_by = 'admin' AND a.status = 'pending'
     ORDER BY a.date ASC, a.time ASC
 ");
-$waiting->execute([$p["id"]]);
+$waiting->execute([$p["account_id"]]);
 
 // Released and not yet answered - the dashboard's "pending".
 $forms = $pdo->prepare("
@@ -45,7 +45,7 @@ $forms = $pdo->prepare("
     WHERE assigned_user_id = ? AND status = 'pending'
     ORDER BY id DESC
 ");
-$forms->execute([$p["id"]]);
+$forms->execute([$p["account_id"]]);
 
 $company = trim((string) ($me["company_name"] ?? ""));
 $content = $pdo->prepare("
@@ -63,7 +63,7 @@ $projects = $pdo->prepare("
     WHERE p.client_id = ? AND p.status <> 'completed'
     ORDER BY p.start_date DESC, p.id DESC
 ");
-$projects->execute([$p["id"]]);
+$projects->execute([$p["account_id"]]);
 
 $unread = $pdo->prepare("SELECT COUNT(*) FROM notifications WHERE recipient_kind = 'user' AND recipient_id = ? AND read_at IS NULL");
 $unread->execute([$p["id"]]);

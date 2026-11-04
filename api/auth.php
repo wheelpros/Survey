@@ -134,6 +134,8 @@ function principalFromUserRow(array $row)
     return [
         "kind" => "user",
         "id" => (int) $row["id"],
+        "account_id" => (int) $row["account_id"],
+        "is_account_owner" => (bool) $row["is_account_owner"],
         "name" => $row["name"] ?? "",
         "email" => $row["email"] ?? "",
         "role" => "client",
@@ -164,7 +166,8 @@ function loadPrincipal(PDO $pdo, $kind, $id)
         if (!$row || (int) ($row["approved"] ?? 0) !== 1) {
             return null;
         }
-        return principalFromUserRow($row);
+        $row = withClientAccount($pdo, $row);
+        return $row ? principalFromUserRow($row) : null;
     }
 
     return null;
@@ -193,6 +196,10 @@ function principalFromSessionToken(PDO $pdo, $token)
         $stmt->execute([$token]);
         $row = $stmt->fetch();
         if (!$row || (int) ($row["approved"] ?? 0) !== 1) {
+            return null;
+        }
+        $row = withClientAccount($pdo, $row);
+        if (!$row) {
             return null;
         }
         $p = principalFromUserRow($row);
@@ -288,7 +295,7 @@ function assignedClientIds(PDO $pdo, array $p)
 function canSeeClient(PDO $pdo, array $p, $userId)
 {
     if ($p["kind"] === "user") {
-        return (int) $userId === $p["id"];
+        return (int) $userId === $p["account_id"];
     }
     $ids = assignedClientIds($pdo, $p);
     return $ids === null || in_array((int) $userId, $ids, true);

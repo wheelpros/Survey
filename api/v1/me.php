@@ -52,7 +52,7 @@ if ($p["kind"] === "admin") {
         $data["visible_clients"] = "all";
         // Every registration, pending ones included - what search_clients
         // and the Clients page list.
-        $data["visible_client_count"] = (int) $pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
+        $data["visible_client_count"] = (int) $pdo->query("SELECT COUNT(*) FROM users WHERE account_owner_id IS NULL")->fetchColumn();
     } else {
         $data["visible_clients"] = "assigned";
         $data["visible_client_count"] = count($ids);

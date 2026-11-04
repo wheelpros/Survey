@@ -255,7 +255,7 @@ function v1VisibleClient(PDO $pdo, array $p, $userId)
     $stmt = $pdo->prepare("
         SELECT id, name, email, phone, whatsapp, company_name, website, description,
                approved, created_at
-        FROM users WHERE id = ? LIMIT 1
+        FROM users WHERE id = ? AND account_owner_id IS NULL LIMIT 1
     ");
     $stmt->execute([(int) $userId]);
     $row = $stmt->fetch();

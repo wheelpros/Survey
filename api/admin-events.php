@@ -73,7 +73,7 @@ if ($action === "filters") {
     $clients = $pdo->query("
         SELECT id, name, company_name
         FROM users
-        WHERE approved = 1
+        WHERE approved = 1 AND account_owner_id IS NULL
         ORDER BY COALESCE(NULLIF(company_name, ''), name)
     ")->fetchAll(PDO::FETCH_ASSOC);
 

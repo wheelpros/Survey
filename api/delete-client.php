@@ -67,7 +67,7 @@ if (!$userId) {
     deleteReply(false, "User ID required.");
 }
 
-$stmt = $pdo->prepare("SELECT id, name, email, approved FROM users WHERE id = ? LIMIT 1");
+$stmt = $pdo->prepare("SELECT id, name, email, approved, account_owner_id FROM users WHERE id = ? LIMIT 1");
 $stmt->execute([$userId]);
 $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -77,6 +77,10 @@ if (!$user) {
 
 if ((int) $user["approved"] !== 1) {
     deleteReply(false, "This account is still pending. Use Reject instead.");
+}
+
+if (!empty($user["account_owner_id"])) {
+    deleteReply(false, "This person is on a client's team. Remove them from the team instead.");
 }
 
 /*
@@ -206,22 +210,33 @@ try {
         eraseRows($pdo, $byTable, $deleted, $table, "`{$column}` = ?", [$userId]);
     }
 
+    // The rest is per person, so it goes for the owner and each teammate alike.
+    $teammateIds = clientRowValues($pdo, $byTable, "users", "id", "account_owner_id = ?", [$userId]);
+
+    foreach (array_merge([$userId], $teammateIds) as $personId) {
+
     // Notifications address people as a kind plus an id, so a bare user_id
     // match would miss them - and id 5 can be an admin as well as this client.
-    eraseRows($pdo, $byTable, $deleted, "notifications", "recipient_kind = 'user' AND recipient_id = ?", [$userId]);
-    eraseRows($pdo, $byTable, $deleted, "notifications", "actor_kind = 'user' AND actor_id = ?", [$userId]);
+        eraseRows($pdo, $byTable, $deleted, "notifications", "recipient_kind = 'user' AND recipient_id = ?", [$personId]);
+        eraseRows($pdo, $byTable, $deleted, "notifications", "actor_kind = 'user' AND actor_id = ?", [$personId]);
 
-    // AI connections, and anything still able to act through one.
-    $grantIds = clientRowValues($pdo, $byTable, "mcp_grants", "id", "principal_kind = 'user' AND principal_id = ?", [$userId]);
+        // AI connections, and anything still able to act through one.
+        $grantIds = clientRowValues($pdo, $byTable, "mcp_grants", "id", "principal_kind = 'user' AND principal_id = ?", [$personId]);
 
-    if ($grantIds) {
+        if ($grantIds) {
         $in = placeholders($grantIds);
         eraseRows($pdo, $byTable, $deleted, "mcp_tokens", "grant_id IN ($in)", $grantIds);
         eraseRows($pdo, $byTable, $deleted, "oauth_codes", "grant_id IN ($in)", $grantIds);
         eraseRows($pdo, $byTable, $deleted, "mcp_grants", "id IN ($in)", $grantIds);
+        }
+
+        eraseRows($pdo, $byTable, $deleted, "mcp_confirmations", "principal_kind = 'user' AND principal_id = ?", [$personId]);
     }
 
-    eraseRows($pdo, $byTable, $deleted, "mcp_confirmations", "principal_kind = 'user' AND principal_id = ?", [$userId]);
+    eraseRows($pdo, $byTable, $deleted, "client_invites", "account_id = ?", [$userId]);
+
+    $files = array_merge($files, clientRowValues($pdo, $byTable, "users", "profile_image", "account_owner_id = ?", [$userId]));
+    eraseRows($pdo, $byTable, $deleted, "users", "account_owner_id = ?", [$userId]);
 
     // Any other table holding a user_id, including ones added later. The users
     // table itself goes last, on its own.

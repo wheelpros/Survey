@@ -1367,6 +1367,69 @@ const TEAM_SUB = {
   seo_admin:       "Who works on this client."
 };
 
+/* The client's own teammates, who log in themselves. Not to be confused with
+   the Team panel below it, which is the staff working on this client. */
+function clientPeoplePanel(data){
+  const people = data.people || [];
+  const invites = data.invites || [];
+
+  if(!people.length && !invites.length) return "";
+
+  const rows = people.map(person => `
+    <tr>
+      <td dir="auto">${esc(person.name)}</td>
+      <td>${esc(person.email)}</td>
+      <td>Joined ${formatDate(person.joined_at)}</td>
+      <td>${canManageClientPeople(data)
+        ? `<button class="btn action-btn" type="button" data-person="${Number(person.id)}" data-name="${esc(person.name)}" onclick="removeClientPerson(this)">Remove</button>`
+        : ""}</td>
+    </tr>`).concat(invites.map(invite => `
+    <tr>
+      <td>Invited</td>
+      <td>${esc(invite.email)}</td>
+      <td>${invite.expired ? "Expired" : "Pending"}</td>
+      <td></td>
+    </tr>`)).join("");
+
+  return `
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Client's people</h2>
+        <p>Teammates the account owner has added. Each has their own login to this client's account.</p>
+      </div>
+      <div class="table-wrap"><table><tbody>${rows}</tbody></table></div>
+    </div>`;
+}
+
+function canManageClientPeople(data){
+  return !!data.canEditDetails;
+}
+
+async function removeClientPerson(button){
+  const ok = await askConfirm({
+    title : "Remove from client's team",
+    text  : button.dataset.name + " will lose access straight away. Anything they've already submitted stays on the account.",
+    action: "Remove"
+  });
+
+  if(!ok) return;
+
+  const res = await fetch("api/admin-user-details.php", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: "Bearer " + adminToken
+    },
+    body: JSON.stringify({ action: "remove_teammate", id: Number(userId), person_id: Number(button.dataset.person) })
+  });
+
+  const data = await res.json();
+
+  alert(data.message);
+
+  if(data.success) window.location.reload();
+}
+
 // null until the first load; { error } when it could not be loaded.
 let teamState = null;
 let teamBusy = false;
@@ -1673,7 +1736,7 @@ function render(data){
   }
 
   // The calendar sits right under the Team, the people who run it.
-  paint(header + details + teamPanel() + appointments + surveys + responses + files + content);
+  paint(header + details + clientPeoplePanel(data) + teamPanel() + appointments + surveys + responses + files + content);
 
   initCalendar(data.appointments || [], data.content || []);
 }

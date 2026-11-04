@@ -92,6 +92,21 @@ CREATE TABLE survey_uploaded_files (
   file_size     INT              NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE source_files (
+  id            INT AUTO_INCREMENT PRIMARY KEY,
+  original_name VARCHAR(255) NOT NULL,
+  file_path     VARCHAR(255) NOT NULL,
+  file_size     INT              NULL,
+  uploaded_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE user_source_files (
+  id          INT AUTO_INCREMENT PRIMARY KEY,
+  file_id     INT       NOT NULL,
+  user_id     INT       NOT NULL,
+  assigned_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- sql/content.sql (+ content_priority_notes.sql)
 CREATE TABLE content (
   id            INT AUTO_INCREMENT PRIMARY KEY,

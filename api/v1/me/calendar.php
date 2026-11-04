@@ -26,7 +26,7 @@ const ME_MEETING_SELECT = "
 $id = v1IntParam("id");
 if ($id !== null) {
     $stmt = $pdo->prepare(ME_MEETING_SELECT . " WHERE a.id = ? AND " . ME_MEETINGS_SQL . " LIMIT 1");
-    $stmt->execute([$id, $p["id"]]);
+    $stmt->execute([$id, $p["account_id"]]);
     $row = $stmt->fetch();
     if (!$row) {
         v1Error(404, "not_found", "No meeting of yours with that id.");
@@ -48,7 +48,7 @@ $stmt = $pdo->prepare(ME_MEETING_SELECT . "
     ORDER BY a.date ASC, a.time ASC, a.id ASC
     LIMIT 501
 ");
-$stmt->execute([$p["id"], $from, $to]);
+$stmt->execute([$p["account_id"], $from, $to]);
 $meetings = $stmt->fetchAll();
 
 $company = trim((string) (meRow($pdo, $p)["company_name"] ?? ""));

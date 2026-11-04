@@ -619,9 +619,9 @@ function savePhaseGallery(PDO $pdo, array $task, array $urls)
 /** A client's own users row, for the shared writes that name them. */
 function clientRow(PDO $pdo, array $p)
 {
-    $stmt = $pdo->prepare("SELECT id, name, email, company_name FROM users WHERE id = ? LIMIT 1");
+    $stmt = $pdo->prepare("SELECT id, name, email, company_name, account_owner_id FROM users WHERE id = ? LIMIT 1");
     $stmt->execute([$p["id"]]);
-    return $stmt->fetch();
+    return withClientAccount($pdo, $stmt->fetch());
 }
 
 /**
@@ -2513,7 +2513,7 @@ function v1WriteHandlers()
                     WHERE a.id = ? AND a.user_id = ? AND a.requested_by = 'admin'
                     LIMIT 1
                 ");
-                $stmt->execute([$id, $p["id"]]);
+                $stmt->execute([$id, $p["account_id"]]);
                 $request = $stmt->fetch();
                 if (!$request) {
                     throw new PortalWriteError("No meeting request to you with that id.", 404);
@@ -2548,7 +2548,7 @@ function v1WriteHandlers()
             "kind" => "user",
             "prepare" => function (PDO $pdo, array $p, array $a) {
                 $id = argInt($a, "id");
-                $form = loadClientSurvey($pdo, $p["id"], $id);
+                $form = loadClientSurvey($pdo, $p["account_id"], $id);
                 if (!$form) {
                     throw new PortalWriteError("No form of yours with that id.", 404);
                 }
@@ -2573,7 +2573,7 @@ function v1WriteHandlers()
                 ];
             },
             "apply" => function (PDO $pdo, array $p, array $a) {
-                $answers = clientFormAnswers($pdo, loadClientSurvey($pdo, $p["id"], $a["id"]), $a["answers"]);
+                $answers = clientFormAnswers($pdo, loadClientSurvey($pdo, $p["account_id"], $a["id"]), $a["answers"]);
                 $responseId = submitSurveyResponse($pdo, clientRow($pdo, $p), $a["id"], $answers, null);
                 return ["form_id" => $a["id"], "response_id" => $responseId, "status" => "completed"];
             },

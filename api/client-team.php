@@ -236,7 +236,7 @@ if (!$userId) {
 }
 
 try {
-    $check = $pdo->prepare("SELECT id FROM users WHERE id = ? LIMIT 1");
+    $check = $pdo->prepare("SELECT id FROM users WHERE id = ? AND account_owner_id IS NULL LIMIT 1");
     $check->execute([$userId]);
 
     if (!$check->fetch()) {

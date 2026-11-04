@@ -31,9 +31,9 @@ ensureUserProfileColumns($pdo);
 /** The caller's users row: id, name, email, company_name. */
 function meRow(PDO $pdo, array $p)
 {
-    $stmt = $pdo->prepare("SELECT id, name, email, company_name FROM users WHERE id = ? LIMIT 1");
+    $stmt = $pdo->prepare("SELECT id, name, email, company_name, account_owner_id FROM users WHERE id = ? LIMIT 1");
     $stmt->execute([$p["id"]]);
-    return $stmt->fetch();
+    return withClientAccount($pdo, $stmt->fetch());
 }
 
 /*

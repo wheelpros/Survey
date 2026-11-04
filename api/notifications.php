@@ -61,9 +61,7 @@ if (!$token) {
 // Brings the notifications table and the announcement_id column with it.
 ensureAnnouncementsTable($pdo);
 
-$stmt = $pdo->prepare("SELECT id FROM users WHERE session_token = ? LIMIT 1");
-$stmt->execute([$token]);
-$user = $stmt->fetch(PDO::FETCH_ASSOC);
+$user = clientFromSessionToken($pdo, $token);
 
 $admin = null;
 

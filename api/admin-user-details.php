@@ -89,7 +89,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $input = json_decode(file_get_contents("php://input"), true) ?: [];
     $action = $input["action"] ?? "";
 
-    if (!in_array($action, ["save_notes", "save_details"], true)) {
+    if (!in_array($action, ["save_notes", "save_details", "remove_teammate"], true)) {
         respond(false, "Unknown action.", [], 400);
     }
 
@@ -120,6 +120,39 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     | number saved here and a number saved there end up in the same shape.
     |
     */
+
+    /*
+    | Taking someone off a client's team - the same as the owner doing it, plus
+    | a line in the event log. Only for a client this admin works on.
+    */
+    if ($action === "remove_teammate") {
+
+        if (!can($admin, "clients.view_all", $pdo)) {
+            $assigned = $pdo->prepare("SELECT 1 FROM admin_user_assignments WHERE admin_id = ? AND user_id = ? LIMIT 1");
+            $assigned->execute([(int) $admin["id"], $targetId]);
+
+            if (!$assigned->fetchColumn()) {
+                respond(false, "User not found.", [], 404);
+            }
+        }
+
+        require_once "client-team-writes.php";
+
+        try {
+            $person = deleteTeammate($pdo, $targetId, (int) ($input["person_id"] ?? 0));
+        } catch (PortalWriteError $e) {
+            respond(false, $e->getMessage(), [], $e->status);
+        }
+
+        $who = eventClientName($pdo, $targetId);
+        logEvent($pdo, EVENT_CLIENT_TEAMMATE_REMOVED, "user", $targetId, $who,
+            "Removed " . $person["name"] . " from " . $who . "'s team", $targetId);
+
+        notify($pdo, "user", $targetId, NOTIFY_CLIENT_TEAM_CHANGED,
+            $person["name"] . " was removed from your team", "", "team.html", "admin", (int) $admin["id"]);
+
+        respond(true, $person["name"] . " is no longer on this team.");
+    }
 
     if ($action === "save_details") {
 
@@ -154,7 +187,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         }
 
         try {
-            $check = $pdo->prepare("SELECT id, company_name FROM users WHERE id = ? LIMIT 1");
+            $check = $pdo->prepare("SELECT id, company_name FROM users WHERE id = ? AND account_owner_id IS NULL LIMIT 1");
             $check->execute([$targetId]);
             $current = $check->fetch(PDO::FETCH_ASSOC);
 
@@ -277,7 +310,7 @@ try {
             company_name, website, description,
             profile_image, approved, created_at
         FROM users
-        WHERE id = ?
+        WHERE id = ? AND account_owner_id IS NULL
         LIMIT 1
     ");
 
@@ -396,8 +429,20 @@ $content = fetchList($pdo, "
 /* Who works on this client is not in here: the page's Team panel loads it
    from api/client-team.php, which also decides who may change it. */
 
+/* The client's own people, and who has been invited - separate from the staff
+   in the Team panel. */
+$people = array_values(array_filter(clientAccountPeople($pdo, $userId), function ($person) {
+    return !empty($person["account_owner_id"]);
+}));
+
+require_once "client-team-writes.php";
+
 respond(true, "User loaded.", [
     "user"         => $user,
+    "people"       => array_map(function ($person) {
+        return ["id" => (int) $person["id"], "name" => $person["name"], "email" => $person["email"], "joined_at" => $person["created_at"]];
+    }, $people),
+    "invites"      => clientPendingInvites($pdo, $userId),
 
     /* Presentation only - the POST above checks the role itself. The page uses
        these to decide whether the note and the details are fields or text. */

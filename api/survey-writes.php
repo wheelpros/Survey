@@ -126,9 +126,8 @@ function writeSurveyQuestions(PDO $pdo, $surveyId, array $questions)
 function announceSurveyForm(PDO $pdo, array $actor, $surveyId, $title, $userId, $released, $isNew)
 {
     if ($released) {
-        notify(
+        notifyClientAccount(
             $pdo,
-            "user",
             (int) $userId,
             NOTIFY_FORM_APPROVED,
             "A new form is ready for you",
@@ -391,9 +390,8 @@ function reviewSurveyForm(PDO $pdo, array $actor, $surveyId, $action, $note)
         // Approving is the moment the form reaches the user, so both ends
         // hear about it: the person who has to fill it in, and the admin who
         // wrote it and has been waiting on the gate.
-        notify(
+        notifyClientAccount(
             $pdo,
-            "user",
             (int) $survey["assigned_user_id"],
             NOTIFY_FORM_APPROVED,
             "A new form is ready for you",
