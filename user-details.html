@@ -101,6 +101,7 @@ td a{color:var(--nav-active);font-weight:700}
 .head-decide .delete-btn{background:#fff;color:var(--brand);border:1px solid #f0d2d4}
 .head-decide .delete-btn:hover{background:#fff5f5}
 .head-decide .btn:disabled{opacity:.55;cursor:not-allowed}
+.company-match{margin:0;padding:14px 28px;background:#fff8e6;border-top:1px solid #f4e3b5;color:#7a5a00;font-size:13px;font-weight:600}
 @media(max-width:700px){
   .profile-head{align-items:flex-start}
   .head-decide{width:100%}
@@ -1053,8 +1054,8 @@ async function removeClient(){
     title : "Delete client",
     text  : (currentUser.name || "This client") + " (" + (currentUser.email || "")
           + ") will be erased, along with everything tied to the account - "
-          + "responses, appointments, assigned files and notifications. This "
-          + "cannot be undone.",
+          + "forms and responses, uploaded files, projects and their phases, "
+          + "meetings, notifications and AI connections. This cannot be undone.",
     action: "Delete client",
     word  : "DELETE"
   });
@@ -1572,6 +1573,8 @@ function render(data){
         <span class="badge ${approved ? "approved" : "pending"}">${approved ? "Approved" : "Pending"}</span>
         ${decideButtons(approved)}
       </div>
+      ${!approved && Number(u.company_matches) > 0 ? `
+        <p class="company-match" role="alert">An approved account already uses this company name. Approving this sign-up gives it that company's posts and files, so check it's really theirs.</p>` : ""}
     </div>`;
 
   const details = detailsPanel(data);

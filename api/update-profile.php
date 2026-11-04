@@ -19,7 +19,7 @@ if (!$token) {
 ensureUserProfileColumns($pdo);
 
 $stmt = $pdo->prepare("
-    SELECT id, name, email, approved, profile_image
+    SELECT id, name, email, approved, profile_image, company_name
     FROM users
     WHERE session_token = ?
     LIMIT 1
@@ -37,7 +37,9 @@ if (!$user || (int)$user["approved"] !== 1) {
 }
 
 $name = trim($_POST["name"] ?? "");
-$companyName = trim($_POST["company_name"] ?? "");
+/* Not taken from the request: the company name decides which posts and files
+   this account can see, so changing it is for staff (admin-user-details.php). */
+$companyName = $user["company_name"];
 $website = trim($_POST["website"] ?? "");
 $description = trim($_POST["description"] ?? "");
 $phone = trim($_POST["phone"] ?? "");
@@ -127,7 +129,7 @@ if (!empty($_FILES["profile_image"]["name"])) {
 $stmt = $pdo->prepare("
     UPDATE users
     SET name = ?, profile_image = ?,
-        company_name = ?, website = ?, description = ?, phone = ?,
+        website = ?, description = ?, phone = ?,
         whatsapp = ?
     WHERE id = ?
 ");
@@ -135,7 +137,6 @@ $stmt = $pdo->prepare("
 $stmt->execute([
     $name,
     $profileImage,
-    $companyName,
     $website,
     $description,
     $phone,

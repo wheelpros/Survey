@@ -154,12 +154,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         }
 
         try {
-            $check = $pdo->prepare("SELECT id FROM users WHERE id = ? LIMIT 1");
+            $check = $pdo->prepare("SELECT id, company_name FROM users WHERE id = ? LIMIT 1");
             $check->execute([$targetId]);
+            $current = $check->fetch(PDO::FETCH_ASSOC);
 
-            if (!$check->fetch()) {
+            if (!$current) {
                 respond(false, "User not found.", [], 404);
             }
+
+            $pdo->beginTransaction();
 
             $save = $pdo->prepare("
                 UPDATE users
@@ -176,7 +179,26 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 $targetId
             ]);
 
+            /* Posts find their client by this name, so a rename takes them along -
+               unless another approved account still answers to the old name, whose
+               posts these also are. Clearing the name leaves them where they are. */
+            $oldCompany = trim((string) $current["company_name"]);
+
+            if ($oldCompany !== "" && $company !== "" && $oldCompany !== $company) {
+                $shared = $pdo->prepare("SELECT COUNT(*) FROM users WHERE approved = 1 AND company_name = ? AND id <> ?");
+                $shared->execute([$oldCompany, $targetId]);
+
+                if ((int) $shared->fetchColumn() === 0) {
+                    $pdo->prepare("UPDATE content SET client = ? WHERE client = ?")->execute([$company, $oldCompany]);
+                }
+            }
+
+            $pdo->commit();
+
         } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
             respond(false, "Could not save the details.", [], 500);
         }
 
@@ -274,6 +296,16 @@ if (!$user) {
    rule wa.me needs everywhere, and an empty string is the page's cue that there
    is no icon to draw. */
 $user["whatsapp_link"] = whatsAppLink($user["whatsapp"] ?? "");
+
+/* Approving a sign-up gives it that company's posts and files, so the page warns
+   when the name it typed is already an approved account's. */
+$user["company_matches"] = 0;
+
+if ((int) $user["approved"] !== 1 && trim((string) $user["company_name"]) !== "") {
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE approved = 1 AND company_name = ? AND id <> ?");
+    $stmt->execute([trim($user["company_name"]), $userId]);
+    $user["company_matches"] = (int) $stmt->fetchColumn();
+}
 
 /* The internal note, and only this admin's own: a note is private to whoever
    wrote it, so another admin's note about this client is not fetched here and

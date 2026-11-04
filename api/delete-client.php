@@ -9,11 +9,14 @@
 | it leave the database. This exists for privacy requests, so a row left
 | behind in some side table would defeat the point.
 |
-| Rather than hard-coding a table list that quietly goes stale every time the
-| schema grows, this reads the database's own columns and clears any table
-| holding a `user_id`, plus the notification rows that address a user through
-| recipient/actor columns. A table added next year is covered without anyone
-| remembering to edit this file.
+| Two passes. CLIENT_TENANT_COLUMNS (db.php) names the records whose column
+| isn't simply `user_id`, and they go with what hangs off them - a form's
+| questions and answers, a project's phases and people. Then the database's own
+| columns are read and any other table holding a `user_id` is cleared, so a
+| table added next year is covered without anyone remembering to edit this file.
+|
+| admin_events and mcp_audit_log stay: they are the record of who did what, not
+| the client's data, and they prune on their own schedule.
 |
 | Owner only, and approved accounts only - a pending registration is refused
 | here because Reject on the same page already removes those.
@@ -22,6 +25,7 @@
 
 require_once "db.php";
 require_once "events.php";
+require_once "upload-helpers.php";
 
 header("Content-Type: application/json; charset=UTF-8");
 
@@ -97,7 +101,6 @@ $columns = $pdo->prepare("
     SELECT TABLE_NAME, COLUMN_NAME
     FROM INFORMATION_SCHEMA.COLUMNS
     WHERE TABLE_SCHEMA = ?
-      AND COLUMN_NAME IN ('user_id', 'recipient_type', 'recipient_id', 'actor_type', 'actor_id')
 ");
 
 $columns->execute([$database]);
@@ -109,6 +112,40 @@ foreach ($columns->fetchAll(PDO::FETCH_ASSOC) as $row) {
 }
 
 $deleted = [];
+$files = [];
+
+/** Runs one DELETE, if its table exists on this install, and counts what went. */
+function eraseRows(PDO $pdo, array $byTable, array &$deleted, $table, $where, array $params)
+{
+    if (!isset($byTable[$table]) || !$params) {
+        return;
+    }
+
+    $stmt = $pdo->prepare("DELETE FROM `{$table}` WHERE {$where}");
+    $stmt->execute($params);
+
+    if ($stmt->rowCount() > 0) {
+        $deleted[$table] = ($deleted[$table] ?? 0) + $stmt->rowCount();
+    }
+}
+
+/** One column of the rows matching $where, or nothing if the table is absent. */
+function clientRowValues(PDO $pdo, array $byTable, $table, $column, $where, array $params)
+{
+    if (!isset($byTable[$table]) || !$params) {
+        return [];
+    }
+
+    $stmt = $pdo->prepare("SELECT `{$column}` FROM `{$table}` WHERE {$where}");
+    $stmt->execute($params);
+
+    return $stmt->fetchAll(PDO::FETCH_COLUMN);
+}
+
+function placeholders(array $values)
+{
+    return implode(",", array_fill(0, count($values), "?"));
+}
 
 $eventWho = eventClientName($pdo, $userId);
 
@@ -116,42 +153,85 @@ $pdo->beginTransaction();
 
 try {
 
+    // Forms, with their questions, answers and upload records.
+    $surveyIds = clientRowValues($pdo, $byTable, "surveys", "id", "assigned_user_id = ?", [$userId]);
+    $responseIds = clientRowValues($pdo, $byTable, "survey_responses", "id", "user_id = ?", [$userId]);
+
+    if ($surveyIds) {
+        $responseIds = array_values(array_unique(array_merge($responseIds,
+            clientRowValues($pdo, $byTable, "survey_responses", "id", "survey_id IN (" . placeholders($surveyIds) . ")", $surveyIds))));
+    }
+
+    if ($responseIds) {
+        $in = placeholders($responseIds);
+        eraseRows($pdo, $byTable, $deleted, "survey_answers", "response_id IN ($in)", $responseIds);
+        eraseRows($pdo, $byTable, $deleted, "survey_uploaded_files", "response_id IN ($in)", $responseIds);
+        eraseRows($pdo, $byTable, $deleted, "survey_responses", "id IN ($in)", $responseIds);
+    }
+
+    if ($surveyIds) {
+        eraseRows($pdo, $byTable, $deleted, "survey_questions", "survey_id IN (" . placeholders($surveyIds) . ")", $surveyIds);
+    }
+
+    // Projects, with their phases, people and files.
+    $projectIds = clientRowValues($pdo, $byTable, "projects", "id", "client_id = ?", [$userId]);
+
+    if ($projectIds) {
+        $in = placeholders($projectIds);
+
+        $files = array_merge($files, clientRowValues($pdo, $byTable, "projects", "image_path", "id IN ($in)", $projectIds));
+
+        $taskStmt = $pdo->prepare("SELECT * FROM project_tasks WHERE project_id IN ($in)");
+        $taskStmt->execute($projectIds);
+
+        foreach ($taskStmt->fetchAll(PDO::FETCH_ASSOC) as $task) {
+            $files = array_merge(
+                $files,
+                array_filter([$task["image_path"] ?? null]),
+                taskGallery($task),
+                deleteAttachmentRows($pdo, "task", $task["id"]),
+                deleteAttachmentRows($pdo, CLIENT_PHASE_FILES_OWNER, $task["id"])
+            );
+
+            eraseRows($pdo, $byTable, $deleted, "project_task_teammates", "task_id = ?", [$task["id"]]);
+            eraseRows($pdo, $byTable, $deleted, "project_task_assignments", "task_id = ?", [$task["id"]]);
+        }
+
+        eraseRows($pdo, $byTable, $deleted, "project_tasks", "project_id IN ($in)", $projectIds);
+        eraseRows($pdo, $byTable, $deleted, "project_members", "project_id IN ($in)", $projectIds);
+    }
+
+    // The tenant columns themselves: everything above has let go of them.
+    foreach (CLIENT_TENANT_COLUMNS as $table => $column) {
+        eraseRows($pdo, $byTable, $deleted, $table, "`{$column}` = ?", [$userId]);
+    }
+
+    // Notifications address people as a kind plus an id, so a bare user_id
+    // match would miss them - and id 5 can be an admin as well as this client.
+    eraseRows($pdo, $byTable, $deleted, "notifications", "recipient_kind = 'user' AND recipient_id = ?", [$userId]);
+    eraseRows($pdo, $byTable, $deleted, "notifications", "actor_kind = 'user' AND actor_id = ?", [$userId]);
+
+    // AI connections, and anything still able to act through one.
+    $grantIds = clientRowValues($pdo, $byTable, "mcp_grants", "id", "principal_kind = 'user' AND principal_id = ?", [$userId]);
+
+    if ($grantIds) {
+        $in = placeholders($grantIds);
+        eraseRows($pdo, $byTable, $deleted, "mcp_tokens", "grant_id IN ($in)", $grantIds);
+        eraseRows($pdo, $byTable, $deleted, "oauth_codes", "grant_id IN ($in)", $grantIds);
+        eraseRows($pdo, $byTable, $deleted, "mcp_grants", "id IN ($in)", $grantIds);
+    }
+
+    eraseRows($pdo, $byTable, $deleted, "mcp_confirmations", "principal_kind = 'user' AND principal_id = ?", [$userId]);
+
+    // Any other table holding a user_id, including ones added later. The users
+    // table itself goes last, on its own.
     foreach ($byTable as $table => $cols) {
-
-        // The users table itself goes last, on its own.
-        if ($table === "users") {
-            continue;
-        }
-
-        if (in_array("user_id", $cols, true)) {
-            $stmt = $pdo->prepare("DELETE FROM `{$table}` WHERE user_id = ?");
-            $stmt->execute([$userId]);
-
-            if ($stmt->rowCount() > 0) {
-                $deleted[$table] = ($deleted[$table] ?? 0) + $stmt->rowCount();
-            }
-        }
-
-        // Notifications address people as a type plus an id, so a bare
-        // user_id match would miss them.
-        if (in_array("recipient_type", $cols, true) && in_array("recipient_id", $cols, true)) {
-            $stmt = $pdo->prepare("DELETE FROM `{$table}` WHERE recipient_type = 'user' AND recipient_id = ?");
-            $stmt->execute([$userId]);
-
-            if ($stmt->rowCount() > 0) {
-                $deleted[$table] = ($deleted[$table] ?? 0) + $stmt->rowCount();
-            }
-        }
-
-        if (in_array("actor_type", $cols, true) && in_array("actor_id", $cols, true)) {
-            $stmt = $pdo->prepare("DELETE FROM `{$table}` WHERE actor_type = 'user' AND actor_id = ?");
-            $stmt->execute([$userId]);
-
-            if ($stmt->rowCount() > 0) {
-                $deleted[$table] = ($deleted[$table] ?? 0) + $stmt->rowCount();
-            }
+        if ($table !== "users" && in_array("user_id", $cols, true)) {
+            eraseRows($pdo, $byTable, $deleted, $table, "user_id = ?", [$userId]);
         }
     }
+
+    $files = array_merge($files, clientRowValues($pdo, $byTable, "users", "profile_image", "id = ?", [$userId]));
 
     $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
     $stmt->execute([$userId]);
@@ -168,6 +248,28 @@ try {
     error_log("delete-client failed for user {$userId}: " . $e->getMessage());
 
     deleteReply(false, "Could not delete this client. Nothing was removed.");
+}
+
+/*
+| Files last, once the rows are certainly gone: a failed delete must not leave
+| records pointing at files that no longer exist. A client's form uploads all
+| live under one folder named for their id (survey-submit.php).
+*/
+deleteUploadedFiles($files);
+
+$surveyFolder = dirname(__DIR__) . "/uploads/survey-files/" . $userId;
+
+if (is_dir($surveyFolder)) {
+    $entries = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($surveyFolder, FilesystemIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::CHILD_FIRST
+    );
+
+    foreach ($entries as $entry) {
+        $entry->isDir() ? @rmdir($entry->getPathname()) : @unlink($entry->getPathname());
+    }
+
+    @rmdir($surveyFolder);
 }
 
 // Logged deliberately: a permanent deletion is worth a trail of who did it

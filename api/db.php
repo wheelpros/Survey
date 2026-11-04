@@ -76,6 +76,22 @@ const USER_PROFILE_COLUMNS = [
 ];
 
 /*
+| The column in each table that says which client a row belongs to, holding
+| that client's users.id. The names differ, so nothing can find them by
+| looking for `user_id`: delete-client.php erases through this list.
+*/
+const CLIENT_TENANT_COLUMNS = [
+    "surveys"                => "assigned_user_id",
+    "survey_responses"       => "user_id",
+    "survey_uploaded_files"  => "user_id",
+    "appointments"           => "user_id",
+    "projects"               => "client_id",
+    "user_source_files"      => "user_id",
+    "admin_user_assignments" => "user_id",
+    "client_admin_notes"     => "user_id",
+];
+
+/*
 | What an admin is called in the sidebar and the account popup: their job
 | ("SEO Specialist"), set when the owner adds them and editable on Settings.
 | An admin without one - everybody added before this - shows their name.
