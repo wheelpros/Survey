@@ -22,7 +22,6 @@ v1RequireStaff($p);
 v1RequireScope($p, "settings:read");
 
 $website = getSiteSetting($pdo, "website_url", "");
-$logo = siteLogoPath();
 $director = adminProfile($pdo, $p["id"]);
 
 v1Reply(200, [
@@ -41,7 +40,7 @@ v1Reply(200, [
     ],
     "website_address" => $website === "" ? null : $website,
     "website_link" => v1NullableString(normaliseWebUrl($website)),
-    "logo_url" => is_file($logo) ? APP_URL . "/logo.png?v=" . filemtime($logo) : null,
+    "logo_url" => siteLogoUrl($pdo, APP_URL),
     "clients_may_use_ai" => clientsMayUseMcp($pdo),
     "login_slides_max" => LOGIN_SLIDES_MAX,
     "login_slide_min_size" => LOGIN_SLIDE_MIN_WIDTH . "x" . LOGIN_SLIDE_MIN_HEIGHT,

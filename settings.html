@@ -1181,6 +1181,11 @@ body{padding:0}
     display: none;
 }
 
+.current-logo-empty {
+    font-size: 13px;
+    color: #667085;
+}
+
 .media-preview .remove {
     position: absolute;
     top: 8px;
@@ -1379,7 +1384,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 </script>
 <link rel="stylesheet" href="assets/shell.css?v=6" />
-<link rel="stylesheet" href="assets/connected-apps.css?v=1" />
+<link rel="stylesheet" href="assets/connected-apps.css?v=2" />
 <script src="assets/permissions.js?v=2"></script>
 </head>
 
@@ -1480,7 +1485,8 @@ document.addEventListener("DOMContentLoaded", function () {
          nothing to show, so the image hides itself. -->
     <div class="current-logo">
       <img id="currentLogo" src="logo.png" alt="Current logo"
-           onerror="this.hidden=true">
+           onerror="this.hidden=true;document.getElementById('currentLogoEmpty').hidden=false">
+      <span class="current-logo-empty" id="currentLogoEmpty" hidden>No logo uploaded yet</span>
     </div>
 
     <label for="logoFile">Logo</label>
@@ -1634,27 +1640,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
   </div>
 </div>
-</div>
-
-<!-- AI assistants connected through the portal's MCP server. Every admin has
-     their own connections; the Director also gets the panel below it, about
-     everyone. Both are drawn by assets/connected-apps.js. -->
-<div class="panel" id="connected-apps">
-  <div class="panel-head">
-    <h1>Connected apps</h1>
-    <p>AI assistants you've allowed to use your account. Each one can only do what you approved, within what your role allows.</p>
-  </div>
-  <div class="panel-body">
-    <div data-token-key="admin_token"></div>
-  </div>
-</div>
-
-<div class="panel" id="ai-access" hidden>
-  <div class="panel-head">
-    <h1>AI access</h1>
-    <p>Whether clients may connect an AI assistant, and what assistants have been doing across the portal.</p>
-  </div>
-  <div class="panel-body"></div>
 </div>
 
 <!-- Password Panel. The id is the anchor the Files password box
@@ -1844,6 +1829,21 @@ document.addEventListener("DOMContentLoaded", function () {
     </div>
   </div>
 </div>
+</div>
+
+<!-- AI assistants connected through the portal's MCP server. Every admin has
+     their own connections; the Director also gets the switch for client access
+     above them. Both are drawn by assets/connected-apps.js. What assistants have
+     been doing is on Tracking. -->
+<div class="panel" id="connected-apps">
+  <div class="panel-head">
+    <h1>Connected apps</h1>
+    <p>AI assistants you've allowed to use your account. Each one can only do what you approved, within what your role allows.</p>
+  </div>
+  <div class="panel-body">
+    <div class="ca-client-access" id="ca-client-access" hidden></div>
+    <div data-token-key="admin_token"></div>
+  </div>
 </div>
 
 <script>
@@ -2340,14 +2340,20 @@ async function saveBranding() {
    placeholder showing instead of the new logo. */
 function paintCurrentLogo() {
     const img = document.getElementById("currentLogo");
+    const empty = document.getElementById("currentLogoEmpty");
     if (!img) return;
 
-    // No logo uploaded yet: show nothing rather than another company's.
+    // No logo uploaded yet: say so rather than show another company's.
     img.onerror = function () {
         this.hidden = true;
+        if (empty) empty.hidden = false;
     };
 
-    img.hidden = false;
+    img.onload = function () {
+        this.hidden = false;
+        if (empty) empty.hidden = true;
+    };
+
     img.src = "logo.png?" + Date.now();
 }
 
@@ -2488,6 +2494,25 @@ function clearLogoMedia() {
     logoDropzone.style.display = "";
 }
 
+/* A sidebar image that failed to load has removed itself (its onerror), so
+   there may be nothing to point at the new logo: put it back. */
+function refreshSidebarLogo() {
+  const bust = "logo.png?" + Date.now();
+
+  document.querySelectorAll(".side-logo").forEach(holder => {
+    let img = holder.querySelector("img");
+
+    if (!img) {
+      img = document.createElement("img");
+      img.alt = "Logo";
+      img.onerror = function () { this.remove(); };
+      holder.prepend(img);
+    }
+
+    img.src = bust;
+  });
+}
+
 // ✅ رفع اللوجو
 async function uploadLogo() {
   const status = document.getElementById("logoStatus");
@@ -2518,10 +2543,7 @@ async function uploadLogo() {
     if (data.success) {
       paintCurrentLogo();
 
-      const bust = "logo.png?" + new Date().getTime();
-      document.querySelectorAll(".side-logo img").forEach(img => {
-        img.src = bust;
-      });
+      refreshSidebarLogo();
       clearLogoMedia();
     }
   } catch (err) {
@@ -3837,7 +3859,7 @@ if (adminUser.role === "owner") {
 <script src="assets/notifications.js?v=2"></script>
 <script src="assets/messages-badge.js?v=2"></script>
 <script src="assets/confirm.js?v=1"></script>
-<script src="assets/connected-apps.js?v=1"></script>
+<script src="assets/connected-apps.js?v=2"></script>
 <script src="assets/shell.js?v=6"></script>
 <script src="assets/sources-lock.js?v=1"></script>
 <script src="assets/role-nav.js?v=7"></script>

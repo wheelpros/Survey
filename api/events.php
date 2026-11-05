@@ -314,6 +314,83 @@ function adminEventFilters(array $f)
     return [$where, $params];
 }
 
+/*
+|--------------------------------------------------------------------------
+| AI activity: the second list on Tracking
+|--------------------------------------------------------------------------
+|
+| Every call an AI assistant made into the portal (mcp_audit_log), reads and
+| refusals included, by staff and clients alike. Who, through which app, which
+| tool and how it went - never what was sent or returned. Shared by the page
+| (admin-events.php) and the assistant's get_ai_activity (api/v1/ai-activity.php).
+|
+*/
+
+const AI_ACTIVITY_FROM = "
+    FROM mcp_audit_log l
+    LEFT JOIN admins a ON l.principal_kind = 'admin' AND a.id = l.principal_id
+    LEFT JOIN users u ON l.principal_kind = 'user' AND u.id = l.principal_id
+    LEFT JOIN oauth_clients c ON c.client_id = l.client_id
+";
+
+const AI_ACTIVITY_COLUMNS = "
+    l.id, l.principal_kind, l.principal_id, l.client_id, l.tool, l.endpoint, l.method, l.status,
+    UNIX_TIMESTAMP(l.created_at) AS created_ts,
+    COALESCE(a.name, u.name) AS person,
+    c.client_name
+";
+
+/** person_kind + person_id, app (a client_id), result (ok|refused), from, to, tz. */
+function aiActivityFilters(array $f)
+{
+    $where = [];
+    $params = [];
+
+    if (!empty($f["person_kind"])) {
+        $where[] = "l.principal_kind = ?";
+        $params[] = (string) $f["person_kind"];
+    }
+    if (!empty($f["person_id"])) {
+        $where[] = "l.principal_id = ?";
+        $params[] = (int) $f["person_id"];
+    }
+    if (!empty($f["app"])) {
+        $where[] = "l.client_id = ?";
+        $params[] = (string) $f["app"];
+    }
+    if (($f["result"] ?? "") === "ok") {
+        $where[] = "l.status < 400";
+    } elseif (($f["result"] ?? "") === "refused") {
+        $where[] = "l.status >= 400";
+    }
+
+    // The same day rules as the Changes list.
+    [$days, $dayParams] = adminEventFilters(["from" => $f["from"] ?? "", "to" => $f["to"] ?? "", "tz" => $f["tz"] ?? ""]);
+    foreach ($days as $condition) {
+        $where[] = "l." . $condition;
+    }
+
+    return [$where, array_merge($params, $dayParams)];
+}
+
+/** One row as both readers return it, before each adds its own wrapping. */
+function aiActivityRow(array $r)
+{
+    return [
+        "id"          => (int) $r["id"],
+        "person_kind" => $r["principal_kind"] === "user" ? "client" : "staff",
+        "person_id"   => (int) $r["principal_id"],
+        "person"      => (string) ($r["person"] ?: "(deleted)"),
+        "app_id"      => (string) $r["client_id"],
+        "app"         => (string) ($r["client_name"] ?: "AI assistant"),
+        "tool"        => $r["tool"] === null ? null : (string) $r["tool"],
+        "endpoint"    => (string) $r["endpoint"],
+        "method"      => (string) $r["method"],
+        "status"      => (int) $r["status"],
+        "created_ts"  => (int) $r["created_ts"],
+    ];
+}
+
 /** One row as both readers return it, before each adds its own wrapping. */
 function adminEventRow(array $r)
 {

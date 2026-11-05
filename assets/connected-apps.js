@@ -1,19 +1,21 @@
 /*
 |------------------------------------------------------------------------------
-| Connected apps, and the Director's AI access controls
+| Connected apps, and the Director's client access switch
 |------------------------------------------------------------------------------
 |
 | The AI assistants a person has connected, on the page that person already
 | uses: Settings for staff, Profile for clients. Each is one row saying how much
-| it can do and whether it is short of what the person's role allows.
+| it can do and whether it is short of what the person's role allows. Long lists
+| page in the browser, as api/oauth/grants.php returns them all.
 |
-|   <link rel="stylesheet" href="assets/connected-apps.css?v=1" />
-|   <div id="connected-apps" data-token-key="admin_token"></div>
-|   <div id="ai-access" hidden></div>   (Settings only, shown to the Director)
-|   <script src="assets/connected-apps.js?v=1"></script>
+|   <link rel="stylesheet" href="assets/connected-apps.css?v=2" />
+|   <div id="ca-client-access" hidden></div>   (Settings only, shown to the Director)
+|   <div data-token-key="admin_token"></div>
+|   <script src="assets/connected-apps.js?v=2"></script>
 |
 | After assets/confirm.js. Data: api/oauth/grants.php (anyone, their own) and
 | api/oauth/admin.php (the Director). connected-apps.html sends old links here.
+| What assistants have been doing is on Tracking (event-log.html).
 |
 */
 
@@ -24,26 +26,20 @@
 
   var token = localStorage.getItem(appsEl.dataset.tokenKey);
 
+  var PAGE_SIZE = 5;
+  var grants = [];
+  var page = 1;
+
   function esc(value) {
     return String(value == null ? "" : value).replace(/[&<>"']/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
     });
   }
 
-  function parseDate(value) {
-    var date = new Date(String(value).replace(" ", "T"));
-    return isNaN(date) ? null : date;
-  }
-
   function day(value) {
-    var date = value && parseDate(value);
-    return date ? date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "";
-  }
-
-  function moment(value) {
-    var date = value && parseDate(value);
-    return date
-      ? date.toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })
+    var date = value && new Date(String(value).replace(" ", "T"));
+    return date && !isNaN(date)
+      ? date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
       : "";
   }
 
@@ -118,11 +114,35 @@
       + "</article>";
   }
 
-  function paintApps(grants) {
-    var list = appsEl.querySelector(".ca-list");
+  function pagerHtml(totalPages, start, shown) {
+    var numbers = "";
+    for (var number = 1; number <= totalPages; number++) {
+      numbers += '<button type="button" data-page="' + number + '"'
+        + (number === page ? ' class="current" aria-current="page"' : "") + ">" + number + "</button>";
+    }
 
-    list.innerHTML = grants.length
-      ? grants.map(appHtml).join("")
+    return '<span class="pager-info">Showing ' + (start + 1) + "-" + (start + shown) + " of " + grants.length + "</span>"
+      + '<div class="pager-pages">'
+      +   '<button type="button" data-page="' + (page - 1) + '"' + (page === 1 ? " disabled" : "") + ">Prev</button>"
+      +   numbers
+      +   '<button type="button" data-page="' + (page + 1) + '"' + (page === totalPages ? " disabled" : "") + ">Next</button>"
+      + "</div>";
+  }
+
+  /* Paints the current page. A Disconnect can leave the last page empty, so the
+     page is pulled back into range first. */
+  function paintApps() {
+    var list = appsEl.querySelector(".ca-list");
+    var pager = appsEl.querySelector(".ca-pager");
+
+    var totalPages = Math.max(1, Math.ceil(grants.length / PAGE_SIZE));
+    page = Math.min(page, totalPages);
+
+    var start = (page - 1) * PAGE_SIZE;
+    var rows = grants.slice(start, start + PAGE_SIZE);
+
+    list.innerHTML = rows.length
+      ? rows.map(appHtml).join("")
       : '<p class="ca-empty">No AI assistants are connected to your account.</p>';
 
     list.querySelectorAll(".ca-disconnect").forEach(function (button) {
@@ -130,12 +150,16 @@
         disconnect(Number(button.dataset.id), button.dataset.name);
       });
     });
+
+    pager.hidden = grants.length <= PAGE_SIZE;
+    pager.innerHTML = pager.hidden ? "" : pagerHtml(totalPages, start, rows.length);
   }
 
   function loadApps() {
     return call("api/oauth/grants.php").then(function (data) {
       if (!data.success) throw new Error(data.message);
-      paintApps(data.grants || []);
+      grants = data.grants || [];
+      paintApps();
     });
   }
 
@@ -145,7 +169,7 @@
   }
 
   function disconnect(id, name) {
-    var status = appsEl.querySelector(".ca-status");
+    var status = appsEl.querySelector(".ca-list ~ .ca-status");
 
     window.askConfirm({
       title: "Disconnect " + name,
@@ -164,91 +188,20 @@
     });
   }
 
-  /* ── The Director's controls ───────────────────────────────────────────── */
+  /* ── The Director's switch ─────────────────────────────────────────────── */
 
-  var accessEl = document.getElementById("ai-access");
-  var activity = [];
+  var accessEl = document.getElementById("ca-client-access");
 
-  function toolLabel(row) {
-    if (!row.tool) return row.endpoint || "";
-    var words = String(row.tool).replace(/_/g, " ");
-    return words.charAt(0).toUpperCase() + words.slice(1);
-  }
-
-  function optionsHtml(values) {
-    return values.map(function (value) {
-      return '<option value="' + esc(value) + '">' + esc(value) + "</option>";
-    }).join("");
-  }
-
-  function unique(key) {
-    return activity
-      .map(function (row) { return row[key]; })
-      .filter(function (value, i, all) { return all.indexOf(value) === i; })
-      .sort();
-  }
-
-  function paintActivity() {
-    var person = document.getElementById("caFilterPerson").value;
-    var app = document.getElementById("caFilterApp").value;
-    var result = document.getElementById("caFilterResult").value;
-
-    var rows = activity.filter(function (row) {
-      return (!person || row.person === person)
-        && (!app || row.app === app)
-        && (!result || (result === "ok") === (row.status < 400));
-    });
-
-    var body = document.getElementById("caActivity");
-    body.innerHTML = rows.map(function (row) {
-      var ok = row.status < 400;
-      return "<tr>"
-        + '<td data-label="When">' + esc(moment(row.at)) + "</td>"
-        + '<td data-label="Who">' + esc(row.person)
-        +   (row.kind === "user" ? ' <span class="ca-kind">(client)</span>' : "") + "</td>"
-        + '<td data-label="App">' + esc(row.app) + "</td>"
-        + '<td data-label="What" title="' + esc(row.tool || row.endpoint) + '">' + esc(toolLabel(row)) + "</td>"
-        + '<td data-label="Result" class="' + (ok ? "ok" : "bad") + '">'
-        +   (ok ? "OK" : "Refused (" + Number(row.status) + ")") + "</td>"
-        + "</tr>";
-    }).join("");
-
-    document.getElementById("caActivityTable").hidden = !rows.length;
-    document.getElementById("caNoActivity").hidden = rows.length > 0;
-    document.getElementById("caNoActivity").textContent = activity.length
-      ? "Nothing matches those filters."
-      : "No AI activity yet.";
-  }
-
-  function paintAccess(data) {
-    activity = data.activity || [];
-
-    accessEl.querySelector(".panel-body").innerHTML =
-        '<p class="ca-toggle-note">Staff can always connect an AI assistant to their own account. '
+  function paintAccess(enabled) {
+    accessEl.innerHTML =
+        '<label class="ca-toggle"><input type="checkbox" id="caClientsEnabled"> Allow clients to connect AI assistants</label>'
+      + '<p class="ca-toggle-note">Staff can always connect an AI assistant to their own account. '
       + "Clients can only once this is on, and only to see and act on their own meetings, content, forms and projects.</p>"
-      + '<label class="ca-toggle"><input type="checkbox" id="caClientsEnabled"> Allow clients to connect AI assistants</label>'
-      + '<p class="ca-status" id="caAccessStatus" role="status"></p>'
-      + '<h2 class="ca-activity-head">Recent AI activity</h2>'
-      + '<p class="ca-activity-note">The latest 50 calls AI assistants made into the portal, across everyone.</p>'
-      + '<div class="ca-filters">'
-      +   '<label>Who<select id="caFilterPerson"><option value="">Everyone</option>' + optionsHtml(unique("person")) + "</select></label>"
-      +   '<label>App<select id="caFilterApp"><option value="">All apps</option>' + optionsHtml(unique("app")) + "</select></label>"
-      +   '<label>Result<select id="caFilterResult"><option value="">Any result</option>'
-      +     '<option value="ok">OK</option><option value="refused">Refused</option></select></label>'
-      + "</div>"
-      + '<table class="ca-table" id="caActivityTable"><thead><tr>'
-      +   "<th>When</th><th>Who</th><th>App</th><th>What</th><th>Result</th>"
-      + '</tr></thead><tbody id="caActivity"></tbody></table>'
-      + '<p class="ca-empty" id="caNoActivity" hidden></p>';
-
-    ["caFilterPerson", "caFilterApp", "caFilterResult"].forEach(function (id) {
-      document.getElementById(id).addEventListener("change", paintActivity);
-    });
-    paintActivity();
+      + '<p class="ca-status" id="caAccessStatus" role="status"></p>';
 
     var box = document.getElementById("caClientsEnabled");
     var status = document.getElementById("caAccessStatus");
-    box.checked = !!data.clients_enabled;
+    box.checked = enabled;
 
     box.addEventListener("change", function () {
       var turningOn = box.checked;
@@ -282,24 +235,62 @@
     if (!accessEl || !window.adminCan || !window.adminCan("settings.manage")) return Promise.resolve();
 
     return call("api/oauth/admin.php").then(function (data) {
-      if (data.success) paintAccess(data);
+      if (data.success) paintAccess(!!data.clients_enabled);
     }).catch(function () {
-      // The apps above still work; this panel simply stays out of the way.
+      // The apps below still work; the switch simply stays out of the way.
     });
   }
 
   /* ── Start ─────────────────────────────────────────────────────────────── */
 
   appsEl.innerHTML = '<div class="ca-list"><p class="ca-empty">Loading...</p></div>'
+    + '<nav class="pager ca-pager" aria-label="Connected apps pages" hidden></nav>'
     + '<p class="ca-status" role="status"></p>';
+
+  appsEl.querySelector(".ca-pager").addEventListener("click", function (event) {
+    var button = event.target.closest("button[data-page]");
+    if (!button || button.disabled) return;
+
+    page = Number(button.dataset.page);
+    paintApps();
+
+    // The buttons were redrawn, so keep the keyboard on the page now showing.
+    var current = appsEl.querySelector(".ca-pager button.current");
+    if (current) current.focus();
+
+    var panel = document.getElementById("connected-apps");
+    if (panel) panel.scrollIntoView({ block: "start" });
+  });
 
   loadApps().catch(function () {
     appsEl.querySelector(".ca-list").innerHTML = "";
-    setStatus(appsEl.querySelector(".ca-status"), "Couldn't load your connected apps. Please reload the page.", true);
-  }).then(loadAccess).then(function () {
-    // The list arrives after the browser has tried the #anchor.
+    setStatus(appsEl.querySelector(".ca-list ~ .ca-status"), "Couldn't load your connected apps. Please reload the page.", true);
+  }).then(loadAccess).then(holdAnchor);
+
+  /* The list arrives after the browser has tried the #anchor, and the panels
+     above it are still filling in and changing height. So the jump is repeated
+     as the page settles, until someone scrolls for themselves. */
+  function holdAnchor() {
     var target = location.hash && document.querySelector(location.hash);
-    if (target) target.scrollIntoView();
-  });
+    if (!target) return;
+
+    target.scrollIntoView();
+    if (!window.ResizeObserver) return;
+
+    var observer = new ResizeObserver(function () { target.scrollIntoView(); });
+    observer.observe(document.body);
+
+    function stop() {
+      observer.disconnect();
+      ["wheel", "touchstart", "keydown", "mousedown"].forEach(function (type) {
+        window.removeEventListener(type, stop);
+      });
+    }
+
+    ["wheel", "touchstart", "keydown", "mousedown"].forEach(function (type) {
+      window.addEventListener(type, stop, { passive: true });
+    });
+    setTimeout(stop, 4000);
+  }
 
 })();

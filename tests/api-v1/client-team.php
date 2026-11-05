@@ -185,6 +185,30 @@ check("team: no mail server, and the page is told", ($r["emailed"] ?? null) === 
 $invite = one($pdo, "SELECT * FROM client_invites WHERE email = 'new.one@omega.test'");
 check("team: the invite holds no usable token and no login yet", strlen($invite["token_hash"]) === 64 && !one($pdo, "SELECT id FROM users WHERE email = 'new.one@omega.test'"), json_encode($invite));
 
+// The mail server is down here, so a resend must leave the link already out there working.
+[$status, $r] = myTeam("tok-olga", ["action" => "resend", "id" => (int) $invite["id"]]);
+$afterResend = one($pdo, "SELECT token_hash, expires_at FROM client_invites WHERE id = ?", [$invite["id"]]);
+check("team: a failed resend keeps the old link", $status === 200 && ($r["emailed"] ?? null) === false
+    && $afterResend["token_hash"] === $invite["token_hash"] && (int) $afterResend["expires_at"] === (int) $invite["expires_at"],
+    "HTTP $status " . json_encode([$r, $afterResend]));
+check("team: and says the earlier link still stands", strpos($r["message"] ?? "", "earlier link") !== false, json_encode($r));
+
+// A database error is reported as ours, not as the person's connection.
+$pdo->exec("ALTER TABLE client_invites CHANGE expires_at expires_at_moved INT NOT NULL");
+[$status, $r] = myTeam("tok-olga", ["action" => "invite", "email" => "broken@omega.test"]);
+$pdo->exec("ALTER TABLE client_invites CHANGE expires_at_moved expires_at INT NOT NULL");
+check("team: a server error comes back as readable JSON", $status === 500 && ($r["success"] ?? true) === false
+    && strpos($r["message"] ?? "", "on our side") !== false, "HTTP $status " . json_encode($r));
+
+// The text-only version of an email keeps its link.
+require_once $root . "/api/mailer.php";
+$plain = portalEmailPlainText("<div>\n  <h2>Join Acme</h2>\n  <p>Set a password &amp; join.</p>\n  <a href='http://portal.test/join-team.html?token=abc&amp;x=1' style='color:#fff'>Accept the invitation</a>\n</div>");
+check("email: plain text keeps the link in full", strpos($plain, "Accept the invitation: http://portal.test/join-team.html?token=abc&x=1") !== false, $plain);
+$plain2 = portalEmailPlainText("<table><tr><td style='x'>Company</td><td dir='auto'>Acme Ltd</td></tr></table>");
+check("email: plain text keeps a label apart from its value", $plain2 === "Company: Acme Ltd", $plain2);
+check("email: plain text has no markup or indentation", strpos($plain, "<") === false && strpos($plain, "  ") === false
+    && strpos($plain, "Set a password & join.") !== false, $plain);
+
 [$status, $r] = myTeam("tok-olga", ["action" => "invite", "email" => "new.one@omega.test"]);
 check("team: the same address twice is refused", $status === 409, "HTTP $status " . json_encode($r));
 

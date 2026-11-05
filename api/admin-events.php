@@ -16,7 +16,16 @@
 |   GET ?action=filters
 |       { admins, clients, areas } for the filter dropdowns
 |
-| Writing it is logEvent() in api/events.php.
+| The page's AI activity tab, under the same permission (the assistant's route
+| is api/v1/ai-activity.php):
+|
+|   GET ?action=ai_activity&page=&limit=&who=&app=&result=&from=&to=&tz=
+|       (who: "admin:3" or "user:10"; result: ok or refused)
+|       { items, total, page, total_pages }, newest first
+|   GET ?action=ai_filters
+|       { people, apps } for its filter dropdowns
+|
+| Writing the log is logEvent() in api/events.php.
 |
 */
 
@@ -54,6 +63,95 @@ if ($p["kind"] !== "admin" || $p["via"] !== "session" || !can($p, "events.view",
 }
 
 $action = $_GET["action"] ?? "list";
+
+$date = function ($name) {
+    $value = trim((string) ($_GET[$name] ?? ""));
+    if ($value === "") {
+        return "";
+    }
+    $d = DateTime::createFromFormat("Y-m-d", $value);
+    if (!$d || $d->format("Y-m-d") !== $value) {
+        reply(false, "Dates must look like 2026-10-05.", [], 400);
+    }
+    return $value;
+};
+
+if ($action === "ai_filters") {
+    ensureOAuthTables($pdo);
+
+    // Everyone who appears in the log, deleted people included: their rows stay.
+    $people = $pdo->query("
+        SELECT l.principal_kind AS kind, l.principal_id AS id, MAX(COALESCE(a.name, u.name)) AS name
+        " . AI_ACTIVITY_FROM . "
+        GROUP BY l.principal_kind, l.principal_id
+        ORDER BY name
+    ")->fetchAll(PDO::FETCH_ASSOC);
+
+    $apps = $pdo->query("
+        SELECT l.client_id AS id, MAX(c.client_name) AS name
+        " . AI_ACTIVITY_FROM . "
+        GROUP BY l.client_id
+        ORDER BY name
+    ")->fetchAll(PDO::FETCH_ASSOC);
+
+    reply(true, "", [
+        "people" => array_map(function ($row) {
+            return [
+                "value" => $row["kind"] . ":" . (int) $row["id"],
+                "name" => (string) ($row["name"] ?: "(deleted)"),
+                "kind" => $row["kind"] === "user" ? "client" : "staff",
+            ];
+        }, $people),
+        "apps" => array_map(function ($row) {
+            return ["value" => (string) $row["id"], "name" => (string) ($row["name"] ?: "AI assistant")];
+        }, $apps),
+    ]);
+}
+
+if ($action === "ai_activity") {
+    ensureOAuthTables($pdo);
+
+    $who = explode(":", (string) ($_GET["who"] ?? ""), 2);
+    $kind = in_array($who[0], ["admin", "user"], true) ? $who[0] : "";
+
+    [$where, $params] = aiActivityFilters([
+        "person_kind" => $kind,
+        "person_id"   => $kind !== "" ? (int) ($who[1] ?? 0) : 0,
+        "app"         => mb_substr((string) ($_GET["app"] ?? ""), 0, 64),
+        "result"      => (string) ($_GET["result"] ?? ""),
+        "from"        => $date("from"),
+        "to"          => $date("to"),
+        "tz"          => (string) ($_GET["tz"] ?? ""),
+    ]);
+
+    $sqlWhere = $where ? "WHERE " . implode(" AND ", $where) : "";
+
+    $limit = max(1, min(100, (int) ($_GET["limit"] ?? 25)));
+    $page = max(1, (int) ($_GET["page"] ?? 1));
+
+    $count = $pdo->prepare("SELECT COUNT(*) FROM mcp_audit_log l $sqlWhere");
+    $count->execute($params);
+    $total = (int) $count->fetchColumn();
+
+    $totalPages = max(1, (int) ceil($total / $limit));
+    $page = min($page, $totalPages);
+    $offset = ($page - 1) * $limit;
+
+    $stmt = $pdo->prepare("
+        SELECT " . AI_ACTIVITY_COLUMNS . AI_ACTIVITY_FROM . "
+        $sqlWhere
+        ORDER BY l.id DESC
+        LIMIT $limit OFFSET $offset
+    ");
+    $stmt->execute($params);
+
+    reply(true, "", [
+        "items" => array_map("aiActivityRow", $stmt->fetchAll(PDO::FETCH_ASSOC)),
+        "total" => $total,
+        "page" => $page,
+        "total_pages" => $totalPages,
+    ]);
+}
 
 if ($action === "filters") {
 
@@ -98,18 +196,6 @@ if ($action !== "list") {
 }
 
 pruneAdminEvents($pdo);
-
-$date = function ($name) {
-    $value = trim((string) ($_GET[$name] ?? ""));
-    if ($value === "") {
-        return "";
-    }
-    $d = DateTime::createFromFormat("Y-m-d", $value);
-    if (!$d || $d->format("Y-m-d") !== $value) {
-        reply(false, "Dates must look like 2026-10-05.", [], 400);
-    }
-    return $value;
-};
 
 [$where, $params] = adminEventFilters([
     "actor_id"  => (int) ($_GET["actor_id"] ?? 0),

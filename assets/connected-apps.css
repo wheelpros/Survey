@@ -1,4 +1,7 @@
-/* Connected apps and AI access. See assets/connected-apps.js. */
+/* Connected apps, and the Director's client access switch. See assets/connected-apps.js. */
+
+/* A jump to the panel stops below the sticky top bar, not behind it. */
+#connected-apps { scroll-margin-top: 76px; }
 
 /* ── One row per app ── */
 .ca-list { display: grid; gap: 12px; }
@@ -28,29 +31,21 @@
 .ca-status:empty { display: none; }
 .ca-status.error { color: #b42318; }
 
-/* ── The Director's controls ── */
+/* ── The list's pager. Profile has no pager styles of its own, so they live here. ── */
+.ca-pager { margin-top: 16px; }
+.ca-pager button { min-width: 36px; height: 36px; padding: 0 12px; border: 1px solid #dfe3ea; border-radius: 9px; background: #fff; font: inherit; font-size: 13px; font-weight: 700; color: #101828; cursor: pointer; }
+.ca-pager button:hover:not(:disabled) { background: #f6f7f9; }
+.ca-pager button.current { background: #1b1e3a; border-color: #1b1e3a; color: #fff; }
+.ca-pager button:disabled { opacity: .45; cursor: not-allowed; }
+.ca-pager button:focus-visible { outline: 2px solid #1b1e3a; outline-offset: 2px; }
+
+/* ── The Director's switch ── */
+.ca-client-access { margin-bottom: 18px; padding: 16px; border: 1px solid #eaecf0; border-radius: 14px; background: #fafbfc; }
+.ca-client-access[hidden] { display: none; }
 .ca-toggle { display: flex; align-items: center; gap: 12px; margin: 0; font-size: 14px; font-weight: 700; color: #101828; cursor: pointer; }
 .ca-toggle input { width: 20px; height: 20px; margin: 0; flex: none; accent-color: #1b1e3a; }
-.ca-toggle-note { margin: 0 0 14px; font-size: 14px; line-height: 1.5; color: #475467; }
-
-.ca-activity-head { margin: 28px 0 4px; font-size: 16px; font-weight: 700; color: #101828; }
-.ca-activity-note { margin: 0 0 14px; font-size: 13px; color: #475467; }
-.ca-filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
-.ca-filters label { flex: 1; min-width: 150px; margin: 0; font-size: 12px; font-weight: 700; color: #475467; }
-.ca-filters select { display: block; width: 100%; height: 42px; margin-top: 4px; padding: 0 10px; border: 1px solid #d0d5dd; border-radius: 10px; background: #fff; font: inherit; font-size: 14px; font-weight: 400; color: #101828; }
-
-.ca-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.ca-table th { padding: 8px 6px; text-align: left; font-size: 11px; letter-spacing: .4px; text-transform: uppercase; color: #475467; border-bottom: 1px solid #eaecf0; }
-.ca-table td { padding: 10px 6px; vertical-align: top; color: #101828; border-bottom: 1px solid #f2f4f7; overflow-wrap: anywhere; }
-.ca-table .ok { color: #067647; font-weight: 700; }
-.ca-table .bad { color: #b42318; font-weight: 700; }
-.ca-kind { color: #475467; }
+.ca-toggle-note { margin: 8px 0 0; font-size: 13px; line-height: 1.5; color: #475467; }
 
 @media (max-width: 640px) {
   .ca-disconnect { width: 100%; min-height: 44px; }
-  .ca-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-  .ca-table, .ca-table tbody, .ca-table tr, .ca-table td { display: block; width: 100%; }
-  .ca-table tr { padding: 10px 0; border-bottom: 1px solid #eaecf0; }
-  .ca-table td { display: flex; gap: 12px; padding: 3px 0; border: none; }
-  .ca-table td::before { content: attr(data-label); flex: 0 0 64px; font-size: 12px; color: #475467; }
 }

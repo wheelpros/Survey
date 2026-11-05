@@ -53,6 +53,7 @@ function fakePortal({ scopes, v1 } = {}) {
       "messages.php": q.has("people") ? "list_message_people" : q.has("with") ? "read_chat" : "list_messages",
       "announcements.php": "get_announcement",
       "events.php": "get_tracking",
+      "ai-activity.php": "get_ai_activity",
       "calendar.php": q.has("id") ? "get_meeting" : q.has("pending") ? "list_pending_approvals" : "get_calendar",
     }[path];
     return pick ? jsonResponse(200, { ok: true, data: fixtures[pick] }) : jsonResponse(404, { ok: false, error: { code: "not_found", message: "No such thing" } });
@@ -134,6 +135,7 @@ describe("private server: per-person tools", () => {
     expect(names).not.toContain("get_calendar");
     expect(names).not.toContain("list_inquiry_leads");
     expect(names).not.toContain("get_tracking");
+    expect(names).not.toContain("get_ai_activity");
     const prompts = (await c.listPrompts()).prompts.map((p) => p.name);
     expect(prompts).not.toContain("meeting_prep");
     expect(prompts).not.toContain("triage_new_leads");
@@ -154,6 +156,7 @@ describe("private server: per-person tools", () => {
     await c.callTool({ name: "list_my_phases", arguments: {} });
     await c.callTool({ name: "get_dashboard", arguments: {} });
     await c.callTool({ name: "get_tracking", arguments: { area: "project", actor_id: 4, from: "2026-10-01", q: "logo" } });
+    await c.callTool({ name: "get_ai_activity", arguments: { person_kind: "client", person_id: 10, result: "refused" } });
 
     const calls = v1Calls(upstream).map(({ url }) => `${url.pathname.replace("/api/v1/", "")}?${url.searchParams}`);
     expect(calls).toEqual([
@@ -166,6 +169,7 @@ describe("private server: per-person tools", () => {
       "projects.php?mine=1",
       "projects.php?tasks=1",
       "events.php?actor_id=4&area=project&from=2026-10-01&q=logo",
+      "ai-activity.php?person_kind=client&person_id=10&result=refused",
     ]);
     const { init } = v1Calls(upstream)[0];
     expect(init.headers["X-MCP-Tool"]).toBe("get_client_team");
@@ -188,6 +192,11 @@ describe("private server: per-person tools", () => {
     expect(events.isError).toBeFalsy();
     expect(events.structuredContent.items.length).toBeGreaterThan(0);
     expect(events.content[0].text).toMatch(/^Fields named untrusted_content/);
+
+    const activity = await c.callTool({ name: "get_ai_activity", arguments: {} });
+    expect(activity.isError).toBeFalsy();
+    expect(activity.structuredContent.items.length).toBeGreaterThan(0);
+    expect(activity.content[0].text).toMatch(/^Fields named untrusted_content/);
     await c.close();
   });
 
