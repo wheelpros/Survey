@@ -621,6 +621,8 @@ require __DIR__ . "/announcements.php";
 require __DIR__ . "/client-team.php";
 require __DIR__ . "/client-account-tools.php";
 require __DIR__ . "/ai-connections.php";
+// Keep this last: it fills the login attempt limit for this run's one address.
+require __DIR__ . "/login-limits.php";
 
 if (in_array("--fixtures", $argv, true)) {
     file_put_contents(

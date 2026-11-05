@@ -1,6 +1,17 @@
 <?php
 
 require_once "db.php";
+require_once "rate-limit.php";
+
+// Every attempt counts, right password or wrong, so guessing runs out here.
+if (rateLimited($pdo, "login", 20, 20, 300)) {
+    http_response_code(429);
+    echo json_encode([
+        "success" => false,
+        "message" => "Too many attempts. Please wait a few minutes and try again."
+    ]);
+    exit;
+}
 
 $input = json_decode(file_get_contents("php://input"), true);
 
