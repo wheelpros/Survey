@@ -5,8 +5,12 @@
 | Connected apps - the AI assistants a person has given access to
 |--------------------------------------------------------------------------
 |
-|   GET                         -> { grants: [{ id, client_name, scopes, created_at, last_used_at }] }
+|   GET                         -> { grants: [{ id, client_name, scopes, missing, created_at, last_used_at }] }
 |   POST { action: "revoke", id }
+|
+| scopes is what the connection can do today: what was approved, within what
+| the person's role still allows. missing is what the role allows but this
+| connection was never given.
 |
 | Browser sessions only, and only your own grants: an AI holding a token
 | must not be able to list or end other connections. Revoking takes effect
@@ -36,16 +40,17 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
         ORDER BY g.created_at DESC
     ");
     $stmt->execute([$p["kind"], $p["id"], time()]);
+    $allowed = scopesAllowedFor($pdo, $p);
 
     oauthReply(200, [
         "success" => true,
-        "grants" => array_map(function ($g) {
+        "grants" => array_map(function ($g) use ($allowed) {
+            $scopes = array_values(array_intersect(scopeList($g["scopes"]), $allowed));
             return [
                 "id" => (int) $g["id"],
                 "client_name" => $g["client_name"] ?: "AI assistant",
-                "scopes" => array_map(function ($s) {
-                    return ["scope" => $s, "description" => SCOPE_DESCRIPTIONS[$s] ?? $s];
-                }, scopeList($g["scopes"])),
+                "scopes" => array_map("describeScope", $scopes),
+                "missing" => array_map("describeScope", array_values(array_diff($allowed, $scopes))),
                 "created_at" => $g["created_at"],
                 "last_used_at" => $g["last_used_at"],
             ];

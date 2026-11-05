@@ -502,6 +502,7 @@
       })();
     </script>
   <link rel="stylesheet" href="assets/shell.css?v=6" />
+  <link rel="stylesheet" href="assets/connected-apps.css?v=1" />
   </head>
 
   <body>
@@ -651,11 +652,11 @@
           </div>
 
           <!-- AI assistants connected to this account through the portal's
-               MCP server - listing and disconnecting live on their own page. -->
-          <div class="card">
+               MCP server. Drawn by assets/connected-apps.js. -->
+          <div class="card" id="connected-apps">
             <h2>Connected apps</h2>
             <p class="hint">AI assistants you've allowed to use your account. See what each can do, or disconnect it.</p>
-            <a class="ghost-btn" href="connected-apps.html" style="display:inline-flex;align-items:center;text-decoration:none;margin-top:6px">Manage connected apps</a>
+            <div data-token-key="portal_token"></div>
           </div>
         </section>
       </main>
@@ -817,6 +818,8 @@
 
       loadProfile();
     </script>
+  <script src="assets/confirm.js?v=1"></script>
+  <script src="assets/connected-apps.js?v=1"></script>
   <script src="assets/notifications.js?v=2"></script>
   <script src="assets/shell.js?v=6"></script>
 </body>

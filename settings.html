@@ -1379,6 +1379,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 </script>
 <link rel="stylesheet" href="assets/shell.css?v=6" />
+<link rel="stylesheet" href="assets/connected-apps.css?v=1" />
 <script src="assets/permissions.js?v=2"></script>
 </head>
 
@@ -1636,16 +1637,24 @@ document.addEventListener("DOMContentLoaded", function () {
 </div>
 
 <!-- AI assistants connected through the portal's MCP server. Every admin has
-     their own connections; the owner also gets the client-access switch and
-     the portal-wide AI activity on the same page. -->
-<div class="panel">
+     their own connections; the Director also gets the panel below it, about
+     everyone. Both are drawn by assets/connected-apps.js. -->
+<div class="panel" id="connected-apps">
   <div class="panel-head">
     <h1>Connected apps</h1>
-    <p>AI assistants you've allowed to use your account. The Director also controls whether clients may connect one, and sees recent AI activity.</p>
+    <p>AI assistants you've allowed to use your account. Each one can only do what you approved, within what your role allows.</p>
   </div>
   <div class="panel-body">
-    <a class="primary" href="connected-apps.html" style="display:inline-flex;align-items:center;padding:0 18px;height:44px;border-radius:12px;text-decoration:none;">Manage connected apps</a>
+    <div data-token-key="admin_token"></div>
   </div>
+</div>
+
+<div class="panel" id="ai-access" hidden>
+  <div class="panel-head">
+    <h1>AI access</h1>
+    <p>Whether clients may connect an AI assistant, and what assistants have been doing across the portal.</p>
+  </div>
+  <div class="panel-body"></div>
 </div>
 
 <!-- Password Panel. The id is the anchor the Files password box
@@ -3828,6 +3837,7 @@ if (adminUser.role === "owner") {
 <script src="assets/notifications.js?v=2"></script>
 <script src="assets/messages-badge.js?v=2"></script>
 <script src="assets/confirm.js?v=1"></script>
+<script src="assets/connected-apps.js?v=1"></script>
 <script src="assets/shell.js?v=6"></script>
 <script src="assets/sources-lock.js?v=1"></script>
 <script src="assets/role-nav.js?v=7"></script>

@@ -80,6 +80,45 @@ const SCOPE_DESCRIPTIONS = [
     "self:write"          => "Request and answer meetings, fill in your forms, mark notifications read, and manage your team if you own the account",
 ];
 
+// How the approval and Connected apps pages group scopes, in the order shown.
+const SCOPE_AREAS = [
+    "Clients"       => ["clients:read", "clients:write"],
+    "Forms"         => ["forms:read", "forms:write", "forms:review"],
+    "Inquiries"     => ["inquiries:read", "inquiries:write"],
+    "Content"       => ["content:read", "content:write"],
+    "Calendar"      => ["calendar:read", "calendar:write"],
+    "Projects"      => ["projects:read", "projects:write"],
+    "Notifications" => ["notifications:read", "notifications:write"],
+    "Messages"      => ["messages:read", "messages:write", "announcements:write"],
+    "Settings"      => ["settings:read", "settings:write"],
+    "Admin team"    => ["admins:write"],
+    "Tracking"      => ["events:read"],
+    "Your account"  => ["self:read", "self:write"],
+];
+
+// Called out on their own before someone approves: an assistant holding these
+// speaks to other people as them, or changes who can get into the portal.
+const SENSITIVE_SCOPES = ["messages:write", "announcements:write", "settings:write", "admins:write"];
+
+/** One scope as the pages show it. */
+function describeScope($scope)
+{
+    $area = "Other";
+    foreach (SCOPE_AREAS as $name => $scopes) {
+        if (in_array($scope, $scopes, true)) {
+            $area = $name;
+            break;
+        }
+    }
+    return [
+        "scope" => $scope,
+        "description" => SCOPE_DESCRIPTIONS[$scope] ?? $scope,
+        "area" => $area,
+        "access" => substr($scope, -5) === ":read" ? "view" : "change",
+        "sensitive" => in_array($scope, SENSITIVE_SCOPES, true),
+    ];
+}
+
 const OAUTH_REQUEST_TTL = 900;            // to approve or deny on the consent page
 const OAUTH_CODE_TTL = 600;               // to exchange a code for tokens
 const MCP_ACCESS_TTL = 3600;              // 1 hour
@@ -284,6 +323,47 @@ function revokeGrant(PDO $pdo, $grantId)
         ->execute([$grantId]);
     $pdo->prepare("UPDATE mcp_tokens SET revoked_at = ? WHERE grant_id = ? AND revoked_at IS NULL")
         ->execute([time(), $grantId]);
+}
+
+/**
+ * Ends this person's earlier connections to the same app, once a new one has
+ * its tokens - reconnecting replaces a connection rather than adding another.
+ *
+ * Apps usually register afresh each time they connect, so a new client_id says
+ * nothing. The same app is the same client_id, or the same name with the new
+ * code having gone to a host the old registration lists. The name alone won't
+ * do: an app picks its own, and must not be able to end another app's access
+ * by borrowing it. Local hosts don't count either, because two copies of a
+ * desktop tool on two machines are separate connections.
+ */
+function endReplacedGrants(PDO $pdo, array $grant, $redirectUri)
+{
+    $stmt = $pdo->prepare("SELECT client_name FROM oauth_clients WHERE client_id = ? LIMIT 1");
+    $stmt->execute([$grant["client_id"]]);
+    $name = trim((string) $stmt->fetchColumn());
+    $host = (string) parse_url((string) $redirectUri, PHP_URL_HOST);
+    $hostCounts = $name !== "" && $host !== "" && !in_array($host, ["localhost", "127.0.0.1", "[::1]"], true);
+
+    $stmt = $pdo->prepare("
+        SELECT g.id, g.client_id, c.client_name, c.metadata
+        FROM mcp_grants g
+        LEFT JOIN oauth_clients c ON c.client_id = g.client_id
+        WHERE g.principal_kind = ? AND g.principal_id = ? AND g.id <> ? AND g.revoked_at IS NULL
+    ");
+    $stmt->execute([$grant["principal_kind"], $grant["principal_id"], $grant["id"]]);
+
+    foreach ($stmt->fetchAll() as $old) {
+        $same = $old["client_id"] === $grant["client_id"];
+        if (!$same && $hostCounts && strcasecmp(trim((string) $old["client_name"]), $name) === 0) {
+            $metadata = json_decode((string) $old["metadata"], true);
+            foreach ((array) ($metadata["redirect_uris"] ?? []) as $uri) {
+                $same = $same || parse_url((string) $uri, PHP_URL_HOST) === $host;
+            }
+        }
+        if ($same) {
+            revokeGrant($pdo, (int) $old["id"]);
+        }
+    }
 }
 
 /** Opportunistic cleanup of finished requests, codes and long-dead tokens. */

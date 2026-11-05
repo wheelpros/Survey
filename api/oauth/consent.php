@@ -55,6 +55,9 @@ if (!$request) {
 $allowed = scopesAllowedFor($pdo, $p);
 $requested = scopeList($request["scopes"]);
 $scopes = $requested ? array_values(array_intersect($requested, $allowed)) : $allowed;
+// What this person could have given but the app didn't ask for. Shown, so a
+// connection that comes up short can be explained before it is approved.
+$notRequested = array_values(array_diff($allowed, $scopes));
 
 $clientName = $request["client_name"] ?: "An AI assistant";
 $redirectHost = parse_url($request["redirect_uri"], PHP_URL_HOST) ?: "";
@@ -83,9 +86,8 @@ if ($method === "GET") {
             "email" => $p["email"],
             "role" => $p["role"],
         ],
-        "scopes" => array_map(function ($s) {
-            return ["scope" => $s, "description" => SCOPE_DESCRIPTIONS[$s] ?? $s];
-        }, $scopes),
+        "scopes" => array_map("describeScope", $scopes),
+        "not_requested" => array_map("describeScope", $notRequested),
         "can_approve" => $reason === null,
         "reason" => $reason,
     ]);

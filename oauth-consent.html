@@ -13,37 +13,92 @@
   ?request=<id>. A portal session lives in this domain's localStorage
   (admin_token for staff, portal_token for clients), so only a page on this
   domain can tell who is signed in - which is why approval happens here and
-  not on the MCP server. Not signed in: offer both logins, each coming back
-  here via ?next=. Decision: api/oauth/consent.php, then on to the app.
+  not on the MCP server. Not signed in: one form for everybody
+  (api/sign-in.php works out which account it opens), without leaving the page.
+  Decision: api/oauth/consent.php, then on to the app.
 -->
 
 <style>
 *{box-sizing:border-box;font-family:Arial,sans-serif}
 body{margin:0;min-height:100vh;background:#f6f7fb;display:flex;align-items:center;justify-content:center;padding:20px;color:#101828}
-.card{width:100%;max-width:460px;background:#fff;border-radius:24px;padding:34px;box-shadow:0 14px 35px rgba(0,0,0,.08)}
+.card{width:100%;max-width:500px;background:#fff;border-radius:24px;padding:34px;box-shadow:0 14px 35px rgba(0,0,0,.08)}
 .brand{text-align:center;margin-bottom:22px}
 .brand img{width:132px;max-width:100%;height:auto}
-h1{font-size:22px;line-height:1.3;margin:0 0 8px}
+h1{font-size:22px;line-height:1.3;margin:0 0 8px;overflow-wrap:anywhere}
 .lede{margin:0 0 20px;color:#475467;font-size:14px;line-height:1.5}
+
+/* Sign-in */
+.field{display:block;margin-bottom:16px}
+.field span{display:block;font-size:13px;font-weight:700;margin-bottom:6px}
+.field input{width:100%;height:50px;padding:0 14px;border:1px solid #d0d5dd;border-radius:12px;font-size:16px;color:#101828;background:#fff}
+.field input:focus{outline:none;border-color:#1b1e3a;box-shadow:0 0 0 3px rgba(27,30,58,.12)}
+.forgot{display:block;margin-top:14px;text-align:center;font-size:13px;font-weight:700;color:#1b1e3a}
+.choice{width:100%;height:auto;min-height:64px;padding:12px 16px;margin-bottom:10px;background:#fff;border:1px solid #d0d5dd;color:#101828;display:block;text-align:left}
+.choice:hover{background:#f6f7fb;border-color:#1b1e3a}
+.choice b{display:block;font-size:14px}
+.choice span{display:block;margin-top:2px;font-size:13px;font-weight:400;color:#475467;overflow-wrap:anywhere}
+
+/* Where the app sends you. The name is whatever the app registered with; this isn't. */
+.dest{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 16px;font-size:13px;color:#475467}
+.dest svg{width:16px;height:16px;flex:none;color:#475467}
+.dest code{font-size:13px;font-weight:700;font-family:Consolas,Menlo,monospace;color:#101828;background:#f1f3f6;padding:3px 7px;border-radius:6px;overflow-wrap:anywhere}
+
 .who{display:flex;align-items:center;gap:12px;background:#f6f7fb;border-radius:14px;padding:12px 14px;margin-bottom:20px;font-size:13px}
-.who b{display:block;font-size:14px}
-.who span{color:#667085}
-.who a{margin-left:auto;color:#1b1e3a;font-weight:700;font-size:12px;white-space:nowrap}
-h2{font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#667085;margin:0 0 10px}
-ul.scopes{list-style:none;margin:0 0 20px;padding:0;display:grid;gap:8px}
-ul.scopes li{display:flex;gap:10px;font-size:14px;line-height:1.4}
-ul.scopes li::before{content:"";flex:none;width:7px;height:7px;border-radius:50%;background:#1b1e3a;margin-top:6px}
-.note{font-size:12px;color:#667085;line-height:1.5;margin:0 0 20px}
-.note code{background:#f1f3f6;padding:1px 5px;border-radius:5px}
+.who div{min-width:0}
+.who b{display:block;font-size:14px;overflow-wrap:anywhere}
+.who span{color:#475467;overflow-wrap:anywhere}
+.who a{margin-left:auto;flex:none;color:#1b1e3a;font-weight:700;font-size:12px;white-space:nowrap}
+
+h2{font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#475467;margin:0 0 8px}
+
+/* Called out first: acting in the person's name. */
+.sensitive{background:#fffaeb;border:1px solid #fedf89;border-radius:14px;padding:14px 16px;margin-bottom:20px}
+.sensitive h2{color:#7a2e0e;display:flex;align-items:center;gap:8px}
+.sensitive h2 svg{width:16px;height:16px;flex:none}
+.sensitive ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.sensitive li{font-size:14px;line-height:1.4;color:#101828}
+
+/* One row per area; open it to read exactly what that area covers. */
+.areas{margin-bottom:20px;border-top:1px solid #eaecf0}
+.area{border-bottom:1px solid #eaecf0}
+.area summary{display:flex;align-items:center;gap:10px;min-height:46px;padding:8px 2px;cursor:pointer;list-style:none;font-size:14px;font-weight:700}
+.area summary::-webkit-details-marker{display:none}
+.area summary:focus-visible{outline:2px solid #1b1e3a;outline-offset:2px;border-radius:6px}
+.area .level{margin-left:auto;font-size:13px;font-weight:400;color:#475467;text-align:right}
+.area .chev{width:16px;height:16px;flex:none;color:#475467;transition:transform .15s}
+.area[open] .chev{transform:rotate(90deg)}
+.area ul{list-style:none;margin:0;padding:0 2px 12px;display:grid;gap:8px}
+.area li{font-size:13px;line-height:1.45;color:#344054}
+.area code{display:block;font-size:11px;font-family:Consolas,Menlo,monospace;color:#475467;margin-top:1px}
+
+/* What the person could have given but the app didn't ask for. */
+.left-out{margin-bottom:20px;padding:12px 14px;background:#f6f7fb;border-radius:14px;font-size:13px;line-height:1.5;color:#344054}
+.left-out summary{cursor:pointer;font-weight:700;color:#101828}
+.left-out p{margin:8px 0}
+.left-out ul{margin:0;padding-left:18px;display:grid;gap:4px}
+
+.note{font-size:12px;color:#475467;line-height:1.5;margin:0 0 4px}
+.note a{color:#1b1e3a;font-weight:700}
+
+/* Always on screen, however long the list above is. */
+.decide{position:sticky;bottom:0;margin:0 -34px -34px;padding:14px 34px 20px;background:#fff;border-top:1px solid #eaecf0;border-radius:0 0 24px 24px}
 .actions{display:flex;gap:10px}
 button,.btn{flex:1;height:52px;border:none;border-radius:12px;font-weight:800;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;text-decoration:none}
+.submit{width:100%}
 .primary{background:#1b1e3a;color:#fff}
 .secondary{background:#eef0f6;color:#1b1e3a}
 button:disabled{opacity:.5;cursor:default}
-.stack{display:grid;gap:10px}
-.status{margin-top:14px;text-align:center;font-size:13px;color:#1b1e3a;min-height:1em}
+.status{margin:10px 0 0;text-align:center;font-size:13px;color:#1b1e3a}
+.status:empty{display:none}
 .status.error{color:#b42318}
 [hidden]{display:none !important}
+
+@media(max-width:520px){
+  body{padding:0;align-items:flex-start;background:#fff}
+  .card{padding:24px 20px;border-radius:0;box-shadow:none}
+  .decide{margin:0 -20px -24px;padding:12px 20px 16px;border-radius:0}
+}
+@media(prefers-reduced-motion:reduce){.area .chev{transition:none}}
 </style>
 </head>
 <body>
@@ -58,38 +113,75 @@ button:disabled{opacity:.5;cursor:default}
   <section id="signIn" hidden>
     <h1>Sign in to connect your AI assistant</h1>
     <p class="lede">An AI assistant wants to connect to your portal account. Sign in first, then you'll choose whether to allow it.</p>
-    <div class="stack">
-      <a class="btn primary" id="staffLogin" href="#">Sign in as staff</a>
-      <a class="btn secondary" id="clientLogin" href="#">Sign in as a client</a>
-    </div>
+    <form id="signInForm">
+      <label class="field">
+        <span>Email</span>
+        <input type="email" id="email" required autocomplete="username" spellcheck="false">
+      </label>
+      <label class="field">
+        <span>Password</span>
+        <input type="password" id="password" required autocomplete="current-password">
+      </label>
+      <button class="primary submit" id="signInBtn" type="submit">Continue</button>
+      <p class="status error" id="signInStatus" role="alert"></p>
+    </form>
+    <!-- A new tab: this request only lasts 15 minutes, and has to survive the reset. -->
+    <a class="forgot" href="forgot-password.html" target="_blank" rel="noopener">Forgot password?</a>
+  </section>
+
+  <!-- That email and password open two accounts: the only time anyone is asked. -->
+  <section id="chooseAccount" hidden>
+    <h1>Which account should it connect to?</h1>
+    <p class="lede">This email and password open more than one account.</p>
+    <div id="accountChoices"></div>
+    <p class="status error" id="chooseStatus" role="alert"></p>
   </section>
 
   <!-- The decision -->
   <section id="consent" hidden>
     <h1><span id="appName"></span> wants to access your account</h1>
-    <p class="lede">If you allow it, it can act as you in the portal - only within what your role can already see and do.</p>
+    <p class="dest">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+      Access goes to <code id="redirectHost"></code>
+    </p>
+    <p class="lede">If you allow it, it can act as you in the portal - only within what your role can already see and do. Allow it only if you started this from that app.</p>
 
     <div class="who">
       <div><b id="whoName"></b><span id="whoRole"></span></div>
       <a id="switchAccount" href="#">Not you?</a>
     </div>
 
-    <div id="scopeBlock">
-      <h2>It will be able to</h2>
-      <ul class="scopes" id="scopeList"></ul>
+    <div class="sensitive" id="sensitiveBlock" hidden>
+      <h2>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+        Can act in your name
+      </h2>
+      <ul id="sensitiveList"></ul>
     </div>
 
+    <div id="areaBlock" hidden>
+      <h2 id="areaTitle">It will be able to use</h2>
+      <div class="areas" id="areaList"></div>
+    </div>
+
+    <details class="left-out" id="leftOut" hidden>
+      <summary id="leftOutTitle"></summary>
+      <p><span id="leftOutApp"></span> didn't ask for these, so it won't be able to do them even though your role allows it. To include them, the app has to ask for them when it connects.</p>
+      <ul id="leftOutList"></ul>
+    </details>
+
     <p class="note">
-      You'll be sent back to <code id="redirectHost"></code>.
       Nothing is published, sent or deleted without you confirming it in the conversation,
       and you can disconnect it at any time from <a href="connected-apps.html" target="_blank" rel="noopener">Connected apps</a>.
     </p>
 
-    <p class="status error" id="reason" hidden></p>
-
-    <div class="actions">
-      <button class="secondary" id="denyBtn" type="button">Deny</button>
-      <button class="primary" id="allowBtn" type="button">Allow</button>
+    <div class="decide">
+      <p class="status error" id="reason" hidden></p>
+      <div class="actions">
+        <button class="secondary" id="denyBtn" type="button">Deny</button>
+        <button class="primary" id="allowBtn" type="button">Allow</button>
+      </div>
+      <p class="status" id="decideStatus" role="status"></p>
     </div>
   </section>
 
@@ -105,11 +197,11 @@ button:disabled{opacity:.5;cursor:default}
 <script>
 
 const requestId = new URLSearchParams(location.search).get("request") || "";
-const here = "oauth-consent.html?request=" + encodeURIComponent(requestId);
 const statusEl = document.getElementById("status");
+const CHEVRON = '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
 
 function show(id) {
-  ["signIn", "consent", "message"].forEach(s => document.getElementById(s).hidden = s !== id);
+  ["signIn", "chooseAccount", "consent", "message"].forEach(s => document.getElementById(s).hidden = s !== id);
 }
 
 function message(title, text) {
@@ -124,12 +216,13 @@ function realToken(key) {
   return t && t !== "preview" ? t : null;
 }
 
-const staffToken = realToken("admin_token");
-const clientToken = realToken("portal_token");
-const token = staffToken || clientToken;
+// Which stored session this page is acting on: "admin" or "portal".
+let session = realToken("admin_token") ? "admin" : realToken("portal_token") ? "portal" : null;
 
-document.getElementById("staffLogin").href = "admin-login.html?next=" + encodeURIComponent(here);
-document.getElementById("clientLogin").href = "login.html?next=" + encodeURIComponent(here);
+function forget(which) {
+  localStorage.removeItem(which + "_token");
+  localStorage.removeItem(which + "_user");
+}
 
 async function api(method, body) {
   const res = await fetch(
@@ -137,7 +230,7 @@ async function api(method, body) {
     {
       method,
       headers: {
-        Authorization: "Bearer " + token,
+        Authorization: "Bearer " + realToken(session + "_token"),
         ...(body ? { "Content-Type": "application/json" } : {})
       },
       body: body ? JSON.stringify(body) : undefined
@@ -146,11 +239,80 @@ async function api(method, body) {
   return { status: res.status, data: await res.json().catch(() => ({})) };
 }
 
+/* ── Signing in ─────────────────────────────────────────────────────────── */
+
+async function signIn(account) {
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+  const button = document.getElementById("signInBtn");
+  const problem = account ? document.getElementById("chooseStatus") : document.getElementById("signInStatus");
+
+  problem.textContent = "";
+  button.disabled = true;
+  button.textContent = "Signing in...";
+
+  try {
+    const res = await fetch("api/sign-in.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, ...(account ? { account } : {}) })
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (data.success && data.choose) {
+      offerAccounts(data.choose);
+    } else if (data.success && data.token) {
+      const staff = !!data.admin;
+      localStorage.setItem(staff ? "admin_token" : "portal_token", data.token);
+      localStorage.setItem(staff ? "admin_user" : "portal_user", JSON.stringify(staff ? data.admin : data.user));
+      session = staff ? "admin" : "portal";
+      document.getElementById("password").value = "";
+      load();
+    } else {
+      problem.textContent = data.message || "Couldn't sign you in. Please try again.";
+    }
+  } catch (e) {
+    problem.textContent = "Connection error - please try again.";
+  }
+
+  button.disabled = false;
+  button.textContent = "Continue";
+}
+
+function offerAccounts(accounts) {
+  const list = document.getElementById("accountChoices");
+  list.innerHTML = "";
+  accounts.forEach(a => {
+    const choice = document.createElement("button");
+    choice.type = "button";
+    choice.className = "choice";
+    const label = document.createElement("b");
+    label.textContent = a.label;
+    choice.appendChild(label);
+    if (a.detail) {
+      const detail = document.createElement("span");
+      detail.textContent = a.detail;
+      choice.appendChild(detail);
+    }
+    choice.onclick = () => signIn(a.account);
+    list.appendChild(choice);
+  });
+  show("chooseAccount");
+}
+
+document.getElementById("signInForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  signIn();
+});
+
+/* ── The decision ───────────────────────────────────────────────────────── */
+
 async function decide(decision) {
+  const decideStatus = document.getElementById("decideStatus");
   document.getElementById("allowBtn").disabled = true;
   document.getElementById("denyBtn").disabled = true;
-  statusEl.classList.remove("error");
-  statusEl.textContent = decision === "approve" ? "Connecting..." : "Cancelling...";
+  decideStatus.classList.remove("error");
+  decideStatus.textContent = decision === "approve" ? "Connecting..." : "Cancelling...";
 
   try {
     const { data } = await api("POST", { request: requestId, decision });
@@ -159,13 +321,85 @@ async function decide(decision) {
       return;
     }
     message("Couldn't finish", data.message || "Please start connecting again from your AI assistant.");
-    statusEl.textContent = "";
+    decideStatus.textContent = "";
   } catch (e) {
-    statusEl.classList.add("error");
-    statusEl.textContent = "Connection error - please try again.";
+    decideStatus.classList.add("error");
+    decideStatus.textContent = "Connection error - please try again.";
     document.getElementById("allowBtn").disabled = false;
     document.getElementById("denyBtn").disabled = false;
   }
+}
+
+function fill(list, scopes) {
+  list.innerHTML = "";
+  scopes.forEach(s => {
+    const li = document.createElement("li");
+    li.textContent = s.description;
+    li.title = s.scope;
+    list.appendChild(li);
+  });
+}
+
+// Scopes grouped by area, in the order the server sent them.
+function byArea(scopes) {
+  const areas = new Map();
+  scopes.forEach(s => {
+    if (!areas.has(s.area)) areas.set(s.area, []);
+    areas.get(s.area).push(s);
+  });
+  return areas;
+}
+
+function levelOf(scopes) {
+  const views = scopes.some(s => s.access === "view");
+  const changes = scopes.some(s => s.access === "change");
+  return views && changes ? "View and change" : changes ? "Change" : "View";
+}
+
+function paintScopes(data) {
+  const sensitive = data.scopes.filter(s => s.sensitive);
+  const rest = data.scopes.filter(s => !s.sensitive);
+
+  fill(document.getElementById("sensitiveList"), sensitive);
+  document.getElementById("sensitiveBlock").hidden = !sensitive.length;
+
+  const areaList = document.getElementById("areaList");
+  areaList.innerHTML = "";
+  byArea(rest).forEach((scopes, area) => {
+    const row = document.createElement("details");
+    row.className = "area";
+
+    const summary = document.createElement("summary");
+    const name = document.createElement("span");
+    name.textContent = area;
+    const level = document.createElement("span");
+    level.className = "level";
+    level.textContent = levelOf(scopes);
+    summary.append(name, level);
+    summary.insertAdjacentHTML("beforeend", CHEVRON);
+    row.appendChild(summary);
+
+    const list = document.createElement("ul");
+    scopes.forEach(s => {
+      const li = document.createElement("li");
+      li.textContent = s.description;
+      const code = document.createElement("code");
+      code.textContent = s.scope;
+      li.appendChild(code);
+      list.appendChild(li);
+    });
+    row.appendChild(list);
+    areaList.appendChild(row);
+  });
+  document.getElementById("areaTitle").textContent = sensitive.length ? "It will also be able to use" : "It will be able to use";
+  document.getElementById("areaBlock").hidden = !rest.length;
+
+  const leftOut = data.not_requested || [];
+  document.getElementById("leftOutTitle").textContent =
+    leftOut.length + (leftOut.length === 1 ? " permission" : " permissions") + " this app didn't ask for";
+  document.getElementById("leftOutApp").textContent = data.client_name;
+  fill(document.getElementById("leftOutList"), leftOut);
+  document.getElementById("leftOut").hidden = !leftOut.length;
 }
 
 async function load() {
@@ -173,11 +407,13 @@ async function load() {
     message("This link isn't valid", "Start connecting again from your AI assistant.");
     return;
   }
-  if (!token) {
+  if (!session) {
     show("signIn");
     return;
   }
 
+  show(null);
+  statusEl.classList.remove("error");
   statusEl.textContent = "Loading...";
   let result;
   try {
@@ -191,8 +427,10 @@ async function load() {
 
   const { status, data } = result;
   if (status === 401) {
-    // The stored session is stale - sign in again and come straight back.
-    show("signIn");
+    // This stored session is stale. Try the other one if there is one, or sign in.
+    forget(session);
+    session = realToken("admin_token") ? "admin" : realToken("portal_token") ? "portal" : null;
+    load();
     return;
   }
   if (!data.success) {
@@ -206,27 +444,15 @@ async function load() {
     (data.principal.kind === "admin" ? "Staff - " + data.principal.role.replace(/_/g, " ") : "Client")
     + (data.principal.email ? " - " + data.principal.email : "");
   document.getElementById("redirectHost").textContent = data.redirect_host;
-  // Switching means signing this session out first - login.html sends anyone
-  // who still has a token straight back, which would land on the same person.
-  const switchLink = document.getElementById("switchAccount");
-  switchLink.href = "#";
-  switchLink.onclick = (e) => {
+  // Switching means signing this session out first: the page falls through to
+  // the other stored session if there is one, and to the sign-in form if not.
+  document.getElementById("switchAccount").onclick = (e) => {
     e.preventDefault();
-    const key = data.principal.kind === "admin" ? "admin" : "portal";
-    localStorage.removeItem(key + "_token");
-    localStorage.removeItem(key + "_user");
+    forget(session);
     location.reload();
   };
 
-  const list = document.getElementById("scopeList");
-  list.innerHTML = "";
-  data.scopes.forEach(s => {
-    const li = document.createElement("li");
-    li.textContent = s.description;
-    li.title = s.scope;
-    list.appendChild(li);
-  });
-  document.getElementById("scopeBlock").hidden = !data.scopes.length;
+  paintScopes(data);
 
   const allow = document.getElementById("allowBtn");
   if (!data.can_approve) {
