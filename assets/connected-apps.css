@@ -1,0 +1,56 @@
+/* Connected apps and AI access. See assets/connected-apps.js. */
+
+/* ── One row per app ── */
+.ca-list { display: grid; gap: 12px; }
+.ca-empty { font-size: 14px; color: #475467; }
+.ca-app { border: 1px solid #eaecf0; border-radius: 14px; padding: 16px; background: #fff; }
+.ca-app-head { display: flex; align-items: flex-start; gap: 14px; flex-wrap: wrap; }
+.ca-app-who { flex: 1; min-width: 200px; }
+.ca-app-name { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 15px; font-weight: 700; color: #101828; overflow-wrap: anywhere; }
+.ca-meta { margin-top: 4px; font-size: 13px; color: #475467; }
+.ca-count { font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; background: #ecfdf3; color: #067647; }
+.ca-count.short { background: #fffaeb; color: #93370d; }
+.ca-disconnect { min-height: 40px; padding: 0 16px; border: 1px solid #fecdca; border-radius: 10px; background: #fff; color: #b42318; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.ca-disconnect:hover { background: #fef3f2; }
+
+.ca-warning { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: #fffaeb; font-size: 13px; line-height: 1.5; color: #7a2e0e; }
+.ca-warning b { display: block; color: #7a2e0e; }
+
+.ca-details { margin-top: 12px; }
+.ca-details summary { display: inline-flex; align-items: center; min-height: 32px; font-size: 13px; font-weight: 700; color: #1b1e3a; cursor: pointer; }
+.ca-details summary:focus-visible { outline: 2px solid #1b1e3a; outline-offset: 2px; border-radius: 6px; }
+.ca-area { margin-top: 12px; }
+.ca-area h3 { margin: 0 0 4px; font-size: 12px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase; color: #475467; }
+.ca-area ul { margin: 0; padding: 0 0 0 18px; display: grid; gap: 3px; font-size: 13px; line-height: 1.45; color: #344054; }
+.ca-area.missing h3 { color: #93370d; }
+
+.ca-status { margin-top: 10px; font-size: 13px; font-weight: 700; color: #1b1e3a; }
+.ca-status:empty { display: none; }
+.ca-status.error { color: #b42318; }
+
+/* ── The Director's controls ── */
+.ca-toggle { display: flex; align-items: center; gap: 12px; margin: 0; font-size: 14px; font-weight: 700; color: #101828; cursor: pointer; }
+.ca-toggle input { width: 20px; height: 20px; margin: 0; flex: none; accent-color: #1b1e3a; }
+.ca-toggle-note { margin: 0 0 14px; font-size: 14px; line-height: 1.5; color: #475467; }
+
+.ca-activity-head { margin: 28px 0 4px; font-size: 16px; font-weight: 700; color: #101828; }
+.ca-activity-note { margin: 0 0 14px; font-size: 13px; color: #475467; }
+.ca-filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.ca-filters label { flex: 1; min-width: 150px; margin: 0; font-size: 12px; font-weight: 700; color: #475467; }
+.ca-filters select { display: block; width: 100%; height: 42px; margin-top: 4px; padding: 0 10px; border: 1px solid #d0d5dd; border-radius: 10px; background: #fff; font: inherit; font-size: 14px; font-weight: 400; color: #101828; }
+
+.ca-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ca-table th { padding: 8px 6px; text-align: left; font-size: 11px; letter-spacing: .4px; text-transform: uppercase; color: #475467; border-bottom: 1px solid #eaecf0; }
+.ca-table td { padding: 10px 6px; vertical-align: top; color: #101828; border-bottom: 1px solid #f2f4f7; overflow-wrap: anywhere; }
+.ca-table .ok { color: #067647; font-weight: 700; }
+.ca-table .bad { color: #b42318; font-weight: 700; }
+.ca-kind { color: #475467; }
+
+@media (max-width: 640px) {
+  .ca-disconnect { width: 100%; min-height: 44px; }
+  .ca-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .ca-table, .ca-table tbody, .ca-table tr, .ca-table td { display: block; width: 100%; }
+  .ca-table tr { padding: 10px 0; border-bottom: 1px solid #eaecf0; }
+  .ca-table td { display: flex; gap: 12px; padding: 3px 0; border: none; }
+  .ca-table td::before { content: attr(data-label); flex: 0 0 64px; font-size: 12px; color: #475467; }
+}

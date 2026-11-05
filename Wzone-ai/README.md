@@ -58,7 +58,7 @@ Claude ──/mcp, Bearer wzat_…──▶ mcp.example.com ─introspect (cache
 ```
 
 - **Discovery.** A request to `/mcp` without a token gets a 401 whose `WWW-Authenticate` points at `/.well-known/oauth-protected-resource/mcp` (RFC 9728). From there the client finds `/.well-known/oauth-authorization-server` (RFC 8414) and registers itself through dynamic client registration.
-- **Consent happens on the portal domain**, because a portal session lives in that domain's `localStorage`. The page lists exactly what will be allowed, cut down to what the person's role allows. For example, an account manager without inquiries access is never offered `inquiries:*`.
+- **Consent happens on the portal domain**, because a portal session lives in that domain's `localStorage`. The page lists exactly what will be allowed, cut down to what the person's role allows, and names anything the role allows that the app didn't ask for. For example, an account manager without inquiries access is never offered `inquiries:*`. Someone not signed in gets one email and password form (`api/sign-in.php`), which works out whether that's a staff or a client account.
 - **Tokens:**
   - Opaque, prefixed `wzat_` for access and `wzrt_` for refresh.
   - Stored only as SHA-256. Client secrets are stored the same way, and app.js hashes the presented secret before the SDK compares.
@@ -68,9 +68,10 @@ Claude ──/mcp, Bearer wzat_…──▶ mcp.example.com ─introspect (cache
 - **Scopes are checked on every request.** A token carries what was consented to, intersected with what the person's role allows *now*. Changing someone's role, deactivating them, or unapproving a client takes effect immediately at the portal, and in this server once the 60-second token-check cache expires.
 - **`api/v1` only accepts an MCP token when the call also carries `X-MCP-Key`.** A token copied out of a client can't be replayed against the portal directly. Every MCP call is recorded in `mcp_audit_log`.
 - **People stay in control:**
-  - **Connected apps** (`connected-apps.html`, linked from Profile and Settings) lists each connection with what it may do, and has a Disconnect button.
+  - **Connected apps** (on Settings for staff and Profile for clients) lists each connection with what it may do and what it's missing, and has a Disconnect button. `connected-apps.html` redirects to the right one.
+  - Reconnecting replaces a connection: once the new one has its tokens, this person's earlier connections to the same app end. The same app means the same `client_id`, or the same name with the new code sent to a non-local host the old registration lists.
   - The **Director** decides whether clients may connect at all. This is off by default, and turning it off ends every existing client connection.
-  - The Director also sees recent AI activity across the portal.
+  - The Director also sees recent AI activity across the portal, in Settings under **AI access**.
 
 ## What the private server offers
 

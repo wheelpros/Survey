@@ -228,7 +228,16 @@ try {
                 revokeGrant($pdo, (int) $grant["id"]);
                 oauthError(400, "invalid_grant", "This account can no longer grant access");
             }
-            oauthReply(200, issueTokenPair($pdo, (int) $grant["id"], $scopes));
+            $tokens = issueTokenPair($pdo, (int) $grant["id"], $scopes);
+
+            // Only now that the new connection works. If this fails the person
+            // has one connection too many, which is better than losing this one.
+            try {
+                endReplacedGrants($pdo, $grant, $code["redirect_uri"]);
+            } catch (PDOException $e) {
+                error_log("oauth replace grants failed: " . $e->getMessage());
+            }
+            oauthReply(200, $tokens);
         }
 
         case "refresh": {
