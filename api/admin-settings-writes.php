@@ -19,6 +19,7 @@
 require_once __DIR__ . "/db.php";
 require_once __DIR__ . "/mailer.php";
 require_once __DIR__ . "/events.php";
+require_once __DIR__ . "/site-logo-store.php";
 
 // The roles an owner hands out. `owner` is not one of them: it is never given
 // from a dropdown, and an owner row is never demoted (see admin-role.php).
@@ -153,16 +154,11 @@ function saveBrandSettings(PDO $pdo, array $brand)
 | Logo
 |--------------------------------------------------------------------------
 |
-| The page uploads logo.png at the site root; an assistant gives a link
-| (content-image-fetch.php downloads and checks it). PNG or JPG only - the
-| file is served as logo.png to every public page.
+| The page uploads a file (upload-logo.php); an assistant gives a link
+| (content-image-fetch.php downloads and checks it), PNG or JPG only. Both end
+| up in site-logo-store.php, and every page shows it as logo.png.
 |
 */
-
-function siteLogoPath()
-{
-    return dirname(__DIR__) . "/logo.png";
-}
 
 function fetchSiteLogo($url)
 {
@@ -175,13 +171,22 @@ function fetchSiteLogo($url)
             throw new PortalWriteError("The logo must be a PNG or JPG image.");
         }
 
-        if (!rename($tmp, siteLogoPath())) {
-            throw new PortalWriteError("Failed to save the logo. Check folder permissions.", 500);
+        $bytes = (string) file_get_contents($tmp);
+        $mime = siteLogoMime($bytes);
+
+        if (!$mime) {
+            throw new PortalWriteError("The logo must be a PNG or JPG image.");
         }
 
-        @chmod(siteLogoPath(), 0644);
-
         global $pdo;
+
+        try {
+            saveSiteLogo($pdo, $bytes, $mime);
+        } catch (PDOException $e) {
+            error_log("set_logo: " . $e->getMessage());
+            throw new PortalWriteError("The logo couldn't be saved. Please try again.", 500);
+        }
+
         logEvent($pdo, EVENT_SETTINGS_CHANGED, "settings", 0, "Logo", "Replaced the portal logo");
     } finally {
         if (is_file($tmp)) {

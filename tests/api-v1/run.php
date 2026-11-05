@@ -616,6 +616,7 @@ require __DIR__ . "/client-safety.php";
 require __DIR__ . "/branding.php";
 require __DIR__ . "/settings.php";
 require __DIR__ . "/events.php";
+require __DIR__ . "/logo.php";
 require __DIR__ . "/permissions.php";
 require __DIR__ . "/announcements.php";
 require __DIR__ . "/client-team.php";

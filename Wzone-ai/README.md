@@ -71,7 +71,8 @@ Claude ──/mcp, Bearer wzat_…──▶ mcp.example.com ─introspect (cache
   - **Connected apps** (on Settings for staff and Profile for clients) lists each connection with what it may do and what it's missing, and has a Disconnect button. `connected-apps.html` redirects to the right one.
   - Reconnecting replaces a connection: once the new one has its tokens, this person's earlier connections to the same app end. The same app means the same `client_id`, or the same name with the new code sent to a non-local host the old registration lists.
   - The **Director** decides whether clients may connect at all. This is off by default, and turning it off ends every existing client connection.
-  - The Director also sees recent AI activity across the portal, in Settings under **AI access**.
+  - The switch is in **Connected apps** on Settings, shown to the Director only.
+  - Whoever can see Tracking also sees every call assistants made, on its **AI activity** tab.
 
 ## What the private server offers
 
@@ -90,9 +91,9 @@ Each person gets only the tools their connection's scopes allow, so a client nev
 | `messages:read` | `list_messages`, `read_chat`, `list_message_people` | the portal's Messages page: your own chats with other admins, private to the two of you (the Director included). Tracking records who messaged whom and when, never the text |
 | `messages:write` | `send_message`, `mark_chat_read` | you send as yourself, after you confirm; marking read moves only your own read marker |
 | `settings:read` | `get_settings` | the Director only: website address, logo, login slides and the admin team (roles, on/off, who manages whom). Never a password, token or the files password |
-| `events:read` | `get_tracking` | the Director and whoever they give it: Tracking - every change an admin made, in the portal or through an assistant, with who, when and a summary. The same rows as the portal's Tracking page, kept 12 months |
+| `events:read` | `get_tracking`, `get_ai_activity` | the Director and whoever they give it: the portal's Tracking page. `get_tracking` is its Changes tab: every change an admin made, in the portal or through an assistant, with who, when and a summary, kept 12 months. `get_ai_activity` is its AI activity tab: every call an assistant made, by staff and clients, with who, which app, which tool and the result, never what was sent or returned |
 
-- **Tool names follow the portal's sidebar**: Dashboard is `get_dashboard`, Messages is `list_messages` / `read_chat` / `send_message`, Tracking is `get_tracking`. Their times are ISO-8601 UTC (`2026-11-03T14:30:09Z`).
+- **Tool names follow the portal's sidebar**: Dashboard is `get_dashboard`, Messages is `list_messages` / `read_chat` / `send_message`, Tracking is `get_tracking` and `get_ai_activity`. Their times are ISO-8601 UTC (`2026-11-03T14:30:09Z`).
 - **A connection keeps the scopes it was approved with.** A scope added later never reaches it: `whoami` lists it under `missing_scopes`, and the fix is to disconnect the app and connect it again.
 - **`get_client_overview`** answers "tell me about client X" in one call: profile, team, open forms, recent responses, upcoming and recent content, upcoming meetings, active projects. A section the connection has no scope for is left out and named in `not_included`.
 - **Lists are paged by cursor.** Pass `next_cursor` back as `cursor`. Rows never repeat or go missing when new ones arrive between pages.

@@ -83,6 +83,31 @@ function configurePortalSmtp(PHPMailer $mail): bool
 }
 
 /**
+ * The text-only version of an email. A link is written out in full, since a
+ * button with its address stripped leaves those readers nothing to follow.
+ */
+function portalEmailPlainText(string $html): string
+{
+    $text = preg_replace_callback(
+        "/<a\b[^>]*\bhref=(['\"])(.*?)\\1[^>]*>(.*?)<\/a>/is",
+        function ($link) {
+            return trim(strip_tags($link[3])) . ": " . $link[2];
+        },
+        $html
+    );
+
+    // A row's label and value are two cells, and would otherwise run together.
+    $text = preg_replace("/<\/td>\s*<td\b/i", ": <td", $text);
+    $text = preg_replace("/<(br\s*\/?|\/p|\/h2|\/tr)>/i", "\n", $text);
+    $text = html_entity_decode(strip_tags($text), ENT_QUOTES, "UTF-8");
+
+    // The markup's indentation and blank lines are not part of the message.
+    $lines = array_filter(array_map("trim", explode("\n", $text)), "strlen");
+
+    return implode("\n", $lines);
+}
+
+/**
  * One email to each recipient, over a single SMTP connection.
  *
  * $recipients is a list of ["email" => ..., "name" => ...]. Each gets their
@@ -110,9 +135,7 @@ function sendPortalEmail(array $recipients, string $subject, string $html): int
         $mail->isHTML(true);
         $mail->Subject = $subject;
         $mail->Body = $html;
-        $mail->AltBody = trim(html_entity_decode(strip_tags(
-            preg_replace("/<(br|\/p|\/h2|\/tr)>/i", "\n", $html)
-        ), ENT_QUOTES, "UTF-8"));
+        $mail->AltBody = portalEmailPlainText($html);
     } catch (Throwable $e) {
         error_log("sendPortalEmail setup failed: " . $e->getMessage());
         return 0;

@@ -2,7 +2,7 @@ import { portalUrl } from "./wzoneClient.js";
 
 /*
 | The connector's icon is the logo uploaded in the portal's admin Settings,
-| which api/upload-logo.php saves as logo.png at the portal's root. Clients
+| which the portal serves at logo.png from its database. Clients
 | find an icon one of two ways - the `icons` the server sends back from
 | initialize, or a favicon on this origin - so both point there. Without
 | either, Claude showed a broken image next to the connector's name.
@@ -21,7 +21,7 @@ export function mountIcons(app) {
 
 /**
  * The `icons` entry for an McpServer's serverInfo. No mimeType: the upload
- * accepts PNG, JPG and SVG but always saves the file as logo.png, so the
+ * accepts PNG, JPG and SVG but the address is always logo.png, so the
  * extension says nothing reliable about what is inside.
  */
 export function serverIcons() {

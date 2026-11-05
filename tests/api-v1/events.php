@@ -120,6 +120,134 @@ $pdo->prepare("UPDATE mcp_grants SET scopes = 'settings:read events:read' WHERE 
 check("events: an owner connection with it", $status === 200 && count($r["data"]["items"]) === 10, "HTTP $status " . json_encode($r));
 $fixtures["get_tracking"] = $r["data"] ?? null;
 
+// ── AI activity: the second tab, under the same permission ───────────────
+
+$pdo->exec("DELETE FROM mcp_audit_log");
+seed($pdo, "oauth_clients", [["client_id" => "c-chat", "client_name" => "Chat <b>App</b>", "metadata" => "{}"]]);
+seed($pdo, "mcp_audit_log", [
+    ["id" => 9001, "grant_id" => 1, "client_id" => "c1", "principal_kind" => "admin", "principal_id" => 2, "tool" => "list_forms",
+     "endpoint" => "forms.php", "method" => "GET", "status" => 200, "created_at" => "2026-01-10 12:00:00"],
+    ["id" => 9002, "grant_id" => 1, "client_id" => "c1", "principal_kind" => "admin", "principal_id" => 2, "tool" => "get_settings",
+     "endpoint" => "settings.php", "method" => "GET", "status" => 403, "created_at" => "2026-01-11 12:00:00"],
+    ["id" => 9003, "grant_id" => 2, "client_id" => "c-chat", "principal_kind" => "user", "principal_id" => 10, "tool" => "my_overview",
+     "endpoint" => "me.php", "method" => "GET", "status" => 200, "created_at" => "2026-01-12 12:00:00"],
+    ["id" => 9004, "grant_id" => 3, "client_id" => "gone", "principal_kind" => "admin", "principal_id" => 999, "tool" => null,
+     "endpoint" => "clients.php", "method" => "GET", "status" => 200, "created_at" => "2026-01-13 12:00:00"],
+]);
+
+foreach (["super admin" => $sa, "account manager" => $am, "admin" => $seo] as $who => $token) {
+    [$status] = pageGet("api/admin-events.php?action=ai_activity", $token);
+    check("ai activity page: a $who is refused", $status === 403, "HTTP $status");
+    [$status] = pageGet("api/admin-events.php?action=ai_filters", $token);
+    check("ai activity filters: a $who is refused", $status === 403, "HTTP $status");
+}
+[$status] = pageGet("api/admin-events.php?action=ai_activity", "nobody");
+check("ai activity page: no session is refused", $status === 401, "HTTP $status");
+
+[$status, $r] = pageGet("api/admin-events.php?action=ai_activity&limit=3", $owner);
+$row = $r["items"][0] ?? [];
+check("ai activity page: the Director reads it, newest first and paged", $status === 200 && count($r["items"]) === 3
+    && $r["total"] === 4 && $r["total_pages"] === 2 && $row["id"] === 9004 && $row["person"] === "(deleted)"
+    && $row["app"] === "AI assistant" && $row["tool"] === null
+    && $row["created_ts"] === strtotime("2026-01-13 12:00:00 UTC"), "HTTP $status " . json_encode($r));
+
+[, $r] = pageGet("api/admin-events.php?action=ai_activity&limit=3&page=2", $owner);
+check("ai activity page: page 2 carries on", ($r["page"] ?? 0) === 2 && array_column($r["items"], "id") === [9001], json_encode($r));
+
+[, $r] = pageGet("api/admin-events.php?action=ai_activity&page=99", $owner);
+check("ai activity page: a page past the end is the last one", ($r["page"] ?? 0) === 1 && count($r["items"]) === 4, json_encode($r));
+
+[, $r] = pageGet("api/admin-events.php?action=ai_activity&who=admin:2", $owner);
+check("ai activity page: the who filter", array_column($r["items"], "id") === [9002, 9001], json_encode($r));
+
+[, $r] = pageGet("api/admin-events.php?action=ai_activity&who=user:10", $owner);
+check("ai activity page: clients are marked", array_column($r["items"], "id") === [9003]
+    && $r["items"][0]["person_kind"] === "client" && $r["items"][0]["person"] === "Alice", json_encode($r));
+
+[, $r] = pageGet("api/admin-events.php?action=ai_activity&app=c-chat", $owner);
+check("ai activity page: the app filter", array_column($r["items"], "id") === [9003] && $r["items"][0]["app"] === "Chat <b>App</b>", json_encode($r));
+
+[, $r] = pageGet("api/admin-events.php?action=ai_activity&result=refused", $owner);
+check("ai activity page: the result filter", array_column($r["items"], "id") === [9002], json_encode($r));
+
+[, $r] = pageGet("api/admin-events.php?action=ai_activity&from=2026-01-11&to=2026-01-12", $owner);
+check("ai activity page: the date filter", array_column($r["items"], "id") === [9003, 9002], json_encode($r));
+
+[$status] = pageGet("api/admin-events.php?action=ai_activity&from=yesterday", $owner);
+check("ai activity page: a bad date is refused", $status === 400, "HTTP $status");
+
+[$status, $r] = pageGet("api/admin-events.php?action=ai_filters", $owner);
+check("ai activity filters: everyone in the log", $status === 200 && in_array("admin:2", array_column($r["people"], "value"), true)
+    && in_array("user:10", array_column($r["people"], "value"), true) && in_array("admin:999", array_column($r["people"], "value"), true)
+    && in_array("c-chat", array_column($r["apps"], "value"), true), json_encode($r));
+
+// Someone given Tracking sees the tab too.
+$pdo->prepare("INSERT INTO admin_permission_overrides (admin_id, permission, allowed) VALUES (2, 'events.view', 1)")->execute();
+[$status] = pageGet("api/admin-events.php?action=ai_activity", $sa);
+check("ai activity page: whoever holds events.view reads it", $status === 200, "HTTP $status");
+$pdo->prepare("DELETE FROM admin_permission_overrides WHERE admin_id = 2 AND permission = 'events.view'")->execute();
+
+// Through api/v1.
+foreach (["super admin" => $sa, "account manager" => $am, "admin" => $seo] as $who => $token) {
+    refused("ai activity: a $who can't read it", "ai-activity.php", $token, 403);
+}
+[$status, $r] = get("ai-activity.php?limit=2", $owner);
+$first = $r["data"]["items"][0] ?? [];
+check("ai activity: the Director reads it, paged", $status === 200 && count($r["data"]["items"]) === 2
+    && $r["data"]["next_cursor"] !== null && $first["id"] === 9004 && $first["result"] === "ok", "HTTP $status " . json_encode($r));
+check("ai activity: names are untrusted", ($first["untrusted_content"]["person_name"] ?? null) === "(deleted)"
+    && !array_key_exists("person_name", $first) && !array_key_exists("app", $first), json_encode($first));
+[, $next] = get("ai-activity.php?limit=2&cursor=" . urlencode($r["data"]["next_cursor"]), $owner);
+check("ai activity: the cursor carries on", array_column($next["data"]["items"] ?? [], "id") === [9002, 9001], json_encode($next));
+[, $r] = get("ai-activity.php?person_kind=client&person_id=10", $owner);
+check("ai activity: filtered by person", array_column($r["data"]["items"] ?? [], "id") === [9003]
+    && $r["data"]["items"][0]["person"] === ["kind" => "client", "id" => 10], json_encode($r));
+[, $r] = get("ai-activity.php?result=refused", $owner);
+check("ai activity: filtered by result", array_column($r["data"]["items"] ?? [], "id") === [9002], json_encode($r));
+[$status] = get("ai-activity.php?result=nonsense", $owner);
+check("ai activity: an unknown result is refused", $status === 422, "HTTP $status");
+
+$pdo->prepare("UPDATE mcp_grants SET scopes = 'settings:read' WHERE id = 9")->execute();
+[$status, $r] = get("ai-activity.php", $ownerMcp, ["X-MCP-Key" => $mcpKey, "X-MCP-Tool" => "get_ai_activity"]);
+check("ai activity: a connection without events:read", $status === 403 && $r["error"]["code"] === "insufficient_scope", "HTTP $status " . json_encode($r));
+$pdo->prepare("UPDATE mcp_grants SET scopes = 'settings:read events:read' WHERE id = 9")->execute();
+[$status, $r] = get("ai-activity.php?limit=10", $ownerMcp, ["X-MCP-Key" => $mcpKey, "X-MCP-Tool" => "get_ai_activity"]);
+check("ai activity: a connection with it", $status === 200 && count($r["data"]["items"]) >= 4, "HTTP $status " . json_encode($r));
+$fixtures["get_ai_activity"] = $r["data"] ?? null;
+
+// ── The Director's switch: client access ─────────────────────────────────
+
+foreach (["super admin" => $sa, "account manager" => $am, "admin" => $seo] as $who => $token) {
+    [$status] = pageGet("api/oauth/admin.php", $token);
+    check("client access: a $who can't read it", $status === 403, "HTTP $status");
+    [$status] = post("api/oauth/admin.php", $token, ["clients_enabled" => true]);
+    check("client access: a $who can't change it", $status === 403, "HTTP $status");
+}
+[$status] = pageGet("api/oauth/admin.php", "nobody");
+check("client access: no session is refused", $status === 401, "HTTP $status");
+
+// Put back afterwards: the files after this one rely on clients being let in.
+$clientAccessBefore = clientsMayUseMcp($pdo);
+
+[$status, $r] = post("api/oauth/admin.php", $owner, ["clients_enabled" => true]);
+check("client access: the Director turns it on", $status === 200 && $r["clients_enabled"] === true && clientsMayUseMcp($pdo), "HTTP $status " . json_encode($r));
+
+[$status, $r] = pageGet("api/oauth/admin.php", $owner);
+check("client access: reads as on, with no activity in the reply", $status === 200 && $r["clients_enabled"] === true
+    && !array_key_exists("activity", $r), "HTTP $status " . json_encode($r));
+
+seed($pdo, "mcp_grants", [
+    ["id" => 77, "client_id" => "c1", "principal_kind" => "user", "principal_id" => 11, "scopes" => "self:read", "resource" => "https://mcp.test/mcp"],
+    ["id" => 78, "client_id" => "c1", "principal_kind" => "admin", "principal_id" => 3, "scopes" => "clients:read", "resource" => "https://mcp.test/mcp"],
+]);
+[$status, $r] = post("api/oauth/admin.php", $owner, ["clients_enabled" => false]);
+$clientGrant = one($pdo, "SELECT revoked_at FROM mcp_grants WHERE id = 77");
+$staffGrant = one($pdo, "SELECT revoked_at FROM mcp_grants WHERE id = 78");
+check("client access: turning it off ends clients' connections, not staff's", $status === 200 && $r["clients_enabled"] === false
+    && $clientGrant["revoked_at"] !== null && $staffGrant["revoked_at"] === null, json_encode([$r, $clientGrant, $staffGrant]));
+$pdo->exec("DELETE FROM mcp_grants WHERE id IN (77, 78)");
+setSiteSetting($pdo, "mcp_clients_enabled", $clientAccessBefore ? "1" : "0");
+
 // ── 3. Retention ─────────────────────────────────────────────────────────
 
 $pdo->prepare("

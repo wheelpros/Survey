@@ -2,19 +2,17 @@
 
 /*
 |--------------------------------------------------------------------------
-| AI access - the owner's controls
+| Client access - the toggle in Settings > Connected apps
 |--------------------------------------------------------------------------
 |
-|   GET                                  -> { clients_enabled, activity: [...] }
+|   GET                                  -> { clients_enabled }
 |   POST { clients_enabled: true|false } -> switch client access on or off
 |
 | clients_enabled: may clients (not only staff) connect an AI assistant to
 | their own portal account? Off until the owner turns it on. Turning it off
 | also ends every connection a client already has.
 |
-| activity: the latest calls AI assistants made into the portal
-| (mcp_audit_log), newest first - who, through which app, which tool, and
-| how it went.
+| What assistants have been doing is on Tracking (api/admin-events.php).
 |
 | The owner's browser session only.
 */
@@ -29,36 +27,13 @@ if (!$p || $p["via"] !== "session") {
     oauthReply(401, ["success" => false, "message" => "Please sign in"]);
 }
 if (!can($p, "settings.manage", $pdo)) {
-    oauthReply(403, ["success" => false, "message" => "Only the Director can change AI access"]);
+    oauthReply(403, ["success" => false, "message" => "Only the Director can change client access"]);
 }
 
 if ($_SERVER["REQUEST_METHOD"] === "GET") {
-    $stmt = $pdo->query("
-        SELECT l.created_at, l.principal_kind, l.tool, l.endpoint, l.method, l.status,
-               COALESCE(a.name, u.name) AS person,
-               c.client_name
-        FROM mcp_audit_log l
-        LEFT JOIN admins a ON l.principal_kind = 'admin' AND a.id = l.principal_id
-        LEFT JOIN users u ON l.principal_kind = 'user' AND u.id = l.principal_id
-        LEFT JOIN oauth_clients c ON c.client_id = l.client_id
-        ORDER BY l.id DESC
-        LIMIT 50
-    ");
-
     oauthReply(200, [
         "success" => true,
         "clients_enabled" => clientsMayUseMcp($pdo),
-        "activity" => array_map(function ($r) {
-            return [
-                "at" => $r["created_at"],
-                "person" => $r["person"] ?: "(deleted)",
-                "kind" => $r["principal_kind"],
-                "app" => $r["client_name"] ?: "AI assistant",
-                "tool" => $r["tool"],
-                "endpoint" => $r["endpoint"],
-                "status" => (int) $r["status"],
-            ];
-        }, $stmt->fetchAll()),
     ]);
 }
 

@@ -182,6 +182,22 @@ body{padding:0}
 .area-tag{display:inline-block;padding:3px 9px;border-radius:20px;background:#f2f4f7;color:#344054;font-size:12px;font-weight:700;white-space:nowrap}
 .empty-cell{padding:28px 18px;color:var(--muted);text-align:center}
 
+/* ── Changes / AI activity ── */
+.view-tabs{display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--line);overflow-x:auto}
+.view-tab{flex:none;min-height:44px;padding:0 16px;margin-bottom:-1px;border:none;border-bottom:2px solid transparent;background:none;font:inherit;font-size:14px;font-weight:700;color:var(--muted);cursor:pointer}
+.view-tab:hover{color:var(--text)}
+.view-tab[aria-selected="true"]{color:var(--nav-active);border-bottom-color:var(--nav-active)}
+.view-tab:focus-visible{outline:2px solid var(--nav-active);outline-offset:-2px;border-radius:8px}
+.view[hidden]{display:none}
+
+/* ── The AI activity list ── */
+.col-app{width:170px}
+.col-result{width:130px}
+.ai-app{color:var(--muted);word-break:break-word}
+.result-tag{display:inline-block;padding:3px 9px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap}
+.result-ok{background:#ecfdf3;color:#067647}
+.result-refused{background:#fef3f2;color:#b42318}
+
 /* ── Pagination, the same control as the content and clients lists ── */
 .pager{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:24px}
 .pager[hidden]{display:none}
@@ -210,6 +226,7 @@ body{padding:0}
   .log td.who strong{display:inline}
   .log td.who span{margin-left:6px}
   .log td.summary{margin-bottom:8px}
+  .log td.ai-app{margin-bottom:6px}
   .empty-cell{padding:24px 0}
 }
 
@@ -300,9 +317,16 @@ document.addEventListener("DOMContentLoaded", function () {
     <div class="page-head">
       <div class="page-title">
         <h1>Tracking</h1>
-        <p>Every change an admin made, in the portal or through an AI assistant, newest first. Kept for 12 months.</p>
+        <p id="viewNote">Every change an admin made, in the portal or through an AI assistant, newest first. Kept for 12 months.</p>
       </div>
     </div>
+
+    <div class="view-tabs" role="tablist" aria-label="Tracking">
+      <button class="view-tab" type="button" role="tab" id="tabChanges" aria-controls="viewChanges" aria-selected="true" onclick="showTab('changes')" onkeydown="tabKeys(event)">Changes</button>
+      <button class="view-tab" type="button" role="tab" id="tabAi" aria-controls="viewAi" aria-selected="false" tabindex="-1" onclick="showTab('ai')" onkeydown="tabKeys(event)">AI activity</button>
+    </div>
+
+    <div class="view" id="viewChanges" role="tabpanel" aria-labelledby="tabChanges">
 
     <form class="filters" id="filters" onsubmit="event.preventDefault(); applyFilters();">
       <label class="filter">
@@ -356,6 +380,65 @@ document.addEventListener("DOMContentLoaded", function () {
       <div class="pager-pages" id="logPagerPages"></div>
     </div>
 
+    </div>
+
+    <div class="view" id="viewAi" role="tabpanel" aria-labelledby="tabAi" hidden>
+
+      <form class="filters" id="aiFilters" onsubmit="event.preventDefault(); loadAiPage(1);">
+        <label class="filter">
+          <span>Who</span>
+          <select id="aiWho"><option value="">Everyone</option></select>
+        </label>
+        <label class="filter">
+          <span>App</span>
+          <select id="aiApp"><option value="">All apps</option></select>
+        </label>
+        <label class="filter">
+          <span>Result</span>
+          <select id="aiResult">
+            <option value="">Any result</option>
+            <option value="ok">OK</option>
+            <option value="refused">Refused</option>
+          </select>
+        </label>
+        <label class="filter">
+          <span>From</span>
+          <input type="date" id="aiFrom">
+        </label>
+        <label class="filter">
+          <span>To</span>
+          <input type="date" id="aiTo">
+        </label>
+        <div class="filter-actions">
+          <button class="create-btn" type="submit">Apply</button>
+          <button class="ghost-btn" type="button" id="aiClearBtn" onclick="clearAiFilters()" hidden>Clear</button>
+        </div>
+      </form>
+
+      <div class="panel">
+        <table class="log">
+          <thead>
+            <tr>
+              <th class="col-when">When</th>
+              <th class="col-who">Who</th>
+              <th class="col-app">App</th>
+              <th>What</th>
+              <th class="col-result">Result</th>
+            </tr>
+          </thead>
+          <tbody id="aiRows">
+            <tr><td colspan="5" class="empty-cell">Loading AI activity...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pager" id="aiPager" hidden>
+        <span class="pager-info" id="aiPagerInfo"></span>
+        <div class="pager-pages" id="aiPagerPages"></div>
+      </div>
+
+    </div>
+
   </div>
 </div>
 
@@ -402,6 +485,7 @@ function logoutAdmin(){
 
 const PAGE_SIZE = 25;
 let currentPage = 1;
+let activeTab = "changes";
 
 const ROLE_LABELS = { owner: "Director", super_admin: "Super Admin", account_manager: "Account Manager", seo_admin: "Admin" };
 
@@ -454,6 +538,9 @@ function currentFilters(){
 }
 
 function syncUrl(){
+  // Each tab keeps its own view in the URL; only the open one writes it.
+  if(activeTab !== "changes") return;
+
   const params = new URLSearchParams(currentFilters());
   if(currentPage > 1) params.set("page", currentPage);
   const query = params.toString();
@@ -543,7 +630,12 @@ function goToPage(page){
 }
 
 function renderPager(total, totalPages, start, shown){
-  const pager = document.getElementById("logPager");
+  paintPager("log", "goToPage", currentPage, total, totalPages, start, shown);
+}
+
+/* prefix names the pager's elements, goTo the function its buttons call. */
+function paintPager(prefix, goTo, page, total, totalPages, start, shown){
+  const pager = document.getElementById(prefix + "Pager");
 
   if(total <= PAGE_SIZE){
     pager.hidden = true;
@@ -552,39 +644,197 @@ function renderPager(total, totalPages, start, shown){
 
   pager.hidden = false;
 
-  document.getElementById("logPagerInfo").innerText =
+  document.getElementById(prefix + "PagerInfo").innerText =
     `Showing ${start + 1}-${start + shown} of ${total}`;
 
   const pages = [];
-  for(let page = 1; page <= totalPages; page++){
-    if(page === 1 || page === totalPages || Math.abs(page - currentPage) <= 2) pages.push(page);
+  for(let number = 1; number <= totalPages; number++){
+    if(number === 1 || number === totalPages || Math.abs(number - page) <= 2) pages.push(number);
   }
 
   let last = 0;
-  const buttons = pages.map(page => {
-    const gap = page - last > 1 ? `<button type="button" disabled>…</button>` : "";
-    last = page;
-    return gap + `<button type="button" class="${page === currentPage ? "current" : ""}" onclick="goToPage(${page})">${page}</button>`;
+  const buttons = pages.map(number => {
+    const gap = number - last > 1 ? `<button type="button" disabled>…</button>` : "";
+    last = number;
+    return gap + `<button type="button" class="${number === page ? "current" : ""}" onclick="${goTo}(${number})">${number}</button>`;
   }).join("");
 
-  document.getElementById("logPagerPages").innerHTML = `
-    <button type="button" onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? "disabled" : ""}>Prev</button>
+  document.getElementById(prefix + "PagerPages").innerHTML = `
+    <button type="button" onclick="${goTo}(${page - 1})" ${page === 1 ? "disabled" : ""}>Prev</button>
     ${buttons}
-    <button type="button" onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? "disabled" : ""}>Next</button>
+    <button type="button" onclick="${goTo}(${page + 1})" ${page === totalPages ? "disabled" : ""}>Next</button>
   `;
 }
 
-(async function start(){
-  await loadFilters();
+/* ── AI activity ────────────────────────────────────────────────────────────
+   Every call an assistant made into the portal, reads and refusals included.
+   Its own filters and pager, so nothing here touches the Changes list. */
 
-  // A reload keeps the view it was on.
-  const params = new URLSearchParams(location.search);
+const AI_FILTERS = { who: "aiWho", app: "aiApp", result: "aiResult", from: "aiFrom", to: "aiTo" };
+let aiPage = 1;
+
+function currentAiFilters(){
+  const out = {};
+  Object.entries(AI_FILTERS).forEach(([key, id]) => {
+    const value = document.getElementById(id).value.trim();
+    if(value) out[key] = value;
+  });
+  return out;
+}
+
+function syncAiUrl(){
+  if(activeTab !== "ai") return;
+
+  const params = new URLSearchParams({ tab: "ai", ...currentAiFilters() });
+  if(aiPage > 1) params.set("page", aiPage);
+  history.replaceState(null, "", "?" + params);
+  document.getElementById("aiClearBtn").hidden = Object.keys(currentAiFilters()).length === 0;
+}
+
+async function loadAiFilters(){
+  try{
+    const data = await api({ action: "ai_filters" });
+    if(!data.success) return;
+
+    document.getElementById("aiWho").insertAdjacentHTML("beforeend", data.people.map(person =>
+      `<option value="${esc(person.value)}">${esc(person.name)}${person.kind === "client" ? " (client)" : ""}</option>`
+    ).join(""));
+    document.getElementById("aiApp").insertAdjacentHTML("beforeend", data.apps.map(app =>
+      `<option value="${esc(app.value)}">${esc(app.name)}</option>`
+    ).join(""));
+  }catch(err){
+    // The list still works unfiltered.
+  }
+}
+
+/* get_tracking reads as "Get tracking"; the exact tool name stays in the title. */
+function toolLabel(row){
+  if(!row.tool) return row.endpoint;
+  const words = row.tool.replace(/_/g, " ");
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+async function loadAiPage(page){
+  aiPage = Math.max(1, page);
+  syncAiUrl();
+
+  const body = document.getElementById("aiRows");
+  const none = message => `<tr><td colspan="5" class="empty-cell">${esc(message)}</td></tr>`;
+
+  try{
+    const data = await api({ action: "ai_activity", page: aiPage, limit: PAGE_SIZE, ...currentAiFilters(), tz: viewerZone() });
+
+    if(!data.success){
+      body.innerHTML = none(data.message || "Could not load AI activity.");
+      paintPager("ai", "goToAiPage", 1, 0, 0, 0, 0);
+      return;
+    }
+
+    const rows = data.items || [];
+    aiPage = Number(data.page) || aiPage;
+
+    body.innerHTML = rows.length ? rows.map(row => {
+      const ok = row.status < 400;
+      return `
+        <tr>
+          <td class="when"><time datetime="${esc(isoDate(row.created_ts))}">${esc(fullDate(row.created_ts))}</time></td>
+          <td class="who">
+            <strong>${esc(row.person)}</strong>
+            <span>${row.person_kind === "client" ? "Client" : "Staff"}</span>
+          </td>
+          <td class="ai-app">${esc(row.app)}</td>
+          <td class="summary" title="${esc(row.tool || row.endpoint)}">${esc(toolLabel(row))}</td>
+          <td><span class="result-tag ${ok ? "result-ok" : "result-refused"}">${ok ? "OK" : "Refused (" + Number(row.status) + ")"}</span></td>
+        </tr>
+      `;
+    }).join("") : none(Object.keys(currentAiFilters()).length ? "Nothing matches these filters." : "No AI activity yet.");
+
+    paintPager("ai", "goToAiPage", aiPage, Number(data.total) || 0, Number(data.total_pages) || 1, (aiPage - 1) * PAGE_SIZE, rows.length);
+    syncAiUrl();
+
+  }catch(err){
+    body.innerHTML = none("Connection error.");
+    paintPager("ai", "goToAiPage", 1, 0, 0, 0, 0);
+  }
+}
+
+function goToAiPage(page){
+  loadAiPage(page);
+  document.getElementById("aiFilters").scrollIntoView({ behavior:"smooth", block:"start" });
+}
+
+function clearAiFilters(){
+  Object.values(AI_FILTERS).forEach(id => { document.getElementById(id).value = ""; });
+  loadAiPage(1);
+}
+
+/* ── The tabs ───────────────────────────────────────────────────────────────
+   Each loads the first time it is opened. A reload keeps the tab it was on,
+   with that tab's filters and page; the other starts clean. */
+
+const VIEW_NOTES = {
+  changes: "Every change an admin made, in the portal or through an AI assistant, newest first. Kept for 12 months.",
+  ai: "Every call an AI assistant made into the portal, by staff and clients, newest first. Shows what was called and how it went, never what was sent or returned."
+};
+
+const tabStarted = { changes: false, ai: false };
+
+async function startChanges(params){
+  await loadFilters();
   Object.entries(FILTERS).forEach(([key, id]) => {
     if(params.has(key)) document.getElementById(id).value = params.get(key);
   });
-
   loadPage(Number(params.get("page")) || 1);
-})();
+}
+
+async function startAi(params){
+  await loadAiFilters();
+  Object.entries(AI_FILTERS).forEach(([key, id]) => {
+    if(params.has(key)) document.getElementById(id).value = params.get(key);
+  });
+  loadAiPage(Number(params.get("page")) || 1);
+}
+
+function showTab(tab, params){
+  activeTab = tab;
+
+  const ai = tab === "ai";
+  document.getElementById("viewChanges").hidden = ai;
+  document.getElementById("viewAi").hidden = !ai;
+  document.getElementById("viewNote").textContent = VIEW_NOTES[tab];
+
+  [["tabChanges", !ai], ["tabAi", ai]].forEach(([id, selected]) => {
+    const button = document.getElementById(id);
+    button.setAttribute("aria-selected", selected ? "true" : "false");
+    button.tabIndex = selected ? 0 : -1;
+  });
+
+  if(!tabStarted[tab]){
+    tabStarted[tab] = true;
+    (ai ? startAi : startChanges)(params || new URLSearchParams());
+  }else if(ai){
+    syncAiUrl();
+  }else{
+    syncUrl();
+  }
+}
+
+function tabKeys(event){
+  if(!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+  event.preventDefault();
+
+  const next = event.key === "Home" ? "changes"
+    : event.key === "End" ? "ai"
+    : activeTab === "ai" ? "changes" : "ai";
+
+  showTab(next);
+  document.getElementById(next === "ai" ? "tabAi" : "tabChanges").focus();
+}
+
+{
+  const params = new URLSearchParams(location.search);
+  showTab(params.get("tab") === "ai" ? "ai" : "changes", params);
+}
 </script>
 
 <script src="assets/alert-sound.js?v=2"></script>

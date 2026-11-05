@@ -594,6 +594,24 @@ export const adminEvents = page(
   })
 );
 
+export const aiActivity = page(
+  z.object({
+    id,
+    person: z.object({ id, kind: z.enum(["staff", "client"]) }).describe("Whose connection made the call"),
+    app_id: text.describe("The app's id, for the app filter"),
+    tool: maybe.describe("The tool called; null if the call didn't name one"),
+    endpoint: text,
+    method: text,
+    status: z.number().int().describe("The HTTP status it ended with"),
+    result: z.enum(["ok", "refused"]).describe("refused when the status was 400 or above"),
+    created_at: utcTime,
+    untrusted_content: untrusted({
+      person_name: text.describe('"(deleted)" if the person has since been removed'),
+      app_name: text,
+    }),
+  })
+);
+
 // ── Settings ────────────────────────────────────────────────────────────
 
 export const settings = {

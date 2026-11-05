@@ -2054,7 +2054,7 @@ function v1WriteHandlers()
             },
             "apply" => function (PDO $pdo, array $p, array $a) {
                 fetchSiteLogo($a["image"]);
-                return ["logo_url" => APP_URL . "/logo.png?v=" . filemtime(siteLogoPath())];
+                return ["logo_url" => siteLogoUrl($pdo, APP_URL)];
             },
         ],
 
@@ -2536,7 +2536,7 @@ function v1WriteHandlers()
                 $invite = openTeamInvite($pdo, $p, argInt($a, "id"));
                 return [
                     "args" => ["id" => (int) $invite["id"]],
-                    "summary" => "Send " . $invite["email"] . " a new invitation link. The old link stops working.",
+                    "summary" => "Send " . $invite["email"] . " a new invitation link. The old link stops working once the new one has gone out.",
                     "preview" => ["email" => $invite["email"]],
                 ];
             },

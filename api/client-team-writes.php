@@ -204,14 +204,12 @@ function inviteTeammate(PDO $pdo, array $owner, $email)
     return ["id" => $inviteId, "email" => $email, "emailed" => emailClientInvite($owner, $owner["company_name"] ?? "", $email, $token)];
 }
 
-/** A new token and three more days; the old link stops working. */
-function resendClientInvite(PDO $pdo, array $owner, $inviteId)
+/**
+ * The invite, if it can still be sent again. Runs $then inside the account's
+ * lock, once these checks have passed, and returns the invite.
+ */
+function withResendableInvite(PDO $pdo, $accountId, $inviteId, ?callable $then = null)
 {
-    requireAccountOwner($owner);
-
-    $accountId = (int) $owner["account_id"];
-    $token = bin2hex(random_bytes(32));
-
     $pdo->beginTransaction();
 
     try {
@@ -239,8 +237,9 @@ function resendClientInvite(PDO $pdo, array $owner, $inviteId)
             throw new PortalWriteError("That email already has an account here, so it can't be invited.", 409);
         }
 
-        $pdo->prepare("UPDATE client_invites SET token_hash = ?, expires_at = ? WHERE id = ?")
-            ->execute([hash("sha256", $token), time() + CLIENT_INVITE_TTL, (int) $invite["id"]]);
+        if ($then) {
+            $then($invite);
+        }
 
         $pdo->commit();
 
@@ -251,7 +250,37 @@ function resendClientInvite(PDO $pdo, array $owner, $inviteId)
         throw $e;
     }
 
-    return ["id" => (int) $invite["id"], "email" => $invite["email"], "emailed" => emailClientInvite($owner, $owner["company_name"] ?? "", $invite["email"], $token)];
+    return $invite;
+}
+
+/**
+ * A new token and three more days, but only once the email has gone: the old
+ * link stops working then, and not before, so a mail server that is down never
+ * costs someone the link they already have.
+ *
+ * The email goes out between two locks rather than inside one, since a slow
+ * mail server would otherwise hold the whole account up. The second lock checks
+ * again in case the invite was revoked or the team filled up in that time.
+ */
+function resendClientInvite(PDO $pdo, array $owner, $inviteId)
+{
+    requireAccountOwner($owner);
+
+    $accountId = (int) $owner["account_id"];
+    $token = bin2hex(random_bytes(32));
+
+    $invite = withResendableInvite($pdo, $accountId, $inviteId);
+
+    $emailed = emailClientInvite($owner, $owner["company_name"] ?? "", $invite["email"], $token);
+
+    if ($emailed) {
+        withResendableInvite($pdo, $accountId, $inviteId, function (array $open) use ($pdo, $token) {
+            $pdo->prepare("UPDATE client_invites SET token_hash = ?, expires_at = ? WHERE id = ?")
+                ->execute([hash("sha256", $token), time() + CLIENT_INVITE_TTL, (int) $open["id"]]);
+        });
+    }
+
+    return ["id" => (int) $invite["id"], "email" => $invite["email"], "emailed" => $emailed];
 }
 
 function revokeClientInvite(PDO $pdo, array $owner, $inviteId)

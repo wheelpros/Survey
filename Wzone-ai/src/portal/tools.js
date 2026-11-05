@@ -436,13 +436,13 @@ export const READ_TOOLS = [
     scope: "events:read",
     title: "Tracking",
     description:
-      "The portal's Tracking page: what every admin changed in the portal - in the browser or through an " +
+      "The Changes tab of the portal's Tracking page: what every admin changed in the portal - in the browser or through an " +
       "AI assistant - with who, when (ISO-8601 UTC: show it in the person's own time) and a one-line " +
       "summary: projects, phases, content, forms, inquiries, meetings, clients, the team, settings, and who " +
       "messaged whom (never the text). " +
       ORDER + " Kept for 12 months. Filter by admin (an id from get_settings), area, client (from " +
       "search_clients), dates (UTC days) or text. Use it for \"what did Sara do this week?\" or " +
-      "\"who deleted that project?\".",
+      "\"who deleted that project?\". Calls AI assistants made are in get_ai_activity.",
     input: {
       actor_id: recordId("Only this admin's changes - an id from get_settings").optional(),
       area: z
@@ -457,6 +457,29 @@ export const READ_TOOLS = [
     },
     output: S.adminEvents,
     path: "events.php",
+  },
+  {
+    name: "get_ai_activity",
+    scope: "events:read",
+    title: "Tracking: AI activity",
+    description:
+      "The AI activity tab of the portal's Tracking page: every call an AI assistant made into the portal, " +
+      "by staff and clients, reads and refusals included - who, through which app, which tool, whether it " +
+      "worked and when (ISO-8601 UTC: show it in the person's own time). Never what was sent or returned. " +
+      ORDER + " Filter by person (kind and id), app (an app_id from an earlier result), result or dates (UTC " +
+      "days). Use it for \"which assistants are people using?\" or \"what did Sara's assistant get refused?\". " +
+      "What people changed is in get_tracking.",
+    input: {
+      person_kind: z.enum(["staff", "client"]).optional().describe("Only staff's or only clients' calls"),
+      person_id: recordId("Only this person's calls - their id, with person_kind").optional(),
+      app: z.string().max(64).optional().describe("Only this app's calls - an app_id from an earlier result"),
+      result: z.enum(["ok", "refused"]).optional().describe("Only calls that worked, or only refused ones"),
+      from: date("On or after this day").optional(),
+      to: date("On or before this day").optional(),
+      ...paging,
+    },
+    output: S.aiActivity,
+    path: "ai-activity.php",
   },
 
   // ── Settings (the Director's) ────────────────────────────────────────────
