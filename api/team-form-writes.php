@@ -589,9 +589,21 @@ function submitTeamFormResponse(PDO $pdo, array $admin, $formId, array $answers,
     logEvent($pdo, EVENT_TEAM_FORM_ANSWERED, "team_form", (int) $formId, $form["title"],
         "Answered team form \"" . $form["title"] . "\"");
 
+    $link = "admin-team-form.html?id=" . (int) $formId;
     notify($pdo, "admin", (int) $form["created_by_admin_id"], NOTIFY_TEAM_FORM_ANSWERED,
         ($admin["name"] ?? "Someone") . " answered " . $form["title"], "",
-        "admin-team-form.html?id=" . (int) $formId, "admin", (int) $admin["id"]);
+        $link, "admin", (int) $admin["id"]);
+
+    // notify() has no team_form_id; set it so an assistant can open the form
+    // (get_team_form) from the notification, as it can from the one sent out.
+    try {
+        $pdo->prepare("
+            UPDATE notifications SET team_form_id = ?
+            WHERE recipient_kind = 'admin' AND recipient_id = ? AND event_type = ? AND link = ? AND team_form_id IS NULL
+        ")->execute([(int) $formId, (int) $form["created_by_admin_id"], NOTIFY_TEAM_FORM_ANSWERED, $link]);
+    } catch (PDOException $e) {
+        // The notification still links to the form; only the id is missing.
+    }
 }
 
 /** Close or reopen. The sender or the Director. */

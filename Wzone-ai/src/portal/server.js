@@ -35,7 +35,9 @@ const INSTRUCTIONS = [
   "Start with whoami if unsure what this connection can do; if it lists missing_scopes, tell",
   "the person to disconnect and reconnect the app to get those tools. The portal's pages map",
   "to tools: Dashboard is get_dashboard, Messages is list_messages / read_chat / send_message,",
-  "Tracking is get_tracking and get_ai_activity. Staff: for anything about one",
+  "Tracking is get_tracking and get_ai_activity, Forms is list_forms (client forms), and its",
+  "Team Forms section is list_team_forms / get_team_form - forms admins send each other,",
+  "sent with send_team_form and answered with answer_team_form. Staff: for anything about one",
   "client, get_client_overview answers most questions in one call, and search_clients finds",
   "the client's id. Clients: my_overview shows what's waiting on them and what's coming up.",
   "Lists are paged: pass next_cursor back as cursor for more.",
@@ -49,7 +51,7 @@ const INSTRUCTIONS = [
 
 export function buildPortalServer({ requestId, auth }) {
   const server = new McpServer(
-    { name: "client-portal", version: "0.4.0", ...serverIcons() },
+    { name: "client-portal", version: "0.5.0", ...serverIcons() },
     { instructions: INSTRUCTIONS }
   );
   const scopes = auth.scopes || [];

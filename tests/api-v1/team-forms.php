@@ -143,6 +143,23 @@ check("team forms: Amy's list has what she was sent, nothing she sent", $status 
 check("v1 team forms: the list", $status === 200 && in_array($amForm, array_column($r["data"]["assigned"] ?? [], "id"), true), "HTTP $status " . json_encode($r));
 $fixtures["list_team_forms"] = $r["data"] ?? null;
 
+/** The team_form_id on someone's notifications of one event type. */
+function teamFormIdsIn(array $reply, $event)
+{
+    return array_values(array_map(function ($n) { return $n["team_form_id"]; },
+        array_filter($reply["data"]["items"] ?? [], function ($n) use ($event) { return $n["event_type"] === $event; })));
+}
+
+[$status, $r] = get("notifications.php?limit=50", $seo);
+check("v1 team forms: the notification carries team_form_id", $status === 200
+    && in_array($amForm, teamFormIdsIn($r, "team_form"), true), "HTTP $status " . json_encode($r));
+
+[$status, $r] = get("notifications.php?limit=50", $owner);
+check("v1 team forms: so does the sender's answered notification", $status === 200
+    && in_array($amForm, teamFormIdsIn($r, "team_form_answered"), true), "HTTP $status " . json_encode($r));
+$plain = array_values(array_filter($r["data"]["items"] ?? [], function ($n) { return strpos($n["event_type"], "team_form") !== 0; }));
+check("v1 team forms: other notifications have no team_form_id", !$plain || $plain[0]["team_form_id"] === null);
+
 [$status, $r] = get("team-forms.php?id=$amForm", $owner);
 check("v1 team forms: the sender's view wraps what people typed", $status === 200
     && $r["data"]["untrusted_content"]["title"] === "Account managers check-in"

@@ -60,6 +60,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 v1RequireMethod("GET");
 v1RequireScope($p, "notifications:read");
 
+// team_form_id is added by ensureTeamFormTables(); DDL, so before any query.
+ensureTeamFormTables($pdo);
+
 $limit = v1Limit();
 $after = v1IdCursor();
 
@@ -73,7 +76,7 @@ if ($after !== null) {
 
 [$where, $params] = v1Where($parts);
 $stmt = $pdo->prepare("
-    SELECT id, event_type, title, body, link, read_at, announcement_id, created_at
+    SELECT id, event_type, title, body, link, read_at, announcement_id, team_form_id, created_at
     FROM notifications
     $where
     ORDER BY id DESC
@@ -93,6 +96,8 @@ $page = v1Page($stmt->fetchAll(), $limit, function ($r) {
         "is_announcement" => $r["announcement_id"] !== null,
         // Open it with get_announcement.
         "announcement_id" => $r["announcement_id"] === null ? null : (int) $r["announcement_id"],
+        // A team form sent to this admin, or answered on one they sent: open it with get_team_form.
+        "team_form_id" => $r["team_form_id"] === null ? null : (int) $r["team_form_id"],
         "created_at" => (string) $r["created_at"],
         "untrusted_content" => [
             "title" => (string) $r["title"],

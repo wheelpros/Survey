@@ -92,13 +92,14 @@ Each person gets only the tools their connection's scopes allow, so a client nev
 | `messages:write` | `send_message`, `mark_chat_read` | you send as yourself, after you confirm; marking read moves only your own read marker |
 | `settings:read` | `get_settings` | the Director only: website address, logo, login slides and the admin team (roles, on/off, who manages whom). Never a password, token or the files password |
 | `events:read` | `get_tracking`, `get_ai_activity` | the Director and whoever they give it: the portal's Tracking page. `get_tracking` is its Changes tab: every change an admin made, in the portal or through an assistant, with who, when and a summary, kept 12 months. `get_ai_activity` is its AI activity tab: every call an assistant made, by staff and clients, with who, which app, which tool and the result, never what was sent or returned |
+| `team_forms:read` | `list_team_forms`, `get_team_form` | team forms, which admins send each other (the Forms page's Team Forms section): the ones sent to you, with your own answers, and the ones you sent. The sender, the Director and anyone with "See the answers to every team form" see everyone's answers and who is still waiting |
 
-- **Tool names follow the portal's sidebar**: Dashboard is `get_dashboard`, Messages is `list_messages` / `read_chat` / `send_message`, Tracking is `get_tracking` and `get_ai_activity`. Their times are ISO-8601 UTC (`2026-11-03T14:30:09Z`).
+- **Tool names follow the portal's sidebar**: Dashboard is `get_dashboard`, Messages is `list_messages` / `read_chat` / `send_message`, Tracking is `get_tracking` and `get_ai_activity`, Forms is `list_forms` and its Team Forms section `list_team_forms` / `get_team_form`. A notification for a team form carries `team_form_id`, as an announcement carries `announcement_id`. Their times are ISO-8601 UTC (`2026-11-03T14:30:09Z`).
 - **A connection keeps the scopes it was approved with.** A scope added later never reaches it: `whoami` lists it under `missing_scopes`, and the fix is to disconnect the app and connect it again.
 - **`get_client_overview`** answers "tell me about client X" in one call: profile, team, open forms, recent responses, upcoming and recent content, upcoming meetings, active projects. A section the connection has no scope for is left out and named in `not_included`.
 - **Lists are paged by cursor.** Pass `next_cursor` back as `cursor`. Rows never repeat or go missing when new ones arrive between pages.
 - **Resources:** `client://{id}`, `project://{id}` and `form://{id}` hold the same data as the overview and `get_*` tools, for attaching as context. Listing them returns only what the caller can see (up to 100 of each).
-- **Prompts:** `client_weekly_report(client)`, `meeting_prep(meeting)`, `plan_month_content(client, month)`, `triage_new_leads(since)` and `review_queue()`. Each one is offered only when every tool it uses is available. They end in a recommendation; approving, scheduling and sending still happen in the portal.
+- **Prompts:** `client_weekly_report(client)`, `meeting_prep(meeting)`, `plan_month_content(client, month)`, `triage_new_leads(since)`, `review_queue()`, `my_phases()`, `onboard_new_client(client)`, `fill_in_team_form(form)` and `team_form_answers(form)`. Each one is offered only when every scope it needs is granted. A change at the end goes through the usual prepare and confirm; without the write scope it ends in a recommendation for the portal.
 - **Text people typed comes back under `untrusted_content`.** That covers form answers, lead answers, meeting topics and notes, captions, client descriptions and notifications. The server's instructions, and a line in front of every result that contains it, tell the model to treat it as data and never follow instructions inside it. Nothing exposed can write, so a hostile answer has nothing to act on.
 - **Every reply is checked against a zod schema** before it reaches the model ([`src/portal/schemas.js`](src/portal/schemas.js)), and so is each tool's `outputSchema`. If PHP drifts, the tool returns an "unexpected shape" error and the log names the field.
 
@@ -121,6 +122,10 @@ Each person gets only the tools their connection's scopes allow, so a client nev
 | `projects:write` | `post_project_update` | adds an update to a project, published (the client is told once it's live) or as a draft |
 | `projects:write` | `update_task` | changes the given fields of an update |
 | `notifications:write` | `mark_notifications_read` | marks your own notifications read. **The only change without a confirmation step** |
+| `announcements:write` | `send_announcement` | sends an announcement to the team or to clients, everyone or named people; each gets a notification. No image - that is added in the portal. Needs "Send announcements" |
+| `team_forms:write` | `send_team_form` | sends a form to other admins: the whole team, by role, specific people, or roles plus people, never yourself. Each gets a notification and answers once. Needs "Send forms to the team" (the Director by default) |
+| `team_forms:write` | `close_team_form` | closes a team form you sent so it takes no more answers, or reopens it. The Director can do this for any |
+| `team_forms:answer` | `answer_team_form` | sends your answers to a team form sent to you, once, while it is open. A form with a required file upload is answered on its page in the portal |
 | `settings:write` | `update_website_address` | sets or clears the address the public logo links to |
 | `settings:write` | `set_logo` | replaces the logo from a public `https://` link (PNG or JPG), downloaded and checked on confirm like post images |
 | `settings:write` | `add_login_slide`, `update_login_slide`, `reorder_login_slides`, `remove_login_slide` | the sign-in page slideshow: add one from a link (at least 600 × 800 px, up to 5 slides), change its text, reorder them, or remove one and its image |
@@ -149,13 +154,15 @@ Elicitation would be the protocol's way to ask, but this server is stateless, so
 | [`api/survey-writes.php`](../api/survey-writes.php) | `admin-surveys.php`, `admin-survey-review.php` | `create_form_draft`, `update_form`, `review_form` |
 | [`api/meeting-writes.php`](../api/meeting-writes.php) | `calendar.php` | `propose_meeting`, `respond_to_meeting` |
 | [`api/task-writes.php`](../api/task-writes.php) | `project-tasks.php` | `post_project_update`, `update_task` |
+| [`api/announcement-writes.php`](../api/announcement-writes.php) | `announcements.php` | `send_announcement`, `get_announcement` |
+| [`api/team-form-writes.php`](../api/team-form-writes.php) | `team-forms.php` | `list_team_forms`, `get_team_form`, `send_team_form`, `answer_team_form`, `close_team_form` |
 | [`api/inquiry-templates.php`](../api/inquiry-templates.php) | `admin-inquiries.php` | `create_inquiry_draft`, `update_inquiry` |
 | [`api/content-writes.php`](../api/content-writes.php) | `admin-content.php` | `update_content_draft` (who may edit a post) |
 | [`api/admin-settings-writes.php`](../api/admin-settings-writes.php) | `settings.php`, `admin-role.php`, `add-user.php`, `admin-manager-assignments.php`, `admin-login-slides.php`, `get-admins.php` | `get_settings` and every `settings:write` / `admins:write` tool |
 
 **Attribution.** `mcp_confirmations` keeps every prepared change: who, through which connection (`grant_id`), what, and its result with the ids it created. Each call is also in `mcp_audit_log`.
 
-**Never exposed:** deleting anything, publishing content, opening an inquiry, sending announcements, and account, role or permission changes. Those stay in the portal.
+**Never exposed:** deleting clients, projects, forms or content (an update can be deleted with `delete_task`), opening an inquiry, and changing permissions as anyone but the Director (`set_role_permissions` and `set_admin_permissions` are the Director's alone). Those stay in the portal.
 
 ### Clients
 
@@ -214,7 +221,7 @@ src/portal/tools.js  the read tools as data: scope, input, output schema, api/v1
 src/portal/writes.js the change tools (prepare), confirm_change, marking notifications read - staff's and clients'
 src/portal/schemas.js what each api/v1 endpoint answers with (zod)
 src/portal/resources.js client:// project:// form://
-src/portal/prompts.js workflows: for staff (weekly report, meeting prep, content plan, lead triage, review queue, onboarding) and for clients (fill in a form, my week)
+src/portal/prompts.js workflows: for staff (weekly report, meeting prep, content plan, lead triage, review queue, my phases, onboarding, fill in or summarise a team form) and for clients (fill in a form, my week)
 src/portal/call.js   the one way into api/v1: token, audit headers, envelope and shape checks
 src/portal/scopes.js scopes advertised in metadata (PHP's api/oauth/lib.php decides who gets which)
 src/oauth/provider.js OAuth provider for the SDK router; storage and consent live in PHP

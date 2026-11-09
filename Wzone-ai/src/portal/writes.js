@@ -363,8 +363,8 @@ export const WRITE_TOOLS = [
     title: "Messages: send",
     description:
       "Sends another admin a message from you on the portal's Messages page - a new chat or a reply in one " +
-      "(read it first with read_chat). Messages are private to the two of you; Tracking records that " +
-      "you sent one, to whom and when, never the text. Write what the person asked you to say - it goes out under their name." + TWO_STEP,
+      "(read it first with read_chat). Messages are private to the two of you, and Tracking doesn't record them. " +
+      "Write what the person asked you to say - it goes out under their name." + TWO_STEP,
     input: {
       to: recordId("The admin's id - from list_messages or list_message_people"),
       body: z.string().min(1).max(2000).describe("The message, as it will appear"),

@@ -511,6 +511,9 @@ export const notifications = {
       link: maybe.describe("The portal page it opens"),
       is_announcement: z.boolean(),
       announcement_id: id.nullable().describe("Open it in full with get_announcement (a client: get_my_announcement)"),
+      team_form_id: id
+        .nullable()
+        .describe("A team form sent to you, or answered on one you sent: open it with get_team_form. Always null for a client"),
       created_at: dateTime,
       untrusted_content: untrusted({ title: text, body: text }),
     })

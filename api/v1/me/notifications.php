@@ -76,6 +76,8 @@ $page = v1Page($stmt->fetchAll(), $limit, function ($r) {
         "is_announcement" => $r["announcement_id"] !== null,
         // Open it with get_my_announcement.
         "announcement_id" => $r["announcement_id"] === null ? null : (int) $r["announcement_id"],
+        // Team forms are between admins; a client never has one.
+        "team_form_id" => null,
         "created_at" => (string) $r["created_at"],
         "untrusted_content" => ["title" => (string) $r["title"], "body" => (string) ($r["body"] ?? "")],
     ];
