@@ -88,6 +88,10 @@ const SCOPE_PERMISSIONS = [
     "messages:read"       => null,
     "messages:write"      => null,
     "announcements:write" => "announcements.send",
+    // Every admin can receive and answer team forms; sending one is a permission.
+    "team_forms:read"     => null,
+    "team_forms:answer"   => null,
+    "team_forms:write"    => "team_forms.send",
     "settings:read"       => "settings.manage",
     "settings:write"      => "settings.manage",
     "admins:write"        => "admins.manage",

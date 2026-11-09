@@ -4,7 +4,7 @@
 | GET me/team.php   my_team
 |
 | The people on the caller's account, and its pending invites if they own it.
-| The same as team.html (clientTeamSnapshot() in client-team-writes.php).
+| The same as the Team section of profile.html (clientTeamSnapshot() in client-team-writes.php).
 */
 
 require_once __DIR__ . "/_me.php";

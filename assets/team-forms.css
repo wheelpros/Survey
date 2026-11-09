@@ -1,0 +1,157 @@
+/* Team forms - shared by admin.html (the Team Forms section), the Team Form tab
+   of admin-form-builder.html, and admin-team-form.html (the answers page). The
+   admin shell is each page's own; this is only what they have in common. Rules
+   for labels inside .tf-sendto and .tf-fill reset the pages' global label style. */
+
+.tf-panel { background: #fff; border-radius: 18px; box-shadow: 0 14px 30px rgba(0,0,0,.05); padding: 26px; margin-bottom: 22px; }
+.tf-panel > h2 { font-size: 16px; margin-bottom: 4px; }
+.tf-panel > .tf-sub { font-size: 13px; color: var(--muted); margin-bottom: 18px; }
+
+.tf-label { display: block; font-size: 11px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; color: #667085; margin-bottom: 8px; }
+.tf-input, .tf-textarea, .tf-select {
+  width: 100%; border: 1px solid #dfe3ea; background: #f8fafc; border-radius: 12px;
+  padding: 12px 14px; outline: none; font: inherit; font-size: 14px; color: var(--text);
+}
+.tf-input:focus, .tf-textarea:focus, .tf-select:focus { border-color: var(--nav-active); box-shadow: 0 0 0 3px rgba(27,30,58,.10); }
+.tf-textarea { min-height: 110px; resize: vertical; line-height: 1.6; }
+.tf-row { margin-bottom: 20px; }
+.tf-row:last-child { margin-bottom: 0; }
+.tf-hint { font-size: 12px; color: #667085; margin-top: 7px; }
+.tf-two { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 20px; }
+
+.tf-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 44px; padding: 0 18px; border-radius: 12px; border: none;
+  background: var(--nav-active); color: #fff; font: inherit; font-size: 14px; font-weight: 800;
+  cursor: pointer; text-decoration: none; white-space: nowrap;
+}
+.tf-btn:hover { background: #282c52; }
+.tf-btn:disabled { opacity: .6; cursor: not-allowed; }
+.tf-btn svg { width: 16px; height: 16px; }
+.tf-btn.ghost { background: #fff; color: var(--text); border: 1px solid #dfe3ea; }
+.tf-btn.ghost:hover { background: #f6f7f9; }
+.tf-btn.block { width: 100%; height: 52px; }
+.tf-btn:focus-visible, .tf-tab:focus-visible, .tf-chip-check:focus-within { outline: 2px solid var(--nav-active); outline-offset: 2px; }
+
+.tf-status { margin-top: 12px; font-size: 13px; font-weight: 700; min-height: 18px; }
+.tf-status:empty { display: none; }
+.tf-status.error { color: var(--brand); }
+.tf-status.ok { color: #067647; }
+
+/* Status chips on a row */
+.tf-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; padding: 4px 10px; border-radius: 20px; white-space: nowrap; }
+.tf-badge.pending  { background: #fff4e5; color: #8a4b00; }
+.tf-badge.overdue  { background: #fde8e8; color: #a3000a; }
+.tf-badge.done     { background: #e7f6ee; color: #05603a; }
+.tf-badge.closed   { background: #eef1f5; color: #475467; }
+.tf-badge.open     { background: #eaecf8; color: #1b1e3a; }
+
+/* Tabs */
+.tf-tabs { display: inline-flex; gap: 6px; background: #eef1f5; border-radius: 12px; padding: 5px; margin-bottom: 18px; flex-wrap: wrap; }
+.tf-tab { border: none; background: transparent; color: #475467; font: inherit; font-size: 13px; font-weight: 800; padding: 10px 16px; border-radius: 9px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+.tf-tab:hover { color: var(--text); }
+.tf-tab[hidden], .tf-count[hidden], .tf-btn[hidden] { display: none; }
+.tf-tab[aria-selected="true"] { background: var(--nav-active); color: #fff; }
+.tf-count { font-size: 11px; min-width: 20px; padding: 2px 6px; border-radius: 9px; background: var(--brand); color: #fff; text-align: center; }
+.tf-count.neutral { background: #475467; }
+.tf-tab[aria-selected="true"] .tf-count { background: #fff; color: var(--nav-active); }
+
+/* Lists of forms or people. Lays out to the panel's own width. */
+.tf-panel { container-type: inline-size; }
+.tf-list { list-style: none; margin: 0; padding: 0; }
+.tf-item {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 6px 18px;
+  padding: 16px 0; border-top: 1px solid var(--line);
+}
+.tf-item:first-child { border-top: none; padding-top: 0; }
+.tf-item:last-child { padding-bottom: 0; }
+.tf-item a.tf-title { font-size: 15px; font-weight: 800; color: var(--text); text-decoration: none; overflow-wrap: anywhere; }
+.tf-item a.tf-title:hover { text-decoration: underline; }
+.tf-item a.tf-title::after { content: ""; position: absolute; inset: 0; }
+.tf-item { position: relative; }
+.tf-meta { font-size: 13px; color: var(--muted); margin-top: 3px; }
+.tf-progress { display: flex; align-items: center; gap: 10px; font-size: 13px; color: #475467; font-weight: 700; white-space: nowrap; }
+.tf-bar { width: 110px; height: 8px; background: #eef1f5; border-radius: 6px; overflow: hidden; }
+.tf-bar i { display: block; height: 100%; background: var(--nav-active); border-radius: 6px; }
+@container (max-width: 560px) {
+  .tf-item { grid-template-columns: minmax(0, 1fr) auto; }
+  .tf-item .tf-progress { grid-column: 1 / -1; }
+  .tf-bar { flex: 1; width: auto; }
+}
+
+.tf-empty { text-align: center; padding: 28px 10px; color: var(--muted); font-size: 14px; }
+.tf-empty strong { display: block; color: var(--text); font-size: 15px; margin-bottom: 6px; }
+
+/* ── Send to: whole team, roles, people (tfSendTo) ── */
+.tf-sendto label { text-transform: none; letter-spacing: 0; margin: 0; font-size: 13px; }
+/* Pages with a global input { width:100%; padding } rule. */
+.tf-sendto input[type=radio], .tf-sendto input[type=checkbox], .tf-fill input[type=checkbox] { width: 16px; min-width: 16px; padding: 0; margin: 0; }
+.tf-sendto .radio-row { display: flex; gap: 22px; flex-wrap: wrap; margin-bottom: 14px; }
+.tf-sendto .radio { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: var(--text); cursor: pointer; }
+.tf-sendto .radio input { width: 16px; height: 16px; accent-color: var(--nav-active); cursor: pointer; }
+.tf-sendto .role-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+.tf-chip-check { display: inline-flex; align-items: center; gap: 10px; border: 1px solid #dfe3ea; background: #fff; border-radius: 12px; padding: 10px 14px; cursor: pointer; font-size: 13px; font-weight: 700; color: var(--text); }
+.tf-chip-check input { width: 16px; height: 16px; accent-color: var(--nav-active); cursor: pointer; }
+.tf-chip-check em { font-style: normal; font-size: 12px; color: #667085; font-weight: 700; }
+.tf-chip-check:has(input:checked) { border-color: var(--nav-active); background: #f3f4fa; }
+.tf-chip-check:has(input:disabled) { opacity: .55; cursor: not-allowed; }
+.tf-sendto .link-btn { border: none; background: none; color: var(--nav-active); font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; padding: 6px 0; text-decoration: underline; }
+.tf-sendto [hidden] { display: none !important; }
+.tf-sendto .picker { position: relative; max-width: 420px; margin-top: 4px; }
+.tf-sendto .picker-toggle { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid #dfe3ea; background: #f8fafc; border-radius: 12px; padding: 12px 14px; font: inherit; font-size: 14px; color: var(--text); cursor: pointer; text-align: left; }
+.tf-sendto .picker-toggle svg { width: 15px; height: 15px; flex: none; color: var(--muted); transition: transform .15s; }
+.tf-sendto .picker.open .picker-toggle svg { transform: rotate(180deg); }
+.tf-sendto .picker-panel { display: none; position: absolute; z-index: 60; top: calc(100% + 6px); left: 0; right: 0; background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 16px 40px rgba(16,24,40,.14); padding: 10px; }
+.tf-sendto .picker.open .picker-panel { display: block; }
+.tf-sendto .picker-search { margin-bottom: 8px; }
+.tf-sendto .picker-search input { padding: 9px 12px; font-size: 13px; }
+.tf-sendto .picker-list { max-height: 260px; overflow-y: auto; }
+.tf-sendto .picker-group { font-size: 10px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: #667085; padding: 10px 8px 6px; }
+.tf-sendto .picker-item { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 9px; cursor: pointer; }
+.tf-sendto .picker-item:hover { background: #f6f7f9; }
+.tf-sendto .picker-item input { width: 16px; height: 16px; flex: none; accent-color: var(--nav-active); }
+.tf-sendto .picker-item strong { display: block; font-size: 13px; color: var(--text); }
+.tf-sendto .picker-item span span { display: block; font-size: 11px; color: #667085; }
+.tf-sendto .picker-empty { padding: 14px 8px; font-size: 13px; color: var(--muted); }
+.tf-sendto .pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.tf-sendto .pills:empty { display: none; }
+.tf-sendto .pill { display: inline-flex; align-items: center; gap: 8px; background: #eef1f5; border-radius: 20px; padding: 6px 8px 6px 12px; font-size: 12px; font-weight: 700; color: var(--text); }
+.tf-sendto .pill button { border: none; background: transparent; color: #667085; font-size: 15px; line-height: 1; cursor: pointer; padding: 0 2px; }
+.tf-sendto .reach { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding: 12px 14px; border-radius: 12px; background: #f3f4fa; font-size: 13px; font-weight: 700; color: var(--text); }
+.tf-sendto .reach svg { width: 16px; height: 16px; flex: none; }
+.tf-sendto .reach.none { background: #fff4e5; color: #8a4b00; }
+
+/* ── Filling one in (tfFillHtml) ── */
+.tf-fill label { text-transform: none; letter-spacing: 0; }
+.tf-fill .q { padding: 18px 0; border-top: 1px solid var(--line); }
+.tf-fill .q:first-of-type { border-top: none; padding-top: 4px; }
+.tf-fill .q-label { display: block; font-size: 14px; font-weight: 800; color: var(--text); margin-bottom: 10px; line-height: 1.5; overflow-wrap: anywhere; }
+.tf-fill .q-label .req { color: var(--brand); margin-left: 2px; }
+.tf-fill .q-opts { display: flex; flex-direction: column; gap: 8px; }
+.tf-fill .q-opt { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 400; color: var(--text); cursor: pointer; padding: 10px 12px; border: 1px solid #dfe3ea; border-radius: 10px; background: #fff; margin: 0; }
+.tf-fill .q-opt input { width: 18px; height: 18px; accent-color: var(--nav-active); flex: none; }
+.tf-fill .q-opt:has(input:checked) { border-color: var(--nav-active); background: #f3f4fa; }
+.tf-fill .q-err { display: none; color: var(--brand); font-size: 12px; font-weight: 700; margin-top: 8px; }
+.tf-fill .q.invalid .q-err { display: block; }
+.tf-fill .q.invalid .tf-input, .tf-fill .q.invalid .tf-textarea { border-color: var(--brand); }
+
+/* ── Answers read back, and notices ── */
+.tf-answers .ans { padding: 12px 0; border-top: 1px solid var(--line); }
+.tf-answers .ans:first-child { border-top: none; padding-top: 0; }
+.tf-answers dt { font-size: 12px; font-weight: 800; color: #475467; margin-bottom: 4px; overflow-wrap: anywhere; }
+.tf-answers dd { font-size: 14px; color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+.tf-answers dd.empty { color: #667085; font-style: italic; }
+.tf-file-link { border: none; background: none; padding: 0; font: inherit; font-size: 14px; color: var(--nav-active); font-weight: 700; text-decoration: underline; cursor: pointer; }
+.tf-notice { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: 12px; background: #f3f4fa; font-size: 14px; color: var(--text); margin-bottom: 18px; }
+.tf-notice.warn { background: #fff4e5; color: #8a4b00; }
+.tf-notice.done { background: #e7f6ee; color: #05603a; }
+.tf-notice svg { width: 18px; height: 18px; flex: none; margin-top: 1px; }
+.tf-desc { font-size: 14px; line-height: 1.7; color: #344054; white-space: pre-wrap; overflow-wrap: anywhere; margin-bottom: 8px; }
+
+@media (max-width: 600px) {
+  .tf-two { grid-template-columns: 1fr; }
+  .tf-panel { padding: 20px 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}

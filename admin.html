@@ -27,19 +27,31 @@ body{
   overflow:hidden;
 }
 
+/* Kept tight: the heading and its one-line subtitle, then straight into the table. */
 .panel-head{
-  padding:24px 28px;
+  padding:16px 24px 14px;
   border-bottom:1px solid #eef1f5;
+}
+/* On a phone the headings start where the table cells below them do. */
+@media(max-width:768px){
+  body .grid .panel-head{padding:14px 12px 12px}
+  .panel-head h1{font-size:20px}
 }
 
 .panel-head h1{
-  font-size:24px;
-  margin-bottom:6px;
+  font-size:22px;
+  line-height:1.25;
+  margin-bottom:2px;
 }
 
-.panel-head p{
+/* One line on every screen: kept short, and cut with an ellipsis rather than
+   wrapped if a narrow screen still can't fit it. */
+.panel-head p,.page-title p{
   color:#667085;
   font-size:14px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 
 label{
@@ -303,9 +315,12 @@ body{padding:0}
 .page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:28px}
 .page-title h1{font-size:30px;margin-bottom:8px}
 .page-title p{font-size:14px;color:var(--muted);max-width:620px}
-/* Same as every other list page: below the rail breakpoint the title takes the
-   full width and the Create button drops underneath it. */
-@media(max-width:950px){.page-head{flex-direction:column;gap:16px}}
+/* The Create button stays on the title's line at every width, on the right,
+   centred against the title and subtitle. */
+.page-head{align-items:center}
+.page-head .page-title{flex:1;min-width:0}
+@media(max-width:950px){.page-head{gap:12px}}
+@media(max-width:480px){.page-title h1{font-size:26px}.page-head .create-btn{padding:11px 14px}}
 .create-btn{flex:none;display:inline-flex;align-items:center;gap:8px;background:var(--nav-active);color:#fff;text-decoration:none;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:800}
 .create-btn:hover{background:#282c52}
 .create-btn svg{width:16px;height:16px}
@@ -501,7 +516,7 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 
-<link rel="stylesheet" href="assets/shell.css?v=6" />
+<link rel="stylesheet" href="assets/shell.css?v=8" />
 
 <style>
 /*
@@ -589,7 +604,43 @@ document.addEventListener("DOMContentLoaded", function () {
   }
   .row-kebab svg{width:18px;height:18px}
 }
+
+/* ── Team Forms section ── */
+.team-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.team-head .tf-tabs{margin-bottom:0}
+#teamFormsTable{table-layout:fixed;min-width:0}
+#teamFormsTable th:nth-child(3){width:150px}
+#teamFormsTable th:nth-child(4){width:180px}
+#teamFormsTable th:last-child{width:110px}
+/* Row buttons in the Create Form button's colour. */
+#teamFormsTable .action-btn{background:var(--nav-active);display:inline-flex;text-decoration:none}
+#teamFormsTable .action-btn:hover{background:#282c52}
+#teamFormsTable td{overflow-wrap:anywhere}
+#teamFormsTable .form-title{font-weight:800;color:var(--text)}
+.badge.tf-closed{background:#eef1f5;color:#475467}
+/* What a phone hides (from, due, sent, answered) shows as a line under the title. */
+#teamFormsTable .tf-mobile-meta{display:none;margin-top:3px;font-size:12px;color:#667085;font-weight:600}
+
+/* On a phone, the same as Form Review and Forms List: three columns - the
+   form, Status, and a kebab in place of the button, opening the same action. */
+@media(max-width:768px){
+  #teamFormsTable th:nth-child(2),#teamFormsTable td:nth-child(2):not(.empty),
+  #teamFormsTable th:nth-child(3),#teamFormsTable td:nth-child(3):not(.empty){display:none}
+  #teamFormsTable th:nth-child(2),#teamFormsTable th:nth-child(3){width:0}
+  #teamFormsTable th:nth-child(4){width:130px}
+  #teamFormsTable th:nth-child(5){width:68px}
+  #teamFormsTable th,#teamFormsTable td{white-space:normal;padding-left:12px;padding-right:12px}
+  #teamFormsTable .tf-mobile-meta{display:block}
+  #teamFormsTable .actions .action-btn{display:none}
+  #teamFormsTable .row-kebab{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:36px;height:36px;padding:0;flex:none;
+    border:1px solid #dfe3ea;border-radius:9px;
+    background:#fff;color:var(--muted);cursor:pointer;
+  }
+}
 </style>
+<link rel="stylesheet" href="assets/team-forms.css?v=3" />
 <script src="assets/permissions.js?v=2"></script>
 </head>
 
@@ -606,7 +657,7 @@ document.addEventListener("DOMContentLoaded", function () {
       </button>
     </div>
     <nav class="side-nav"></nav>
-    <script src="assets/admin-nav.js?v=1"></script>
+    <script src="assets/admin-nav.js?v=3"></script>
   </div>
 
   <button class="side-user" type="button" onclick="openAccount()" title="Account">
@@ -644,7 +695,7 @@ document.addEventListener("DOMContentLoaded", function () {
       <div class="panel" id="formReviewSection" hidden>
         <div class="panel-head">
           <h1>Form Review</h1>
-          <p id="reviewIntro">Forms waiting on approval or rejection.</p>
+          <p id="reviewIntro">Forms waiting on a decision.</p>
         </div>
 
         <table id="reviewListTable">
@@ -667,10 +718,33 @@ document.addEventListener("DOMContentLoaded", function () {
         </div>
       </div>
 
+      <!-- Team Forms: forms admins send each other (api/team-forms.php). Every
+           admin can be sent one, so every admin sees this. A form arrives as a
+           notification that opens it here, as ?team_form=<id>, to fill in. -->
+      <div class="panel" id="teamForms">
+        <div class="panel-head team-head">
+          <div>
+            <h1>Team Forms</h1>
+            <p id="teamFormsIntro">Forms sent to and from your team.</p>
+          </div>
+          <div class="tf-tabs" role="tablist" aria-label="Team forms" id="teamTabs">
+            <button class="tf-tab" type="button" role="tab" id="teamTabMine" aria-selected="true" aria-controls="teamFormsBody" onclick="showTeamTab('mine')">
+              Sent to me <span class="tf-count" id="teamPending" hidden></span>
+            </button>
+            <button class="tf-tab" type="button" role="tab" id="teamTabSent" aria-selected="false" aria-controls="teamFormsBody" onclick="showTeamTab('sent')" hidden>
+              <span id="teamSentLabel">Sent by me</span>
+            </button>
+          </div>
+        </div>
+        <div id="teamFormsBody" role="tabpanel">
+          <p class="empty">Loading team forms...</p>
+        </div>
+      </div>
+
       <div class="panel">
         <div class="panel-head">
           <h1>Forms List</h1>
-          <p>All forms assigned to approved clients.</p>
+          <p>All forms sent to clients.</p>
 
           <div class="survey-filters">
 
@@ -1493,8 +1567,8 @@ async function submitReview(action){
 // every other admin to watch their own submissions wait.
 document.getElementById("formReviewSection").hidden = false;
 document.getElementById("reviewIntro").innerText = canReview
-  ? "Forms submitted by admins, waiting on your approval or rejection."
-  : "Forms you submitted, waiting on approval from an account manager or the Director.";
+  ? "Forms waiting on your decision."
+  : "Your forms waiting on approval.";
 loadReviewSurveys();
 
 loadSurveyData();
@@ -1510,6 +1584,113 @@ loadSurveyData();
   document.getElementById("formReviewSection")
     .scrollIntoView({ behavior: "smooth", block: "start" });
   openReview(Number(reviewId));
+})();
+</script>
+
+<script src="assets/team-forms.js?v=3"></script>
+<script>
+/* ── Team Forms section ───────────────────────────────────────────────────
+   The lists only. Fill in, View and View answers all open the form's own page
+   (admin-team-form.html?id=), which shows each person what they may do with
+   it: fill it in, read back their answers, or follow everyone's. */
+(function () {
+  const body = document.getElementById("teamFormsBody");
+  let data = null;
+  let tab = "mine";
+
+  // Older notifications linked here as ?team_form=<id>.
+  const old = new URLSearchParams(location.search).get("team_form");
+  if(/^\d+$/.test(old || "")){
+    location.replace("admin-team-form.html?id=" + Number(old));
+    return;
+  }
+
+  function badge(status, overdue, formStatus){
+    if(status === "submitted") return '<span class="badge approved">Answered</span>';
+    if(formStatus === "closed") return '<span class="badge tf-closed">Closed</span>';
+    if(overdue) return '<span class="badge rejected">Overdue</span>';
+    return '<span class="badge pending">Waiting</span>';
+  }
+
+  /* The button on a desktop; on a phone the kebab, opening the same link in the
+     page's shared row menu (rowMenuEl / placeRowMenu above). */
+  function open(id, label){
+    return `<div class="actions">
+      <a class="btn action-btn" href="admin-team-form.html?id=${Number(id)}">${label}</a>
+      <button class="row-kebab" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Actions"
+              onclick="openTeamRowMenu(event, ${Number(id)}, '${label}')">
+        <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+      </button>
+    </div>`;
+  }
+
+  window.openTeamRowMenu = function (event, id, label){
+    event.stopPropagation();
+    const button = event.currentTarget;
+    if(rowMenuButton === button){ closeRowMenu(); return; }
+    closeRowMenu();
+    const menu = rowMenuEl();
+    menu.innerHTML = `<a href="admin-team-form.html?id=${Number(id)}">${tfEsc(label === "View" ? "View form" : label)}</a>`;
+    menu.hidden = false;
+    placeRowMenu(menu, button);
+    button.setAttribute("aria-expanded", "true");
+    rowMenuButton = button;
+    menu.querySelector("a").focus({ preventScroll: true });
+  };
+
+  function table(kind, head, rows, empty){
+    return `<table id="teamFormsTable" data-tab="${kind}"><thead><tr>${head.map(h => `<th>${h}</th>`).join("")}</tr></thead>
+      <tbody>${rows.length ? rows.join("") : `<tr><td colspan="${head.length}" class="empty">${empty}</td></tr>`}</tbody></table>`;
+  }
+
+  function renderList(){
+    if(!data) return;
+    if(tab === "mine"){
+      body.innerHTML = table("mine", ["Form", "From", "Due", "Status", "Actions"], data.assigned.map(f => `
+        <tr>
+          <td><span class="form-title" dir="auto">${tfEsc(f.title)}</span>
+            <span class="tf-mobile-meta">From ${tfEsc(f.sender_name || "a teammate")}${f.due_date ? " · due " + tfEsc(tfDate(f.due_date)) : ""}</span></td>
+          <td>${tfEsc(f.sender_name || "-")}</td>
+          <td>${f.due_date ? tfEsc(tfDate(f.due_date)) : "-"}</td>
+          <td>${badge(f.status, f.overdue, f.form_status)}</td>
+          <td>${open(f.id, f.status === "pending" && f.form_status === "open" ? "Fill in" : "View")}</td>
+        </tr>`), "Nothing to fill in. When someone sends you a form, it shows up here and in your notifications.");
+      return;
+    }
+    body.innerHTML = table("sent", ["Form", "Sent", "Answered", "Status", "Actions"], data.sent.map(f => `
+      <tr>
+        <td><span class="form-title" dir="auto">${tfEsc(f.title)}</span>${f.is_sender ? "" : `<br><small style="color:#667085">By ${tfEsc(f.sender_name)}</small>`}
+          <span class="tf-mobile-meta">${f.answered} of ${f.total} answered · sent ${tfEsc(tfDate(f.sent_at))}</span></td>
+        <td>${tfEsc(tfDate(f.sent_at))}</td>
+        <td>${f.answered} of ${f.total}</td>
+        <td>${f.status === "open" ? '<span class="badge survey-status">Open</span>' : '<span class="badge tf-closed">Closed</span>'}</td>
+        <td>${open(f.id, "View")}</td>
+      </tr>`), "No team forms sent yet.");
+  }
+
+  window.showTeamTab = function (name){
+    tab = name;
+    document.getElementById("teamTabMine").setAttribute("aria-selected", String(name === "mine"));
+    document.getElementById("teamTabSent").setAttribute("aria-selected", String(name === "sent"));
+    renderList();
+  };
+
+  async function loadList(){
+    const res = await tfApi("action=list").catch(() => null);
+    if(!res || !res.success){
+      body.innerHTML = `<p class="empty">${tfEsc((res && res.message) || "Could not load team forms.")}</p>`;
+      return;
+    }
+    data = res;
+    document.getElementById("teamTabSent").hidden = !(res.can_send || res.sees_all || res.sent.length);
+    document.getElementById("teamSentLabel").textContent = res.sees_all ? "All team forms" : "Sent by me";
+    const count = document.getElementById("teamPending");
+    count.hidden = !res.pending;
+    count.textContent = res.pending;
+    renderList();
+  }
+
+  loadList();
 })();
 </script>
 

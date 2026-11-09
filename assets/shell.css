@@ -425,3 +425,34 @@
   outline: 2px solid var(--nav-active, #1b1e3a);
   outline-offset: 2px;
 }
+
+/* ── Section headings and subtitles, on every page ─────────────────────────
+   A heading sits close to its one-line subtitle, and the subtitle stays on one
+   line at every width: the texts are kept short, and a screen too narrow for
+   one still cuts it with an ellipsis rather than wrapping. `body` lifts these
+   over each page's own .panel-head rules, whichever loads last. */
+body .panel-head,
+body .cal-head { padding-top: 16px; padding-bottom: 14px; }
+body .panel-head h1, body .panel-head h2,
+body .cal-head h1, body .cal-head h2 { margin-bottom: 2px; line-height: 1.25; }
+
+@media (max-width: 768px) {
+  body .panel-head,
+  body .cal-head { padding: 14px 16px 12px; }
+}
+
+body .page-title > p, body .page-title > div > p:first-of-type,
+body .welcome > p, body .help-hero > p,
+body .panel-head > p, body .panel-head > div > p:first-of-type,
+body .cal-head > p, body .cal-head > div > p:first-of-type,
+body .section-head p:first-of-type,
+body .mine-head p:first-of-type,
+body .panel-sub,
+body :is(h1, h2, h3) + p.hint {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+body .page-title, body .page-title > div,
+body .panel-head > div, body .cal-head > div,
+body .section-head > div, body .mine-head > div { min-width: 0; }

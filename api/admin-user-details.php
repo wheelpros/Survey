@@ -178,7 +178,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             "Removed " . $person["name"] . " from " . $who . "'s team", $targetId);
 
         notify($pdo, "user", $targetId, NOTIFY_CLIENT_TEAM_CHANGED,
-            $person["name"] . " was removed from your team", "", "team.html", "admin", (int) $admin["id"]);
+            $person["name"] . " was removed from your team", "", "profile.html#team", "admin", (int) $admin["id"]);
 
         respond(true, $person["name"] . " is no longer on this team.");
     }

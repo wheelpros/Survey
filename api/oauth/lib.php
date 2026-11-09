@@ -46,6 +46,7 @@ const STAFF_SCOPES = [
     "projects:read", "projects:write",
     "notifications:read", "notifications:write",
     "messages:read", "messages:write", "announcements:write",
+    "team_forms:read", "team_forms:answer", "team_forms:write",
     "settings:read", "settings:write", "admins:write",
     "events:read",
 ];
@@ -72,6 +73,9 @@ const SCOPE_DESCRIPTIONS = [
     "messages:read"       => "Read your direct messages with other admins",
     "messages:write"      => "Send direct messages to other admins as you, and mark your chats read",
     "announcements:write" => "Send announcements to the team or to clients",
+    "team_forms:read"     => "See the team forms sent to you or by you, and the answers you may see",
+    "team_forms:answer"   => "Fill in and send back the team forms sent to you",
+    "team_forms:write"    => "Send forms to other admins, and close or reopen the ones you sent",
     "settings:read"       => "See the portal settings: website address, logo, login slides and the admin team",
     "settings:write"      => "Change the website address, logo and login page slides",
     "admins:write"        => "Add and edit admins (name, email, position, role), switch them on or off, and assign them to managers",
@@ -90,6 +94,7 @@ const SCOPE_AREAS = [
     "Projects"      => ["projects:read", "projects:write"],
     "Notifications" => ["notifications:read", "notifications:write"],
     "Messages"      => ["messages:read", "messages:write", "announcements:write"],
+    "Team forms"    => ["team_forms:read", "team_forms:answer", "team_forms:write"],
     "Settings"      => ["settings:read", "settings:write"],
     "Admin team"    => ["admins:write"],
     "Tracking"      => ["events:read"],
@@ -98,7 +103,7 @@ const SCOPE_AREAS = [
 
 // Called out on their own before someone approves: an assistant holding these
 // speaks to other people as them, or changes who can get into the portal.
-const SENSITIVE_SCOPES = ["messages:write", "announcements:write", "settings:write", "admins:write"];
+const SENSITIVE_SCOPES = ["messages:write", "announcements:write", "team_forms:write", "settings:write", "admins:write"];
 
 /** One scope as the pages show it. */
 function describeScope($scope)

@@ -1010,7 +1010,7 @@ document.addEventListener("DOMContentLoaded", function () {
   set("acctRole", label);
 });
 </script>
-<link rel="stylesheet" href="assets/shell.css?v=6" />
+<link rel="stylesheet" href="assets/shell.css?v=8" />
 <script src="assets/permissions.js?v=2"></script>
 </head>
 
@@ -1027,7 +1027,7 @@ document.addEventListener("DOMContentLoaded", function () {
       </button>
     </div>
     <nav class="side-nav"></nav>
-    <script src="assets/admin-nav.js?v=1"></script>
+    <script src="assets/admin-nav.js?v=3"></script>
   </div>
 
   <button class="side-user" type="button" onclick="openAccount()" title="Account">
@@ -1046,7 +1046,7 @@ document.addEventListener("DOMContentLoaded", function () {
     <div class="page-head">
       <div class="page-title">
         <h1>Dynamic Content Calendar</h1>
-        <p>Manage and schedule your enterprise content releases and appointments.</p>
+        <p>Your meetings and content schedule.</p>
       </div>
 
       <div class="view-toggle" id="viewToggle">
@@ -1060,7 +1060,7 @@ document.addEventListener("DOMContentLoaded", function () {
     <div class="panel">
       <div class="panel-head">
         <h2>Calendar</h2>
-        <p>Meetings with your clients, by status. Pick a day to see what is on it.</p>
+        <p>Client meetings. Pick a day to see it.</p>
       </div>
       <div class="cal-head">
         <div class="cal-controls">
@@ -1077,7 +1077,7 @@ document.addEventListener("DOMContentLoaded", function () {
     <div class="panel">
       <div class="panel-head">
         <h2 id="dailyScheduleTitle">Daily Schedule</h2>
-        <p>Meetings with your clients on the selected day.</p>
+        <p>Meetings on the selected day.</p>
       </div>
       <div class="schedule-list" id="dailySchedule"></div>
     </div>
@@ -1127,7 +1127,7 @@ document.addEventListener("DOMContentLoaded", function () {
       <div class="section-head">
         <h3>Send a new request</h3>
       </div>
-      <p class="section-sub">Pick a client and ask for a slot. They confirm or decline it.</p>
+      <p class="section-sub">Ask a client for a meeting slot.</p>
 
       <div class="request-form">
         <div class="full">
@@ -1178,7 +1178,7 @@ if (!adminToken || !adminUser.role) {
    away here rather than loading and failing on every request. api/calendar.php
    checks calendar.use too - this only saves the round trip. */
 if (adminToken && !adminCan("calendar.use")) {
-  window.location.replace("admin.html");
+  window.location.replace("admin-dashboard.html");
 }
 
 let currentDate = new Date();

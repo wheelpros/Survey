@@ -1468,6 +1468,94 @@ function ensureAnnouncementsTable(PDO $pdo)
 }
 
 /**
+ * Team forms: forms the Director (or anyone holding team_forms.send) sends
+ * to other admins, who each fill one in and send it back. Kept apart from
+ * surveys on purpose - a survey always belongs to one client.
+ *
+ *   team_forms            the form itself
+ *   team_form_questions   same shape as survey_questions
+ *   team_form_recipients  who got it, and whether they have answered
+ *   team_form_answers     one row per question per person
+ *
+ * Plus notifications.team_form_id, pointing back at the form.
+ * sql/team_forms.sql is the same to run by hand.
+ */
+function ensureTeamFormTables(PDO $pdo)
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    ensureNotificationsTable($pdo);
+
+    try {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS team_forms (
+              id                  INT AUTO_INCREMENT PRIMARY KEY,
+              title               VARCHAR(200) NOT NULL,
+              description         TEXT             NULL,
+              due_date            DATE             NULL,
+              status              VARCHAR(10)  NOT NULL DEFAULT 'open',
+              target_roles        VARCHAR(100)     NULL,
+              created_by_admin_id INT          NOT NULL,
+              created_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              closed_at           DATETIME         NULL,
+              KEY idx_sender (created_by_admin_id, id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS team_form_questions (
+              id               INT AUTO_INCREMENT PRIMARY KEY,
+              form_id          INT          NOT NULL,
+              question_text    TEXT         NOT NULL,
+              question_type    VARCHAR(20)  NOT NULL DEFAULT 'input',
+              required         TINYINT(1)   NOT NULL DEFAULT 1,
+              sort_order       INT          NOT NULL DEFAULT 0,
+              chips            TEXT             NULL,
+              max_file_size_mb INT              NULL,
+              KEY idx_form (form_id, sort_order)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS team_form_recipients (
+              form_id      INT         NOT NULL,
+              admin_id     INT         NOT NULL,
+              status       VARCHAR(10) NOT NULL DEFAULT 'pending',
+              submitted_at DATETIME        NULL,
+              PRIMARY KEY (form_id, admin_id),
+              KEY idx_admin (admin_id, status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS team_form_answers (
+              id             INT AUTO_INCREMENT PRIMARY KEY,
+              form_id        INT  NOT NULL,
+              admin_id       INT  NOT NULL,
+              question_id    INT  NOT NULL,
+              question_label TEXT NOT NULL,
+              answer         TEXT     NULL,
+              file_path      VARCHAR(255) NULL,
+              file_type      VARCHAR(100) NULL,
+              KEY idx_person (form_id, admin_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+
+        $stmt = $pdo->query("
+            SELECT COLUMN_NAME
+            FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'notifications'
+        ");
+        if (!in_array("team_form_id", $stmt->fetchAll(PDO::FETCH_COLUMN), true)) {
+            $pdo->exec("ALTER TABLE notifications ADD COLUMN team_form_id INT NULL");
+        }
+    } catch (PDOException $e) {
+        // Read-only DB user: team forms cannot be sent; the endpoint says so.
+    }
+}
+
+/**
  * Project Management: projects, the task updates published against them, and
  * the admins working on them. sql/projects.sql is the same three tables to run
  * by hand, and carries the long explanation of why `status` and the stat-card

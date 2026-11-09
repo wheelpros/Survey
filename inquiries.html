@@ -275,7 +275,7 @@ body{padding:0}
 
 <!-- Feature styles first, shell.css last: the phone drawer has to win. -->
 <link rel="stylesheet" href="assets/inquiries.css?v=3" />
-<link rel="stylesheet" href="assets/shell.css?v=6" />
+<link rel="stylesheet" href="assets/shell.css?v=8" />
 
 <script>
 // Runs before paint so the collapsed state never flashes open on load.
@@ -326,7 +326,7 @@ document.addEventListener("DOMContentLoaded", function () {
       </button>
     </div>
     <nav class="side-nav"></nav>
-    <script src="assets/admin-nav.js?v=1"></script>
+    <script src="assets/admin-nav.js?v=3"></script>
   </div>
 
   <button class="side-user" type="button" onclick="openAccount()" title="Account">
@@ -345,7 +345,7 @@ document.addEventListener("DOMContentLoaded", function () {
     <div class="page-head">
       <div class="page-title">
         <h1>Inquiries</h1>
-        <p id="pageSub">One link per inquiry. Share it with anyone you want to hear from - it stays open until you set the inquiry inactive.</p>
+        <p id="pageSub">Share a link to collect inquiries.</p>
       </div>
       <a class="create-btn" href="inquiry-form.html" id="newBtn" hidden>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
@@ -466,7 +466,7 @@ if (!adminToken || !adminUser.role) {
 // The page needs inquiries.read; the endpoints check it too, this only saves
 // a wasted load.
 if (!adminCan("inquiries.read")) {
-  window.location.href = "admin.html";
+  window.location.href = "admin-dashboard.html";
 }
 
 const canWrite = adminCan("inquiries.write");

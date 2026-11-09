@@ -195,7 +195,7 @@ document.addEventListener("DOMContentLoaded", function () {
   set("adminName", name);  set("adminRole", label);  set("adminAvatar", initial);
   set("acctRole", label);
 });
-</script><link rel="stylesheet" href="assets/shell.css?v=6" />
+</script><link rel="stylesheet" href="assets/shell.css?v=8" />
 <style>
 /*
 | -- Clients on a phone -------------------------------------------------------
@@ -282,7 +282,7 @@ document.addEventListener("DOMContentLoaded", function () {
       </button>
     </div>
     <nav class="side-nav"></nav>
-    <script src="assets/admin-nav.js?v=1"></script>
+    <script src="assets/admin-nav.js?v=3"></script>
   </div>
 
   <button class="side-user" type="button" onclick="openAccount()" title="Account">
@@ -301,7 +301,7 @@ document.addEventListener("DOMContentLoaded", function () {
     <div class="page-head">
       <div class="page-title">
         <h1 id="usersPanelTitle">Clients Management</h1>
-        <p id="usersPanelSub">Approve or reject newly registered clients.</p>
+        <p id="usersPanelSub">Approve or reject new clients.</p>
       </div>
     </div>
 
@@ -312,7 +312,7 @@ document.addEventListener("DOMContentLoaded", function () {
 <div class="panel" id="pendingPanel" hidden>
   <div class="panel-head">
     <h1>Pending Approval</h1>
-    <p id="pendingSub">Newly registered clients waiting on a decision.</p>
+    <p id="pendingSub">New clients waiting on a decision.</p>
   </div>
   <table>
     <thead><tr><th>Client</th><th>Email</th><th>Status</th><th>Registered</th><th>Actions</th></tr></thead>
@@ -350,7 +350,7 @@ if(!adminToken || !adminUser.role){
 // gone from their sidebar (assets/role-nav.js) and api/admin-user-details.php
 // refuses them; this only stops a typed-in URL landing on an empty page.
 if(!adminCan("clients.details")){
-  window.location.replace("admin.html");
+  window.location.replace("admin-dashboard.html");
 }
 
 function logoutAdmin(){
@@ -368,7 +368,7 @@ const canApprove = adminCan("clients.approve");
 // and decides on it from the client's own page, everyone below is just looking
 // at the slice handed down to them.
 const USERS_COPY = {
-  owner:       { title: "Clients Management", sub: "Approve or reject newly registered clients." },
+  owner:       { title: "Clients Management", sub: "Approve or reject new clients." },
   super_admin: { title: "Clients Management", sub: "Clients whose team you are on." },
   account_manager: { title: "Clients Management", sub: "Clients whose team you are on." }
 };

@@ -156,7 +156,9 @@ if ($action === "list") {
             "event_type" => $row["event_type"],
             "title"      => $row["title"],
             "body"       => $row["body"],
-            "link"       => $row["link"],
+            // team.html became the Team section of profile.html; older rows
+            // still carry the old address.
+            "link"       => $row["link"] === "team.html" ? "profile.html#team" : $row["link"],
             "read"       => $row["read_at"] !== null,
             // Set only on a hand-written announcement: the page opens its
             // detail panel instead of following a link.

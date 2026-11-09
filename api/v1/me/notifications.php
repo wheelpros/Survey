@@ -72,7 +72,7 @@ $page = v1Page($stmt->fetchAll(), $limit, function ($r) {
         "id" => (int) $r["id"],
         "event_type" => (string) $r["event_type"],
         "read" => $r["read_at"] !== null,
-        "link" => v1NullableString($r["link"]),
+        "link" => $r["link"] === "team.html" ? "profile.html#team" : v1NullableString($r["link"]),
         "is_announcement" => $r["announcement_id"] !== null,
         // Open it with get_my_announcement.
         "announcement_id" => $r["announcement_id"] === null ? null : (int) $r["announcement_id"],

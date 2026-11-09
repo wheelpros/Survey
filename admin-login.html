@@ -220,7 +220,7 @@ async function loginAdmin(){
 
     localStorage.setItem("admin_token", data.token);
     localStorage.setItem("admin_user", JSON.stringify(data.admin));
-    window.location.href = afterLogin("admin.html");
+    window.location.href = afterLogin("admin-dashboard.html");
 
   }catch(error){
     status.innerText = "Connection error";
@@ -261,7 +261,7 @@ function devBypass() {
     "admin_user",
     JSON.stringify({ name: "Sarah Miller", role: "owner" })
   );
-  window.location.href = "admin-calendar.html";
+  window.location.href = "admin-dashboard.html";
 }
 
 if (onLocalhost()) {

@@ -130,12 +130,12 @@ check("consent: areas and access", ($byScope["clients:read"]["area"] ?? "") === 
 check("consent: what acts in your name is flagged", ($byScope["admins:write"]["sensitive"] ?? null) === true
     && ($byScope["messages:write"]["sensitive"] ?? null) === true && ($byScope["clients:read"]["sensitive"] ?? null) === false, json_encode($byScope));
 $left = array_column($r["not_requested"] ?? [], "scope");
-check("consent: names what the app didn't ask for", count($left) === 19 && in_array("settings:read", $left, true)
+check("consent: names what the app didn't ask for", count($left) === 22 && in_array("settings:read", $left, true)
     && !in_array("clients:read", $left, true), json_encode($left));
 
 $id = requestAccess("short-list-app", "https://short.test/cb", []);
 [, $r] = getPath("api/oauth/consent.php?request=$id", $owner);
-check("consent: an app that names nothing is offered everything", count($r["scopes"] ?? []) === 22 && ($r["not_requested"] ?? null) === [], json_encode($r));
+check("consent: an app that names nothing is offered everything", count($r["scopes"] ?? []) === 25 && ($r["not_requested"] ?? null) === [], json_encode($r));
 
 $id = requestAccess("short-list-app", "https://short.test/cb", ["clients:read"]);
 [, $r] = getPath("api/oauth/consent.php?request=$id", "tok-seo");
@@ -150,7 +150,7 @@ $shortToken = connectApp("short-list-app", "https://short.test/cb", ["clients:re
 [, $r] = getPath("api/oauth/grants.php", $owner);
 $short = array_values(array_filter($r["grants"] ?? [], function ($g) { return $g["client_name"] === "Short List"; }))[0] ?? [];
 check("grants: what it has", array_column($short["scopes"] ?? [], "scope") === ["clients:read", "admins:write"], json_encode($short));
-check("grants: what it's missing", count($short["missing"] ?? []) === 20 && in_array("events:read", array_column($short["missing"], "scope"), true), json_encode($short));
+check("grants: what it's missing", count($short["missing"] ?? []) === 23 && in_array("events:read", array_column($short["missing"], "scope"), true), json_encode($short));
 check("grants: both described", ($short["missing"][0]["area"] ?? "") !== "" && ($short["scopes"][0]["description"] ?? "") !== "", json_encode($short));
 
 [, $r] = getPath("api/oauth/grants.php", "tok-seo");

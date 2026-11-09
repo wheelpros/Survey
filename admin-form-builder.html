@@ -28,18 +28,31 @@ body{
 }
 
 .panel-head{
-  padding:24px 28px;
+  padding:16px 24px 14px;
   border-bottom:1px solid #eef1f5;
+}
+/* The heading starts where the fields below it do, on a phone too. */
+.panel-head{padding-left:28px;padding-right:28px}
+@media(max-width:768px){
+  .panel-head{padding:14px 16px 12px}
+  .panel-head h1{font-size:20px}
+  .panel .form{padding:18px 16px}
 }
 
 .panel-head h1{
-  font-size:24px;
-  margin-bottom:6px;
+  font-size:22px;
+  line-height:1.25;
+  margin-bottom:2px;
 }
 
-.panel-head p{
+/* One line on every screen: kept short, and cut with an ellipsis rather than
+   wrapped if a narrow screen still can't fit it. */
+.panel-head p,.page-title p{
   color:#667085;
   font-size:14px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 
 .form{
@@ -355,6 +368,7 @@ body{padding:0}
 .page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:28px}
 .page-title h1{font-size:30px;margin-bottom:8px}
 .page-title p{font-size:14px;color:var(--muted);max-width:620px}
+.page-title > div{min-width:0}
 .back-link{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;flex:none;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--text);text-decoration:none;transition:background .15s}
 .back-link:hover{background:#f2f4f8}
 .back-link svg{width:17px;height:17px}
@@ -418,7 +432,18 @@ select.client-filter{
     grid-template-columns:1fr;
   }
 }
+
+/* ── Client Form / Team Form tabs - the announcement form's audience tabs ── */
+.aud-tabs{display:inline-flex;gap:6px;background:#eef1f5;border-radius:12px;padding:5px;margin-bottom:24px;max-width:100%;flex-wrap:wrap}
+.aud-tabs[hidden]{display:none}
+.aud-tab{border:none;background:transparent;color:#475467;font:inherit;font-size:13px;font-weight:800;padding:10px 18px;border-radius:9px;cursor:pointer;transition:background .15s,color .15s}
+.aud-tab:hover{color:var(--text)}
+.aud-tab.selected{background:var(--nav-active);color:#fff}
+.aud-tab:focus-visible{outline:2px solid var(--nav-active);outline-offset:2px}
+[data-mode][hidden]{display:none}
+.opt-word{font-weight:600;color:#667085}
 </style>
+<link rel="stylesheet" href="assets/team-forms.css?v=3" />
 
 <script>
 // Runs before paint so the collapsed state never flashes open on load.
@@ -453,7 +478,7 @@ document.addEventListener("DOMContentLoaded", function () {
   set("acctRole", label);
 });
 </script>
-<link rel="stylesheet" href="assets/shell.css?v=6" />
+<link rel="stylesheet" href="assets/shell.css?v=8" />
 <script src="assets/permissions.js?v=2"></script>
 </head>
 
@@ -470,7 +495,7 @@ document.addEventListener("DOMContentLoaded", function () {
       </button>
     </div>
     <nav class="side-nav"></nav>
-    <script src="assets/admin-nav.js?v=1"></script>
+    <script src="assets/admin-nav.js?v=3"></script>
   </div>
 
   <button class="side-user" type="button" onclick="openAccount()" title="Account">
@@ -495,9 +520,16 @@ document.addEventListener("DOMContentLoaded", function () {
         </a>
         <div>
           <h1 id="pageHeading">Create Form</h1>
-          <p id="pageSub">Assign a form to an approved user. It goes for review before they see it.</p>
+          <p id="pageSub">Send a form to a client for review.</p>
         </div>
       </div>
+    </div>
+
+    <!-- Who the form is for, like the announcement form's audience tabs. Team
+         Form needs team_forms.send and isn't offered when editing a client form. -->
+    <div class="aud-tabs" role="tablist" aria-label="Form type" id="formTabs" hidden>
+      <button class="aud-tab selected" type="button" role="tab" id="tabClient" aria-selected="true" onclick="selectMode('client')">Client Form</button>
+      <button class="aud-tab" type="button" role="tab" id="tabTeam" aria-selected="false" onclick="selectMode('team')">Team Form</button>
     </div>
 
     <!-- Only shown when a draft was restored, and only in create mode. -->
@@ -511,7 +543,7 @@ document.addEventListener("DOMContentLoaded", function () {
       <div class="panel">
         <div class="panel-head">
           <h1 id="panelHeading">Form Details</h1>
-          <p>Give the form a title, pick who it goes to, then build the items below.</p>
+          <p id="panelSub">Pick a client, then add the questions.</p>
         </div>
 
         <div class="form">
@@ -521,16 +553,27 @@ document.addEventListener("DOMContentLoaded", function () {
               <input type="text" id="surveyTitle" placeholder="Form title" dir="auto">
             </div>
 
-            <div>
+            <div data-mode="client">
               <label for="assignedUser">Assigned User</label>
               <select id="assignedUser">
                 <option value="">Loading users...</option>
               </select>
             </div>
+
+            <div data-mode="team" hidden>
+              <label for="teamDue">Due date <span class="opt-word">(optional)</span></label>
+              <input type="date" id="teamDue">
+            </div>
           </div>
 
           <label for="surveyDescription">Description</label>
           <textarea id="surveyDescription" class="spaced" maxlength="1000" placeholder="Optional" dir="auto"></textarea>
+
+          <!-- Team Form only: the announcement form's Send to, plus By role. -->
+          <div class="spaced" data-mode="team" hidden>
+            <label id="sendToLabel">Send to</label>
+            <div id="sendToBox" role="group" aria-labelledby="sendToLabel"></div>
+          </div>
 
           <label>Questions</label>
 
@@ -542,7 +585,7 @@ document.addEventListener("DOMContentLoaded", function () {
             </button>
 
             <button class="primary-btn" id="surveySubmitBtn" onclick="saveSurvey()" type="button">
-              Submit for Approval
+              Submit
             </button>
           </div>
 
@@ -570,6 +613,7 @@ document.addEventListener("DOMContentLoaded", function () {
   </div>
 </div>
 
+<script src="assets/team-forms.js?v=3"></script>
 <script>
 let adminToken = localStorage.getItem("admin_token");
 let adminUser = JSON.parse(localStorage.getItem("admin_user") || "{}");
@@ -596,7 +640,15 @@ function logoutAdmin(){
 const editingSurveyId = new URLSearchParams(location.search).get("edit");
 const draftingEnabled = !editingSurveyId;
 
-const DRAFT_KEY = `survey_draft_${adminUser.id || "admin"}`;
+/* Client Form or Team Form. Each tab keeps its own draft, so switching never
+   mixes a client form's work into a team form's. */
+const canSendTeam = !editingSurveyId && adminCan("team_forms.send");
+let mode = canSendTeam && new URLSearchParams(location.search).get("type") === "team" ? "team" : "client";
+let sendTo = null;
+
+function draftKey(){
+  return (mode === "team" ? "team_form_draft_" : "survey_draft_") + (adminUser.id || "admin");
+}
 
 /* ── The item cards ─────────────────────────────────────────────────────── */
 
@@ -838,7 +890,8 @@ function currentDraft(){
     savedAt: Date.now(),
     title: document.getElementById("surveyTitle").value,
     description: document.getElementById("surveyDescription").value,
-    assignedUserId: document.getElementById("assignedUser").value,
+    assignedUserId: mode === "client" ? document.getElementById("assignedUser").value : "",
+    dueDate: mode === "team" ? document.getElementById("teamDue").value : "",
     questions: getQuestionsData()
   };
 }
@@ -861,9 +914,9 @@ function saveDraft(){
     const draft = currentDraft();
 
     if(hasWork(draft)){
-      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+      localStorage.setItem(draftKey(), JSON.stringify(draft));
     }else{
-      localStorage.removeItem(DRAFT_KEY);
+      localStorage.removeItem(draftKey());
     }
   }catch(e){
     // Quota or private mode - autosave is a convenience, never block the form.
@@ -871,7 +924,7 @@ function saveDraft(){
 }
 
 function clearDraft(){
-  try{ localStorage.removeItem(DRAFT_KEY); }catch(e){}
+  try{ localStorage.removeItem(draftKey()); }catch(e){}
 }
 
 function describeAge(savedAt){
@@ -888,7 +941,7 @@ function loadDraft(){
 
   let draft;
   try{
-    const saved = localStorage.getItem(DRAFT_KEY);
+    const saved = localStorage.getItem(draftKey());
     if(!saved) return false;
     draft = JSON.parse(saved);
   }catch(e){
@@ -904,7 +957,8 @@ function loadDraft(){
 
   document.getElementById("surveyTitle").value = draft.title || "";
   document.getElementById("surveyDescription").value = draft.description || "";
-  document.getElementById("assignedUser").value = draft.assignedUserId || "";
+  if(mode === "client") document.getElementById("assignedUser").value = draft.assignedUserId || "";
+  if(mode === "team") document.getElementById("teamDue").value = draft.dueDate || "";
 
   document.getElementById("questionsWrap").innerHTML = "";
   (draft.questions || []).forEach(q => addQuestion(q.text, q.type, q.chips, q.maxFileSizeMb));
@@ -926,7 +980,106 @@ async function startFresh(){
   if(!ok) return;
 
   clearDraft();
-  location.href = location.pathname;
+  location.href = location.pathname + (mode === "team" ? "?type=team" : "");
+}
+
+/* ── Client Form / Team Form ────────────────────────────────────────────── */
+
+function teamSendLabel(n){
+  return n ? `Send to ${n} ${n === 1 ? "person" : "people"}` : "Send form";
+}
+
+function selectMode(next){
+  if(next === mode) return;
+  saveDraft();
+  mode = next;
+  showMode();
+
+  // Each tab starts from its own draft, or blank.
+  document.getElementById("surveyTitle").value = "";
+  document.getElementById("surveyDescription").value = "";
+  document.getElementById("teamDue").value = "";
+  document.getElementById("restoreBar").hidden = true;
+  document.getElementById("questionsWrap").innerHTML = "";
+  document.getElementById("surveyStatus").innerText = "";
+  if(!loadDraft()) addQuestion();
+  history.replaceState(null, "", location.pathname + (mode === "team" ? "?type=team" : ""));
+}
+
+function showMode(){
+  const team = mode === "team";
+  document.getElementById("tabClient").classList.toggle("selected", !team);
+  document.getElementById("tabTeam").classList.toggle("selected", team);
+  document.getElementById("tabClient").setAttribute("aria-selected", String(!team));
+  document.getElementById("tabTeam").setAttribute("aria-selected", String(team));
+  document.querySelectorAll("[data-mode]").forEach(el => { el.hidden = el.dataset.mode !== mode; });
+
+  document.getElementById("pageSub").innerText = team
+    ? "Send a form for your team to fill in."
+    : (canReview ? "Send a form straight to a client."
+                 : "Send a form to a client for review.");
+  document.getElementById("panelSub").innerText = team
+    ? "Pick who gets it, then add the questions."
+    : "Pick a client, then add the questions.";
+
+  if(team && !sendTo){
+    sendTo = tfSendTo(document.getElementById("sendToBox"), n => {
+      if(mode === "team") document.getElementById("surveySubmitBtn").innerText = teamSendLabel(n);
+    });
+    sendTo.ready.catch(err => { document.getElementById("surveyStatus").innerText = err.message; });
+  }
+  document.getElementById("surveySubmitBtn").innerText = team
+    ? teamSendLabel(sendTo ? sendTo.count() : 0)
+    : (editingSurveyId ? "Update Form" : "Submit");
+}
+
+async function sendTeamForm(){
+  const title = document.getElementById("surveyTitle").value.trim();
+  const status = document.getElementById("surveyStatus");
+  const questions = getQuestionsData();
+  const n = sendTo ? sendTo.count() : 0;
+
+  if(!title || !questions.length){
+    status.innerText = "Please add a title and at least one item/question.";
+    return;
+  }
+  if(!n){
+    status.innerText = "Pick who on the team it goes to.";
+    return;
+  }
+
+  const ok = await askConfirm({
+    title: "Send this form?",
+    text: `"${title}" goes to ${n} ${n === 1 ? "person" : "people"} straight away. You can close it later, but you can't unsend it.`,
+    action: "Send",
+    icon: "warn"
+  });
+  if(!ok) return;
+
+  const submitBtn = document.getElementById("surveySubmitBtn");
+  submitBtn.disabled = true;
+  status.innerText = "Sending...";
+
+  try{
+    const res = await tfApi("", Object.assign({
+      action: "create",
+      title,
+      description: document.getElementById("surveyDescription").value.trim(),
+      due_date: document.getElementById("teamDue").value,
+      questions
+    }, sendTo.payload()));
+
+    status.innerText = res.message || "";
+    if(res.success){
+      clearDraft();
+      window.location.href = "admin-team-form.html?id=" + Number(res.id);
+      return;
+    }
+    submitBtn.disabled = false;
+  }catch(error){
+    status.innerText = "Connection error.";
+    submitBtn.disabled = false;
+  }
 }
 
 /* ── Load ───────────────────────────────────────────────────────────────── */
@@ -1020,17 +1173,20 @@ async function loadSurveyForEdit(){
 async function init(){
   if(!editingSurveyId && canReview){
     document.getElementById("pageSub").innerText =
-      "Assign a form to an approved client. It goes straight to them.";
+      "Send a form straight to a client.";
   }
 
   if(editingSurveyId){
     document.title = "Edit Form — Admin";
       document.getElementById("pageHeading").innerText = "Edit Form";
     document.getElementById("pageSub").innerText = canReview
-      ? "Change the title, the assigned user or the items below. The client sees the update straight away."
-      : "Change the title, the assigned user or the items below, then send it back for approval.";
+      ? "Changes reach the client straight away."
+      : "Edit the form, then send it for approval.";
     document.getElementById("surveySubmitBtn").innerText = "Update Form";
   }
+
+  document.getElementById("formTabs").hidden = !canSendTeam;
+  if(canSendTeam) showMode();
 
   await loadAssignableUsers();
 
@@ -1046,6 +1202,8 @@ async function init(){
 /* ── Save ───────────────────────────────────────────────────────────────── */
 
 async function saveSurvey(){
+  if(mode === "team") return sendTeamForm();
+
   const title = document.getElementById("surveyTitle").value.trim();
   const description = document.getElementById("surveyDescription").value.trim();
   const assignedUserId = document.getElementById("assignedUser").value;
@@ -1101,6 +1259,7 @@ async function saveSurvey(){
 document.getElementById("surveyTitle").addEventListener("input", saveDraft);
 document.getElementById("surveyDescription").addEventListener("input", saveDraft);
 document.getElementById("assignedUser").addEventListener("change", saveDraft);
+document.getElementById("teamDue").addEventListener("change", saveDraft);
 
 init();
 </script>

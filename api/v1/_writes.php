@@ -66,6 +66,7 @@ require_once __DIR__ . "/../upload-helpers.php";
 require_once __DIR__ . "/../message-writes.php";
 require_once __DIR__ . "/../announcement-writes.php";
 require_once __DIR__ . "/../client-team-writes.php";
+require_once __DIR__ . "/../team-form-writes.php";
 require_once __DIR__ . "/../rate-limit.php";
 
 const V1_CONFIRM_TTL = 900; // 15 minutes to say yes
@@ -1757,6 +1758,163 @@ function v1WriteHandlers()
             },
         ],
 
+        // ── Team forms ───────────────────────────────────────────────────
+
+        "send_team_form" => [
+            "scope" => "team_forms:write",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                if (!can($p, "team_forms.send", $pdo)) {
+                    throw new PortalWriteError("You do not have permission to send team forms.", 403);
+                }
+                $scope = argEnum($a, "scope", TEAM_FORM_SCOPES, "all");
+                $roles = $scope === "all" || !isset($a["roles"]) ? [] : checkTeamFormRoles(argList($a, "roles", 0, 4));
+                $posted = $scope === "all" || !isset($a["recipients"]) ? [] : argList($a, "recipients", 0, 500);
+                foreach ($posted as $rid) {
+                    if (!is_int($rid) || $rid <= 0) {
+                        throw new PortalWriteError("recipients must be a list of admin ids.");
+                    }
+                }
+                $questions = array_map(function ($q) {
+                    return ["text" => $q["text"], "type" => $q["type"], "chips" => $q["options"], "maxFileSizeMb" => $q["max_file_size_mb"]];
+                }, formQuestionsArg($a));
+                $due = argDate($a, "due_date");
+
+                ensureTeamFormTables($pdo);
+                [$title, $description, $due, $clean] = checkTeamForm(
+                    argText($a, "title", 200), argText($a, "description", 5000, false), $due ?? "", $questions
+                );
+                $ids = teamFormRecipientIds($pdo, $p["id"], $scope, $roles, $posted);
+
+                $marks = implode(",", array_fill(0, min(count($ids), 10), "?"));
+                $stmt = $pdo->prepare("SELECT name FROM admins WHERE id IN ($marks) ORDER BY name");
+                $stmt->execute(array_slice($ids, 0, 10));
+                $names = $stmt->fetchAll(PDO::FETCH_COLUMN);
+                $who = $scope === "all"
+                    ? "the whole team (" . count($ids) . ")"
+                    : implode(", ", $names) . (count($ids) > 10 ? " and " . (count($ids) - 10) . " more" : "");
+
+                return [
+                    "args" => ["scope" => $scope, "roles" => $roles, "recipients" => $posted, "title" => $title,
+                               "description" => $description, "due_date" => $due, "questions" => $a["questions"]],
+                    "summary" => "Send the team form " . quoteFor($title) . " (" . count($clean)
+                        . (count($clean) === 1 ? " question" : " questions") . ($due ? ", due $due" : "") . ") to $who."
+                        . " Each of them gets a notification and can answer once.",
+                    "preview" => [
+                        "recipient_count" => count($ids),
+                        "roles" => $roles,
+                        "due_date" => $due,
+                        "untrusted_content" => ["title" => $title, "description" => $description,
+                            "questions" => array_column($clean, "text")],
+                    ],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                ensureTeamFormTables($pdo);
+                $questions = array_map(function ($q) {
+                    return ["text" => $q["text"], "type" => $q["type"], "chips" => $q["options"], "maxFileSizeMb" => $q["max_file_size_mb"]];
+                }, formQuestionsArg($a));
+                [$title, $description, $due, $clean] = checkTeamForm($a["title"], $a["description"], $a["due_date"] ?? "", $questions);
+                $ids = teamFormRecipientIds($pdo, $p["id"], $a["scope"], $a["roles"], $a["recipients"]);
+                $id = createTeamForm($pdo, $p, $title, $description, $due, $clean, $ids, $a["roles"]);
+                return ["team_form_id" => $id, "sent" => count($ids)];
+            },
+        ],
+
+        "answer_team_form" => [
+            "scope" => "team_forms:answer",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                ensureTeamFormTables($pdo);
+                $id = argInt($a, "id");
+                $form = teamFormFor($pdo, $p, $id);
+                if (!$form || !$form["mine"]) {
+                    throw new PortalWriteError("No team form with that id was sent to you.", 404);
+                }
+                if ($form["mine"]["status"] === "submitted") {
+                    throw new PortalWriteError("You have already sent your answers to this form.", 409);
+                }
+                if ($form["status"] !== "open") {
+                    throw new PortalWriteError("This form is closed and no longer takes answers.", 409);
+                }
+
+                $given = argList($a, "answers", 0, 100);
+                $byId = [];
+                foreach ($given as $i => $g) {
+                    if (!is_array($g) || !isset($g["question_id"]) || !is_int($g["question_id"])) {
+                        throw new PortalWriteError("answers[" . ($i + 1) . "] needs a question_id.");
+                    }
+                    $value = $g["answer"] ?? "";
+                    if (is_array($value)) {
+                        $value = implode(", ", array_map("strval", $value));
+                    }
+                    if (!is_string($value)) {
+                        throw new PortalWriteError("answers[" . ($i + 1) . "].answer must be text, or a list of ticked options.");
+                    }
+                    $byId[$g["question_id"]] = trim($value);
+                }
+
+                $lines = [];
+                foreach ($form["questions"] as $q) {
+                    if ($q["type"] === "file") {
+                        if ($q["required"]) {
+                            throw new PortalWriteError("This form asks for a file upload, which can only be done in the portal.", 422);
+                        }
+                        continue;
+                    }
+                    $v = $byId[$q["id"]] ?? "";
+                    if ($q["required"] && $v === "") {
+                        throw new PortalWriteError("Answer question " . $q["id"] . ": " . mb_substr($q["text"], 0, 80), 422);
+                    }
+                    $lines[] = ["question" => $q["text"], "answer" => $v];
+                }
+
+                return [
+                    "args" => ["id" => $id, "answers" => $given],
+                    "summary" => "Send your answers to the team form " . quoteFor($form["title"]) . ". Once sent they can't be changed, and "
+                        . ($form["sender"]["name"] ?: "whoever sent it") . " is told.",
+                    "preview" => ["form_id" => $id, "untrusted_content" => ["answers" => $lines]],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                $byId = [];
+                foreach ($a["answers"] as $g) {
+                    $v = $g["answer"] ?? "";
+                    $byId[$g["question_id"]] = is_array($v) ? implode(", ", array_map("strval", $v)) : (string) $v;
+                }
+                submitTeamFormResponse($pdo, $p, $a["id"], $byId, null);
+                return ["team_form_id" => $a["id"], "status" => "submitted"];
+            },
+        ],
+
+        "close_team_form" => [
+            "scope" => "team_forms:write",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                ensureTeamFormTables($pdo);
+                $id = argInt($a, "id");
+                $reopen = argBool($a, "reopen", false);
+                $form = teamFormFor($pdo, $p, $id);
+                if (!$form) {
+                    throw new PortalWriteError("No team form with that id that you may see.", 404);
+                }
+                if (!$form["can_close"]) {
+                    throw new PortalWriteError("Only whoever sent this form, or the Director, can close or reopen it.", 403);
+                }
+                if ($form["status"] === ($reopen ? "open" : "closed")) {
+                    throw new PortalWriteError("It is already " . ($reopen ? "open" : "closed") . ".", 409);
+                }
+                $left = isset($form["progress"]) ? $form["progress"]["total"] - $form["progress"]["answered"] : 0;
+                return [
+                    "args" => ["id" => $id, "reopen" => $reopen],
+                    "summary" => ($reopen ? "Reopen" : "Close") . " the team form " . quoteFor($form["title"]) . "."
+                        . (!$reopen && $left ? " $left " . ($left === 1 ? "person who hasn't" : "people who haven't") . " answered won't be able to." : ""),
+                    "preview" => ["team_form_id" => $id, "status" => $reopen ? "open" : "closed"],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                setTeamFormOpen($pdo, $p, $a["id"], $a["reopen"]);
+                return ["team_form_id" => $a["id"], "status" => $a["reopen"] ? "open" : "closed"];
+            },
+        ],
+
         // ── Projects ─────────────────────────────────────────────────────
 
         "post_project_update" => [
@@ -2504,7 +2662,7 @@ function v1WriteHandlers()
         // ── A client's own account ───────────────────────────────────────
 
         // A client's team
-        // The rules are client-team-writes.php's, the same as team.html's.
+        // The rules are client-team-writes.php's, the same as the Team section of profile.html.
 
         "invite_teammate" => [
             "scope" => "self:write",

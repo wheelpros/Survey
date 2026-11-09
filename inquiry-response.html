@@ -134,7 +134,7 @@ body{padding:0}
 
 <!-- Feature styles first, shell.css last: the phone drawer has to win. -->
 <link rel="stylesheet" href="assets/inquiries.css?v=3" />
-<link rel="stylesheet" href="assets/shell.css?v=6" />
+<link rel="stylesheet" href="assets/shell.css?v=8" />
 
 <script>
 // Runs before paint so the collapsed state never flashes open on load.
@@ -185,7 +185,7 @@ document.addEventListener("DOMContentLoaded", function () {
       </button>
     </div>
     <nav class="side-nav"></nav>
-    <script src="assets/admin-nav.js?v=1"></script>
+    <script src="assets/admin-nav.js?v=3"></script>
   </div>
 
   <button class="side-user" type="button" onclick="openAccount()" title="Account">
@@ -275,7 +275,7 @@ if (!adminToken || !adminUser.role) {
 }
 
 if (!adminCan("inquiries.read")) {
-  window.location.href = "admin.html";
+  window.location.href = "admin-dashboard.html";
 }
 
 const responseId = Number(new URLSearchParams(window.location.search).get("id") || 0);

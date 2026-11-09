@@ -393,6 +393,30 @@ export const READ_TOOLS = [
     path: "announcements.php",
   },
 
+  // ── Team forms (forms admins send each other) ────────────────────────────
+  {
+    name: "list_team_forms",
+    scope: "team_forms:read",
+    title: "Team forms",
+    description:
+      "Forms other admins sent you (waiting ones first) and the ones you sent, with how many have answered. " +
+      "Up to 200 of each, newest first.",
+    input: {},
+    output: S.teamFormList,
+    path: "team-forms.php",
+  },
+  {
+    name: "get_team_form",
+    scope: "team_forms:read",
+    title: "One team form",
+    description:
+      "A team form's questions and your own answers - and, if you sent it (or may see every team form), " +
+      "who has answered and what they said.",
+    input: { id: recordId("The team form's id - from list_team_forms or a notification") },
+    output: S.teamForm,
+    path: "team-forms.php",
+  },
+
   // ── Messages (the portal's Messages page: direct chats with other admins) ──
   {
     name: "list_messages",
@@ -401,8 +425,8 @@ export const READ_TOOLS = [
     description:
       "The portal's Messages page: your chats with other admins, the latest first, each with the last " +
       "message and how many you haven't read. Open one with read_chat, write with send_message. " +
-      "Private to the two people in each - nobody else, the Director included, can read yours. Tracking records " +
-      "who messaged whom and when, never the text.",
+      "Private to the two people in each - nobody else, the Director included, can read yours, and Tracking " +
+      "doesn't record them.",
     input: { ...paging },
     output: S.conversations,
     path: "messages.php",
@@ -438,17 +462,17 @@ export const READ_TOOLS = [
     description:
       "The Changes tab of the portal's Tracking page: what every admin changed in the portal - in the browser or through an " +
       "AI assistant - with who, when (ISO-8601 UTC: show it in the person's own time) and a one-line " +
-      "summary: projects, phases, content, forms, inquiries, meetings, clients, the team, settings, and who " +
-      "messaged whom (never the text). " +
+      "summary: projects, phases, content, forms, team forms, inquiries, meetings, clients, the team and settings. " +
+      "Messages between admins are never recorded. " +
       ORDER + " Kept for 12 months. Filter by admin (an id from get_settings), area, client (from " +
       "search_clients), dates (UTC days) or text. Use it for \"what did Sara do this week?\" or " +
       "\"who deleted that project?\". Calls AI assistants made are in get_ai_activity.",
     input: {
       actor_id: recordId("Only this admin's changes - an id from get_settings").optional(),
       area: z
-        .enum(["client", "project", "phase", "content", "form", "inquiry", "meeting", "source", "announcement", "message", "admin", "settings"])
+        .enum(["client", "project", "phase", "content", "form", "inquiry", "meeting", "source", "announcement", "team_form", "admin", "settings"])
         .optional()
-        .describe("Only one area; admin means changes to the team, message means who messaged whom (never the text)"),
+        .describe("Only one area; admin means changes to the team"),
       client_id: recordId("Only changes about this client - from search_clients").optional(),
       from: date("On or after this day").optional(),
       to: date("On or before this day").optional(),

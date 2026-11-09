@@ -82,6 +82,10 @@ const EVENT_SOURCE_CHANGED        = "source.changed";
 
 const EVENT_ANNOUNCEMENT_SENT     = "announcement.sent";
 
+const EVENT_TEAM_FORM_SENT        = "team_form.sent";
+const EVENT_TEAM_FORM_ANSWERED    = "team_form.answered";
+const EVENT_TEAM_FORM_CLOSED      = "team_form.closed";
+
 const EVENT_ADMIN_CREATED         = "admin.created";
 const EVENT_ADMIN_UPDATED         = "admin.updated";
 const EVENT_ADMIN_REMOVED         = "admin.removed";
@@ -94,8 +98,9 @@ const EVENT_ROLE_PERMISSIONS      = "admin.role_permissions_changed";
 
 const EVENT_SETTINGS_CHANGED      = "settings.changed";
 
-// Who messaged whom, and when - never the text.
-const EVENT_MESSAGE_SENT          = "message.sent";
+// Recorded before messages were taken out of Tracking. The rows age out with
+// the rest (pruneAdminEvents); until then the Changes list never shows them.
+const EVENT_HIDDEN_ACTIONS = ["message.sent"];
 
 // The page's Area filter, in the order it shows them.
 const EVENT_AREAS = [
@@ -108,7 +113,7 @@ const EVENT_AREAS = [
     "meeting"      => "Meetings",
     "source"       => "Source files",
     "announcement" => "Announcements",
-    "message"      => "Messages",
+    "team_form"    => "Team forms",
     "admin"        => "Team",
     "settings"     => "Settings",
 ];
@@ -279,6 +284,12 @@ function adminEventFilters(array $f)
     $where = [];
     $params = [];
 
+    // The Changes list only (admin_events); the AI activity list passes ai => true.
+    if (empty($f["ai"])) {
+        $where[] = "action NOT IN (" . implode(",", array_fill(0, count(EVENT_HIDDEN_ACTIONS), "?")) . ")";
+        $params = array_merge($params, EVENT_HIDDEN_ACTIONS);
+    }
+
     if (!empty($f["actor_id"])) {
         $where[] = "actor_admin_id = ?";
         $params[] = (int) $f["actor_id"];
@@ -365,7 +376,7 @@ function aiActivityFilters(array $f)
     }
 
     // The same day rules as the Changes list.
-    [$days, $dayParams] = adminEventFilters(["from" => $f["from"] ?? "", "to" => $f["to"] ?? "", "tz" => $f["tz"] ?? ""]);
+    [$days, $dayParams] = adminEventFilters(["ai" => true, "from" => $f["from"] ?? "", "to" => $f["to"] ?? "", "tz" => $f["tz"] ?? ""]);
     foreach ($days as $condition) {
         $where[] = "l." . $condition;
     }

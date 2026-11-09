@@ -619,6 +619,7 @@ require __DIR__ . "/events.php";
 require __DIR__ . "/logo.php";
 require __DIR__ . "/permissions.php";
 require __DIR__ . "/announcements.php";
+require __DIR__ . "/team-forms.php";
 require __DIR__ . "/client-team.php";
 require __DIR__ . "/client-account-tools.php";
 require __DIR__ . "/ai-connections.php";
