@@ -88,7 +88,7 @@ Each person gets only the tools their connection's scopes allow, so a client nev
 | `calendar:read` | `get_calendar`, `list_pending_approvals`, `get_meeting` | meetings of your assigned clients; closed to SEO admins |
 | `projects:read` | `list_projects`, `get_project`, `get_dashboard` | your clients' projects, the ones you manage, and the ones you're a member of; drafts as on the project page |
 | `notifications:read` | `list_my_notifications` | your own inbox |
-| `messages:read` | `list_messages`, `read_chat`, `list_message_people` | the portal's Messages page: your own chats with other admins, private to the two of you (the Director included). Tracking records who messaged whom and when, never the text |
+| `messages:read` | `list_messages`, `read_chat`, `list_message_people` | the portal's Messages page: your own chats with other admins, private to the two of you (the Director included). Tracking doesn't record them |
 | `messages:write` | `send_message`, `mark_chat_read` | you send as yourself, after you confirm; marking read moves only your own read marker |
 | `settings:read` | `get_settings` | the Director only: website address, logo, login slides and the admin team (roles, on/off, who manages whom). Never a password, token or the files password |
 | `events:read` | `get_tracking`, `get_ai_activity` | the Director and whoever they give it: the portal's Tracking page. `get_tracking` is its Changes tab: every change an admin made, in the portal or through an assistant, with who, when and a summary, kept 12 months. `get_ai_activity` is its AI activity tab: every call an assistant made, by staff and clients, with who, which app, which tool and the result, never what was sent or returned |

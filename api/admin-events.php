@@ -164,6 +164,7 @@ if ($action === "filters") {
                a.id IS NULL AS removed
         FROM admin_events e
         LEFT JOIN admins a ON a.id = e.actor_admin_id
+        WHERE e.action NOT IN ('message.sent')
         GROUP BY e.actor_admin_id, a.id, a.name, a.role
         ORDER BY name
     ")->fetchAll(PDO::FETCH_ASSOC);

@@ -142,9 +142,9 @@ function changeClientOwner(PDO $pdo, array $admin, $accountId, $personId)
 
     // Their rows have swapped: the new owner now answers to the account's id.
     notify($pdo, "user", $accountId, NOTIFY_CLIENT_TEAM_CHANGED,
-        "You're now the owner of this account", "You manage its team and company details.", "team.html", "admin", (int) $admin["id"]);
+        "You're now the owner of this account", "You manage its team and company details.", "profile.html#team", "admin", (int) $admin["id"]);
     notify($pdo, "user", $personId, NOTIFY_CLIENT_TEAM_CHANGED,
-        $person["name"] . " is now the owner of this account", "", "team.html", "admin", (int) $admin["id"]);
+        $person["name"] . " is now the owner of this account", "", "profile.html#team", "admin", (int) $admin["id"]);
 
     return ["new_owner" => $person["name"], "old_owner" => $owner["name"]];
 }
@@ -280,7 +280,7 @@ function mergeClientAccounts(PDO $pdo, array $admin, $sourceId, $targetId)
     }
 
     notifyClientAccount($pdo, $targetId, NOTIFY_CLIENT_TEAM_CHANGED,
-        "Two accounts were merged into this one", "Everyone on them now shares the same forms, projects and meetings.", "team.html", "admin", (int) $admin["id"]);
+        "Two accounts were merged into this one", "Everyone on them now shares the same forms, projects and meetings.", "profile.html#team", "admin", (int) $admin["id"]);
 
     return $plan;
 }

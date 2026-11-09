@@ -2,7 +2,7 @@
 
 /*
 |--------------------------------------------------------------------------
-| The signed-in client's own team - team.html
+| The signed-in client's own team - the Team section of profile.html
 |--------------------------------------------------------------------------
 |
 |   GET                                       the people, and the owner's invites

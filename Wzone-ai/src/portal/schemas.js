@@ -528,6 +528,86 @@ export const announcement = {
   untrusted_content: untrusted({ title: text, description: text }),
 };
 
+// ── Team forms (forms admins send each other) ───────────────────────────
+
+const teamFormAnswer = z.object({
+  question_id: id,
+  has_file: z.boolean().describe("true: a file was uploaded - open it in the portal"),
+  untrusted_content: untrusted({ question: text, answer: text }),
+});
+
+export const teamFormList = {
+  assigned: z
+    .array(
+      z.object({
+        id,
+        sender_name: text,
+        due_date: maybe,
+        form_status: z.enum(["open", "closed"]),
+        status: z.enum(["pending", "submitted"]).describe("Whether you have answered"),
+        overdue: z.boolean(),
+        sent_at: dateTime,
+        untrusted_content: untrusted({ title: text }),
+      })
+    )
+    .describe("Forms sent to you, waiting ones first"),
+  sent: z
+    .array(
+      z.object({
+        id,
+        sender_name: text,
+        is_sender: z.boolean(),
+        due_date: maybe,
+        status: z.enum(["open", "closed"]),
+        answered: id,
+        total: id,
+        sent_at: dateTime,
+        untrusted_content: untrusted({ title: text }),
+      })
+    )
+    .describe("Forms you sent - or every team form, if you may see all their answers"),
+  pending: id.describe("How many forms are still waiting on your answers"),
+  can_send: z.boolean(),
+};
+
+export const teamForm = {
+  id,
+  status: z.enum(["open", "closed"]),
+  due_date: maybe,
+  sent_at: dateTime,
+  sender: z.object({ id, name: text }),
+  is_sender: z.boolean(),
+  sees_answers: z.boolean().describe("true: progress and recipients below show everyone's answers"),
+  target_roles: z.array(text),
+  questions: z.array(
+    z.object({
+      id,
+      type: z.enum(["input", "textarea", "file", "checkbox"]),
+      required: z.boolean(),
+      untrusted_content: untrusted({ text, options: z.array(text) }),
+    })
+  ),
+  mine: z
+    .object({ status: z.enum(["pending", "submitted"]), submitted_at: maybe, overdue: z.boolean(), answers: z.array(teamFormAnswer) })
+    .nullable()
+    .describe("Your part, if it was sent to you"),
+  progress: z.object({ answered: id, total: id }).optional(),
+  recipients: z
+    .array(
+      z.object({
+        id,
+        name: text,
+        role: text,
+        status: z.enum(["pending", "submitted"]),
+        submitted_at: maybe,
+        overdue: z.boolean(),
+        answers: z.array(teamFormAnswer),
+      })
+    )
+    .optional(),
+  untrusted_content: untrusted({ title: text, description: text }),
+};
+
 // ── Messages (direct chats between admins) ──────────────────────────────
 
 const messagePerson = z.object({

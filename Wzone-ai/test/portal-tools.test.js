@@ -16,6 +16,7 @@ const ALL_STAFF = [
   "calendar:read", "calendar:write", "projects:read", "projects:write",
   "notifications:read", "notifications:write",
   "messages:read", "messages:write", "announcements:write",
+  "team_forms:read", "team_forms:answer", "team_forms:write",
   "settings:read", "settings:write", "admins:write", "events:read",
 ];
 

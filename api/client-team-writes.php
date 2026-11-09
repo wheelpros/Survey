@@ -442,7 +442,7 @@ function acceptClientInvite(PDO $pdo, $token, $name, $password)
     }
 
     notify($pdo, "user", (int) $invite["account_id"], NOTIFY_CLIENT_TEAM_CHANGED,
-        $name . " joined your team", "", "team.html", "user", $personId);
+        $name . " joined your team", "", "profile.html#team", "user", $personId);
     notifyStaffOfTeamChange($pdo, $invite["account_id"], $personId,
         $name . " joined " . (trim((string) $invite["company_name"]) ?: $invite["owner_name"]) . "'s team");
 

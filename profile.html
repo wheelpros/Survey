@@ -501,9 +501,68 @@
         });
       })();
     </script>
-  <link rel="stylesheet" href="assets/shell.css?v=6" />
+  <link rel="stylesheet" href="assets/shell.css?v=8" />
   <link rel="stylesheet" href="assets/connected-apps.css?v=2" />
-  </head>
+    <style>
+    /* The Team section - moved here from the old team page. */
+    .team-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+    .team-head h2 { margin: 0; }
+    .team-head .save-btn { white-space: nowrap; }
+    .team-empty { color: var(--muted); font-size: 14px; padding: 8px 0; }
+
+    /* One list for people and invites. It answers to the card's own width, not
+       the screen's, so the sidebar opening or closing lays it out correctly too. */
+    .card { container-type: inline-size; }
+    .team-list { list-style: none; margin: 0; padding: 0; }
+    .team-row {
+      display: grid;
+      grid-template-columns: 40px minmax(0, 1fr) 150px var(--team-actions, auto);
+      align-items: center;
+      gap: 4px 14px;
+      padding: 14px 0;
+      border-top: 1px solid var(--line);
+    }
+    .team-row:last-child { padding-bottom: 0; }
+    .team-initial {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #eef0f6;
+      color: var(--nav-active);
+      font-size: 15px;
+      font-weight: 700;
+    }
+    .team-who { min-width: 0; }
+    .team-who strong { display: block; font-size: 14px; overflow-wrap: anywhere; }
+    .team-who span { display: block; margin-top: 2px; font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+    .team-meta { font-size: 13px; color: var(--muted); white-space: nowrap; }
+    .team-meta b { display: block; color: var(--text); font-weight: 700; }
+    .team-actions { display: flex; gap: 8px; }
+    .team-actions { justify-content: flex-end; }
+    .team-actions:empty { display: none; }
+    #people { --team-actions: 92px; }
+    #invites { --team-actions: 172px; }
+    .team-actions .ghost-btn { min-height: 40px; white-space: nowrap; }
+
+    @container (max-width: 560px) {
+      .team-head .save-btn { width: 100%; }
+      .team-row { grid-template-columns: 40px minmax(0, 1fr); }
+      .team-meta { grid-column: 2; white-space: normal; }
+      .team-meta b { display: inline; }
+      .team-meta b::after { content: " · "; color: var(--muted); font-weight: 400; }
+      .team-actions { grid-column: 1 / -1; margin-top: 10px; justify-content: stretch; }
+      .team-actions .ghost-btn { flex: 1; min-height: 44px; }
+    }
+
+    #inviteBox label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+    #inviteBox input { width: 100%; height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 16px; }
+    #inviteBox form { padding: 20px 24px 24px; }
+    #inviteBox .save-btn { width: 100%; margin-top: 16px; }
+  </style>
+</head>
 
   <body>
     <div class="app">
@@ -558,7 +617,6 @@
           </button>
           <div class="account-menu" role="menu">
             <a role="menuitem" href="profile.html" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Profile</span></a>
-            <a role="menuitem" href="team.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Team</span></a>
             <button role="menuitem" type="button" class="danger" onclick="logout()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>Logout</span></button>
           </div>
         </div>
@@ -570,14 +628,14 @@
           <div class="page-head">
             <div class="page-title">
               <h1>Profile &amp; Settings</h1>
-              <p>Update the details we show alongside your survey responses.</p>
+              <p>Your details, company and team.</p>
             </div>
           </div>
 
           <form id="profileForm">
             <div class="card">
               <h2>Profile photo</h2>
-              <p class="hint">Shown on your account card and next to your responses.</p>
+              <p class="hint">Shown on your account and answers.</p>
               <div class="photo-row">
                 <div class="photo" id="photoPreview">U</div>
                 <div class="photo-actions">
@@ -590,7 +648,7 @@
 
             <div class="card">
               <h2>Your details</h2>
-              <p class="hint">How we address you and how to reach you.</p>
+              <p class="hint">How we address and reach you.</p>
               <div class="fields">
                 <div class="field">
                   <label for="fName">Full name</label>
@@ -618,7 +676,7 @@
 
             <div class="card">
               <h2>Company</h2>
-              <p class="hint">Used on reports and when an administrator reviews your submissions.</p>
+              <p class="hint">Shown on reports and reviews.</p>
               <div class="fields">
                 <div class="field">
                   <label for="fCompany">Company name</label>
@@ -645,21 +703,53 @@
             </div>
           </form>
 
-          <div class="card">
-            <h2>Team</h2>
-            <p class="hint">The people at your company who can use this portal, each with their own login.</p>
-            <a class="ghost-btn" href="team.html" style="display:inline-flex;align-items:center;text-decoration:none;margin-top:6px">Open team</a>
+          <!-- The account's own team. Drawn by assets/client-team.js. -->
+          <div id="team">
+            <div class="card">
+              <div class="team-head">
+                <div>
+                  <h2>Team</h2>
+                  <p class="hint">People at your company with a login.</p>
+                  <p class="hint" id="teamSeats"></p>
+                </div>
+                <button class="save-btn" type="button" id="inviteBtn" hidden>Invite teammate</button>
+              </div>
+              <div class="status" id="teamStatus" role="status"></div>
+              <div id="people"><p class="team-empty">Loading...</p></div>
+            </div>
+
+            <div class="card" id="invitesCard" hidden>
+              <h2>Pending invites</h2>
+              <p class="hint">Invites hold a place until used.</p>
+              <div id="invites"></div>
+            </div>
           </div>
 
           <!-- AI assistants connected to this account through the portal's
                MCP server. Drawn by assets/connected-apps.js. -->
           <div class="card" id="connected-apps">
             <h2>Connected apps</h2>
-            <p class="hint">AI assistants you've allowed to use your account. See what each can do, or disconnect it.</p>
+            <p class="hint">AI assistants allowed on your account.</p>
             <div data-token-key="portal_token"></div>
           </div>
         </section>
       </main>
+    </div>
+
+    <div class="acct-modal" id="inviteModal">
+      <div class="acct-box" id="inviteBox" role="dialog" aria-modal="true" aria-labelledby="inviteTitle">
+        <div class="acct-head">
+          <h2 id="inviteTitle">Invite a teammate</h2>
+          <button type="button" id="inviteClose" aria-label="Close">&times;</button>
+        </div>
+        <form id="inviteForm">
+          <label for="inviteEmail">Their work email</label>
+          <input type="email" id="inviteEmail" required autocomplete="off" spellcheck="false" />
+          <p class="hint" style="margin-top:8px">They'll get a link to set a password. It works for 3 days.</p>
+          <div class="status" id="inviteStatus" role="alert"></div>
+          <button class="save-btn" type="submit" id="inviteSend">Send invite</button>
+        </form>
+      </div>
     </div>
 
     <script>
@@ -820,6 +910,7 @@
     </script>
   <script src="assets/confirm.js?v=1"></script>
   <script src="assets/connected-apps.js?v=2"></script>
+  <script src="assets/client-team.js?v=1"></script>
   <script src="assets/notifications.js?v=2"></script>
   <script src="assets/shell.js?v=6"></script>
 </body>

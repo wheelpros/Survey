@@ -33,8 +33,11 @@
       icon: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>'
     },
     {
+      // The badge counts team forms still waiting on this admin (filled in
+      // below); they fill them in in the Forms page's Team Forms section.
       href: "admin.html",
       label: "Forms",
+      badge: "teamFormBadge",
       icon: '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>'
     },
     {
@@ -115,7 +118,8 @@
     "inquiry-form.html": "inquiries.html",
     "inquiry-response.html": "inquiries.html",
     "user-details.html": "clients-management.html",
-    "admin-announcement-form.html": "admin-notifications.html"
+    "admin-announcement-form.html": "admin-notifications.html",
+    "admin-team-form.html": "admin.html"
   };
 
   function currentRole() {
@@ -154,5 +158,20 @@
       + (link.badge ? '<em class="nav-badge" id="' + link.badge + '" hidden></em>' : "")
       + '</a>';
   }).join("");
+
+  // Team forms waiting on this admin, on the Forms link. Once per page.
+  var token = localStorage.getItem("admin_token");
+  var badge = document.getElementById("teamFormBadge");
+  if (token && badge && window.fetch) {
+    fetch("api/team-forms.php?action=pending_count", { headers: { Authorization: "Bearer " + token } })
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .then(function (data) {
+        if (data && data.success && data.pending > 0) {
+          badge.textContent = data.pending > 99 ? "99+" : String(data.pending);
+          badge.hidden = false;
+        }
+      })
+      .catch(function () {});
+  }
 
 })();

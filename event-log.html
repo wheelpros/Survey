@@ -281,7 +281,7 @@ document.addEventListener("DOMContentLoaded", function () {
   set("acctRole", label);
 });
 </script>
-<link rel="stylesheet" href="assets/shell.css?v=6" />
+<link rel="stylesheet" href="assets/shell.css?v=8" />
 <script src="assets/permissions.js?v=2"></script>
 </head>
 
@@ -298,7 +298,7 @@ document.addEventListener("DOMContentLoaded", function () {
       </button>
     </div>
     <nav class="side-nav"></nav>
-    <script src="assets/admin-nav.js?v=1"></script>
+    <script src="assets/admin-nav.js?v=3"></script>
   </div>
 
   <button class="side-user" type="button" onclick="openAccount()" title="Account">
@@ -317,7 +317,7 @@ document.addEventListener("DOMContentLoaded", function () {
     <div class="page-head">
       <div class="page-title">
         <h1>Tracking</h1>
-        <p id="viewNote">Every change an admin made, in the portal or through an AI assistant, newest first. Kept for 12 months.</p>
+        <p id="viewNote">Every admin change, kept 12 months.</p>
       </div>
     </div>
 
@@ -773,7 +773,7 @@ function clearAiFilters(){
    with that tab's filters and page; the other starts clean. */
 
 const VIEW_NOTES = {
-  changes: "Every change an admin made, in the portal or through an AI assistant, newest first. Kept for 12 months.",
+  changes: "Every admin change, kept 12 months.",
   ai: "Every call an AI assistant made into the portal, by staff and clients, newest first. Shows what was called and how it went, never what was sent or returned."
 };
 

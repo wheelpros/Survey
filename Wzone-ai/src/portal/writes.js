@@ -392,6 +392,59 @@ export const WRITE_TOOLS = [
     },
   },
   {
+    name: "send_team_form",
+    scope: "team_forms:write",
+    title: "Send a form to the team",
+    description:
+      "Sends a form to other admins: the whole team, everyone in some roles, specific people (admin ids from " +
+      "get_settings), or roles plus people. Each recipient gets a notification, fills it in once in the portal and " +
+      "sends it back; you, the Director and anyone allowed to see team form answers can read them with get_team_form. " +
+      "You're never sent your own form." + TWO_STEP,
+    input: {
+      scope: z.enum(["all", "roles", "specific"]).optional().describe("all (default): every active admin; roles/specific: only roles and/or recipients"),
+      roles: z
+        .array(z.enum(["owner", "super_admin", "account_manager", "seo_admin"]))
+        .max(4)
+        .optional()
+        .describe("owner is the Director, seo_admin is Admin"),
+      recipients: z.array(z.number().int().positive()).max(500).optional().describe("Admin ids, added to anyone in roles"),
+      title: z.string().min(1).max(200),
+      description: z.string().max(5000).optional().describe("Shown above the questions"),
+      due_date: date("When answers are due, if there is a date").optional(),
+      questions: formQuestions,
+    },
+  },
+  {
+    name: "answer_team_form",
+    scope: "team_forms:answer",
+    title: "Answer a team form",
+    description:
+      "Sends your answers to a team form someone sent you (get_team_form shows its questions). Once only, while it's " +
+      "open. A form with a required file upload can only be answered in the portal. Write what the person wants to answer - " +
+      "it goes back under their name." + TWO_STEP,
+    input: {
+      id: recordId("The team form's id - from list_team_forms"),
+      answers: z
+        .array(
+          z.object({
+            question_id: recordId("The question's id from get_team_form"),
+            answer: z.union([z.string().max(10000), z.array(z.string().max(100)).max(20)]).describe("Text, or for a checkbox question the options ticked"),
+          })
+        )
+        .max(100),
+    },
+  },
+  {
+    name: "close_team_form",
+    scope: "team_forms:write",
+    title: "Close or reopen a team form",
+    description: "Closes a team form you sent so it takes no more answers, or reopens it. The Director can do this for any." + TWO_STEP,
+    input: {
+      id: recordId("The team form's id"),
+      reopen: z.boolean().optional().describe("true to reopen a closed form"),
+    },
+  },
+  {
     name: "post_project_update",
     scope: "projects:write",
     title: "Post a project update",

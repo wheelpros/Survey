@@ -430,7 +430,7 @@ td a{color:var(--nav-active);font-weight:700}
 function openAccount(){ document.getElementById("acctModal").classList.add("show"); }
 function closeAccount(){ document.getElementById("acctModal").classList.remove("show"); }
 </script>
-<link rel="stylesheet" href="assets/shell.css?v=6" />
+<link rel="stylesheet" href="assets/shell.css?v=8" />
 <script src="assets/permissions.js?v=2"></script>
 </head>
 
@@ -447,7 +447,7 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
       </button>
     </div>
     <nav class="side-nav"></nav>
-    <script src="assets/admin-nav.js?v=1"></script>
+    <script src="assets/admin-nav.js?v=3"></script>
   </div>
 
   <button class="side-user" type="button" onclick="openAccount()" title="Account">
@@ -510,7 +510,7 @@ if(!adminToken || !adminUser.role){
 // Part of Clients Management, which is not for seo_admin. api/admin-user-details.php
 // refuses the role as well; this only stops a typed-in URL loading an empty page.
 if(!adminCan("clients.details")){
-  window.location.replace("admin.html");
+  window.location.replace("admin-dashboard.html");
 }
 
 (function(){
@@ -1182,8 +1182,8 @@ function detailsPanel(data){
         <div>
           <h2>Details</h2>
           <p>${editingDetails
-                ? "Editing the details the client filled in on their profile page."
-                : "Filled in by the user on their profile page."}</p>
+                ? "Editing the client's profile details."
+                : "From the client's profile page."}</p>
         </div>
         ${canEdit && !editingDetails
             ? `<button class="edit-toggle" type="button" onclick="startEditDetails()">
@@ -1366,9 +1366,9 @@ const TEAM_COLUMNS = [
 ];
 
 const TEAM_SUB = {
-  owner:           "Who works on this client. You can change every column.",
-  account_manager: "Who works on this client. You can add super admins and admins from your team.",
-  super_admin:     "Who works on this client. You can add admins from your team.",
+  owner:           "Who works on this client.",
+  account_manager: "Who works on this client.",
+  super_admin:     "Who works on this client.",
   seo_admin:       "Who works on this client."
 };
 
@@ -1407,7 +1407,7 @@ function clientPeoplePanel(data){
     <div class="panel client-people">
       <div class="panel-head">
         <h2>Client's people</h2>
-        <p>Teammates the account owner has added. Each has their own login to this client's account.</p>
+        <p>People on this client's account.</p>
       </div>
       ${rows ? `<div class="table-wrap"><table><tbody>${rows}</tbody></table></div>` : ""}
       ${canManageAccounts ? `
@@ -1766,7 +1766,7 @@ function render(data){
     <div class="panel">
       <div class="panel-head">
         <h2>Appointments ${(data.appointments || []).length ? `<span class="badge neutral">${(data.appointments || []).length}</span>` : ""}</h2>
-        <p>Meetings and the content posts this client sees, on the content calendar. Pick a day to see what is on it.</p>
+        <p>This client's meetings and posts.</p>
       </div>
       <div class="cal-head">
         <div class="cal-controls">
@@ -1782,7 +1782,7 @@ function render(data){
     <div class="panel">
       <div class="panel-head">
         <h2 id="dailyScheduleTitle">Daily Schedule</h2>
-        <p>Meetings with this client, and posts that went live for them, on the selected day.</p>
+        <p>Meetings and posts on the selected day.</p>
       </div>
       <div class="schedule-list" id="dailySchedule"></div>
     </div>`;

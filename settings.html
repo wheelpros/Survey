@@ -1383,7 +1383,7 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 </script>
-<link rel="stylesheet" href="assets/shell.css?v=6" />
+<link rel="stylesheet" href="assets/shell.css?v=8" />
 <link rel="stylesheet" href="assets/connected-apps.css?v=2" />
 <script src="assets/permissions.js?v=2"></script>
 </head>
@@ -1401,7 +1401,7 @@ document.addEventListener("DOMContentLoaded", function () {
       </button>
     </div>
     <nav class="side-nav"></nav>
-    <script src="assets/admin-nav.js?v=1"></script>
+    <script src="assets/admin-nav.js?v=3"></script>
   </div>
 
   <button class="side-user" type="button" onclick="openAccount()" title="Account">
@@ -1420,7 +1420,7 @@ document.addEventListener("DOMContentLoaded", function () {
     <div class="page-head">
       <div class="page-title">
         <h1>Settings</h1>
-        <p>Passwords, branding and admin accounts for the platform.</p>
+        <p>Branding, admins and access.</p>
       </div>
     </div>
 
@@ -1430,7 +1430,7 @@ document.addEventListener("DOMContentLoaded", function () {
 <div class="panel">
   <div class="panel-head">
     <h1>Director</h1>
-    <p>Your details as the Director of the portal.</p>
+    <p>Your details as the Director.</p>
   </div>
   <div class="panel-body">
     <div class="director-card">
@@ -1522,7 +1522,7 @@ document.addEventListener("DOMContentLoaded", function () {
 <div class="panel">
   <div class="panel-head">
     <h1>Portal Branding</h1>
-    <p>The name your clients and team see in emails, page titles and footers, and how they reach you for help.</p>
+    <p>Your name in emails, titles and footers.</p>
   </div>
   <div class="panel-body">
     <label for="brandPortalName" style="margin-top:0;">Portal name</label>
@@ -1550,7 +1550,7 @@ document.addEventListener("DOMContentLoaded", function () {
 <div class="panel">
   <div class="panel-head">
     <h1>Website Address</h1>
-    <p>Where the logo takes a visitor when they click it, on the public inquiry page.</p>
+    <p>Where the logo links on public pages.</p>
   </div>
   <div class="panel-body">
     <label for="websiteUrl" style="margin-top:0;">Website URL</label>
@@ -1569,7 +1569,7 @@ document.addEventListener("DOMContentLoaded", function () {
 <div class="panel">
   <div class="panel-head">
     <h1>Login Page Slideshow</h1>
-    <p>Up to 5 images shown beside the sign-in form. Top of the list shows first.</p>
+    <p>Up to 5 images beside the sign-in form.</p>
   </div>
   <div class="panel-body">
     <div id="slidesList" class="admin-list">
@@ -1648,7 +1648,7 @@ document.addEventListener("DOMContentLoaded", function () {
 <div class="panel" id="sources-password">
   <div class="panel-head">
     <h1>Files Password</h1>
-    <p>The password that opens your Files page. It is yours alone — other admins have their own.</p>
+    <p>The password for your Files page.</p>
   </div>
   <div class="panel-body">
 
@@ -1671,7 +1671,7 @@ document.addEventListener("DOMContentLoaded", function () {
 <div class="panel">
   <div class="panel-head">
     <h1>Director Assignments to Team Management</h1>
-    <p>Choose which Admin accounts each Super Admin or Account Manager can manage.</p>
+    <p>Who manages which admin accounts.</p>
   </div>
 
   <div class="assignment-box">
@@ -1695,7 +1695,7 @@ document.addEventListener("DOMContentLoaded", function () {
         <div class="panel-head with-action">
             <div>
                 <h1>Available Admins</h1>
-                <p id="availableAdminsDesc">Manage Admins, Super Admins and Account Managers.</p>
+                <p id="availableAdminsDesc">Your admins and their roles.</p>
             </div>
             <button type="button" class="add-admin-btn" onclick="openAddAdmin()">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -1789,7 +1789,7 @@ document.addEventListener("DOMContentLoaded", function () {
 <div class="panel">
   <div class="panel-head">
     <h1>Permissions</h1>
-    <p>Choose what each role can do, then make exceptions for one person. A change applies on their next click &ndash; nobody is signed out.</p>
+    <p>What each role can do, and exceptions.</p>
   </div>
 
   <div class="panel-body">
@@ -1838,7 +1838,7 @@ document.addEventListener("DOMContentLoaded", function () {
 <div class="panel" id="connected-apps">
   <div class="panel-head">
     <h1>Connected apps</h1>
-    <p>AI assistants you've allowed to use your account. Each one can only do what you approved, within what your role allows.</p>
+    <p>AI assistants allowed on your account.</p>
   </div>
   <div class="panel-body">
     <div class="ca-client-access" id="ca-client-access" hidden></div>

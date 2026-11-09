@@ -80,6 +80,8 @@ const PERMISSIONS = [
     // Team
     "team.overview"      => ["area" => "team", "label" => "See the whole team's tasks on the dashboard", "roles" => []],
     "announcements.send" => ["area" => "team", "label" => "Send announcements", "roles" => []],
+    "team_forms.send"    => ["area" => "team", "label" => "Send forms to the team", "roles" => []],
+    "team_forms.responses" => ["area" => "team", "label" => "See the answers to every team form, not only the ones they sent", "roles" => []],
     "events.view"        => ["area" => "team", "label" => "See Tracking - every admin's changes and all AI activity", "roles" => []],
 
     // The Director's alone

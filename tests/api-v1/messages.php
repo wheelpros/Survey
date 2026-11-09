@@ -180,13 +180,17 @@ check("v1 messages: the summary names who and what", strpos($prep["data"]["summa
 $last = one($pdo, "SELECT sender_id, body FROM admin_messages ORDER BY id DESC LIMIT 1");
 check("v1 messages: it lands in the chat as Sam", (int) $last["sender_id"] === 2 && $last["body"] === "Sent by the assistant"
     && ($done["data"]["result"]["message_id"] ?? 0) > 0, json_encode($last));
-// $sa is Sam's session token, so the row says web; events.php checks that a
-// write with a real MCP token says mcp.
-$event = one($pdo, "SELECT * FROM admin_events WHERE action = 'message.sent' ORDER BY id DESC LIMIT 1");
-check("v1 messages: Tracking has who messaged whom and when, never the text", $event
-    && (int) $event["actor_admin_id"] === 2 && $event["via"] === "web" && $event["target_type"] === "admin"
-    && (int) $event["target_id"] === 3 && strpos($event["summary"], "Amy") !== false
-    && strpos(json_encode($event), "Sent by the assistant") === false, json_encode($event));
+// Messages are private, and Tracking doesn't record them at all.
+check("v1 messages: Tracking records nothing about messages",
+    (int) one($pdo, "SELECT COUNT(*) AS n FROM admin_events WHERE action LIKE 'message.%'")["n"] === 0);
+
+// A row written before messages left Tracking stays out of the Changes list.
+$pdo->prepare("INSERT INTO admin_events (actor_admin_id, actor_name, actor_role, via, action, target_type, target_id, target_label, summary)
+    VALUES (2, 'Sam', 'super_admin', 'web', 'message.sent', 'admin', 3, 'Amy', 'Sent a message to Amy')")->execute();
+[$status, $r] = get("events.php?q=" . rawurlencode("Sent a message to Amy"), $owner);
+check("v1 messages: an old message row isn't listed in Tracking", $status === 200 && ($r["data"]["items"] ?? null) === [],
+    "HTTP $status " . json_encode($r));
+$pdo->exec("DELETE FROM admin_events WHERE action = 'message.sent'");
 [, $r] = msgGet("action=count", $am);
 check("v1 messages: Amy sees it unread on the page", ($r["unread"] ?? 0) >= 1, json_encode($r));
 

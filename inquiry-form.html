@@ -134,7 +134,7 @@ body{padding:0}
 
 <!-- Feature styles first, shell.css last: the phone drawer has to win. -->
 <link rel="stylesheet" href="assets/inquiries.css?v=3" />
-<link rel="stylesheet" href="assets/shell.css?v=6" />
+<link rel="stylesheet" href="assets/shell.css?v=8" />
 
 <script>
 // Runs before paint so the collapsed state never flashes open on load.
@@ -185,7 +185,7 @@ document.addEventListener("DOMContentLoaded", function () {
       </button>
     </div>
     <nav class="side-nav"></nav>
-    <script src="assets/admin-nav.js?v=1"></script>
+    <script src="assets/admin-nav.js?v=3"></script>
   </div>
 
   <button class="side-user" type="button" onclick="openAccount()" title="Account">
@@ -259,7 +259,7 @@ document.addEventListener("DOMContentLoaded", function () {
         <div class="section-head">
           <div>
             <h3>Status</h3>
-            <p class="section-sub" style="margin-bottom:0">Define the availability state of this consultation link.</p>
+            <p class="section-sub" style="margin-bottom:0">Whether this link takes answers.</p>
           </div>
           <span class="pill pill-active" id="statusPill">Active</span>
         </div>
@@ -350,7 +350,7 @@ if (!adminToken || !adminUser.role) {
 // them on inquiries.html, so that is where they are sent; anyone else has no
 // inquiries at all. api/admin-inquiries.php refuses the save either way.
 if (!adminCan("inquiries.write")) {
-  window.location.href = adminCan("inquiries.read") ? "inquiries.html" : "admin.html";
+  window.location.href = adminCan("inquiries.read") ? "inquiries.html" : "admin-dashboard.html";
 }
 
 const canWrite = adminCan("inquiries.write");

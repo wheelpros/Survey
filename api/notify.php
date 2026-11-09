@@ -42,6 +42,8 @@ const NOTIFY_ANNOUNCEMENT         = "announcement";
 const NOTIFY_PROJECT_ASSIGNED     = "project_assigned";
 const NOTIFY_PROJECT_UPDATE       = "project_update";
 const NOTIFY_CLIENT_TEAM_CHANGED  = "client_team_changed";
+const NOTIFY_TEAM_FORM            = "team_form";
+const NOTIFY_TEAM_FORM_ANSWERED   = "team_form_answered";
 
 /**
  * One row for one recipient. $kind is 'user' or 'admin', naming the table
@@ -335,5 +337,50 @@ function notifyAnnouncement(
         }
     } catch (Throwable $e) {
         // Same silence as notify(): the announcement itself is already saved.
+    }
+}
+
+/**
+ * A team form reaching the admins it was sent to: one row each, carrying
+ * team_form_id so the inbox can tell it apart, and a link to fill it in.
+ * Same rules as notifyAnnouncement() above - after commit, silent on failure.
+ */
+function notifyTeamForm(PDO $pdo, array $adminIds, int $formId, string $title, string $body = "", int $actorAdminId = 0)
+{
+    if ($formId <= 0) {
+        return;
+    }
+
+    if ($pdo->inTransaction()) {
+        error_log("notifyTeamForm(): refused to emit from inside a transaction");
+        return;
+    }
+
+    try {
+        $stmt = $pdo->prepare("
+            INSERT INTO notifications
+                (recipient_kind, recipient_id, event_type,
+                 title, body, link, actor_kind, actor_id, team_form_id)
+            VALUES ('admin', ?, ?, ?, ?, ?, 'admin', ?, ?)
+        ");
+
+        foreach ($adminIds as $id) {
+            $id = (int) $id;
+            if ($id <= 0) {
+                continue;
+            }
+
+            $stmt->execute([
+                $id,
+                NOTIFY_TEAM_FORM,
+                mb_substr($title, 0, 200),
+                $body !== "" ? mb_substr($body, 0, 500) : null,
+                "admin-team-form.html?id=" . $formId,
+                $actorAdminId > 0 ? $actorAdminId : null,
+                $formId,
+            ]);
+        }
+    } catch (Throwable $e) {
+        // The form is already saved; a missing inbox row is not worth failing it.
     }
 }
