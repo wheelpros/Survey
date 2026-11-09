@@ -100,7 +100,7 @@ export const READ_TOOLS = [
     title: "List forms",
     description:
       "Forms built for clients. The Director and account managers see every form; " +
-      "everyone else the forms they wrote. " + ORDER,
+      "everyone else the forms they wrote. Forms admins send each other are team forms: list_team_forms. " + ORDER,
     input: {
       client: clientId.optional(),
       status: z.enum(["pending_review", "pending", "rejected", "completed"]).optional(),
@@ -113,7 +113,7 @@ export const READ_TOOLS = [
     name: "get_form",
     scope: "forms:read",
     title: "Get a form",
-    description: "One form with its questions, review state and how many responses it has.",
+    description: "One client form with its questions, review state and how many responses it has. A team form is get_team_form.",
     input: { id: recordId("The form's id") },
     output: S.formDetail,
     path: "forms.php",
@@ -375,7 +375,9 @@ export const READ_TOOLS = [
     name: "list_my_notifications",
     scope: "notifications:read",
     title: "My notifications",
-    description: "Your own portal notifications. " + ORDER,
+    description:
+      "Your own portal notifications. An announcement opens in full with get_announcement " +
+      "(announcement_id); a team form with get_team_form (team_form_id). " + ORDER,
     input: { unread: z.boolean().optional().describe("Only unread ones"), ...paging },
     output: S.notifications,
     path: "notifications.php",

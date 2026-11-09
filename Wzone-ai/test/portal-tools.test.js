@@ -119,7 +119,7 @@ describe("private server: per-person tools", () => {
     expect((await c.listResourceTemplates()).resourceTemplates.map((r) => r.uriTemplate).sort())
       .toEqual(["client://{id}", "form://{id}", "project://{id}"]);
     expect((await c.listPrompts()).prompts.map((p) => p.name).sort())
-      .toEqual(["client_weekly_report", "meeting_prep", "my_phases", "onboard_new_client", "plan_month_content", "review_queue", "triage_new_leads"]);
+      .toEqual(["client_weekly_report", "fill_in_team_form", "meeting_prep", "my_phases", "onboard_new_client", "plan_month_content", "review_queue", "team_form_answers", "triage_new_leads"]);
     const { tools } = await c.listTools();
     expect(tools.every((t) => t.outputSchema)).toBe(true);
     // Only the tools that actually change something are not read-only.
@@ -141,6 +141,17 @@ describe("private server: per-person tools", () => {
     expect(prompts).not.toContain("meeting_prep");
     expect(prompts).not.toContain("triage_new_leads");
     expect(prompts).toContain("plan_month_content");
+    await c.close();
+  });
+
+  it("offers fill_in_team_form only with team_forms:answer", async () => {
+    fakePortal({ scopes: ALL_STAFF.filter((s) => s !== "team_forms:answer") });
+    const c = await connect();
+    const prompts = (await c.listPrompts()).prompts.map((p) => p.name);
+    expect(prompts).not.toContain("fill_in_team_form");
+    expect(prompts).toContain("team_form_answers");
+    const { messages } = await c.getPrompt({ name: "team_form_answers", arguments: { form: "7" } });
+    expect(messages[0].content.text).toContain("get_team_form with id 7");
     await c.close();
   });
 
