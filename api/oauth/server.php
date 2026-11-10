@@ -72,8 +72,9 @@ function grantRow(PDO $pdo, $grantId)
 }
 
 /**
- * The scopes a grant may carry right now: what was consented to, cut down
- * to what the person's role still allows. Null if the person is gone.
+ * The scopes a grant carries right now: whatever the person's portal
+ * permissions allow today, the same as principalFromMcpToken(). Null if the
+ * person is gone.
  */
 function liveGrantScopes(PDO $pdo, array $grant)
 {
@@ -81,7 +82,7 @@ function liveGrantScopes(PDO $pdo, array $grant)
     if (!$p) {
         return null;
     }
-    return array_values(array_intersect(scopeList($grant["scopes"]), scopesAllowedFor($pdo, $p)));
+    return scopesAllowedFor($pdo, $p);
 }
 
 try {

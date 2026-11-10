@@ -108,14 +108,14 @@ check("events: filtered", $status === 200 && count($r["data"]["items"]) === 1
 [$status] = get("events.php?area=nonsense", $owner);
 check("events: an unknown area is refused", $status === 422, "HTTP $status");
 
-// An owner's MCP connection needs the scope; without it, a 403.
+// A connection reads Tracking when its person may: the Director's, though
+// approved without events:read; not Sam's, whose role doesn't open it.
 $ownerMcp = "wzat_" . str_repeat("e", 43);
 seed($pdo, "mcp_grants", [["id" => 9, "client_id" => "c1", "principal_kind" => "admin", "principal_id" => 1,
     "scopes" => "settings:read", "resource" => "https://mcp.test/mcp"]]);
 seed($pdo, "mcp_tokens", [["token_hash" => tokenHash($ownerMcp), "kind" => "access", "grant_id" => 9, "expires_at" => time() + 3600]]);
-[$status, $r] = get("events.php", $ownerMcp, ["X-MCP-Key" => $mcpKey, "X-MCP-Tool" => "get_tracking"]);
-check("events: an owner connection without events:read", $status === 403 && $r["error"]["code"] === "insufficient_scope", "HTTP $status " . json_encode($r));
-$pdo->prepare("UPDATE mcp_grants SET scopes = 'settings:read events:read' WHERE id = 9")->execute();
+[$status, $r] = get("events.php", $mcpToken, ["X-MCP-Key" => $mcpKey, "X-MCP-Tool" => "get_tracking"]);
+check("events: a connection whose person can't see Tracking", $status === 403 && $r["error"]["code"] === "insufficient_scope", "HTTP $status " . json_encode($r));
 [$status, $r] = get("events.php?limit=10", $ownerMcp, ["X-MCP-Key" => $mcpKey, "X-MCP-Tool" => "get_tracking"]);
 check("events: an owner connection with it", $status === 200 && count($r["data"]["items"]) === 10, "HTTP $status " . json_encode($r));
 $fixtures["get_tracking"] = $r["data"] ?? null;
@@ -207,10 +207,8 @@ check("ai activity: filtered by result", array_column($r["data"]["items"] ?? [],
 [$status] = get("ai-activity.php?result=nonsense", $owner);
 check("ai activity: an unknown result is refused", $status === 422, "HTTP $status");
 
-$pdo->prepare("UPDATE mcp_grants SET scopes = 'settings:read' WHERE id = 9")->execute();
-[$status, $r] = get("ai-activity.php", $ownerMcp, ["X-MCP-Key" => $mcpKey, "X-MCP-Tool" => "get_ai_activity"]);
-check("ai activity: a connection without events:read", $status === 403 && $r["error"]["code"] === "insufficient_scope", "HTTP $status " . json_encode($r));
-$pdo->prepare("UPDATE mcp_grants SET scopes = 'settings:read events:read' WHERE id = 9")->execute();
+[$status, $r] = get("ai-activity.php", $mcpToken, ["X-MCP-Key" => $mcpKey, "X-MCP-Tool" => "get_ai_activity"]);
+check("ai activity: a connection whose person can't see Tracking", $status === 403 && $r["error"]["code"] === "insufficient_scope", "HTTP $status " . json_encode($r));
 [$status, $r] = get("ai-activity.php?limit=10", $ownerMcp, ["X-MCP-Key" => $mcpKey, "X-MCP-Tool" => "get_ai_activity"]);
 check("ai activity: a connection with it", $status === 200 && count($r["data"]["items"]) >= 4, "HTTP $status " . json_encode($r));
 $fixtures["get_ai_activity"] = $r["data"] ?? null;

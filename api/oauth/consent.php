@@ -50,14 +50,12 @@ if (!$request) {
     oauthReply(404, ["success" => false, "message" => "This request has expired. Start connecting again from your AI assistant."]);
 }
 
-// What may be granted: what was asked for, within what this person's role
-// allows - or, if the app asked for nothing in particular, all of that.
+// A connection acts as its person: it can do what their portal permissions
+// allow, now and as features are added (principalFromMcpToken() works it out
+// on every request). So the page shows all of that, whatever scopes the app
+// asked for, and there is never anything "not requested" to explain.
 $allowed = scopesAllowedFor($pdo, $p);
-$requested = scopeList($request["scopes"]);
-$scopes = $requested ? array_values(array_intersect($requested, $allowed)) : $allowed;
-// What this person could have given but the app didn't ask for. Shown, so a
-// connection that comes up short can be explained before it is approved.
-$notRequested = array_values(array_diff($allowed, $scopes));
+$scopes = $allowed;
 
 $clientName = $request["client_name"] ?: "An AI assistant";
 $redirectHost = parse_url($request["redirect_uri"], PHP_URL_HOST) ?: "";
@@ -73,7 +71,7 @@ if ($method === "GET") {
     if ($p["kind"] === "user" && !clientsMayUseMcp($pdo)) {
         $reason = "Connecting AI assistants to client accounts isn't switched on for this portal yet.";
     } elseif (!$scopes) {
-        $reason = "Your account doesn't have access to anything this app asked for.";
+        $reason = "Your account doesn't have access to anything an AI assistant can use.";
     }
 
     oauthReply(200, [
@@ -87,7 +85,6 @@ if ($method === "GET") {
             "role" => $p["role"],
         ],
         "scopes" => array_map("describeScope", $scopes),
-        "not_requested" => array_map("describeScope", $notRequested),
         "can_approve" => $reason === null,
         "reason" => $reason,
     ]);

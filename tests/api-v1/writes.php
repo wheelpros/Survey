@@ -474,9 +474,9 @@ check("mark read: ids or all", $status === 422, "HTTP $status");
 [$status, $r] = post("api/v1/notifications.php", $sa, ["all" => true]);
 check("mark read: all", $status === 200 && $r["data"]["unread_count"] === 0, json_encode($r));
 
-// Through an MCP connection: only what it was granted, and only through it.
-[$status, $r] = prepare($mcpToken, "create_form_draft", ["client" => 10, "title" => "x", "questions" => [["text" => "q"]]], ["X-MCP-Key" => $mcpKey]);
-check("mcp: a write scope that wasn't granted", $status === 403 && $r["error"]["code"] === "insufficient_scope", "HTTP $status " . json_encode($r));
+// Through an MCP connection: only what its person may do, and only through it.
+[$status, $r] = prepare($mcpToken, "update_website_address", ["address" => "nope.test"], ["X-MCP-Key" => $mcpKey]);
+check("mcp: a write its person's role doesn't allow", $status === 403 && $r["error"]["code"] === "insufficient_scope", "HTTP $status " . json_encode($r));
 
 $writeToken = "wzat_" . str_repeat("w", 43);
 seed($pdo, "mcp_grants", [["id" => 3, "client_id" => "c1", "principal_kind" => "admin", "principal_id" => 2,

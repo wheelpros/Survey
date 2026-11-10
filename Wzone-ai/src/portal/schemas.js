@@ -806,14 +806,11 @@ export const whoami = {
   name: text,
   email: text,
   role: text.describe("owner (the Director - always call them the Director), super_admin, seo_admin, account_manager - or client"),
-  scopes: z.array(text).describe("What this connection may do"),
+  scopes: z
+    .array(text)
+    .describe("What this connection may do: exactly what the person's portal permissions allow right now"),
   via: text,
   connected_app: maybe.optional(),
-  missing_scopes: z
-    .array(text)
-    .optional()
-    .describe("What the person's role allows but this connection was never given - its tools are hidden"),
-  missing_scopes_note: text.optional().describe("How to get the missing scopes: reconnect and approve - tell the person"),
   visible_clients: z.enum(["all", "assigned"]).optional(),
   visible_client_count: id.optional(),
   company_name: maybe.optional(),

@@ -79,24 +79,10 @@
   }
 
   function appHtml(grant) {
-    var have = grant.scopes.length;
-    var missing = grant.missing.length;
-    var total = have + missing;
-    var count = missing
-      ? '<span class="ca-count short">' + have + " of " + total + " permissions</span>"
-      : '<span class="ca-count">All ' + total + " permissions</span>";
-
-    /* A grant never grows: scopes added after it was approved (team forms,
-       say) stay off until the person connects again. The same list whoami
-       gives the assistant as missing_scopes. */
-    var missingAreas = [];
-    grant.missing.forEach(function (scope) {
-      if (missingAreas.indexOf(scope.area) === -1) missingAreas.push(scope.area);
-    });
-    var warning = !missing ? "" :
-      '<div class="ca-warning"><b>New permissions are available — disconnect and connect again to use them</b>'
-      + "Not yet included: " + esc(missingAreas.join(", ")) + ". "
-      + "Disconnect here, then connect " + esc(grant.client_name) + " again and approve.</div>";
+    /* A connection acts as its person: it can do what their portal
+       permissions allow today, and picks up new features and permission
+       changes by itself - so there is nothing "missing" to reconnect for. */
+    var count = '<span class="ca-count">Same as your access</span>';
 
     var used = day(grant.last_used_at);
 
@@ -111,10 +97,8 @@
       +     ' data-name="' + esc(grant.client_name) + '"'
       +     ' aria-label="Disconnect ' + esc(grant.client_name) + '">Disconnect</button>'
       + "</div>"
-      + warning
       + '<details class="ca-details"><summary>See what it can do</summary>'
       +   areasHtml(grant.scopes, "", "")
-      +   areasHtml(grant.missing, "missing", "Missing: ")
       + "</details>"
       + "</article>";
   }

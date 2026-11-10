@@ -44,13 +44,13 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
 
     oauthReply(200, [
         "success" => true,
+        // A connection can do what its person may do today (see
+        // principalFromMcpToken()), whatever was on offer when it was approved.
         "grants" => array_map(function ($g) use ($allowed) {
-            $scopes = array_values(array_intersect(scopeList($g["scopes"]), $allowed));
             return [
                 "id" => (int) $g["id"],
                 "client_name" => $g["client_name"] ?: "AI assistant",
-                "scopes" => array_map("describeScope", $scopes),
-                "missing" => array_map("describeScope", array_values(array_diff($allowed, $scopes))),
+                "scopes" => array_map("describeScope", $allowed),
                 "created_at" => $g["created_at"],
                 "last_used_at" => $g["last_used_at"],
             ];

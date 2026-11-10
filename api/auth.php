@@ -242,8 +242,15 @@ function currentPrincipal(PDO $pdo)
 
 /**
  * The principal behind an MCP access token: the token must be live, its
- * grant not revoked, and the person still active - and the scopes are what
- * was consented to, cut down to what the role allows today.
+ * grant not revoked, and the person still active.
+ *
+ * The scopes are whatever the person's portal permissions allow today -
+ * scopesAllowedFor(), worked out again on every request - not a list frozen
+ * when the connection was approved. So a feature added later (team forms
+ * were the first) reaches every existing connection on its next request,
+ * and a permission the Director takes away leaves it at once, with no
+ * reconnecting either way. The grant's stored scopes are only a record of
+ * what was on offer at approval.
  */
 function principalFromMcpToken(PDO $pdo, $token)
 {
@@ -257,9 +264,8 @@ function principalFromMcpToken(PDO $pdo, $token)
         return null;
     }
 
-    $granted = scopeList($row["scopes"]);
     $p["via"] = "mcp";
-    $p["scopes"] = array_values(array_intersect($granted, scopesAllowedFor($pdo, $p)));
+    $p["scopes"] = scopesAllowedFor($pdo, $p);
     $p["grant_id"] = (int) $row["grant_id"];
     $p["client_id"] = $row["client_id"];
     $p["client_name"] = $row["client_name"] ?? null;

@@ -12,12 +12,9 @@
 .ca-app-name { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 15px; font-weight: 700; color: #101828; overflow-wrap: anywhere; }
 .ca-meta { margin-top: 4px; font-size: 13px; color: #475467; }
 .ca-count { font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; background: #ecfdf3; color: #067647; }
-.ca-count.short { background: #fffaeb; color: #93370d; }
 .ca-disconnect { min-height: 40px; padding: 0 16px; border: 1px solid #fecdca; border-radius: 10px; background: #fff; color: #b42318; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
 .ca-disconnect:hover { background: #fef3f2; }
 
-.ca-warning { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: #fffaeb; font-size: 13px; line-height: 1.5; color: #7a2e0e; }
-.ca-warning b { display: block; color: #7a2e0e; }
 
 .ca-details { margin-top: 12px; }
 .ca-details summary { display: inline-flex; align-items: center; min-height: 32px; font-size: 13px; font-weight: 700; color: #1b1e3a; cursor: pointer; }

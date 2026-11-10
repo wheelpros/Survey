@@ -560,13 +560,18 @@ refused("an MCP token without the server's key", "clients.php", $mcpToken, 401);
 [$status, $body] = get("clients.php", $mcpToken, ["X-MCP-Key" => $mcpKey, "X-MCP-Tool" => "search_clients", "X-Request-Id" => "req-1"]);
 check("an MCP token through the server", $status === 200 && ids($body) === [10], "HTTP $status " . json_encode($body));
 
+// A connection can do what its person may do in the portal today - Sam's was
+// approved with clients:read and forms:read only, and still reaches the
+// calendar his role opens - and nothing his role keeps from him.
 [$status] = get("calendar.php", $mcpToken, ["X-MCP-Key" => $mcpKey]);
-check("an MCP token only gets what was consented to", $status === 403, "HTTP $status");
+check("an MCP token follows its person's permissions, not what it was approved with", $status === 200, "HTTP $status");
+[$status, $r] = get("settings.php", $mcpToken, ["X-MCP-Key" => $mcpKey]);
+check("an MCP token gets nothing its person's role doesn't allow", $status === 403 && ($r["error"]["code"] ?? "") === "insufficient_scope", "HTTP $status " . json_encode($r));
 
 $audit = $pdo->query("SELECT tool, endpoint, status, request_id FROM mcp_audit_log ORDER BY id")->fetchAll();
-check("every MCP call is audited", count($audit) === 2
+check("every MCP call is audited", count($audit) === 3
     && $audit[0]["tool"] === "search_clients" && $audit[0]["request_id"] === "req-1" && (int) $audit[0]["status"] === 200
-    && (int) $audit[1]["status"] === 403, json_encode($audit));
+    && (int) $audit[1]["status"] === 200 && (int) $audit[2]["status"] === 403, json_encode($audit));
 
 /*
 |--------------------------------------------------------------------------
