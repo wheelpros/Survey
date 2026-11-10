@@ -375,13 +375,13 @@ export const projectDetail = {
           )
           .optional()
           .describe("Files for the client - they download them from their project page once the phase is live"),
-        scheduled_date: maybe.describe("The due date"),
+        scheduled_date: maybe.describe("The phase's date - it shows on the calendars on this day. Every new phase has one; only phases from before dates were required can be null"),
         scheduled_time: maybe,
         link: maybe,
         created_by_name: maybe,
         created_at: dateTime,
-        phase_label: maybe.describe("The stage it belongs to, e.g. Planning"),
-        role: maybe.describe("The role the phase calls for"),
+        phase_label: maybe.describe("Legacy: a stage label from older phases. No longer set - usually null"),
+        role: maybe.describe("Legacy: a role label from older phases. No longer set - usually null"),
         priority: z.string().describe("low, medium or high"),
         teammates: z
           .array(z.object({ id, name: text, role: text }))
@@ -426,7 +426,7 @@ export const myTasks = {
       title: text,
       belongs_to: text.describe("The project, or the client for a post"),
       due_date: maybe,
-      label: maybe.describe("The phase's stage, or the post's type"),
+      label: maybe.describe("The post's type; for a phase, a legacy stage label - usually null"),
       status: z.string().describe("todo, in_progress or done - a teammate box or a post is todo or done"),
       link: text.describe("The portal page it opens"),
     })
@@ -451,7 +451,7 @@ export const myTasks = {
           title: text,
           belongs_to: text.describe("The project, or the client for a post"),
           due_date: maybe,
-          label: maybe.describe("The phase's stage, or the post's type"),
+          label: maybe.describe("The post's type; for a phase, a legacy stage label - usually null"),
           status: z
             .string()
             .describe(
@@ -484,7 +484,7 @@ export const myPhases = {
       assignment_id: id,
       phase: z.object({ id, title: text }),
       project: z.object({ id, title: text }),
-      phase_label: maybe,
+      phase_label: maybe.describe("Legacy stage label from older phases - no longer set, usually null"),
       due_date: maybe,
       status: assignmentStatus,
       untrusted_content: untrusted({ work_note: text }),

@@ -20,10 +20,22 @@ function phasePeople(PDO $pdo, $table, $taskId)
 $samBefore  = notes($pdo, "admin", 2, "project_assigned");
 $seanBefore = notes($pdo, "admin", 5, "project_assigned");
 
+// Every phase is on the calendars, so the form cannot save one without a date.
+[$status, $r] = post("api/project-tasks.php", $owner, [
+    "project_id" => 500, "title" => "Undated phase", "status" => "published", "scheduled_date" => "",
+], [], true);
+check("phases: a new phase needs a date", $status === 400 && ($r["message"] ?? "") === "Pick the phase's date."
+    && !one($pdo, "SELECT id FROM project_tasks WHERE title = 'Undated phase'"), "HTTP $status " . json_encode($r));
+[$status, $r] = post("api/project-tasks.php", $owner, ["project_id" => 500, "title" => "Undated phase"], [], true);
+check("phases: leaving the date out is refused too", $status === 400 && ($r["message"] ?? "") === "Pick the phase's date.",
+    "HTTP $status " . json_encode($r));
+
 [, $r] = post("api/project-tasks.php", $owner, [
     "project_id"  => 500,
     "title"       => "Project brief",
     "status"      => "published",
+    "scheduled_date" => day("-1"),
+    // No longer on the form: sent anyway, they are not written.
     "phase_label" => "Planning",
     "role"        => "Project Manager",
     "priority"    => "high",
@@ -38,7 +50,8 @@ $seanBefore = notes($pdo, "admin", 5, "project_assigned");
 $phase = one($pdo, "SELECT * FROM project_tasks WHERE title = 'Project brief'");
 $phaseId = (int) ($phase["id"] ?? 0);
 
-check("phases: the phase fields are saved", $phase && $phase["phase_label"] === "Planning" && $phase["role"] === "Project Manager"
+check("phases: the phase fields are saved", $phase && $phase["scheduled_date"] === day("-1")
+    && $phase["phase_label"] === null && $phase["role"] === null
     && $phase["priority"] === "high" && $phase["notes"] === "**Kickoff** on Monday", json_encode($r));
 check("phases: only the client's team goes on it", phasePeople($pdo, "project_task_teammates", $phaseId) === [2, 5]
     && phasePeople($pdo, "project_task_assignments", $phaseId) === [5]);
@@ -61,7 +74,14 @@ $phase = one($pdo, "SELECT * FROM project_tasks WHERE id = ?", [$phaseId]);
 check("phases: a save without the team leaves it alone", ($r["success"] ?? false)
     && phasePeople($pdo, "project_task_teammates", $phaseId) === [2, 5]
     && phasePeople($pdo, "project_task_assignments", $phaseId) === [5]
-    && $phase["phase_label"] === "Planning" && $phase["notes"] === "**Kickoff** on Monday", json_encode($r));
+    && $phase["scheduled_date"] === day("-1") && $phase["notes"] === "**Kickoff** on Monday", json_encode($r));
+
+[$status, $r] = post("api/project-tasks.php", $owner, [
+    "id" => $phaseId, "title" => "Project brief", "status" => "published", "scheduled_date" => "",
+], [], true);
+check("phases: an edit can't take the date away", $status === 400 && ($r["message"] ?? "") === "Pick the phase's date."
+    && one($pdo, "SELECT scheduled_date FROM project_tasks WHERE id = ?", [$phaseId])["scheduled_date"] === day("-1"),
+    "HTTP $status " . json_encode($r));
 
 [, $t] = pageGet("api/project-tasks.php?id=$phaseId", $owner);
 $pool = array_map("intval", array_column($t["candidates"] ?? [], "id"));
@@ -251,16 +271,19 @@ check("phases: deleting a phase takes its people with it", ($r["success"] ?? fal
 $samBefore  = notes($pdo, "admin", 2, "project_assigned");
 $seanBefore = notes($pdo, "admin", 5, "project_assigned");
 
+refusedChange("v1 phases: a phase needs a date", $owner, "post_project_update",
+    ["project" => 500, "title" => "Undated AI phase", "publish" => false], 422);
+
 [$prep, $done] = change("v1 phases: post a phase with its people", $owner, "post_project_update", [
-    "project" => 500, "title" => "AI phase", "publish" => false,
-    "phase" => "Design", "role" => "UI Designer", "priority" => "high", "notes" => "Use the new palette",
+    "project" => 500, "title" => "AI phase", "publish" => false, "date" => day("+2"),
+    "priority" => "high", "notes" => "Use the new palette",
     "team" => [2, 5],
     "assignments" => [["admin_id" => 5, "work_note" => "Mockups"]],
 ]);
 $v1Phase = (int) ($done["data"]["result"]["task_id"] ?? 0);
 $row = one($pdo, "SELECT * FROM project_tasks WHERE id = ?", [$v1Phase]);
 check("v1 phases: the summary names the team", strpos($prep["data"]["summary"] ?? "", "For the team:") !== false, json_encode($prep));
-check("v1 phases: fields and people are saved", $row && $row["phase_label"] === "Design" && $row["priority"] === "high"
+check("v1 phases: fields and people are saved", $row && $row["scheduled_date"] === day("+2") && $row["priority"] === "high"
     && phasePeople($pdo, "project_task_teammates", $v1Phase) === [2, 5]
     && phasePeople($pdo, "project_task_assignments", $v1Phase) === [5], json_encode($done));
 check("v1 phases: each newcomer is told once", notes($pdo, "admin", 2, "project_assigned") === $samBefore + 1
@@ -276,6 +299,7 @@ refusedChange("v1 phases: only teammates are assigned", $owner, "update_task",
     ["id" => $v1Phase, "assignments" => [["admin_id" => 3]]], 422);
 refusedChange("v1 phases: completion is never set by hand", $owner, "update_task",
     ["id" => $v1Phase, "is_complete" => true], 422);
+refusedChange("v1 phases: the date can't be cleared", $owner, "update_task", ["id" => $v1Phase, "date" => ""], 422);
 
 $rowId = (int) one($pdo, "SELECT id FROM project_task_assignments WHERE task_id = ?", [$v1Phase])["id"];
 change("v1 phases: change only the priority", $owner, "update_task", ["id" => $v1Phase, "priority" => "low"]);
@@ -292,7 +316,7 @@ check("v1 phases: same row, new values", (int) $kept["id"] === $rowId && $kept["
 
 [$status, $got] = get("projects.php?id=500", $owner);
 $found = array_values(array_filter($got["data"]["tasks"] ?? [], function ($t) use ($v1Phase) { return $t["id"] === $v1Phase; }));
-check("v1 phases: get_project shows the people", $found && $found[0]["phase_label"] === "Design"
+check("v1 phases: get_project shows the people", $found && $found[0]["scheduled_date"] === day("+2")
     && count($found[0]["teammates"]) === 3 && count($found[0]["assignments"]) === 2
     && $found[0]["done_count"] === "0 of 2" && $found[0]["can_delete"] === true && $found[0]["attachments"] === []
     && $found[0]["client_attachments"] === []

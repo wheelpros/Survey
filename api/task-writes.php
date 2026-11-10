@@ -136,6 +136,13 @@ function saveProjectTask(PDO $pdo, array $actor, array $project, $existing, arra
         throw new PortalWriteError("Description must be " . TASK_DESCRIPTION_MAX_CHARS . " characters or fewer.");
     }
 
+    /* Every phase is on the calendars, so a new one needs a date, and an
+       edit may not take away the date a phase already has. */
+    $date = $f["scheduled_date"] ?? null;
+    if (($date === null || $date === "") && (!$existing || !empty($existing["scheduled_date"]))) {
+        throw new PortalWriteError("Pick the phase's date.");
+    }
+
     $orientation = in_array($f["orientation"] ?? "", ["horizontal", "vertical"], true) ? $f["orientation"] : "horizontal";
 
     /* draft or published, nothing else - anything unrecognised is pinned to
@@ -191,7 +198,8 @@ const TASK_NOTES_MAX_CHARS = 5000;
 
 /**
  * The phase fields present in $f, checked: phase_label and role (free text,
- * 80 characters), priority (TASK_PRIORITIES) and notes (Markdown text).
+ * 80 characters - no form or tool sends them any more, but the columns and
+ * what they hold stay), priority (TASK_PRIORITIES) and notes (Markdown text).
  */
 function phaseFieldColumns(array $f)
 {

@@ -866,7 +866,7 @@ function teamRow(task, group){
     + '<div class="cell"><span>People</span><div class="who-cell"><div class="av-stack">'
     +   people.map(teamAvatar).join("") + "</div>" + names + "</div></div>"
     + '<div class="cell"><span>Due</span><b class="' + (task.overdue ? "late" : "") + '">' + (date ? esc(fmtDateShort(date)) + (task.overdue ? " · late" : "") : "—") + "</b></div>"
-    + '<div class="cell"><span>' + (task.kind === "content" ? "Type" : "Phase") + '</span><b dir="auto">' + esc(task.label || "—") + "</b></div>"
+    + labelCell(task)
     + '<div class="cell"><span>Status</span><span class="status-pill ' + esc(status) + '">' + esc(statuses[status] || status) + "</span>" + progress + "</div>"
     + "</div>";
 }
@@ -983,6 +983,13 @@ function statusChoices(task){
   return task.kind === "teammate" ? ["todo", "done"] : Object.keys(statuses);
 }
 
+/* A post shows its type; a phase, which no longer carries a stage, shows its project. */
+function labelCell(task){
+  return task.kind === "content"
+    ? '<div class="cell"><span>Type</span><b dir="auto">' + esc(task.label || "—") + "</b></div>"
+    : '<div class="cell"><span>Project</span><b dir="auto">' + esc(task.chip || "—") + "</b></div>";
+}
+
 function rowFor(task, group){
   const date = task.due_date ? String(task.due_date).slice(0, 10) : "";
   const late = date && date < today && task.status !== "done";
@@ -993,7 +1000,7 @@ function rowFor(task, group){
     +   '<span class="proj-chip" dir="auto">' + esc(task.chip) + "</span>"
     +   (KIND_TAGS[task.kind] ? '<span class="kind-tag">' + KIND_TAGS[task.kind] + "</span>" : "") + "</div>"
     + '<div class="cell"><span>Due</span><b class="' + (late ? "late" : "") + '">' + (date ? esc(fmtDateShort(date)) + (late ? " · late" : "") : "—") + "</b></div>"
-    + '<div class="cell"><span>' + (task.kind === "content" ? "Type" : "Phase") + '</span><b dir="auto">' + esc(task.label || "—") + "</b></div>"
+    + labelCell(task)
     + '<div class="cell"><span>My status</span><select data-kind="' + esc(task.kind) + '" data-id="' + Number(task.id) + '" aria-label="My status for ' + esc(task.title) + '">'
     +   statusChoices(task).map(k => '<option value="' + k + '"' + (k === task.status ? " selected" : "") + ">" + esc(statuses[k]) + "</option>").join("")
     + "</select></div>"

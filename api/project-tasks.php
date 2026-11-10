@@ -575,6 +575,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         response(false, "Enter the update date as yyyy-mm-dd.", [], 400);
     }
 
+    /* Every phase is on the calendars: a new one needs a date, and an edit
+       that sends the date empty is refused. An edit that leaves the field
+       out keeps the date the phase has. */
+    if (!$scheduledDate) {
+        if (!$existing || array_key_exists("scheduled_date", $_POST)) {
+            response(false, "Pick the phase's date.", [], 400);
+        }
+        $scheduledDate = $existing["scheduled_date"] ?? null;
+    }
+
     if (!empty($_POST["scheduled_time"]) && !$scheduledTime) {
         response(false, "Enter the update time as HH:MM.", [], 400);
     }
@@ -653,7 +663,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     ];
 
     // Only the ones the form sent: an absent field is left as it was.
-    foreach (["phase_label", "role", "priority", "notes"] as $key) {
+    foreach (["priority", "notes"] as $key) {
         if (array_key_exists($key, $_POST)) {
             $fields[$key] = (string) $_POST[$key];
         }

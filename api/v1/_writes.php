@@ -469,12 +469,6 @@ function assignmentsLabel(PDO $pdo, array $rows)
  */
 function phaseArgs(PDO $pdo, array $a, array &$args, array &$changes, array $project, ?array $task = null)
 {
-    foreach (["phase" => "phase_label", "role" => "role"] as $key => $column) {
-        if (array_key_exists($key, $a)) {
-            $args[$key] = argText($a, $key, 80, false);
-            noteChange($changes, $key, $task ? (string) ($task[$column] ?? "") : null, $args[$key]);
-        }
-    }
     if (array_key_exists("priority", $a)) {
         $args["priority"] = argEnum($a, "priority", TASK_PRIORITIES);
         noteChange($changes, "priority", $task["priority"] ?? null, $args["priority"]);
@@ -573,10 +567,7 @@ function phaseArgs(PDO $pdo, array $a, array &$args, array &$changes, array $pro
 function phaseColumnsFrom(array $a)
 {
     $f = [];
-    if (array_key_exists("phase", $a)) {
-        $f["phase_label"] = $a["phase"];
-    }
-    foreach (["role", "priority", "notes"] as $key) {
+    foreach (["priority", "notes"] as $key) {
         if (array_key_exists($key, $a)) {
             $f[$key] = $a[$key];
         }
@@ -1934,6 +1925,10 @@ function v1WriteHandlers()
                 if (!canWriteTask($pdo, $p, $project)) {
                     throw new PortalWriteError("You are not on this project's team.", 403);
                 }
+                if ($date === null) {
+                    // Every phase is on the calendars, so it needs a date.
+                    throw new PortalWriteError("Pick the phase's date: date is required, like 2026-10-05.");
+                }
                 $client = clientLabelFor(["name" => $project["client_name"] ?? "the client", "company_name" => $project["company_name"]]);
                 $later = $date !== null && $date > date("Y-m-d");
                 $args = ["project" => $projectId, "title" => $title, "body" => $body, "date" => $date, "time" => $time,
@@ -1958,8 +1953,6 @@ function v1WriteHandlers()
                         "client" => $client,
                         "title" => $title, "date" => $date, "time" => $time, "link" => $link,
                         "status" => $publish ? "published" : "draft",
-                        "phase" => $args["phase"] ?? null,
-                        "role" => $args["role"] ?? null,
                         "priority" => $args["priority"] ?? "medium",
                         "team" => $args["team"] ?? [],
                         "assignments" => array_column($args["assignments"] ?? [], "admin_id"),
@@ -2015,6 +2008,9 @@ function v1WriteHandlers()
                 }
                 if (array_key_exists("date", $a)) {
                     $args["date"] = argDate($a, "date");
+                    if ($args["date"] === null) {
+                        throw new PortalWriteError("Pick the phase's date: a phase can't lose its date, it is on the calendars.");
+                    }
                     $change("date", $task["scheduled_date"], $args["date"]);
                 }
                 if (array_key_exists("time", $a)) {

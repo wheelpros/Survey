@@ -244,7 +244,8 @@ const PROMPTS = [
         ...(scopes.includes("projects:write") && scopes.includes("projects:read")
           ? [
               "4. If they have an active project (list_projects with this client), offer a short welcome",
-              "   update for it - what happens next and when - and post it with post_project_update",
+              "   update for it - what happens next and when - and post it with post_project_update (it needs",
+              "   a date: every phase shows on the calendars on its day)",
               "   once I agree. The client sees a published update, so read it to me first.",
             ]
           : []),
