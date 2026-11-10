@@ -123,23 +123,20 @@ check("sign-in: a deactivated account isn't offered as a choice", ($r["user"]["i
 registerApp("short-list-app", "Short List", ["https://short.test/cb"]);
 $id = requestAccess("short-list-app", "https://short.test/cb", ["clients:read", "admins:write", "messages:write"]);
 [$status, $r] = getPath("api/oauth/consent.php?request=$id", $owner);
-check("consent: what was asked for, described", $status === 200 && array_column($r["scopes"] ?? [], "scope") === ["clients:read", "admins:write", "messages:write"], json_encode($r));
+// Whatever the app asks for, the page offers what the person may do - the
+// connection follows their permissions from then on.
+check("consent: everything the role allows, whatever was asked for", $status === 200 && count($r["scopes"] ?? []) === 25
+    && !array_key_exists("not_requested", $r), json_encode($r));
 $byScope = array_column($r["scopes"] ?? [], null, "scope");
 check("consent: areas and access", ($byScope["clients:read"]["area"] ?? "") === "Clients" && ($byScope["clients:read"]["access"] ?? "") === "view"
     && ($byScope["admins:write"]["area"] ?? "") === "Admin team" && ($byScope["admins:write"]["access"] ?? "") === "change", json_encode($byScope));
 check("consent: what acts in your name is flagged", ($byScope["admins:write"]["sensitive"] ?? null) === true
     && ($byScope["messages:write"]["sensitive"] ?? null) === true && ($byScope["clients:read"]["sensitive"] ?? null) === false, json_encode($byScope));
-$left = array_column($r["not_requested"] ?? [], "scope");
-check("consent: names what the app didn't ask for", count($left) === 22 && in_array("settings:read", $left, true)
-    && !in_array("clients:read", $left, true), json_encode($left));
-
-$id = requestAccess("short-list-app", "https://short.test/cb", []);
-[, $r] = getPath("api/oauth/consent.php?request=$id", $owner);
-check("consent: an app that names nothing is offered everything", count($r["scopes"] ?? []) === 25 && ($r["not_requested"] ?? null) === [], json_encode($r));
-
 $id = requestAccess("short-list-app", "https://short.test/cb", ["clients:read"]);
 [, $r] = getPath("api/oauth/consent.php?request=$id", "tok-seo");
-check("consent: nothing is left out that the role doesn't allow", !in_array("settings:read", array_column($r["not_requested"] ?? [], "scope"), true), json_encode($r["not_requested"] ?? null));
+$seoScopes = array_column($r["scopes"] ?? [], "scope");
+check("consent: never more than the role allows", in_array("clients:read", $seoScopes, true)
+    && !in_array("settings:read", $seoScopes, true) && !in_array("admins:write", $seoScopes, true), json_encode($seoScopes));
 
 [$status] = getPath("api/oauth/consent.php?request=$id", "");
 check("consent: needs a session", $status === 401, "HTTP $status");
@@ -149,9 +146,10 @@ check("consent: needs a session", $status === 401, "HTTP $status");
 $shortToken = connectApp("short-list-app", "https://short.test/cb", ["clients:read", "admins:write"], $owner);
 [, $r] = getPath("api/oauth/grants.php", $owner);
 $short = array_values(array_filter($r["grants"] ?? [], function ($g) { return $g["client_name"] === "Short List"; }))[0] ?? [];
-check("grants: what it has", array_column($short["scopes"] ?? [], "scope") === ["clients:read", "admins:write"], json_encode($short));
-check("grants: what it's missing", count($short["missing"] ?? []) === 23 && in_array("events:read", array_column($short["missing"], "scope"), true), json_encode($short));
-check("grants: both described", ($short["missing"][0]["area"] ?? "") !== "" && ($short["scopes"][0]["description"] ?? "") !== "", json_encode($short));
+// Approved with two scopes, it can still do everything the Director may.
+check("grants: what it can do is what its person may do", count($short["scopes"] ?? []) === 25
+    && in_array("events:read", array_column($short["scopes"], "scope"), true) && !array_key_exists("missing", $short), json_encode($short));
+check("grants: described", ($short["scopes"][0]["description"] ?? "") !== "" && ($short["scopes"][0]["area"] ?? "") !== "", json_encode($short));
 
 [, $r] = getPath("api/oauth/grants.php", "tok-seo");
 check("grants: only your own", ($r["grants"] ?? null) === [], json_encode($r));

@@ -79,19 +79,10 @@
   }
 
   function appHtml(grant) {
-    var have = grant.scopes.length;
-    var missing = grant.missing.length;
-    var total = have + missing;
-    var noun = missing === 1 ? "permission" : "permissions";
-
-    var count = missing
-      ? '<span class="ca-count short">' + have + " of " + total + " permissions</span>"
-      : '<span class="ca-count">All ' + total + " permissions</span>";
-
-    var warning = !missing ? "" :
-      '<div class="ca-warning"><b>Missing ' + missing + " " + noun + " your role allows</b>"
-      + "Connect it again from " + esc(grant.client_name) + " to ask for them. If they're still "
-      + "missing, remove it from " + esc(grant.client_name) + " completely and add it again.</div>";
+    /* A connection acts as its person: it can do what their portal
+       permissions allow today, and picks up new features and permission
+       changes by itself - so there is nothing "missing" to reconnect for. */
+    var count = '<span class="ca-count">Same as your access</span>';
 
     var used = day(grant.last_used_at);
 
@@ -106,10 +97,8 @@
       +     ' data-name="' + esc(grant.client_name) + '"'
       +     ' aria-label="Disconnect ' + esc(grant.client_name) + '">Disconnect</button>'
       + "</div>"
-      + warning
       + '<details class="ca-details"><summary>See what it can do</summary>'
       +   areasHtml(grant.scopes, "", "")
-      +   areasHtml(grant.missing, "missing", "Missing: ")
       + "</details>"
       + "</article>";
   }

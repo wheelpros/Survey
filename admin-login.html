@@ -192,6 +192,28 @@ button{
 <script>
 document.querySelectorAll(".yr").forEach(el => el.textContent = new Date().getFullYear());
 
+/* Already signed in - an old bookmark, or the back button - goes straight to
+   the Dashboard (or the AI approval page that sent them here), never to
+   whichever page happened to be open last. Only a session the server still
+   accepts counts; anything else leaves the form where it is. */
+(async function skipIfSignedIn(){
+  const token = localStorage.getItem("admin_token");
+  if (!token || token === "preview") return;
+
+  try {
+    const res = await fetch("api/admin-session.php", {
+      headers: { Authorization: "Bearer " + token }
+    });
+    const data = await res.json();
+
+    if (data.success && data.valid) {
+      location.replace(afterLogin("admin-dashboard.html"));
+    }
+  } catch (e) {
+    // No answer: show the form.
+  }
+})();
+
 async function loginAdmin(){
   const email = document.getElementById("email").value.trim();
   const password = document.getElementById("password").value.trim();

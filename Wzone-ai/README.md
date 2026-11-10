@@ -58,14 +58,14 @@ Claude ──/mcp, Bearer wzat_…──▶ mcp.example.com ─introspect (cache
 ```
 
 - **Discovery.** A request to `/mcp` without a token gets a 401 whose `WWW-Authenticate` points at `/.well-known/oauth-protected-resource/mcp` (RFC 9728). From there the client finds `/.well-known/oauth-authorization-server` (RFC 8414) and registers itself through dynamic client registration.
-- **Consent happens on the portal domain**, because a portal session lives in that domain's `localStorage`. The page lists exactly what will be allowed, cut down to what the person's role allows, and names anything the role allows that the app didn't ask for. For example, an account manager without inquiries access is never offered `inquiries:*`. Someone not signed in gets one email and password form (`api/sign-in.php`), which works out whether that's a staff or a client account.
+- **Consent happens on the portal domain**, because a portal session lives in that domain's `localStorage`. The page lists what the assistant will be able to do: exactly what the person's role allows, whatever scopes the app asked for. For example, an account manager without inquiries access is never offered `inquiries:*`. Someone not signed in gets one email and password form (`api/sign-in.php`), which works out whether that's a staff or a client account.
 - **Tokens:**
   - Opaque, prefixed `wzat_` for access and `wzrt_` for refresh.
   - Stored only as SHA-256. Client secrets are stored the same way, and app.js hashes the presented secret before the SDK compares.
   - Separate from browser sessions, so connecting Claude never signs anyone out.
   - Issued only for this server's `/mcp` (RFC 8707). A token for another resource is refused.
 - **Replay detection.** If an authorization code or an already-rotated refresh token is presented again, the whole grant is revoked.
-- **Scopes are checked on every request.** A token carries what was consented to, intersected with what the person's role allows *now*. Changing someone's role, deactivating them, or unapproving a client takes effect immediately at the portal, and in this server once the 60-second token-check cache expires.
+- **Scopes are the person's portal permissions, checked on every request.** A token carries whatever the person's role allows *now*, not a list frozen at approval. A feature added later (team forms were the first) reaches every existing connection with no reconnecting, and changing someone's role or permissions, deactivating them, or unapproving a client takes effect immediately at the portal, and in this server once the 60-second token-check cache expires. Clients such as Claude load the tool list when a conversation starts, so new tools show from the next conversation.
 - **`api/v1` only accepts an MCP token when the call also carries `X-MCP-Key`.** A token copied out of a client can't be replayed against the portal directly. Every MCP call is recorded in `mcp_audit_log`.
 - **People stay in control:**
   - **Connected apps** (on Settings for staff and Profile for clients) lists each connection with what it may do and what it's missing, and has a Disconnect button. `connected-apps.html` redirects to the right one.
@@ -85,7 +85,7 @@ Each person gets only the tools their connection's scopes allow, so a client nev
 | `forms:read` | `list_forms`, `get_form`, `list_forms_awaiting_review`, `list_form_responses`, `get_form_response` | forms: the Director and account managers see all, others the forms they wrote. Responses: from your assigned clients |
 | `inquiries:read` | `list_inquiries`, `get_inquiry_form`, `list_inquiry_leads`, `get_inquiry_lead` | the Director, and account managers with inquiries access |
 | `content:read` | `list_content`, `get_content`, `list_content_types` | the Director and account managers see all posts, others their own |
-| `calendar:read` | `get_calendar`, `list_pending_approvals`, `get_meeting` | meetings of your assigned clients; closed to SEO admins |
+| `calendar:read` | `get_calendar`, `list_pending_approvals`, `get_meeting` | meetings of your assigned clients, plus the posts (with `content:read`) and project phases (with `projects:read`) in the range; closed to SEO admins |
 | `projects:read` | `list_projects`, `get_project`, `get_dashboard` | your clients' projects, the ones you manage, and the ones you're a member of; drafts as on the project page |
 | `notifications:read` | `list_my_notifications` | your own inbox |
 | `messages:read` | `list_messages`, `read_chat`, `list_message_people` | the portal's Messages page: your own chats with other admins, private to the two of you (the Director included). Tracking doesn't record them |
@@ -95,7 +95,6 @@ Each person gets only the tools their connection's scopes allow, so a client nev
 | `team_forms:read` | `list_team_forms`, `get_team_form` | team forms, which admins send each other (the Forms page's Team Forms section): the ones sent to you, with your own answers, and the ones you sent. The sender, the Director and anyone with "See the answers to every team form" see everyone's answers and who is still waiting |
 
 - **Tool names follow the portal's sidebar**: Dashboard is `get_dashboard`, Messages is `list_messages` / `read_chat` / `send_message`, Tracking is `get_tracking` and `get_ai_activity`, Forms is `list_forms` and its Team Forms section `list_team_forms` / `get_team_form`. A notification for a team form carries `team_form_id`, as an announcement carries `announcement_id`. Their times are ISO-8601 UTC (`2026-11-03T14:30:09Z`).
-- **A connection keeps the scopes it was approved with.** A scope added later never reaches it: `whoami` lists it under `missing_scopes`, and the fix is to disconnect the app and connect it again.
 - **`get_client_overview`** answers "tell me about client X" in one call: profile, team, open forms, recent responses, upcoming and recent content, upcoming meetings, active projects. A section the connection has no scope for is left out and named in `not_included`.
 - **Lists are paged by cursor.** Pass `next_cursor` back as `cursor`. Rows never repeat or go missing when new ones arrive between pages.
 - **Resources:** `client://{id}`, `project://{id}` and `form://{id}` hold the same data as the overview and `get_*` tools, for attaching as context. Listing them returns only what the caller can see (up to 100 of each).
@@ -173,7 +172,7 @@ A client's connection sees only that client's own records, from [`api/v1/me/`](.
 | Scope | Tool | What it does |
 |---|---|---|
 | `self:read` | `my_overview` | what's waiting on them (meeting requests, forms to fill in) and what's coming up |
-| `self:read` | `my_calendar`, `get_my_meeting` | their meetings, and the posts that went live in the range |
+| `self:read` | `my_calendar`, `get_my_meeting` | their meetings, the posts that went live and the live phases of their projects in the range |
 | `self:read` | `my_forms`, `get_my_form` | released forms only, with their own answers once sent |
 | `self:read` | `my_content` | live posts for their company, plus posts for every client |
 | `self:read` | `my_projects`, `get_my_project` | their projects and only the **live** updates. No drafts, no staff names |

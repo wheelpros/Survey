@@ -500,6 +500,18 @@ check("live_at has no fractional seconds", preg_match('/^\d{4}-\d\d-\d\d \d\d:\d
 refused("calendar range too long", "calendar.php?from=2026-01-01&to=2027-06-01", $owner, 422);
 refused("calendar range backwards", "calendar.php?from=2026-02-01&to=2026-01-01", $owner, 422);
 
+// Phases dated in the range sit beside the meetings, as on admin-calendar.html.
+// Undated drafts (600, 602) never land on a calendar.
+$phaseRange = "from=" . day("-2") . "&to=" . day("+10");
+$cal = sees("calendar carries dated phases", "calendar.php?$phaseRange", $owner, [601], "phases");
+check("a calendar phase names its project and client",
+    ($cal["data"]["phases"][0]["project"]["id"] ?? null) === 501
+    && ($cal["data"]["phases"][0]["client"]["id"] ?? null) === 11
+    && ($cal["data"]["phases"][0]["is_live"] ?? null) === true, json_encode($cal["data"]["phases"] ?? null));
+sees("account manager sees their project's phases", "calendar.php?$phaseRange", $am2, [601], "phases");
+sees("super admin outside the project sees none of its phases", "calendar.php?$phaseRange", $sa, [], "phases");
+sees("calendar for one client keeps only that client's phases", "calendar.php?$phaseRange&client=10", $owner, [], "phases");
+
 [, $pending] = get("calendar.php?pending=1", $owner);
 check("pending approvals split by who answers",
     ids($pending, "waiting_on_you") === [400] && ids($pending, "waiting_on_client") === [401], json_encode($pending));
@@ -548,13 +560,18 @@ refused("an MCP token without the server's key", "clients.php", $mcpToken, 401);
 [$status, $body] = get("clients.php", $mcpToken, ["X-MCP-Key" => $mcpKey, "X-MCP-Tool" => "search_clients", "X-Request-Id" => "req-1"]);
 check("an MCP token through the server", $status === 200 && ids($body) === [10], "HTTP $status " . json_encode($body));
 
+// A connection can do what its person may do in the portal today - Sam's was
+// approved with clients:read and forms:read only, and still reaches the
+// calendar his role opens - and nothing his role keeps from him.
 [$status] = get("calendar.php", $mcpToken, ["X-MCP-Key" => $mcpKey]);
-check("an MCP token only gets what was consented to", $status === 403, "HTTP $status");
+check("an MCP token follows its person's permissions, not what it was approved with", $status === 200, "HTTP $status");
+[$status, $r] = get("settings.php", $mcpToken, ["X-MCP-Key" => $mcpKey]);
+check("an MCP token gets nothing its person's role doesn't allow", $status === 403 && ($r["error"]["code"] ?? "") === "insufficient_scope", "HTTP $status " . json_encode($r));
 
 $audit = $pdo->query("SELECT tool, endpoint, status, request_id FROM mcp_audit_log ORDER BY id")->fetchAll();
-check("every MCP call is audited", count($audit) === 2
+check("every MCP call is audited", count($audit) === 3
     && $audit[0]["tool"] === "search_clients" && $audit[0]["request_id"] === "req-1" && (int) $audit[0]["status"] === 200
-    && (int) $audit[1]["status"] === 403, json_encode($audit));
+    && (int) $audit[1]["status"] === 200 && (int) $audit[2]["status"] === 403, json_encode($audit));
 
 /*
 |--------------------------------------------------------------------------

@@ -163,7 +163,7 @@ check("v1 messages: a chat with yourself is refused", $status === 422, "HTTP $st
 [$status] = get("messages.php", "tok-client");
 check("v1 messages: a client is refused", $status === 403, "HTTP $status");
 [$status] = get("messages.php", $mcpToken, ["X-MCP-Key" => $mcpKey]);
-check("v1 messages: a connection without messages:read is refused", $status === 403, "HTTP $status");
+check("v1 messages: a connection reads them as its person may, whatever it was approved with", $status === 200, "HTTP $status");
 
 // Back to unread on both sides, then Sam reads his.
 $pdo->exec("UPDATE admin_conversations SET low_last_read_id = 0, high_last_read_id = 0");

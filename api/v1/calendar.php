@@ -1,7 +1,8 @@
 <?php
 
 /*
-| Calendar - meetings with clients, and the content dated in the same days.
+| Calendar - meetings with clients, and the content and project phases dated
+| in the same days (phases need projects:read as well).
 |
 |   GET calendar.php?from=&to=&client=   get_calendar
 |   GET calendar.php?pending=1           list_pending_approvals
@@ -163,7 +164,64 @@ if (hasScope($p, "content:read")) {
     }, array_slice($rows, 0, CALENDAR_MAX_ROWS));
 }
 
-// More than CALENDAR_MAX_ROWS of either: ask for a shorter range.
+/*
+| The project phases dated in the range - what admin-calendar.html shows
+| beside meetings and posts. Only with projects:read as well, and within
+| projectScopeSql(), the Project Management rule. Someone else's draft stays
+| out unless the person may see every draft, as on project-details.html.
+*/
+if (hasScope($p, "projects:read")) {
+    ensureProjectTables($pdo);
+
+    $phaseParts = [
+        v1ProjectScopeSql($p),
+        ["t.scheduled_date BETWEEN ? AND ?", [$from, $to]],
+    ];
+    if (!can($p, "tasks.see_drafts", $pdo)) {
+        $phaseParts[] = [
+            "(t.status <> 'draft' OR t.created_by_admin_id = ? OR p.account_manager_admin_id = ?)",
+            [(int) $p["id"], (int) $p["id"]],
+        ];
+    }
+    if ($client !== null) {
+        $phaseParts[] = ["p.client_id = ?", [$client]];
+    }
+    [$where, $params] = v1Where($phaseParts);
+
+    $stmt = $pdo->prepare("
+        SELECT t.id, t.title, t.status, t.scheduled_date, t.scheduled_time, t.is_complete,
+               " . TASK_IS_LIVE_SQL . " AS is_live,
+               p.id AS project_id, p.title AS project_title, p.client_id,
+               u.name AS user_name, u.company_name
+        FROM project_tasks t
+        JOIN projects p ON p.id = t.project_id
+        LEFT JOIN users u ON u.id = p.client_id
+        $where
+        ORDER BY t.scheduled_date ASC, t.scheduled_time ASC, t.id ASC
+        LIMIT " . (CALENDAR_MAX_ROWS + 1)
+    );
+    $stmt->execute($params);
+    $rows = $stmt->fetchAll();
+
+    $truncated = $truncated || count($rows) > CALENDAR_MAX_ROWS;
+    $data["phases"] = array_map(function ($r) {
+        return [
+            "id" => (int) $r["id"],
+            "title" => (string) $r["title"],
+            "project" => ["id" => (int) $r["project_id"], "title" => (string) $r["project_title"]],
+            "client" => v1ClientRef($r["client_id"], $r["user_name"], $r["company_name"]),
+            "date" => (string) $r["scheduled_date"],
+            "time" => $r["scheduled_time"] === null ? null : substr((string) $r["scheduled_time"], 0, 5),
+            // draft | published
+            "status" => (string) $r["status"],
+            // Whether the client can see it yet.
+            "is_live" => (int) $r["is_live"] === 1,
+            "is_complete" => (int) $r["is_complete"] === 1,
+        ];
+    }, array_slice($rows, 0, CALENDAR_MAX_ROWS));
+}
+
+// More than CALENDAR_MAX_ROWS of any of them: ask for a shorter range.
 $data["truncated"] = $truncated;
 
 v1Reply(200, $data);

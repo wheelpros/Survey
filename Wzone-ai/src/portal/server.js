@@ -32,8 +32,9 @@ const INSTRUCTIONS = [
   "This server is the client portal, acting as the person who connected it -",
   "a staff member or a client. Every tool returns only what that person can see in the",
   "portal; a 'not found' can mean it exists but isn't theirs to see.",
-  "Start with whoami if unsure what this connection can do; if it lists missing_scopes, tell",
-  "the person to disconnect and reconnect the app to get those tools. The portal's pages map",
+  "It can do exactly what that person's portal permissions allow, and follows them as they",
+  "change; start with whoami if unsure what that is. If a tool the person expects is missing,",
+  "their role doesn't allow it - the Director changes that in Settings. The portal's pages map",
   "to tools: Dashboard is get_dashboard, Messages is list_messages / read_chat / send_message,",
   "Tracking is get_tracking and get_ai_activity, Forms is list_forms (client forms), and its",
   "Team Forms section is list_team_forms / get_team_form - forms admins send each other,",
@@ -63,10 +64,9 @@ export function buildPortalServer({ requestId, auth }) {
       title: "Who am I connected as",
       description:
         "Shows which portal account this connection acts as - name, " +
-        "role, and what it is allowed to do (its scopes) - and, for staff, " +
-        "how many clients they can see, plus missing_scopes: what their role allows but this " +
-        "connection was never given (reconnect to get them). Use it when unsure whether something " +
-        "is possible before trying.",
+        "role, and what it is allowed to do (its scopes: exactly what the person's portal " +
+        "permissions allow right now) - and, for staff, how many clients they can see. Use it when " +
+        "unsure whether something is possible before trying.",
       inputSchema: {},
       outputSchema: S.whoami,
       annotations: READ_ONLY,
