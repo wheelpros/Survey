@@ -95,6 +95,8 @@ $mIds = ids($cal, "meetings");
 check("me: calendar - a request I declined drops off, other people's never appear", in_array(421, $mIds, true)
     && !in_array(420, $mIds, true) && !in_array(422, $mIds, true), json_encode($mIds));
 refused("me: another client's meeting", "me/calendar.php?id=422", $alice, 404);
+check("me: calendar - only my live phases, no drafts, nothing dated ahead",
+    ids($cal, "phases") === [610] && ($cal["data"]["phases"][0]["project"]["id"] ?? null) === 500, json_encode($cal["data"]["phases"] ?? null));
 
 sees("me: my notifications only", "me/notifications.php?unread=1", $alice, array_map("intval",
     $pdo->query("SELECT id FROM notifications WHERE recipient_kind = 'user' AND recipient_id = 10 AND read_at IS NULL")->fetchAll(PDO::FETCH_COLUMN)));

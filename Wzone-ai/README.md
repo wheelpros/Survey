@@ -85,7 +85,7 @@ Each person gets only the tools their connection's scopes allow, so a client nev
 | `forms:read` | `list_forms`, `get_form`, `list_forms_awaiting_review`, `list_form_responses`, `get_form_response` | forms: the Director and account managers see all, others the forms they wrote. Responses: from your assigned clients |
 | `inquiries:read` | `list_inquiries`, `get_inquiry_form`, `list_inquiry_leads`, `get_inquiry_lead` | the Director, and account managers with inquiries access |
 | `content:read` | `list_content`, `get_content`, `list_content_types` | the Director and account managers see all posts, others their own |
-| `calendar:read` | `get_calendar`, `list_pending_approvals`, `get_meeting` | meetings of your assigned clients; closed to SEO admins |
+| `calendar:read` | `get_calendar`, `list_pending_approvals`, `get_meeting` | meetings of your assigned clients, plus the posts (with `content:read`) and project phases (with `projects:read`) in the range; closed to SEO admins |
 | `projects:read` | `list_projects`, `get_project`, `get_dashboard` | your clients' projects, the ones you manage, and the ones you're a member of; drafts as on the project page |
 | `notifications:read` | `list_my_notifications` | your own inbox |
 | `messages:read` | `list_messages`, `read_chat`, `list_message_people` | the portal's Messages page: your own chats with other admins, private to the two of you (the Director included). Tracking doesn't record them |
@@ -173,7 +173,7 @@ A client's connection sees only that client's own records, from [`api/v1/me/`](.
 | Scope | Tool | What it does |
 |---|---|---|
 | `self:read` | `my_overview` | what's waiting on them (meeting requests, forms to fill in) and what's coming up |
-| `self:read` | `my_calendar`, `get_my_meeting` | their meetings, and the posts that went live in the range |
+| `self:read` | `my_calendar`, `get_my_meeting` | their meetings, the posts that went live and the live phases of their projects in the range |
 | `self:read` | `my_forms`, `get_my_form` | released forms only, with their own answers once sent |
 | `self:read` | `my_content` | live posts for their company, plus posts for every client |
 | `self:read` | `my_projects`, `get_my_project` | their projects and only the **live** updates. No drafts, no staff names |

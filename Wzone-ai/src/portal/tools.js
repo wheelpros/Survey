@@ -260,8 +260,9 @@ export const READ_TOOLS = [
     scope: "calendar:read",
     title: "Calendar",
     description:
-      "Meetings with your clients between two days, plus the content going live in the " +
-      "same days. Defaults to the next 30 days; at most 366 at a time.",
+      "Meetings with your clients between two days, plus the content going live and the project " +
+      "phases dated in the same days - what the portal Calendar shows. Content needs content:read, " +
+      "phases projects:read. Defaults to the next 30 days; at most 366 at a time.",
     input: {
       from: date("First day (default today)").optional(),
       to: date("Last day (default 30 days after from)").optional(),
@@ -554,7 +555,9 @@ export const READ_TOOLS = [
     name: "my_calendar",
     scope: "self:read",
     title: "My calendar",
-    description: "Your meetings between two days, and the posts that went live in them. Defaults to the next 30 days.",
+    description:
+      "Your meetings between two days, the posts that went live in them, and the updates on your " +
+      "projects dated in them - what your Dashboard calendar shows. Defaults to the next 30 days.",
     input: {
       from: date("First day (default today)").optional(),
       to: date("Last day (default 30 days after from)").optional(),

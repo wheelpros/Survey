@@ -4,9 +4,9 @@
 | GET me/calendar.php?from=&to=   my_calendar
 | GET me/calendar.php?id=N        one of my meetings
 |
-| The client's meetings (calendar.php get_user_calendar) and the content
-| that went live in the same days (user-content.php) - what the Dashboard
-| calendar shows. Defaults to the next 30 days; at most 366 at a time.
+| The client's meetings (calendar.php get_user_calendar), the content that
+| went live in the same days (user-content.php) and their projects' live
+| phases (user-projects.php ?phases=1) - what the Dashboard calendar shows. Defaults to the next 30 days; at most 366 at a time.
 */
 
 require_once __DIR__ . "/_me.php";
@@ -63,6 +63,22 @@ $stmt = $pdo->prepare("
 $stmt->execute([contentNow(), $company, $company, $from . " 00:00:00", $to . " 23:59:59"]);
 $content = $stmt->fetchAll();
 
+// The live phases of the account's projects in the range - what the Dashboard
+// calendar shows beside meetings and posts. A draft or a phase dated after
+// today does not exist for the client (TASK_IS_LIVE_SQL), as in user-projects.php.
+ensureProjectTables($pdo);
+$stmt = $pdo->prepare("
+    SELECT t.id, t.title, t.scheduled_date, t.scheduled_time, t.is_complete,
+           p.id AS project_id, p.title AS project_title
+    FROM project_tasks t
+    JOIN projects p ON p.id = t.project_id AND p.client_id = ?
+    WHERE " . TASK_IS_LIVE_SQL . " AND t.scheduled_date BETWEEN ? AND ?
+    ORDER BY t.scheduled_date ASC, t.scheduled_time ASC, t.id ASC
+    LIMIT 501
+");
+$stmt->execute([$p["account_id"], $from, $to]);
+$phases = $stmt->fetchAll();
+
 v1Reply(200, [
     "from" => $from,
     "to" => $to,
@@ -70,5 +86,15 @@ v1Reply(200, [
     "content" => array_map(function ($r) {
         return meContentItem($r, 200);
     }, array_slice($content, 0, 500)),
-    "truncated" => count($meetings) > 500 || count($content) > 500,
+    "phases" => array_map(function ($r) {
+        return [
+            "id" => (int) $r["id"],
+            "title" => (string) $r["title"],
+            "project" => ["id" => (int) $r["project_id"], "title" => (string) $r["project_title"]],
+            "date" => (string) $r["scheduled_date"],
+            "time" => $r["scheduled_time"] === null ? null : substr((string) $r["scheduled_time"], 0, 5),
+            "is_complete" => (int) $r["is_complete"] === 1,
+        ];
+    }, array_slice($phases, 0, 500)),
+    "truncated" => count($meetings) > 500 || count($content) > 500 || count($phases) > 500,
 ]);

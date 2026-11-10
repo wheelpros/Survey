@@ -290,6 +290,22 @@ export const calendar = {
     )
     .optional()
     .describe("Posts going live in the range - only with content:read"),
+  phases: z
+    .array(
+      z.object({
+        id,
+        title: text,
+        project: z.object({ id, title: text }),
+        client: z.object({ id, name: text, company_name: maybe }),
+        date: text,
+        time: maybe,
+        status: text.describe("draft | published"),
+        is_live: z.boolean().describe("Whether the client can see it yet"),
+        is_complete: z.boolean(),
+      })
+    )
+    .optional()
+    .describe("Project phases dated in the range - only with projects:read"),
   truncated: z.boolean().describe("true: more than 500 of something - ask for a shorter range"),
 };
 
@@ -878,6 +894,19 @@ export const myCalendar = {
   to: text,
   meetings: z.array(myMeeting),
   content: z.array(myPost).describe("Posts that went live in the range"),
+  phases: z
+    .array(
+      z.object({
+        id,
+        title: text,
+        project: z.object({ id, title: text }),
+        date: text,
+        time: maybe,
+        is_complete: z.boolean(),
+      })
+    )
+    .default([])
+    .describe("Updates on your projects dated in the range that you can already see"),
   truncated: z.boolean(),
 };
 
