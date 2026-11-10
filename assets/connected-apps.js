@@ -82,16 +82,21 @@
     var have = grant.scopes.length;
     var missing = grant.missing.length;
     var total = have + missing;
-    var noun = missing === 1 ? "permission" : "permissions";
-
     var count = missing
       ? '<span class="ca-count short">' + have + " of " + total + " permissions</span>"
       : '<span class="ca-count">All ' + total + " permissions</span>";
 
+    /* A grant never grows: scopes added after it was approved (team forms,
+       say) stay off until the person connects again. The same list whoami
+       gives the assistant as missing_scopes. */
+    var missingAreas = [];
+    grant.missing.forEach(function (scope) {
+      if (missingAreas.indexOf(scope.area) === -1) missingAreas.push(scope.area);
+    });
     var warning = !missing ? "" :
-      '<div class="ca-warning"><b>Missing ' + missing + " " + noun + " your role allows</b>"
-      + "Connect it again from " + esc(grant.client_name) + " to ask for them. If they're still "
-      + "missing, remove it from " + esc(grant.client_name) + " completely and add it again.</div>";
+      '<div class="ca-warning"><b>New permissions are available — disconnect and connect again to use them</b>'
+      + "Not yet included: " + esc(missingAreas.join(", ")) + ". "
+      + "Disconnect here, then connect " + esc(grant.client_name) + " again and approve.</div>";
 
     var used = day(grant.last_used_at);
 
