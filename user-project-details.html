@@ -87,6 +87,14 @@ body{background:#f7f8fc;color:var(--text)}
 .cal-dots{display:flex;flex-wrap:wrap;gap:3px;margin-top:6px}
 .cal-dot{width:6px;height:6px;border-radius:50%;background:var(--nav-active)}
 .cal-dot.done{background:#20a95a}
+/* Each dated update is named in its cell, the way the team's own calendar
+   does it; a phone turns the cards back into dots (see the 768px block). */
+.cal-cards{display:flex;flex-direction:column;gap:3px;margin-top:6px;min-width:0}
+.cal-card-ev{display:block;font-size:11px;font-weight:700;line-height:1.3;padding:3px 6px;border-radius:6px;background:#e8f1ff;border:1px solid #c7dbff;color:#1f4fb8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-card-ev.done{background:#e8faef;border-color:#b8e7c8;color:#17803d}
+.cal-more{font-size:10.5px;font-weight:700;color:var(--muted);padding:0 2px}
+.cal-dots{display:none}
+
 
 /* ── Update cards ── */
 .section-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px}
@@ -741,7 +749,15 @@ async function load(){
   paintHead();
   paintTiles();
 
-  const start = new Date(project.start_date + "T00:00:00");
+  /* The dashboard's calendar links here with the day it was showing; open on
+     that day, picked. Otherwise the month the project starts in. */
+  const linked = new URLSearchParams(location.search).get("date") || "";
+  const start = /^\d{4}-\d{2}-\d{2}$/.test(linked)
+    ? new Date(linked + "T00:00:00")
+    : new Date(project.start_date + "T00:00:00");
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(linked)) selectedDate = linked;
+
   calYear  = start.getFullYear();
   calMonth = start.getMonth();
 
@@ -817,6 +833,11 @@ function paintCalendar(){
 
       const count = (byDay[iso] || []).length;
 
+      const cards = (byDay[iso] || []).slice(0, 3).map(task =>
+        '<span class="cal-card-ev ' + (Number(task.is_complete) ? "done" : "") +
+        '" title="' + esc(task.title) + '" dir="auto">' + esc(task.title) + "</span>"
+      ).join("") + (count > 3 ? '<span class="cal-more">+' + (count - 3) + " more</span>" : "");
+
       /* Every day is selectable, not only the ones carrying an update -
          picking an empty day is how you confirm nothing landed on it. */
       html += '<div class="' + classes.join(" ") + '" role="button" tabindex="0"'
@@ -825,6 +846,7 @@ function paintCalendar(){
             + ' aria-label="' + esc(fmtDate(iso)) + ", "
             +   (count ? count + (count === 1 ? " update" : " updates") : "no updates") + '">'
             + "<b>" + cursor.getDate() + "</b>"
+            + (cards ? '<div class="cal-cards">' + cards + "</div>" : "")
             + (dots ? '<div class="cal-dots">' + dots + "</div>" : "")
             + "</div>";
 

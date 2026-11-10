@@ -256,6 +256,85 @@ if ($action === "respond_request" && $admin) {
     reply(true, $status === "approved" ? "Meeting confirmed" : "Request declined");
 }
 
+/*
+| The posts the calendar files under the day they go (or went) live: every
+| post for an admin holding content.view_all, otherwise the ones they created
+| or are assigned to - the same rule as admin-content.html and api/v1. Drafts
+| come too, marked by status, since this is the team's own schedule. A
+| database without the content tables costs the calendar its posts, never its
+| meetings.
+*/
+function adminCalendarContent(PDO $pdo, array $admin)
+{
+    try {
+        ensureContentColumns($pdo);
+
+        $where = "";
+        $params = [contentNow()];
+
+        if (!contentSeesAll($admin)) {
+            [$visibleSql, $visibleParams] = contentVisibleSql("c", (int) $admin["id"]);
+            $where = "WHERE " . $visibleSql;
+            $params = array_merge($params, $visibleParams);
+        }
+
+        $stmt = $pdo->prepare("
+            SELECT c.id, c.title, c.client, c.platform, c.type_label,
+                   " . contentStatusSql("c") . " AS status,
+                   " . contentLiveAtSql("c") . " AS live_at
+            FROM content c
+            $where
+            ORDER BY live_at ASC, c.id ASC
+        ");
+        $stmt->execute($params);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable $e) {
+        error_log("calendar.php: could not load content: " . $e->getMessage());
+        return [];
+    }
+}
+
+/*
+| Dated phases of the projects this admin can see (projectScopeSql(), the
+| Project Management rule). Someone else's draft stays out unless the admin may
+| see every draft - the same rule project-details.html follows.
+*/
+function adminCalendarPhases(PDO $pdo, array $admin)
+{
+    try {
+        ensureProjectTables($pdo);
+
+        [$scopeSql, $params] = projectScopeSql($admin);
+        $where = ["t.scheduled_date IS NOT NULL"];
+
+        if ($scopeSql !== "") {
+            $where[] = $scopeSql;
+        }
+        if (!can($admin, "tasks.see_drafts", $pdo)) {
+            $where[] = "(t.status <> 'draft' OR t.created_by_admin_id = ? OR p.account_manager_admin_id = ?)";
+            $params[] = (int) $admin["id"];
+            $params[] = (int) $admin["id"];
+        }
+
+        $stmt = $pdo->prepare("
+            SELECT t.id, t.project_id, t.title, t.status, t.scheduled_date, t.scheduled_time,
+                   t.is_complete, p.title AS project_title, u.company_name
+            FROM project_tasks t
+            INNER JOIN projects p ON p.id = t.project_id
+            LEFT JOIN users u ON u.id = p.client_id
+            WHERE " . implode(" AND ", $where) . "
+            ORDER BY t.scheduled_date ASC, t.scheduled_time ASC, t.id ASC
+        ");
+        $stmt->execute($params);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable $e) {
+        error_log("calendar.php: could not load phases: " . $e->getMessage());
+        return [];
+    }
+}
+
 /* Everything admin-calendar.html paints, across the admin's whole scope. */
 if ($action === "get_admin_calendar" && $admin) {
 
@@ -263,7 +342,13 @@ if ($action === "get_admin_calendar" && $admin) {
     $ids = array_map("intval", array_column($clients, "id"));
 
     if (!$ids) {
-        reply(true, "", ["appointments" => [], "clients" => []]);
+        reply(true, "", [
+            "appointments" => [],
+            "clients" => [],
+            "content" => adminCalendarContent($pdo, $admin),
+            "phases" => adminCalendarPhases($pdo, $admin),
+            "admin_id" => (int) $admin["id"]
+        ]);
     }
 
     $placeholders = implode(",", array_fill(0, count($ids), "?"));
@@ -282,6 +367,8 @@ if ($action === "get_admin_calendar" && $admin) {
     reply(true, "", [
         "appointments" => $appointments,
         "clients" => $clients,
+        "content" => adminCalendarContent($pdo, $admin),
+        "phases" => adminCalendarPhases($pdo, $admin),
         "admin_id" => (int) $admin["id"]
     ]);
 }

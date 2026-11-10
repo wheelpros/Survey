@@ -396,8 +396,19 @@ function fetchList(PDO $pdo, $sql, $params = [])
         $stmt->execute($params);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (Throwable $e) {
+        // Still an empty list for the page, but never a silent one.
+        error_log("admin-user-details.php: " . $e->getMessage());
         return [];
     }
+}
+
+// The calendar's three sources, so a fresh database has the columns they read.
+ensureAppointmentTables($pdo);
+ensureProjectTables($pdo);
+try {
+    ensureContentColumns($pdo);
+} catch (Throwable $e) {
+    error_log("admin-user-details.php: content columns: " . $e->getMessage());
 }
 
 $surveys = fetchList($pdo, "
@@ -455,6 +466,29 @@ $content = fetchList($pdo, "
     ORDER BY " . contentLiveAtSql("c") . " DESC
 ", [contentNow(), $company, $company]);
 
+/*
+| Dated phases of this client's projects, for the calendar. Drafts come too,
+| marked by status - this is the team's view - except another admin's draft
+| when this admin may not see every draft, the rule project-details.html
+| follows.
+*/
+$phaseSql = "
+    SELECT t.id, t.project_id, t.title, t.status, t.scheduled_date, t.scheduled_time,
+           t.is_complete, p.title AS project_title
+    FROM project_tasks t
+    INNER JOIN projects p ON p.id = t.project_id
+    WHERE p.client_id = ? AND t.scheduled_date IS NOT NULL
+";
+$phaseParams = [$userId];
+
+if (!can($admin, "tasks.see_drafts", $pdo)) {
+    $phaseSql .= " AND (t.status <> 'draft' OR t.created_by_admin_id = ? OR p.account_manager_admin_id = ?)";
+    $phaseParams[] = (int) $admin["id"];
+    $phaseParams[] = (int) $admin["id"];
+}
+
+$phases = fetchList($pdo, $phaseSql . " ORDER BY t.scheduled_date ASC, t.scheduled_time ASC, t.id ASC", $phaseParams);
+
 /* Who works on this client is not in here: the page's Team panel loads it
    from api/client-team.php, which also decides who may change it. */
 
@@ -483,4 +517,5 @@ respond(true, "User loaded.", [
     "appointments" => $appointments,
     "files"        => $files,
     "content"      => $content,
+    "phases"       => $phases,
 ]);

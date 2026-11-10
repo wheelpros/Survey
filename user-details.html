@@ -310,6 +310,10 @@ td a{color:var(--nav-active);font-weight:700}
    in its own colour so it never reads as a meeting - on a phone it is a purple dot. */
 .event-card.content{display:block;background:#f0ebff;border:1px solid #ddd2ff;color:#5b3cc4;text-decoration:none}
 .event-card.content:hover{border-color:#b9a6ff}
+/* A phase of one of this client's projects; a draft keeps a dashed edge. */
+.event-card.phase{display:block;background:#e8f1ff;border:1px solid #c7dbff;color:#1f4fb8;text-decoration:none}
+.event-card.phase:hover{border-color:#93b6f5}
+.event-card.draft{border-style:dashed}
 .schedule-link{color:inherit;text-decoration:none}
 .schedule-link:hover{text-decoration:underline}
 
@@ -589,6 +593,7 @@ const MAX_DAY_CARDS = 3;
 
 let appointments = [];
 let contentItems = [];
+let phaseItems = [];
 let currentDate = new Date();
 let selectedDate = toDateStr(new Date());
 
@@ -642,6 +647,33 @@ function contentHref(item){
 
 function contentMeta(item){
   return [item.platform, item.type_label].filter(Boolean).join(" · ") || "Content";
+}
+
+function phasesOn(dateStr){
+  return phaseItems
+    .filter(p => String(p.scheduled_date || "").slice(0,10) === dateStr)
+    .sort((a,b) => String(a.scheduled_time || "").localeCompare(String(b.scheduled_time || "")));
+}
+
+function phaseHref(phase){
+  return `project-task-details.html?project=${encodeURIComponent(phase.project_id)}&id=${encodeURIComponent(phase.id)}`;
+}
+
+function phaseRow(phase){
+  const href = phaseHref(phase);
+  const state = phase.status === "draft" ? "Draft" : (Number(phase.is_complete) ? "Done" : "In progress");
+
+  return `
+    <div class="schedule-row">
+      ${scheduleDate(String(phase.scheduled_date).slice(0,10))}
+
+      <div class="schedule-info">
+        <h4 dir="auto"><a class="schedule-link" href="${href}">${esc(phase.title || "Phase")}</a></h4>
+        <p>${esc(phase.project_title || "Project")} · ${state}</p>
+      </div>
+
+      <span class="schedule-time">${esc(phase.scheduled_time ? prettyTime(phase.scheduled_time) : "")}</span>
+    </div>`;
 }
 
 /** A greyed-out cell from the neighbouring month, used only to pad the weeks. */
@@ -719,7 +751,23 @@ function renderCalendar(){
       };
     });
 
-    const cards = meetingCards.concat(postCards)
+    const phaseCards = phasesOn(dateStr).map(phase => {
+      const title = phase.title || "Phase";
+      const meta = [phase.scheduled_time ? prettyTime(phase.scheduled_time) : "", phase.project_title]
+        .filter(Boolean).join(" · ");
+
+      return {
+        time: String(phase.scheduled_time || ""),
+        html: `
+          <a class="event-card phase${phase.status === "draft" ? " draft" : ""}" href="${phaseHref(phase)}"
+             onclick="event.stopPropagation()" title="${esc(title + (meta ? " · " + meta : ""))}">
+            <span class="ev-line">◆ <b dir="auto">${esc(title)}</b></span>
+            <small class="ev-line">${esc(meta)}</small>
+          </a>`
+      };
+    });
+
+    const cards = meetingCards.concat(postCards, phaseCards)
       .sort((a,b) => a.time.localeCompare(b.time));
 
     cell.innerHTML = `<span>${day.getDate()}</span>`
@@ -759,7 +807,10 @@ function renderDailySchedule(){
   const posts = contentOn(selectedDate)
     .map(item => ({ time: contentLiveAt(item).slice(11), html: contentRow(item) }));
 
-  const rows = meetings.concat(posts)
+  const phases = phasesOn(selectedDate)
+    .map(phase => ({ time: String(phase.scheduled_time || ""), html: phaseRow(phase) }));
+
+  const rows = meetings.concat(posts, phases)
     .sort((a,b) => a.time.localeCompare(b.time));
 
   if(!rows.length){
@@ -816,17 +867,21 @@ function contentRow(item){
 }
 
 /** Wires the month controls and paints the calendar, once its markup is in the DOM. */
-function initCalendar(rows, content){
+function initCalendar(rows, content, phases){
   appointments = rows || [];
   contentItems = content || [];
+  phaseItems = phases || [];
 
-  // Land on the month of the newest meeting or post, so the grid is not empty.
-  const latest = appointments
+  // Open on this month when anything falls in it; otherwise on the month of the
+  // newest meeting, post or phase, so the grid is not empty.
+  const dates = appointments
     .map(a => a.date)
     .concat(contentItems.map(item => contentLiveAt(item).slice(0,10)))
+    .concat(phaseItems.map(p => String(p.scheduled_date || "").slice(0,10)))
     .filter(Boolean)
-    .sort()
-    .pop();
+    .sort();
+  const thisMonth = toDateStr(new Date()).slice(0,7);
+  const latest = dates.some(d => d.slice(0,7) === thisMonth) ? null : dates.pop();
 
   if(latest){
     currentDate = parseDateStr(latest);
@@ -1833,7 +1888,7 @@ function render(data){
   // The calendar sits right under the Team, the people who run it.
   paint(header + details + clientPeoplePanel(data) + teamPanel() + appointments + surveys + responses + files + content);
 
-  initCalendar(data.appointments || [], data.content || []);
+  initCalendar(data.appointments || [], data.content || [], data.phases || []);
 }
 
 function fail(message){

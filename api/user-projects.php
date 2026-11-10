@@ -160,6 +160,48 @@ if ($_SERVER["REQUEST_METHOD"] !== "GET") {
 |
 */
 
+/*
+|--------------------------------------------------------------------------
+| GET ?phases=1 - every live, dated phase across the account's projects
+|--------------------------------------------------------------------------
+|
+| What dashboard.html files on its calendar beside meetings and content. The
+| same TASK_IS_LIVE_SQL filter as the project page: a draft or a phase dated
+| later than today does not exist for the client.
+|
+*/
+
+if (!empty($_GET["phases"])) {
+
+    try {
+        $stmt = $pdo->prepare("
+            SELECT
+                t.id,
+                t.project_id,
+                t.title,
+                t.scheduled_date,
+                t.scheduled_time,
+                t.is_complete,
+                p.title AS project_title
+            FROM project_tasks t
+            INNER JOIN projects p
+                ON p.id = t.project_id
+               AND " . CLIENT_SCOPE_SQL . "
+            WHERE t.scheduled_date IS NOT NULL
+              AND " . TASK_IS_LIVE_SQL . "
+            ORDER BY t.scheduled_date ASC, t.scheduled_time ASC, t.id ASC
+        ");
+
+        $stmt->execute([$clientId]);
+
+        response(true, "Phases loaded.", ["phases" => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+
+    } catch (Throwable $e) {
+        error_log("user-projects.php phases: " . $e->getMessage());
+        response(false, "Could not load your project phases.", ["phases" => []], 500);
+    }
+}
+
 if (isset($_GET["id"])) {
 
     try {

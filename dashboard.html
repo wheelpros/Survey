@@ -340,6 +340,19 @@ body {
 
 .badge.content { background: #f0ebff; color: #5b3cc4; }
 
+/* A project phase dated that day: a link to its project, in its own colour. */
+.event-card.phase {
+  display: block;
+  background: #e8f1ff;
+  border: 1px solid #c7dbff;
+  color: #1f4fb8;
+  text-decoration: none;
+}
+.event-card.phase:hover { border-color: #93b6f5; }
+.badge.phase { background: #e8f1ff; color: #1f4fb8; }
+
+.load-error { padding: 22px 0; color: #c9000b; font-weight: 600; }
+
 .schedule-link { color: inherit; text-decoration: none; }
 .schedule-link:hover { text-decoration: underline; }
 
@@ -1492,9 +1505,10 @@ let selectedDate = toDateStr(new Date());
 let currentView = "month";
 let showAllApprovals = false;
 
-// Meetings from api/calendar.php, and the live content from
-// api/user-content.php that the grid files under the day it went out.
-let calendarEvents = { appointments: [], content: [] };
+// Meetings from api/calendar.php, the live content from api/user-content.php
+// that the grid files under the day it went out, and the live phases of the
+// account's projects from api/user-projects.php.
+let calendarEvents = { appointments: [], content: [], phases: [] };
 
 const MONTHS = ["January", "February", "March", "April", "May", "June",
                 "July", "August", "September", "October", "November", "December"];
@@ -1610,6 +1624,13 @@ function demoData() {
         status: "rejected", requested_by: "user" }
     ],
 
+    phases: [
+      { id: 1, project_id: 1, title: "Homepage wireframes", project_title: "Website redesign",
+        scheduled_date: demoDate(1), scheduled_time: "14:00:00", is_complete: 0 },
+      { id: 2, project_id: 1, title: "Brand colours signed off", project_title: "Website redesign",
+        scheduled_date: demoDate(-1), scheduled_time: null, is_complete: 1 }
+    ],
+
     content: [
       { id: 1, title: "Five lessons from our spring campaign", platform: "LinkedIn",
         type_label: "Articles", live_at: demoDate(0) + " 09:00:00" },
@@ -1643,7 +1664,7 @@ async function fetchCalendarData() {
     const data = await res.json();
 
     if (!data.success) {
-      console.error(data.message);
+      showLoadError(data.message);
       return;
     }
 
@@ -1652,8 +1673,81 @@ async function fetchCalendarData() {
     renderAll();
 
   } catch (err) {
-    console.error("Error fetching data:", err.message);
+    showLoadError(err.message);
   }
+}
+
+/* A failed load says so, rather than leaving an empty grid that reads as
+   "nothing booked". */
+function showLoadError(detail) {
+  console.error("Calendar could not load:", detail);
+
+  const title = document.getElementById("calendarMonthTitle");
+  if (title) title.innerText = `${MONTHS[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+
+  const list = document.getElementById("dailySchedule");
+  if (list) {
+    list.innerHTML = `<div class="load-error" role="alert">Couldn't load your calendar. Refresh the page to try again.</div>`;
+  }
+}
+
+/* The live, dated phases of every project on this account. Like the content,
+   a failure here leaves the calendar showing meetings, never an error. */
+async function fetchPhases() {
+
+  if (PREVIEW) return; // demoData() already carries a couple of phases
+
+  try {
+    const res = await fetch("api/user-projects.php?phases=1", {
+      headers: { Authorization: "Bearer " + token }
+    });
+
+    const data = await res.json();
+
+    calendarEvents.phases = (data.success && data.phases) || [];
+    renderAll();
+
+  } catch (err) {
+    console.error("Error fetching phases:", err.message);
+  }
+}
+
+function phasesOn(dateStr) {
+  return (calendarEvents.phases || [])
+    .filter(p => String(p.scheduled_date || "").slice(0, 10) === dateStr)
+    .sort((a, b) => String(a.scheduled_time || "").localeCompare(String(b.scheduled_time || "")));
+}
+
+/* A phase opens on its project's page, with its day picked. */
+function phaseHref(phase) {
+  return `user-project-details.html?id=${encodeURIComponent(phase.project_id)}`
+    + `&date=${encodeURIComponent(String(phase.scheduled_date).slice(0, 10))}`;
+}
+
+function phaseRow(phase) {
+  const href = phaseHref(phase);
+  const time = phase.scheduled_time ? prettyTime(phase.scheduled_time) : "";
+
+  return `
+    <div class="schedule-row">
+      ${scheduleDate(String(phase.scheduled_date).slice(0, 10))}
+
+      <div class="schedule-info">
+        <h4 dir="auto"><a class="schedule-link" href="${href}">${esc(phase.title || "Project update")}</a></h4>
+        <p>${esc(phase.project_title || "Project")}</p>
+      </div>
+
+      <span class="schedule-time wide-only">${esc(time)}</span>
+      <span class="badge wide-only phase">${Number(phase.is_complete) ? "Done" : "Project"}</span>
+      <a class="eye-btn" href="${href}" title="Open this project" aria-label="Open this project">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      </a>
+    </div>
+  `;
 }
 
 /* Live content only - api/user-content.php leaves out drafts and anything
@@ -1840,7 +1934,23 @@ function renderCalendar() {
       };
     });
 
-    const cards = meetingCards.concat(postCards)
+    const phaseCards = phasesOn(dateStr).map(phase => {
+      const title = phase.title || "Project update";
+      const time = phase.scheduled_time ? prettyTime(phase.scheduled_time) : "";
+      const meta = [time, phase.project_title].filter(Boolean).join(" · ");
+
+      return {
+        time: String(phase.scheduled_time || ""),
+        html: `
+          <a class="event-card phase" href="${phaseHref(phase)}"
+             onclick="event.stopPropagation()" title="${esc(title + (meta ? " · " + meta : ""))}">
+            <span class="ev-line">◆ <b dir="auto">${esc(title)}</b></span>
+            <small class="ev-line">${esc(meta)}</small>
+          </a>`
+      };
+    });
+
+    const cards = meetingCards.concat(postCards, phaseCards)
       .sort((a, b) => a.time.localeCompare(b.time));
     const cap = oneDay ? cards.length : MAX_DAY_CARDS;
 
@@ -1888,7 +1998,10 @@ function renderDailySchedule() {
   const posts = contentOn(selectedDate)
     .map(item => ({ time: contentLiveAt(item).slice(11), html: contentRow(item) }));
 
-  const rows = meetings.concat(posts)
+  const phases = phasesOn(selectedDate)
+    .map(phase => ({ time: String(phase.scheduled_time || ""), html: phaseRow(phase) }));
+
+  const rows = meetings.concat(posts, phases)
     .sort((a, b) => a.time.localeCompare(b.time));
 
   if (!rows.length) {
@@ -2479,6 +2592,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   fetchCalendarData();
   fetchContent();
+  fetchPhases();
 });
 </script>
 <div class="calendar-modal" id="calendarModal">
