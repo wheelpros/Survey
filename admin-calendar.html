@@ -231,6 +231,27 @@ body{padding:0}
 .event-card.pending { background: #fef3c7; border: 1px solid #fde68a; color: #b45309; }
 .event-card.rejected { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
 
+/* A content post, and a project phase: links to themselves, each in its own
+   colour so neither reads as a meeting. On a phone they shrink to dots like
+   the meetings do. A draft keeps its colour with a dashed edge. */
+.event-card.content,
+.event-card.phase { display: block; text-decoration: none; }
+.event-card.content { background: #f0ebff; border: 1px solid #ddd2ff; color: #5b3cc4; }
+.event-card.content:hover { border-color: #b9a6ff; }
+.event-card.phase { background: #e8f1ff; border: 1px solid #c7dbff; color: #1f4fb8; }
+.event-card.phase:hover { border-color: #93b6f5; }
+.event-card.draft { border-style: dashed; }
+
+.badge.content { background: #f0ebff; color: #5b3cc4; }
+.badge.phase { background: #e8f1ff; color: #1f4fb8; }
+.badge.draft { background: #f2f4f7; color: #475467; }
+
+.schedule-link { color: inherit; text-decoration: none; }
+.schedule-link:hover { text-decoration: underline; }
+a.eye-btn { text-decoration: none; }
+
+.load-error { padding: 22px 0; color: #c9000b; font-weight: 600; }
+
 
 /* Same page header as every other admin page: 30px title, 28px of air
    below it, and whatever control the page owns on the right. */
@@ -1189,7 +1210,9 @@ let selectedDate = toDateStr(new Date());
 
 let currentView = "month";
 
-let calendarEvents = { appointments: [] };
+// Meetings, the posts going live, and the dated project phases - all three
+// come from api/calendar.php's get_admin_calendar.
+let calendarEvents = { appointments: [], content: [], phases: [] };
 let myAdminId = 0;
 
 const MONTHS = ["January", "February", "March", "April", "May", "June",
@@ -1334,19 +1357,139 @@ async function fetchCalendarData() {
     const data = await res.json();
 
     if (!data.success) {
-      console.error(data.message);
+      showLoadError(data.message);
       return;
     }
 
     calendarEvents.appointments = data.appointments || [];
+    calendarEvents.content = data.content || [];
+    calendarEvents.phases = data.phases || [];
     myAdminId = data.admin_id || 0;
 
     renderAll();
     openLinkedAppointment();
 
   } catch (err) {
-    console.error("Error fetching data:", err.message);
+    showLoadError(err.message);
   }
+}
+
+/* A failed load says so, rather than leaving an empty grid that reads as
+   "nothing booked". */
+function showLoadError(detail) {
+  console.error("Calendar could not load:", detail);
+
+  const title = document.getElementById("calendarMonthTitle");
+  if (title) title.innerText = `${MONTHS[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+
+  const list = document.getElementById("dailySchedule");
+  if (list) {
+    list.innerHTML = `<div class="load-error" role="alert">Couldn't load the calendar. Refresh the page to try again.</div>`;
+  }
+}
+
+/* ── Content and phases on the calendar ────────────────────────────────── */
+
+/** "YYYY-MM-DD HH:MM:SS" a post goes (or went) live. */
+function contentLiveAt(item) {
+  return String(item.live_at || "");
+}
+
+function contentOn(dateStr) {
+  return calendarEvents.content
+    .filter(item => contentLiveAt(item).slice(0, 10) === dateStr)
+    .sort((a, b) => contentLiveAt(a).localeCompare(contentLiveAt(b)));
+}
+
+function contentHref(item) {
+  return `admin-content.html?id=${encodeURIComponent(item.id)}`;
+}
+
+function contentMeta(item) {
+  return [item.client, item.platform, item.type_label].filter(Boolean).join(" · ") || "Content";
+}
+
+function phasesOn(dateStr) {
+  return calendarEvents.phases
+    .filter(p => String(p.scheduled_date || "").slice(0, 10) === dateStr)
+    .sort((a, b) => String(a.scheduled_time || "").localeCompare(String(b.scheduled_time || "")));
+}
+
+function phaseHref(phase) {
+  return `project-task-details.html?project=${encodeURIComponent(phase.project_id)}&id=${encodeURIComponent(phase.id)}`;
+}
+
+function phaseMeta(phase) {
+  return [phase.company_name, phase.project_title].filter(Boolean).join(" · ") || "Project phase";
+}
+
+function draftClass(status) {
+  return status === "draft" ? " draft" : "";
+}
+
+/* Every item on one day as { time, card, row }: the grid card and the
+   schedule row, in time order. */
+function dayItems(dateStr) {
+  const meetings = calendarEvents.appointments
+    .filter(a => a.date === dateStr)
+    .map(a => {
+      const title = a.topic || a.title || "Meeting";
+      const meta = [a.user_name, prettyTime(a.time)].filter(Boolean).join(" · ");
+
+      return {
+        time: String(a.time || ""),
+        card: `
+          <div class="event-card ${esc(a.status || "pending")}" title="${esc(title + (meta ? " · " + meta : ""))}">
+            <span class="ev-line">● <b dir="auto">${esc(title)}</b></span>
+            <small class="ev-line">${esc(meta)}</small>
+          </div>`,
+        row: meetingRow(a)
+      };
+    });
+
+  // A post or phase opens itself; stopPropagation keeps the click from also
+  // selecting the day, which would repaint the grid under the link.
+  const posts = contentOn(dateStr).map(item => {
+    const title = item.title || "Content";
+    const time = prettyTime(contentLiveAt(item).slice(11));
+    const meta = [time, contentMeta(item)].filter(Boolean).join(" · ");
+
+    return {
+      time: contentLiveAt(item).slice(11),
+      card: `
+        <a class="event-card content${draftClass(item.status)}" href="${contentHref(item)}"
+           onclick="event.stopPropagation()" title="${esc(title + " · " + meta)}">
+          <span class="ev-line">■ <b dir="auto">${esc(title)}</b></span>
+          <small class="ev-line">${esc(meta)}</small>
+        </a>`,
+      row: linkRow(dateStr, title, contentMeta(item), time, contentHref(item),
+                   item.status === "draft" ? "draft" : "content",
+                   item.status === "draft" ? "Draft" : "Content", "Open this post")
+    };
+  });
+
+  const phases = phasesOn(dateStr).map(phase => {
+    const title = phase.title || "Phase";
+    const time = phase.scheduled_time ? prettyTime(phase.scheduled_time) : "";
+    const meta = [time, phaseMeta(phase)].filter(Boolean).join(" · ");
+
+    return {
+      time: String(phase.scheduled_time || ""),
+      card: `
+        <a class="event-card phase${draftClass(phase.status)}" href="${phaseHref(phase)}"
+           onclick="event.stopPropagation()" title="${esc(title + " · " + meta)}">
+          <span class="ev-line">◆ <b dir="auto">${esc(title)}</b></span>
+          <small class="ev-line">${esc(meta)}</small>
+        </a>`,
+      row: linkRow(dateStr, title, phaseMeta(phase), time, phaseHref(phase),
+                   phase.status === "draft" ? "draft" : "phase",
+                   phase.status === "draft" ? "Draft" : (Number(phase.is_complete) ? "Done" : "Phase"),
+                   "Open this phase")
+    };
+  });
+
+  return meetings.concat(posts, phases)
+    .sort((a, b) => a.time.localeCompare(b.time));
 }
 
 /* The Client dropdown, same list the content form offers: the distinct
@@ -1475,21 +1618,10 @@ function renderCalendar() {
       + (dateStr === todayStr ? " today-cell" : "")
       + (dateStr === selectedDate && currentView !== "day" ? " selected-cell" : "");
 
-    // Time-ordered; a month or week cell shows the first MAX_DAY_CARDS and
-    // Day view shows them all. The schedule panel below lists every one.
-    const cards = calendarEvents.appointments
-      .filter(a => a.date === dateStr)
-      .sort((a, b) => String(a.time || "").localeCompare(String(b.time || "")))
-      .map(a => {
-        const title = a.topic || a.title || "Meeting";
-        const meta = [a.user_name, prettyTime(a.time)].filter(Boolean).join(" · ");
-
-        return `
-          <div class="event-card ${esc(a.status || "pending")}" title="${esc(title + (meta ? " · " + meta : ""))}">
-            <span class="ev-line">● <b>${esc(title)}</b></span>
-            <small class="ev-line">${esc(meta)}</small>
-          </div>`;
-      });
+    // Meetings, posts and phases in time order; a month or week cell shows
+    // the first MAX_DAY_CARDS and Day view shows them all. The schedule panel
+    // below lists every one.
+    const cards = dayItems(dateStr).map(item => item.card);
 
     const cap = oneDay ? cards.length : MAX_DAY_CARDS;
 
@@ -1545,41 +1677,72 @@ function renderDailySchedule() {
 
   title.innerText = `Daily Schedule – ${prettyDate(selectedDate)}`;
 
-  const rows = calendarEvents.appointments
-    .filter(a => a.date === selectedDate)
-    .sort((a, b) => String(a.time).localeCompare(String(b.time)));
+  const rows = dayItems(selectedDate);
 
   if (!rows.length) {
     list.innerHTML = `<div class="empty-cell" style="padding:22px 0;">Nothing scheduled for this day.</div>`;
     return;
   }
 
-  list.innerHTML = rows.map(row => {
-    const date = parseDateStr(row.date);
-    const who = row.company_name || row.client || row.user_name || "Client";
+  list.innerHTML = rows.map(item => item.row).join("");
+}
 
-    /* A wide screen gets the whole row, as it always did. A phone keeps the
-       meeting and the client and reaches the rest through the eye - see the
-       .wide-only rules in the phone block. */
-    return `
-      <div class="schedule-row">
-        <div class="schedule-date">
-          <span class="m">${MONTHS_SHORT[date.getMonth()]}</span>
-          <span class="d">${String(date.getDate()).padStart(2, "0")}</span>
-        </div>
+function scheduleDate(dateStr) {
+  const date = parseDateStr(dateStr);
 
-        <div class="schedule-info">
-          <h4>${esc(row.topic || row.title || "Meeting")}</h4>
-          <p>${esc(who)}<span class="wide-only"> &middot; ${esc(row.user_name || "")}</span></p>
-        </div>
+  return `
+    <div class="schedule-date">
+      <span class="m">${MONTHS_SHORT[date.getMonth()]}</span>
+      <span class="d">${String(date.getDate()).padStart(2, "0")}</span>
+    </div>`;
+}
 
-        <span class="schedule-time wide-only">${esc(prettyTime(row.time))}</span>
-        <span class="badge wide-only ${esc(row.status || "pending")}">${statusLabel(row.status)}</span>
+/* A wide screen gets the whole row, as it always did. A phone keeps the
+   meeting and the client and reaches the rest through the eye - see the
+   .wide-only rules in the phone block. */
+function meetingRow(row) {
+  const who = row.company_name || row.client || row.user_name || "Client";
 
-        ${eyeButton(row.id)}
+  return `
+    <div class="schedule-row">
+      ${scheduleDate(row.date)}
+
+      <div class="schedule-info">
+        <h4 dir="auto">${esc(row.topic || row.title || "Meeting")}</h4>
+        <p>${esc(who)}<span class="wide-only"> &middot; ${esc(row.user_name || "")}</span></p>
       </div>
-    `;
-  }).join("");
+
+      <span class="schedule-time wide-only">${esc(prettyTime(row.time))}</span>
+      <span class="badge wide-only ${esc(row.status || "pending")}">${statusLabel(row.status)}</span>
+
+      ${eyeButton(row.id)}
+    </div>
+  `;
+}
+
+/* A post or a phase is a link to itself: the title on a desktop, the eye on
+   a phone. */
+function linkRow(dateStr, title, meta, time, href, badgeClass, badgeText, eyeLabel) {
+  return `
+    <div class="schedule-row">
+      ${scheduleDate(dateStr)}
+
+      <div class="schedule-info">
+        <h4 dir="auto"><a class="schedule-link" href="${href}">${esc(title)}</a></h4>
+        <p>${esc(meta)}</p>
+      </div>
+
+      <span class="schedule-time wide-only">${esc(time)}</span>
+      <span class="badge wide-only ${badgeClass}">${esc(badgeText)}</span>
+      <a class="eye-btn" href="${href}" title="${esc(eyeLabel)}" aria-label="${esc(eyeLabel)}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      </a>
+    </div>
+  `;
 }
 
 /* ── Approvals Hub ─────────────────────────────────────────────────────── */

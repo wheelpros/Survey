@@ -109,8 +109,6 @@ const postTeamFields = {
 // What a phase (a project update) carries for the team working on it, the
 // same as the portal's Edit Phase page: never shown to the client.
 const phaseTeamFields = {
-  phase: z.string().max(80).optional().describe("The stage it belongs to, e.g. Planning; \"\" clears it"),
-  role: z.string().max(80).optional().describe("The role the phase calls for, e.g. UI Designer; \"\" clears it"),
   priority: z.enum(["low", "medium", "high"]).optional(),
   notes: z
     .string()
@@ -449,16 +447,16 @@ export const WRITE_TOOLS = [
     scope: "projects:write",
     title: "Post a project update",
     description:
-      "Adds an update to a project. Published (the default), the client sees it - from `date` if " +
-      "one is given - and is notified once it is live. With publish false it is a draft only the " +
-      "project team sees. The body is plain text; blank lines start new paragraphs. In the portal " +
-      "these are the project's phases: phase, role, priority, notes, team, assignments and gallery images " +
+      "Adds an update to a project - a phase in the portal. date is required: every phase shows on the " +
+      "calendars on its date. Published (the default), the client sees it from that date and is notified " +
+      "once it is live. With publish false it is a draft only the project team sees. The body is plain text; " +
+      "blank lines start new paragraphs. Priority, notes, team, assignments and gallery images " +
       "are set here too (people from list_phase_teammates; assignments only from the team)." + TWO_STEP,
     input: {
       project: recordId("The project's id - from list_projects"),
       title: z.string().min(1).max(200),
       body: z.string().max(2000).optional(),
-      date: date("When the client should see it (default: now)").optional(),
+      date: date("The phase's date: it shows on the calendars on this day, and a published phase reaches the client then"),
       time: time("Time shown with the update").optional(),
       link: z.string().max(500).optional().describe("An http(s) link shown with the update"),
       publish: z.boolean().optional().describe("Default true; false saves a draft"),
@@ -471,14 +469,14 @@ export const WRITE_TOOLS = [
     title: "Change a project update",
     description:
       "Changes a project update - a phase in the portal. Give only the fields to change; \"\" clears " +
-      "date, time, link, phase, role or notes. Publishing a draft makes it visible to the client once " +
+      "time, link or notes. A phase always keeps a date (it is on the calendars), so date can be moved but not cleared. Publishing a draft makes it visible to the client once " +
       "its date has come. team, assignments and images replace their whole list. A phase is never marked " +
       "complete by hand: it completes once everyone assigned is done." + TWO_STEP,
     input: {
       id: recordId("The task's id - from get_project"),
       title: z.string().min(1).max(200).optional(),
       body: z.string().max(2000).optional().describe("Replaces the whole text"),
-      date: z.union([date("New date"), z.literal("")]).optional(),
+      date: date("The new date - it can be moved, never cleared").optional(),
       time: z.union([time("New time"), z.literal("")]).optional(),
       link: z.string().max(500).optional(),
       status: z.enum(["draft", "published"]).optional(),

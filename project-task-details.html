@@ -222,7 +222,7 @@ select.client-filter{
 .title-row h1{font-size:24px;word-break:break-word}
 .desc{font-size:13px;line-height:1.7;color:#475467;margin-top:6px;word-break:break-word;max-width:80ch}
 .desc ul,.desc ol{padding-left:22px}
-.facts{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:22px;padding-top:16px;border-top:1px solid #f2f4f7}
+.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:22px;padding-top:16px;border-top:1px solid #f2f4f7}
 .facts > div > span{display:block;font-size:10px;font-weight:700;color:#98a2b3;margin-bottom:5px}
 .facts strong{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;word-break:break-word}
 .dot{width:6px;height:6px;border-radius:50%;background:#20a95a;flex:none}
@@ -398,9 +398,7 @@ document.addEventListener("DOMContentLoaded", function () {
             <ul class="files" id="fileList"></ul>
           </div>
           <div class="facts">
-            <div><span>Phase</span><strong id="factPhase">—</strong></div>
-            <div><span>Due date</span><strong id="factDue">—</strong></div>
-            <div><span>Role</span><strong id="factRole" dir="auto">—</strong></div>
+            <div><span>Date</span><strong id="factDue">—</strong></div>
             <div><span>Visibility</span><strong id="factVis">—</strong></div>
           </div>
         </div>
@@ -870,11 +868,7 @@ function paintPhase(project, at){
   document.getElementById("phaseDesc").innerHTML =
     sanitizeRichText(task.description) || '<span class="muted">No description was added.</span>';
 
-  document.getElementById("factPhase").innerHTML = task.phase_label
-    ? '<i class="dot"></i><span dir="auto">' + esc(task.phase_label) + "</span>"
-    : "—";
   document.getElementById("factDue").textContent  = task.scheduled_date ? fmtDateShort(task.scheduled_date) : "—";
-  document.getElementById("factRole").textContent = task.role || "—";
   document.getElementById("factVis").textContent  = vis.text;
 }
 

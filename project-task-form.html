@@ -191,19 +191,45 @@ select.client-filter{
 .pill-link svg{width:13px;height:13px}
 .form-top h1{font-size:15px;font-weight:800;color:var(--muted)}
 
-.form-wrap{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;padding-bottom:96px}
-.form-card{background:#fff;border:1px solid var(--line);border-radius:16px}
-.form-card[hidden]{display:none}
-.card-pad{padding:20px 22px}
-.card-title h2{font-size:15px;font-weight:800}
-.card-title p{font-size:12px;color:var(--muted);margin-top:3px}
-.card-title{margin-bottom:16px}
-.card-title.row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+/* ── Panels: admin-content-form.html's two columns ── */
+.form-wrap{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:24px;align-items:start}
+.form-wrap[hidden]{display:none}
+.col{display:grid;gap:24px;min-width:0}
+.panel[hidden]{display:none}
+.panel-head{padding:18px 22px;border-bottom:1px solid #eef1f5;display:flex;align-items:center;gap:10px}
+.panel-head h2{font-size:15px;flex:1;min-width:0}
+.panel-head .head-count{font-size:11px;font-weight:700;color:#98a2b3}
+.panel-body{padding:22px}
+.panel-sub{font-size:12px;color:var(--muted);margin:-4px 0 14px}
+/* The teammate list hangs past the panel's edge, so this one cannot clip. */
+#panelTeam{overflow:visible}
+#panelTeam > .panel-head{border-radius:18px 18px 0 0}
+.req{color:var(--brand)}
+.note{margin-top:4px;background:#f4f6fa;border-radius:10px;padding:12px 14px;font-size:12px;line-height:1.5;color:var(--muted)}
+
+/* ── Actions ── */
+.actions{display:grid;gap:10px}
+.primary-btn,.secondary-btn{height:48px;border-radius:12px;font:inherit;font-size:14px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.primary-btn{border:none;background:var(--nav-active);color:#fff}
+.primary-btn:hover{background:#282c52}
+.primary-btn:disabled{opacity:.6;cursor:not-allowed}
+.secondary-btn{border:1px solid #dfe3ea;background:#fff;color:var(--text)}
+.secondary-btn:hover{background:#f6f7f9}
+.discard-btn{border:none;background:transparent;color:var(--brand);font:inherit;font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;padding:6px}
+.discard-btn:hover{text-decoration:underline}
+/* Delete sits apart from Discard: one throws away edits, the other the phase. */
+.actions .btn-link{border-top:1px solid #eef1f5;padding-top:12px;margin-top:4px;color:var(--muted)}
+.actions .btn-link:hover{color:var(--brand)}
+.status-text{margin-top:12px;font-size:13px;font-weight:700;text-align:center;min-height:18px}
+.status-text:empty{margin-top:0;min-height:0}
+.status-text.error{color:var(--brand)}
+input.invalid{border-color:var(--brand)}
+input.invalid:focus{box-shadow:0 0 0 3px rgba(201,0,11,.12)}
 
 /* The cover: the phase's image, or a calm block holding its place. Clicking
    it uploads or replaces the image. The badge says whether the client can
    see the phase. */
-.hero{position:relative;height:200px;border-radius:16px 16px 0 0;background:#5a7de8 center/cover no-repeat;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.hero{position:relative;height:170px;border-radius:12px;overflow:hidden;background:#5a7de8 center/cover no-repeat;display:flex;align-items:center;justify-content:center;cursor:pointer}
 .hero:focus-visible{outline:3px solid rgba(27,30,58,.35);outline-offset:-3px}
 .hero .ph{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#fff;background:rgba(255,255,255,.22);padding:6px 12px;border-radius:20px;transition:background .15s}
 .hero .ph svg{width:13px;height:13px}
@@ -232,14 +258,13 @@ select.client-filter{
 .hero-remove{position:absolute;top:10px;right:10px;width:28px;height:28px;border:none;border-radius:50%;background:rgba(16,24,40,.7);color:#fff;font-size:16px;line-height:1;cursor:pointer}
 .hero-remove[hidden]{display:none}
 
-label,.lbl{display:block;font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#667085;margin-bottom:6px}
-input[type=text],input[type=date],select,textarea{width:100%;border:1px solid #dfe3ea;background-color:#fff;border-radius:10px;padding:10px 12px;outline:none;font-size:13px;color:var(--text);font-family:inherit}
+label,.lbl{display:block;font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#667085;margin-bottom:8px}
+input[type=text],input[type=date],input[type=time],select,textarea{width:100%;border:1px solid #dfe3ea;background-color:#f8fafc;border-radius:12px;padding:12px 14px;outline:none;font-size:14px;color:var(--text);font-family:inherit}
 input:focus,select:focus,textarea:focus{border-color:var(--nav-active);box-shadow:0 0 0 3px rgba(27,30,58,.10)}
-.field-row{margin-bottom:14px}
+.field-row{margin-bottom:18px}
 .field-row:last-child{margin-bottom:0}
 .field-row[hidden]{display:none}
-.hint{font-size:11px;color:#98a2b3;margin-top:6px}
-.three-up{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.hint{font-size:12px;color:#98a2b3;margin-top:7px}
 /* Title takes the room; Visibility sits beside it. */
 .title-row{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:12px}
 .media-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
@@ -295,37 +320,26 @@ input:focus,select:focus,textarea:focus{border-color:var(--nav-active);box-shado
 .status-pill.in_progress,.status-select.in_progress{color:#b45309;background-color:#fff7e6;border-color:#fde68a}
 .status-pill.todo,.status-select.todo{color:#475467;background-color:#f2f4f7;border-color:#e4e7ec}
 .assigned-count{float:right;font-size:11px;font-weight:800;color:var(--muted);letter-spacing:0;text-transform:none}
-/* Clear of the save bar, which would otherwise sit on top of every message. */
-.toast{bottom:84px}
 .icon-btn{width:30px;height:30px;border:1px solid transparent;background:transparent;border-radius:8px;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
 .icon-btn:hover{background:#fff5f5;color:var(--brand)}
 .icon-btn svg{width:15px;height:15px}
 
-/* ── The save bar, pinned to the foot of the viewport ── */
-.save-bar{position:fixed;left:var(--sidebar-w);right:0;bottom:0;z-index:90;background:#fff;border-top:1px solid var(--line);padding:12px 35px;display:flex;align-items:center;gap:12px;transition:left .18s ease}
-.save-bar[hidden]{display:none}
-.save-bar p{flex:1;min-width:0;font-size:12px;color:var(--muted)}
-.save-bar .btn{padding:10px 18px}
-.btn-link{background:none;border:none;color:var(--brand);font:inherit;font-size:12px;font-weight:800;cursor:pointer;padding:6px}
+.btn-link{background:none;border:none;color:var(--brand);font:inherit;font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;padding:6px}
 .btn-link:hover{text-decoration:underline}
 .btn-link[hidden]{display:none}
 
+/* One column where admin-content-form.html goes to one: below this the
+   left column would be narrower than the 340px right one. */
+@media(max-width:1100px){
+  .form-wrap{grid-template-columns:minmax(0,1fr)}
+}
 @media(max-width:950px){
   .admin-content{padding:24px 18px 40px}
-  .save-bar{padding:12px 18px}
-}
-@media(max-width:768px){
-  .save-bar{left:0}
 }
 @media(max-width:700px){
-  .three-up,.title-row{grid-template-columns:1fr}
-  .hero{height:150px}
-  .card-pad{padding:16px}
-  .save-bar p{display:none}
-  .save-bar{gap:8px}
-  .save-bar .btn{flex:1;white-space:nowrap;padding:10px 8px}
-  .card-title.row{flex-direction:column}
-  .card-title.row .btn{white-space:nowrap}
+  .title-row{grid-template-columns:1fr}
+  .panel-head{padding:16px}
+  .panel-body{padding:16px}
 }
 </style>
 
@@ -404,85 +418,168 @@ document.addEventListener("DOMContentLoaded", function () {
 
     <div id="blocked" class="empty" hidden></div>
 
-    <form class="form-wrap" id="taskForm" hidden onsubmit="return false">
+    <form class="form-wrap" id="taskForm" hidden onsubmit="return false" novalidate>
 
-      <!-- The phase itself: cover, title, description, the four fields. -->
-      <section class="form-card">
-        <div class="hero" id="hero" role="button" tabindex="0" aria-label="Upload cover image">
-          <span class="vis-badge" id="visBadge">Published</span>
-          <span class="ph" id="heroLabel">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
-            <span id="heroText">Upload cover image</span>
-          </span>
-          <button class="hero-remove" type="button" id="heroRemove" onclick="event.stopPropagation(); clearMedia()" aria-label="Remove cover image" hidden>&times;</button>
-        </div>
-
-        <div class="card-pad">
-          <div class="field-row title-row">
-            <div>
-              <label for="taskName">Title</label>
-              <input type="text" id="taskName" maxlength="200" dir="auto" placeholder="Title">
+      <!-- ── Left column: what the phase is, and who works on it ── -->
+      <div class="col">
+        <section class="panel">
+          <div class="panel-head"><h2>Phase details</h2></div>
+          <div class="panel-body">
+            <div class="field-row title-row">
+              <div>
+                <label for="taskName">Title <span class="req" aria-hidden="true">*</span></label>
+                <input type="text" id="taskName" maxlength="200" dir="auto" placeholder="Title" required aria-describedby="titleError">
+                <div class="media-error" id="titleError"></div>
+              </div>
+              <div>
+                <label for="visibility">Visibility</label>
+                <select id="visibility" onchange="paintVisibility()">
+                  <option value="published">Published</option>
+                  <option value="draft">Draft</option>
+                </select>
+              </div>
             </div>
-            <div>
-              <label for="visibility">Visibility</label>
-              <select id="visibility" onchange="paintVisibility()">
-                <option value="published">Published</option>
-                <option value="draft">Draft</option>
+
+            <div class="field-row">
+              <label for="description">Description</label>
+              <div class="editor-toolbar">
+                <button type="button" title="Bold" onclick="format('bold')"><b>B</b></button>
+                <button type="button" title="Italic" onclick="format('italic')"><i>I</i></button>
+                <span class="sep"></span>
+                <button type="button" title="Bulleted list" onclick="format('insertUnorderedList')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1.4" fill="currentColor" stroke="none"/><circle cx="3.5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="3.5" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg>
+                </button>
+                <button type="button" title="Numbered list" onclick="format('insertOrderedList')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6h12M9 12h12M9 18h12M4 6h1v4M4 14h2v1H4v1h2"/></svg>
+                </button>
+                <span class="sep"></span>
+                <button type="button" title="Add a link" onclick="addLink()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.5-1.5"/></svg>
+                </button>
+              </div>
+              <div class="editor" id="description" contenteditable="true" dir="auto"
+                   data-placeholder="What this phase covers"></div>
+              <div class="counter" id="counter">0 / 2000 characters</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Who is on it, and how they work on it. Never shown to the client. -->
+        <section class="panel" id="panelTeam">
+          <div class="panel-head"><h2>Teammates</h2></div>
+          <div class="panel-body">
+            <p class="panel-sub">Choose the people. Their role shows next to their name.</p>
+
+            <div class="field-row">
+              <label id="memberLabel">Teammates</label>
+              <div class="multi" id="teammates">
+                <button class="multi-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="memberLabel">
+                  <span class="multi-value placeholder">Select teammates...</span>
+                  <svg class="multi-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="multi-panel" role="listbox" aria-multiselectable="true"></div>
+              </div>
+              <p class="hint">Everyone listed here can open this phase, and gets a notification.</p>
+            </div>
+
+            <!-- One row per teammate: what they do and how far they got - the
+                 same as a content post's Assigned. See paintAssigned(). -->
+            <div class="field-row" id="assignedRow" hidden>
+              <label id="assignedLabel">Assigned <span class="assigned-count" id="assignedCount"></span></label>
+              <div class="assigned" id="assignedList" role="group" aria-labelledby="assignedLabel"></div>
+              <p class="hint" id="assignedHint"></p>
+            </div>
+
+            <div class="field-row">
+              <label for="priority">Priority</label>
+              <select id="priority">
+                <option value="low">Low</option>
+                <option value="medium" selected>Medium</option>
+                <option value="high">High</option>
               </select>
             </div>
-          </div>
 
-          <div class="field-row">
-            <label for="description">Description</label>
-            <div class="editor-toolbar">
-              <button type="button" title="Bold" onclick="format('bold')"><b>B</b></button>
-              <button type="button" title="Italic" onclick="format('italic')"><i>I</i></button>
-              <span class="sep"></span>
-              <button type="button" title="Bulleted list" onclick="format('insertUnorderedList')">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1.4" fill="currentColor" stroke="none"/><circle cx="3.5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="3.5" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg>
+            <div class="field-row">
+              <div class="label-row">
+                <label for="notes">Notes</label>
+                <small>Markdown supported</small>
+              </div>
+              <div class="editor-toolbar">
+                <button type="button" title="Bold" onclick="mdWrap('**')"><b>B</b></button>
+                <button type="button" title="Italic" onclick="mdWrap('_')"><i>I</i></button>
+                <span class="sep"></span>
+                <button type="button" title="Bulleted list" onclick="mdLines('- ')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1.4" fill="currentColor" stroke="none"/><circle cx="3.5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="3.5" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg>
+                </button>
+                <button type="button" title="Numbered list" onclick="mdLines('1. ')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6h12M9 12h12M9 18h12M4 6h1v4M4 14h2v1H4v1h2"/></svg>
+                </button>
+                <span class="sep"></span>
+                <button type="button" title="Add a link" onclick="mdLink()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.5-1.5"/></svg>
+                </button>
+              </div>
+              <textarea id="notes" maxlength="5000" dir="auto" placeholder="Write meeting notes, task requirements, links or additional details here..."></textarea>
+            </div>
+
+            <div class="field-row">
+              <div class="label-row">
+                <label>Team files</label>
+                <small id="fileCount">0 / 5</small>
+              </div>
+              <ul class="file-list" id="fileList"></ul>
+              <button class="btn btn-ghost" type="button" id="fileAddBtn" onclick="document.getElementById('fileInput').click()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                Attach files
               </button>
-              <button type="button" title="Numbered list" onclick="format('insertOrderedList')">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6h12M9 12h12M9 18h12M4 6h1v4M4 14h2v1H4v1h2"/></svg>
-              </button>
-              <span class="sep"></span>
-              <button type="button" title="Add a link" onclick="addLink()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.5-1.5"/></svg>
-              </button>
+              <input type="file" id="fileInput" accept=".pdf,.txt,.md,.doc,.docx,.xls,.xlsx" multiple hidden>
+              <p class="hint">For the people on this phase. Never shown to the client. PDF, TXT, MD, Word or Excel, up to 5 files, 8 MB each.</p>
+              <div class="media-error" id="fileError"></div>
             </div>
-            <div class="editor" id="description" contenteditable="true" dir="auto"
-                 data-placeholder="What this phase covers"></div>
-            <div class="counter" id="counter">0 / 2000 characters</div>
-          </div>
 
-          <div class="field-row three-up">
-            <div>
-              <label for="phaseLabel">Phase</label>
-              <input type="text" id="phaseLabel" maxlength="80" dir="auto" placeholder="e.g. Planning">
-            </div>
-            <div>
-              <label for="updateDate">Due date</label>
-              <input type="date" id="updateDate">
-            </div>
-            <div>
-              <label for="taskRole">Role</label>
-              <input type="text" id="taskRole" maxlength="80" dir="auto" placeholder="e.g. UI Designer">
+            <!-- Gallery: for the team, on the phase page only. -->
+            <div class="field-row">
+              <div class="label-row">
+                <span class="lbl">Gallery</span>
+                <small id="galleryCount">0 / 5</small>
+              </div>
+              <div class="gallery-grid" id="galleryGrid"></div>
+              <input type="file" id="galleryInput" accept="image/jpeg,image/png,image/webp,image/gif" multiple hidden>
+              <p class="hint">For the team, on the phase page. Never shown to the client. Up to 5 images, 3 MB each.</p>
+              <div class="media-error" id="galleryError"></div>
             </div>
           </div>
+        </section>
+      </div>
 
-          <p class="hint" id="scheduleNote" style="margin-top:-6px">A published phase dated in the future is shown to the client on that date.</p>
+      <!-- ── Right column, in admin-content-form.html's order: media, client files, scheduling, save ── -->
+      <div class="col">
 
-          <div class="field-row">
-            <p class="hint" id="mediaHint" style="margin:0">Cover image is optional. Click the cover to upload it. Maximum 3 MB.</p>
-            <input type="file" id="mediaInput" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
-            <div class="media-error" id="mediaError"></div>
-          </div>
-
-          <!-- The client downloads these from the phase once it is live. -->
-          <div class="field-row">
-            <div class="label-row">
-              <label>Files for the client</label>
-              <small id="clientFileCount">0 / 5</small>
+        <!-- The cover: the one image the client sees. The gallery is the team's, under Teammates. -->
+        <section class="panel">
+          <div class="panel-head"><h2>Media</h2></div>
+          <div class="panel-body">
+            <div class="field-row">
+              <span class="lbl">Cover image</span>
+              <div class="hero" id="hero" role="button" tabindex="0" aria-label="Upload cover image">
+                <span class="vis-badge" id="visBadge">Published</span>
+                <span class="ph" id="heroLabel">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+                  <span id="heroText">Upload cover image</span>
+                </span>
+                <button class="hero-remove" type="button" id="heroRemove" onclick="event.stopPropagation(); clearMedia()" aria-label="Remove cover image" hidden>&times;</button>
+              </div>
+              <p class="hint" id="mediaHint">Optional. Click the cover to upload it. Maximum 3 MB.</p>
+              <input type="file" id="mediaInput" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
+              <div class="media-error" id="mediaError"></div>
             </div>
+          </div>
+        </section>
+
+        <!-- The client downloads these from the phase once it is live. -->
+        <section class="panel">
+          <div class="panel-head"><h2>Files for the client</h2><small class="head-count" id="clientFileCount">0 / 5</small></div>
+          <div class="panel-body">
             <ul class="file-list" id="clientFileList"></ul>
             <button class="btn btn-ghost" type="button" id="clientFileAddBtn" onclick="document.getElementById('clientFileInput').click()">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -492,111 +589,38 @@ document.addEventListener("DOMContentLoaded", function () {
             <p class="hint">The client can download these once the phase is live. PDF, TXT, MD, Word or Excel, up to 5 files, 8 MB each.</p>
             <div class="media-error" id="clientFileError"></div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <!-- Gallery: for the team, on the phase page only. -->
-      <section class="form-card card-pad">
-        <div class="card-title">
-          <h2>Images</h2>
-          <p>Shown on the phase page for the team. Never shown to the client.</p>
-        </div>
-
-        <div class="field-row">
-          <div class="label-row">
-            <label>Gallery</label>
-            <small id="galleryCount">0 / 5</small>
+        <!-- Every phase is on the calendars, so it always has a date. -->
+        <section class="panel">
+          <div class="panel-head"><h2>Scheduling</h2></div>
+          <div class="panel-body">
+            <div class="field-row">
+              <label for="updateDate">Date <span class="req" aria-hidden="true">*</span></label>
+              <input type="date" id="updateDate" required aria-describedby="dateError">
+              <div class="media-error" id="dateError"></div>
+            </div>
+            <div class="field-row">
+              <label for="updateTime">Time</label>
+              <input type="time" id="updateTime">
+            </div>
+            <p class="note" id="scheduleNote">The phase shows on the calendars on this date. A published phase dated in the future reaches the client on that date.</p>
           </div>
-          <div class="gallery-grid" id="galleryGrid"></div>
-          <input type="file" id="galleryInput" accept="image/jpeg,image/png,image/webp,image/gif" multiple hidden>
-          <p class="hint">Up to 5 images, 3 MB each.</p>
-          <div class="media-error" id="galleryError"></div>
-        </div>
-      </section>
+        </section>
 
-      <!-- Who is on it, and how they work on it. Never shown to the client. -->
-      <section class="form-card card-pad">
-        <div class="card-title">
-          <h2>Teammates</h2>
-          <p>Choose the people. Their role shows next to their name.</p>
-        </div>
-
-        <div class="field-row">
-          <label id="memberLabel">Teammates</label>
-          <div class="multi" id="teammates">
-            <button class="multi-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="memberLabel">
-              <span class="multi-value placeholder">Select teammates...</span>
-              <svg class="multi-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-            <div class="multi-panel" role="listbox" aria-multiselectable="true"></div>
+        <section class="panel">
+          <div class="panel-body">
+            <div class="actions">
+              <button class="primary-btn" type="button" id="saveBtn" onclick="save()">Save phase</button>
+              <button class="discard-btn" type="button" onclick="discard()">Discard</button>
+              <button class="btn-link" type="button" id="deleteBtn" onclick="removePhase()" hidden>Delete phase</button>
+            </div>
+            <div class="status-text" id="formStatus" role="alert"></div>
           </div>
-          <p class="hint">Everyone listed here can open this phase, and gets a notification.</p>
-        </div>
-
-        <!-- One row per teammate: what they do and how far they got - the
-             same as a content post's Assigned. See paintAssigned(). -->
-        <div class="field-row" id="assignedRow" hidden>
-          <label id="assignedLabel">Assigned <span class="assigned-count" id="assignedCount"></span></label>
-          <div class="assigned" id="assignedList" role="group" aria-labelledby="assignedLabel"></div>
-          <p class="hint" id="assignedHint"></p>
-        </div>
-
-        <div class="field-row">
-          <label for="priority">Priority</label>
-          <select id="priority">
-            <option value="low">Low</option>
-            <option value="medium" selected>Medium</option>
-            <option value="high">High</option>
-          </select>
-        </div>
-
-        <div class="field-row">
-          <div class="label-row">
-            <label for="notes">Notes</label>
-            <small>Markdown supported</small>
-          </div>
-          <div class="editor-toolbar">
-            <button type="button" title="Bold" onclick="mdWrap('**')"><b>B</b></button>
-            <button type="button" title="Italic" onclick="mdWrap('_')"><i>I</i></button>
-            <span class="sep"></span>
-            <button type="button" title="Bulleted list" onclick="mdLines('- ')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1.4" fill="currentColor" stroke="none"/><circle cx="3.5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="3.5" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg>
-            </button>
-            <button type="button" title="Numbered list" onclick="mdLines('1. ')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6h12M9 12h12M9 18h12M4 6h1v4M4 14h2v1H4v1h2"/></svg>
-            </button>
-            <span class="sep"></span>
-            <button type="button" title="Add a link" onclick="mdLink()">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.5-1.5"/></svg>
-            </button>
-          </div>
-          <textarea id="notes" maxlength="5000" dir="auto" placeholder="Write meeting notes, task requirements, links or additional details here..."></textarea>
-        </div>
-
-        <div class="field-row">
-          <div class="label-row">
-            <label>Team files</label>
-            <small id="fileCount">0 / 5</small>
-          </div>
-          <ul class="file-list" id="fileList"></ul>
-          <button class="btn btn-ghost" type="button" id="fileAddBtn" onclick="document.getElementById('fileInput').click()">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-            Attach files
-          </button>
-          <input type="file" id="fileInput" accept=".pdf,.txt,.md,.doc,.docx,.xls,.xlsx" multiple hidden>
-          <p class="hint">For the people on this phase. Never shown to the client. PDF, TXT, MD, Word or Excel, up to 5 files, 8 MB each.</p>
-          <div class="media-error" id="fileError"></div>
-        </div>
-      </section>
+        </section>
+      </div>
 
     </form>
-
-    <div class="save-bar" id="saveBar" hidden>
-      <button class="btn-link" type="button" id="deleteBtn" onclick="removePhase()" hidden>Delete phase</button>
-      <p>Unsaved changes will be lost if you leave this page.</p>
-      <button class="btn btn-ghost" type="button" onclick="discard()">Discard</button>
-      <button class="btn btn-dark" type="button" id="saveBtn" onclick="save()">Save changes</button>
-    </div>
 
   </div>
 </div>
@@ -730,7 +754,7 @@ let dirty       = false;
 
 /* Fields the design leaves off the page but the task still carries. They go
    back unchanged on save, so editing a phase here never wipes them. */
-let keep = { link:"", orientation:"horizontal", scheduled_time:"" };
+let keep = { link:"", orientation:"horizontal" };
 
 /* The client's team, who can go on the phase: [{id, name, role}]. */
 let candidates  = [];
@@ -1227,7 +1251,7 @@ async function load(){
   maxFileBytes = Number(data.max_file_bytes) || maxFileBytes;
 
   document.getElementById("mediaHint").textContent =
-    "Cover image is optional. Click the cover to upload it. Maximum " + Math.round(maxBytes / 1024 / 1024) + " MB.";
+    "Optional. Click the cover to upload it. Maximum " + Math.round(maxBytes / 1024 / 1024) + " MB.";
 
   const project = data.project;
   projectId = project.id;
@@ -1269,16 +1293,14 @@ async function load(){
   paintMediaControls();
 
   document.getElementById("taskForm").hidden = false;
-  document.getElementById("saveBar").hidden  = false;
   updateCounter();
   dirty = false;
 }
 
 function fill(task){
   document.getElementById("taskName").value   = task.title || "";
-  document.getElementById("phaseLabel").value = task.phase_label || "";
-  document.getElementById("taskRole").value   = task.role || "";
   document.getElementById("updateDate").value = task.scheduled_date || "";
+  document.getElementById("updateTime").value = task.scheduled_time ? String(task.scheduled_time).slice(0, 5) : "";
   document.getElementById("visibility").value = task.status === "draft" ? "draft" : "published";
   document.getElementById("priority").value   = task.priority || "medium";
   notes.value = task.notes || "";
@@ -1287,8 +1309,7 @@ function fill(task){
 
   keep = {
     link          : task.link || "",
-    orientation   : task.orientation === "vertical" ? "vertical" : "horizontal",
-    scheduled_time: task.scheduled_time ? String(task.scheduled_time).slice(0, 5) : ""
+    orientation   : task.orientation === "vertical" ? "vertical" : "horizontal"
   };
 
   if (task.image_path) showMedia(task.image_path);
@@ -1296,21 +1317,59 @@ function fill(task){
 
 /* ── Save ───────────────────────────────────────────────────────────────── */
 
+/* The content form's inline errors: a line under the field, the field
+   outlined, and the reason again under the Save button. */
+function setStatus(message, kind){
+  const status = document.getElementById("formStatus");
+  status.textContent = message || "";
+  status.className = "status-text " + (kind || "");
+}
+
+function fieldError(inputId, errorId, message){
+  const field = document.getElementById(inputId);
+  field.classList.toggle("invalid", !!message);
+  field.setAttribute("aria-invalid", message ? "true" : "false");
+  showError(errorId, message);
+}
+
+function isDate(value){
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) && !isNaN(new Date(value + "T00:00:00").getTime());
+}
+
+document.getElementById("taskName").addEventListener("input", function(){
+  if (this.value.trim()) { fieldError("taskName", "titleError", ""); setStatus(""); }
+});
+document.getElementById("updateDate").addEventListener("input", function(){
+  if (isDate(this.value)) { fieldError("updateDate", "dateError", ""); setStatus(""); }
+});
+
 async function save(){
   if (saving) return;
 
   const title = document.getElementById("taskName").value.trim();
+  const date  = document.getElementById("updateDate").value;
+  const problems = [];
 
-  if (!title) {
-    toast("A title is required.", true);
-    document.getElementById("taskName").focus();
+  fieldError("taskName", "titleError", title ? "" : "Add the phase's title.");
+  if (!title) problems.push({ id:"taskName", message:"Add the phase's title." });
+
+  // Every phase is on the calendars, so it cannot be saved without a date.
+  fieldError("updateDate", "dateError", isDate(date) ? "" : "Pick the phase's date.");
+  if (!isDate(date)) problems.push({ id:"updateDate", message:"Pick the phase's date." });
+
+  if (problems.length) {
+    setStatus(problems.map(p => p.message).join(" "), "error");
+    document.getElementById(problems[0].id).focus();
     return;
   }
 
   if (textLength() > maxChars) {
-    toast("Description is over " + maxChars + " characters.", true);
+    setStatus("Description is over " + maxChars + " characters.", "error");
+    editor.focus();
     return;
   }
+
+  setStatus("");
 
   const body = new FormData();
 
@@ -1321,11 +1380,9 @@ async function save(){
   body.append("link", keep.link);
   body.append("description", editor.innerHTML.trim());
   body.append("orientation", keep.orientation);
-  body.append("scheduled_date", document.getElementById("updateDate").value);
-  body.append("scheduled_time", keep.scheduled_time);
+  body.append("scheduled_date", date);
+  body.append("scheduled_time", document.getElementById("updateTime").value);
   body.append("status", document.getElementById("visibility").value);
-  body.append("phase_label", document.getElementById("phaseLabel").value.trim());
-  body.append("role", document.getElementById("taskRole").value.trim());
   body.append("priority", document.getElementById("priority").value);
   body.append("notes", notes.value);
   body.append("teammates", JSON.stringify(chosenTeammates()));
@@ -1351,6 +1408,7 @@ async function save(){
   toast(data.message, !data.success);
 
   if (!data.success) {
+    setStatus(data.message || "Something went wrong.", "error");
     setBusy(false);
     return;
   }
@@ -1367,7 +1425,7 @@ function setBusy(busy){
   saving = busy;
   const button = document.getElementById("saveBtn");
   button.disabled = busy;
-  button.textContent = busy ? "Saving..." : "Save changes";
+  button.textContent = busy ? "Saving..." : "Save phase";
 }
 
 /* Discard drops what was typed: back to the phase, or to the project when

@@ -125,7 +125,7 @@ check("page: a request needs a date, time and topic", ($r["message"] ?? "") === 
 [, $r] = post("api/calendar.php?action=respond_request", $am2, ["id" => 400, "status" => "approved"]);
 check("page: not someone else's client's request", ($r["message"] ?? "") === "That request is not yours to answer.", json_encode($r));
 
-[, $r] = post("api/project-tasks.php", $am2, ["project_id" => 501, "title" => "Page update", "status" => "published", "link" => "beta.example"], [], true);
+[, $r] = post("api/project-tasks.php", $am2, ["project_id" => 501, "title" => "Page update", "status" => "published", "scheduled_date" => day("0"), "link" => "beta.example"], [], true);
 $task = one($pdo, "SELECT * FROM project_tasks WHERE title = 'Page update'");
 check("page: a published task tells the client once", ($r["message"] ?? "") === "Task published." && $task
     && $task["link"] === "https://beta.example" && notes($pdo, "user", 11, "project_update") === 1, json_encode($r));
@@ -133,7 +133,7 @@ check("page: a published task tells the client once", ($r["message"] ?? "") === 
 check("page: editing it doesn't tell them again", ($r["success"] ?? false) && notes($pdo, "user", 11, "project_update") === 1, json_encode($r));
 [$status, $r] = post("api/project-tasks.php", $seo, ["id" => (int) $task["id"], "title" => "Hijack", "status" => "published"], [], true);
 check("page: a member can't rewrite a teammate's task", $status === 403, "HTTP $status " . json_encode($r));
-[$status, $r] = post("api/project-tasks.php", $am2, ["project_id" => 501, "title" => "Bad link", "link" => "javascript:alert(1)"], [], true);
+[$status, $r] = post("api/project-tasks.php", $am2, ["project_id" => 501, "title" => "Bad link", "scheduled_date" => day("0"), "link" => "javascript:alert(1)"], [], true);
 check("page: a script link is refused", $status === 400, "HTTP $status " . json_encode($r));
 
 [, $r] = post("api/admin-inquiries.php", $owner, ["title" => "Page inquiry", "fields" => [["label" => "Name", "type" => "input", "required" => true]]]);
@@ -447,7 +447,7 @@ refusedChange("changes: W|ZONE's own request isn't ours to answer", $owner, "res
 
 // Projects.
 refusedChange("changes: not your project", $am, "post_project_update", ["project" => 501, "title" => "x"], 404);
-[, $done] = change("changes: post an update", $am2, "post_project_update", ["project" => 501, "title" => "AI update", "body" => "All good."]);
+[, $done] = change("changes: post an update", $am2, "post_project_update", ["project" => 501, "title" => "AI update", "body" => "All good.", "date" => day("0")]);
 check("changes: published and the client told once", ($done["data"]["result"]["client_notified"] ?? null) === true
     && notes($pdo, "user", 11, "project_update") === 2, json_encode($done));
 [, $done] = change("changes: a future update", $am2, "post_project_update", ["project" => 501, "title" => "AI later", "date" => day("+3")]);

@@ -315,7 +315,7 @@ export const READ_TOOLS = [
     title: "Get a project",
     description:
       "One project with its members and its phases (the task updates). is_live says whether the " +
-      "client can see a phase yet. Each phase carries its stage, role, priority, the team's notes, " +
+      "client can see a phase yet. Each phase carries its date (every phase has one and is on the calendars), priority, the team's notes, " +
       "its teammates and its Assigned table (which teammates work on it, what they do, todo / " +
       "in_progress / done - each person sets their own). is_complete is worked out: everyone assigned " +
       "is done. It also lists the gallery, attached files (for the team only) and can_delete.",
