@@ -244,7 +244,7 @@ if (!empty($_GET["mine"])) {
                 "phase" => ["id" => (int) $r["task_id"], "title" => (string) $r["title"]],
                 "project" => ["id" => (int) $r["project_id"], "title" => (string) $r["project_title"]],
                 "phase_label" => v1NullableString($r["phase_label"]),
-                "due_date" => v1NullableString($r["scheduled_date"]),
+                "due_date" => v1NullableString($r["due_on"]),
                 // todo | in_progress | done
                 "status" => (string) $r["status"],
                 "untrusted_content" => ["work_note" => (string) ($r["work_note"] ?? "")],
@@ -292,7 +292,7 @@ if ($id !== null) {
 
     $taskSql = "
         SELECT t.id, t.title, t.description, t.link, t.status, t.scheduled_date, t.scheduled_time,
-               t.is_complete, t.phase_label, t.role, t.priority, t.notes, t.created_at,
+               t.is_complete, t.phase_label, t.role, t.priority, t.notes, t.due_date, t.created_at,
                t.created_by_admin_id, t.image_path, t.gallery_paths,
                a.name AS created_by_name,
                " . TASK_IS_LIVE_SQL . " AS is_live
@@ -340,6 +340,7 @@ if ($id !== null) {
             "client_attachments" => phaseFilesOut($clientFiles[$taskId] ?? [], (int) $project["id"], $taskId),
             "scheduled_date" => v1NullableString($r["scheduled_date"]),
             "scheduled_time" => $r["scheduled_time"] === null ? null : substr((string) $r["scheduled_time"], 0, 5),
+            "due_date" => v1NullableString($r["due_date"]),
             "link" => v1NullableString($r["link"]),
             "created_by_name" => v1NullableString($r["created_by_name"]),
             "created_at" => (string) $r["created_at"],

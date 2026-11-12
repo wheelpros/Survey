@@ -299,7 +299,7 @@ function adminNames(PDO $pdo, array $ids)
 
 /**
  * The fields create_content_draft and update_content_draft share beyond the
- * text: orientation, priority, notes and team - only the ones given. Adds each
+ * text: orientation, priority, due date, notes and team - only the ones given. Adds each
  * to $args and, when it changes, to $changes. The team needs canAssignContent
  * (the author, the owner and the account managers).
  */
@@ -312,6 +312,10 @@ function contentTeamArgs(PDO $pdo, array $p, array $a, array &$args, array &$cha
     if (array_key_exists("priority", $a)) {
         $args["priority"] = argEnum($a, "priority", CONTENT_PRIORITIES);
         noteChange($changes, "priority", $post["priority"] ?? null, $args["priority"]);
+    }
+    if (array_key_exists("due_date", $a)) {
+        $args["due_date"] = argDate($a, "due_date");
+        noteChange($changes, "due date", $post["due_date"] ?? null, $args["due_date"]);
     }
     if (array_key_exists("notes", $a)) {
         $args["notes"] = argText($a, "notes", CONTENT_NOTES_MAX, false);
@@ -477,6 +481,10 @@ function phaseArgs(PDO $pdo, array $a, array &$args, array &$changes, array $pro
         $args["notes"] = argText($a, "notes", TASK_NOTES_MAX_CHARS, false);
         noteChange($changes, "team notes", $task ? (string) ($task["notes"] ?? "") : null, $args["notes"]);
     }
+    if (array_key_exists("due_date", $a)) {
+        $args["due_date"] = argDate($a, "due_date");
+        noteChange($changes, "due date", $task["due_date"] ?? null, $args["due_date"]);
+    }
 
     $people = $task ? taskTeamPayload($pdo, $task["id"]) : ["teammates" => [], "assignments" => []];
 
@@ -567,7 +575,7 @@ function phaseArgs(PDO $pdo, array $a, array &$args, array &$changes, array $pro
 function phaseColumnsFrom(array $a)
 {
     $f = [];
-    foreach (["priority", "notes"] as $key) {
+    foreach (["priority", "notes", "due_date"] as $key) {
         if (array_key_exists($key, $a)) {
             $f[$key] = $a[$key];
         }
@@ -1284,6 +1292,7 @@ function v1WriteHandlers()
                         "date" => $date, "time" => $time, "link" => $link,
                         "orientation" => $args["orientation"] ?? "horizontal",
                         "priority" => $args["priority"] ?? "medium",
+                        "due_date" => $args["due_date"] ?? null,
                         "team" => isset($args["team"]) ? adminNames($pdo, $args["team"]) : null,
                         "untrusted_content" => ["caption" => $caption, "images" => $images, "notes" => $args["notes"] ?? null],
                     ],
@@ -1300,15 +1309,16 @@ function v1WriteHandlers()
                         INSERT INTO content
                             (title, client, link, caption, content_type, type_label, platform, category,
                              orientation, media_path, media_paths, post_date, post_time, publish_now, status,
-                             priority, notes, created_by)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'draft', ?, ?, ?)
+                             priority, due_date, notes, created_by)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'draft', ?, ?, ?, ?)
                     ")->execute([
                         $a["title"], $a["company"], $a["link"], $a["caption"] !== "" ? textToHtml($a["caption"]) : null,
                         $a["type"], $a["type_label"], $a["type_label"], $a["type_label"],
                         $a["orientation"] ?? "horizontal",
                         $images[0] ?? null, $images ? json_encode($images, JSON_UNESCAPED_SLASHES) : null,
                         $a["date"], $a["time"] !== null ? $a["time"] . ":00" : null,
-                        $a["priority"] ?? "medium", ($a["notes"] ?? "") !== "" ? $a["notes"] : null, $p["id"],
+                        $a["priority"] ?? "medium", $a["due_date"] ?? null,
+                        ($a["notes"] ?? "") !== "" ? $a["notes"] : null, $p["id"],
                     ]);
                 } catch (Throwable $e) {
                     deleteFetchedContentImages($images);
@@ -1407,7 +1417,7 @@ function v1WriteHandlers()
                         UPDATE content
                         SET title = ?, caption = ?, content_type = ?, type_label = ?, platform = ?, category = ?,
                             post_date = ?, post_time = ?, link = ?, media_path = ?, media_paths = ?,
-                            orientation = ?, priority = ?, notes = ?,
+                            orientation = ?, priority = ?, due_date = ?, notes = ?,
                             updated_at = CURRENT_TIMESTAMP
                         WHERE id = ? AND status = 'draft'
                     ")->execute([
@@ -1424,6 +1434,7 @@ function v1WriteHandlers()
                         array_key_exists("images", $a) ? ($images ? json_encode($images, JSON_UNESCAPED_SLASHES) : null) : $post["media_paths"],
                         $a["orientation"] ?? $post["orientation"],
                         $a["priority"] ?? $post["priority"],
+                        array_key_exists("due_date", $a) ? $a["due_date"] : ($post["due_date"] ?? null),
                         array_key_exists("notes", $a) ? ($a["notes"] !== "" ? $a["notes"] : null) : $post["notes"],
                         $a["id"],
                     ]);
@@ -1925,10 +1936,6 @@ function v1WriteHandlers()
                 if (!canWriteTask($pdo, $p, $project)) {
                     throw new PortalWriteError("You are not on this project's team.", 403);
                 }
-                if ($date === null) {
-                    // Every phase is on the calendars, so it needs a date.
-                    throw new PortalWriteError("Pick the phase's date: date is required, like 2026-10-05.");
-                }
                 $client = clientLabelFor(["name" => $project["client_name"] ?? "the client", "company_name" => $project["company_name"]]);
                 $later = $date !== null && $date > date("Y-m-d");
                 $args = ["project" => $projectId, "title" => $title, "body" => $body, "date" => $date, "time" => $time,
@@ -2008,9 +2015,6 @@ function v1WriteHandlers()
                 }
                 if (array_key_exists("date", $a)) {
                     $args["date"] = argDate($a, "date");
-                    if ($args["date"] === null) {
-                        throw new PortalWriteError("Pick the phase's date: a phase can't lose its date, it is on the calendars.");
-                    }
                     $change("date", $task["scheduled_date"], $args["date"]);
                 }
                 if (array_key_exists("time", $a)) {

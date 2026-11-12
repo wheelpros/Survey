@@ -987,8 +987,11 @@ function emailNewAdminWelcome(PDO $pdo, $adminId, $name, $email, $role, $ownerNa
 |
 */
 
-/** Returns $changes cleaned up, or throws with the first thing wrong. */
-function checkPermissionChanges($changes)
+/**
+ * Returns $changes cleaned up, or throws with the first thing wrong. The
+ * Director-only keys go to one admin at a time, never to a whole role.
+ */
+function checkPermissionChanges($changes, $forOneAdmin = false)
 {
     if (!is_array($changes) || $changes === []) {
         throw new PortalWriteError("Choose at least one permission to change.");
@@ -999,8 +1002,8 @@ function checkPermissionChanges($changes)
         if (!isPermission($perm)) {
             throw new PortalWriteError("Unknown permission: " . mb_substr((string) $perm, 0, 64) . ".");
         }
-        if (isOwnerOnlyPermission($perm)) {
-            throw new PortalWriteError("“" . PERMISSIONS[$perm]["label"] . "” stays with the Director.", 403);
+        if (isOwnerOnlyPermission($perm) && !$forOneAdmin) {
+            throw new PortalWriteError("“" . PERMISSIONS[$perm]["label"] . "” can be given to one person, not to a whole role.", 403);
         }
         if ($value === "default") {
             $value = null;
@@ -1033,7 +1036,7 @@ function checkAdminPermissionChange(PDO $pdo, $adminId, $changes)
         throw new PortalWriteError("This admin has no role to set permissions for.", 422);
     }
 
-    return [$target, checkPermissionChanges($changes)];
+    return [$target, checkPermissionChanges($changes, true)];
 }
 
 /** "Can now create posts; can no longer publish; back to the default for ..." */

@@ -77,6 +77,10 @@ const adminRole = z
 const postTeamFields = {
   orientation: z.enum(["horizontal", "vertical"]).optional(),
   priority: z.enum(["low", "medium", "high"]).optional(),
+  due_date: z
+    .union([date("When the team should have it done"), z.literal("")])
+    .optional()
+    .describe("When the team should have it done (\"\" clears it). Staff only; the dashboard's Due column shows it, else the post's date"),
   notes: z
     .string()
     .max(5000)
@@ -110,6 +114,10 @@ const postTeamFields = {
 // same as the portal's Edit Phase page: never shown to the client.
 const phaseTeamFields = {
   priority: z.enum(["low", "medium", "high"]).optional(),
+  due_date: z
+    .union([date("When the team should have it done"), z.literal("")])
+    .optional()
+    .describe("When the team should have it done (\"\" clears it). Staff only; the dashboard's Due column shows it, else the phase's date"),
   notes: z
     .string()
     .max(5000)
@@ -276,7 +284,7 @@ export const WRITE_TOOLS = [
     description:
       "Saves a draft post for a client; publish_content schedules or publishes it afterwards. " +
       "The caption is plain text; blank lines start new paragraphs. Images are given as links: " +
-      "the portal downloads them when the change is confirmed. orientation, priority, notes and " +
+      "the portal downloads them when the change is confirmed. orientation, priority, due_date, notes and " +
       "team (from list_content_teammates) are set here too." + TWO_STEP,
     input: {
       client: clientId,
@@ -296,9 +304,9 @@ export const WRITE_TOOLS = [
     title: "Change a draft post",
     description:
       "Changes a draft post (get_content shows it as it is): its text, date, link and images, and " +
-      "for the team its orientation, priority, notes and who is on it. Only drafts: a scheduled or " +
+      "for the team its orientation, priority, due_date, notes and who is on it. Only drafts: a scheduled or " +
       "published post is edited in the portal. To schedule or publish, use publish_content. The " +
-      "caption is plain text and replaces the whole caption; \"\" clears date, time, link or notes. " +
+      "caption is plain text and replaces the whole caption; \"\" clears date, time, link, due_date or notes. " +
       "images replaces all of the post's images ([] removes them)." + EDIT + TWO_STEP,
     input: {
       id: recordId("The post's id - from list_content"),
@@ -447,7 +455,7 @@ export const WRITE_TOOLS = [
     scope: "projects:write",
     title: "Post a project update",
     description:
-      "Adds an update to a project - a phase in the portal. date is required: every phase shows on the " +
+      "Adds an update to a project - a phase in the portal. date is optional: a dated phase shows on the " +
       "calendars on its date. Published (the default), the client sees it from that date and is notified " +
       "once it is live. With publish false it is a draft only the project team sees. The body is plain text; " +
       "blank lines start new paragraphs. Priority, notes, team, assignments and gallery images " +
@@ -456,7 +464,7 @@ export const WRITE_TOOLS = [
       project: recordId("The project's id - from list_projects"),
       title: z.string().min(1).max(200),
       body: z.string().max(2000).optional(),
-      date: date("The phase's date: it shows on the calendars on this day, and a published phase reaches the client then"),
+      date: date("The phase's date: it shows on the calendars on this day, and a published phase reaches the client then").optional(),
       time: time("Time shown with the update").optional(),
       link: z.string().max(500).optional().describe("An http(s) link shown with the update"),
       publish: z.boolean().optional().describe("Default true; false saves a draft"),
@@ -469,14 +477,14 @@ export const WRITE_TOOLS = [
     title: "Change a project update",
     description:
       "Changes a project update - a phase in the portal. Give only the fields to change; \"\" clears " +
-      "time, link or notes. A phase always keeps a date (it is on the calendars), so date can be moved but not cleared. Publishing a draft makes it visible to the client once " +
+      "date, time, link, notes or due_date. Publishing a draft makes it visible to the client once " +
       "its date has come. team, assignments and images replace their whole list. A phase is never marked " +
       "complete by hand: it completes once everyone assigned is done." + TWO_STEP,
     input: {
       id: recordId("The task's id - from get_project"),
       title: z.string().min(1).max(200).optional(),
       body: z.string().max(2000).optional().describe("Replaces the whole text"),
-      date: date("The new date - it can be moved, never cleared").optional(),
+      date: z.union([date("The new date"), z.literal("")]).optional(),
       time: z.union([time("New time"), z.literal("")]).optional(),
       link: z.string().max(500).optional(),
       status: z.enum(["draft", "published"]).optional(),
@@ -696,7 +704,8 @@ export const WRITE_TOOLS = [
     description:
       "Changes permissions for everyone in a role - keys from get_permissions. true allows, false denies, " +
       "\"default\" goes back to the portal's default. A person's own exception (set_admin_permissions) still " +
-      "beats the role. Director-only permissions can't be given. Nobody is signed out." + TWO_STEP,
+      "beats the role. Director-only permissions (director_only in get_permissions) can't go to a role - " +
+      "give them to one admin with set_admin_permissions. Nobody is signed out." + TWO_STEP,
     input: { role: adminRole, changes: permissionChanges },
   },
   {
@@ -706,7 +715,8 @@ export const WRITE_TOOLS = [
     description:
       "Gives or takes a permission from one admin, whatever their role gets - keys from get_permissions. " +
       "true allows, false denies, \"default\" removes the exception so their role decides again. Changing " +
-      "their role later clears their exceptions. Not for the Director, who holds everything." + TWO_STEP,
+      "their role later clears their exceptions. Director-only permissions (director_only in get_permissions) can " +
+      "be allowed here for this one admin; no role ever has them. Not for the Director, who holds everything." + TWO_STEP,
     input: { admin: adminId, changes: permissionChanges },
   },
 

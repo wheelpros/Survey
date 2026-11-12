@@ -20,15 +20,23 @@ function phasePeople(PDO $pdo, $table, $taskId)
 $samBefore  = notes($pdo, "admin", 2, "project_assigned");
 $seanBefore = notes($pdo, "admin", 5, "project_assigned");
 
-// Every phase is on the calendars, so the form cannot save one without a date.
+// The date is optional: an undated phase saves, with no date. Removed again
+// so the checks below see the project as before.
 [$status, $r] = post("api/project-tasks.php", $owner, [
-    "project_id" => 500, "title" => "Undated phase", "status" => "published", "scheduled_date" => "",
+    "project_id" => 500, "title" => "Undated phase", "status" => "draft", "scheduled_date" => "",
+    "due_date" => day("+3"),
 ], [], true);
-check("phases: a new phase needs a date", $status === 400 && ($r["message"] ?? "") === "Pick the phase's date."
-    && !one($pdo, "SELECT id FROM project_tasks WHERE title = 'Undated phase'"), "HTTP $status " . json_encode($r));
-[$status, $r] = post("api/project-tasks.php", $owner, ["project_id" => 500, "title" => "Undated phase"], [], true);
-check("phases: leaving the date out is refused too", $status === 400 && ($r["message"] ?? "") === "Pick the phase's date.",
-    "HTTP $status " . json_encode($r));
+$undated = one($pdo, "SELECT * FROM project_tasks WHERE title = 'Undated phase'");
+check("phases: a phase can be saved without a date", ($r["success"] ?? false) && $undated
+    && $undated["scheduled_date"] === null && $undated["due_date"] === day("+3"), "HTTP $status " . json_encode($r));
+[$status, $r] = post("api/project-tasks.php", $owner, [
+    "project_id" => 500, "title" => "Bad due phase", "due_date" => "2026-02-31",
+], [], true);
+check("phases: a bad due date is refused", ($r["success"] ?? true) === false
+    && !one($pdo, "SELECT id FROM project_tasks WHERE title = 'Bad due phase'"), "HTTP $status " . json_encode($r));
+if ($undated) {
+    $pdo->prepare("DELETE FROM project_tasks WHERE id = ?")->execute([(int) $undated["id"]]);
+}
 
 [, $r] = post("api/project-tasks.php", $owner, [
     "project_id"  => 500,
@@ -79,9 +87,13 @@ check("phases: a save without the team leaves it alone", ($r["success"] ?? false
 [$status, $r] = post("api/project-tasks.php", $owner, [
     "id" => $phaseId, "title" => "Project brief", "status" => "published", "scheduled_date" => "",
 ], [], true);
-check("phases: an edit can't take the date away", $status === 400 && ($r["message"] ?? "") === "Pick the phase's date."
-    && one($pdo, "SELECT scheduled_date FROM project_tasks WHERE id = ?", [$phaseId])["scheduled_date"] === day("-1"),
+check("phases: an edit can clear the date", ($r["success"] ?? false)
+    && one($pdo, "SELECT scheduled_date FROM project_tasks WHERE id = ?", [$phaseId])["scheduled_date"] === null,
     "HTTP $status " . json_encode($r));
+// Put it back for the checks below.
+post("api/project-tasks.php", $owner, [
+    "id" => $phaseId, "title" => "Project brief", "status" => "published", "scheduled_date" => day("-1"),
+], [], true);
 
 [, $t] = pageGet("api/project-tasks.php?id=$phaseId", $owner);
 $pool = array_map("intval", array_column($t["candidates"] ?? [], "id"));
@@ -271,8 +283,8 @@ check("phases: deleting a phase takes its people with it", ($r["success"] ?? fal
 $samBefore  = notes($pdo, "admin", 2, "project_assigned");
 $seanBefore = notes($pdo, "admin", 5, "project_assigned");
 
-refusedChange("v1 phases: a phase needs a date", $owner, "post_project_update",
-    ["project" => 500, "title" => "Undated AI phase", "publish" => false], 422);
+refusedChange("v1 phases: a bad due date is refused", $owner, "post_project_update",
+    ["project" => 500, "title" => "Bad due AI phase", "publish" => false, "due_date" => "2026-02-31"], 422);
 
 [$prep, $done] = change("v1 phases: post a phase with its people", $owner, "post_project_update", [
     "project" => 500, "title" => "AI phase", "publish" => false, "date" => day("+2"),
@@ -299,7 +311,15 @@ refusedChange("v1 phases: only teammates are assigned", $owner, "update_task",
     ["id" => $v1Phase, "assignments" => [["admin_id" => 3]]], 422);
 refusedChange("v1 phases: completion is never set by hand", $owner, "update_task",
     ["id" => $v1Phase, "is_complete" => true], 422);
-refusedChange("v1 phases: the date can't be cleared", $owner, "update_task", ["id" => $v1Phase, "date" => ""], 422);
+refusedChange("v1 phases: a bad due date can't be set", $owner, "update_task", ["id" => $v1Phase, "due_date" => "soon"], 422);
+
+// The due date is set and cleared like the other optional fields.
+change("v1 phases: set the due date", $owner, "update_task", ["id" => $v1Phase, "due_date" => day("+5")]);
+check("v1 phases: the due date is stored",
+    one($pdo, "SELECT due_date FROM project_tasks WHERE id = ?", [$v1Phase])["due_date"] === day("+5"));
+change("v1 phases: clear the due date", $owner, "update_task", ["id" => $v1Phase, "due_date" => ""]);
+check("v1 phases: the due date is cleared",
+    one($pdo, "SELECT due_date FROM project_tasks WHERE id = ?", [$v1Phase])["due_date"] === null);
 
 $rowId = (int) one($pdo, "SELECT id FROM project_task_assignments WHERE task_id = ?", [$v1Phase])["id"];
 change("v1 phases: change only the priority", $owner, "update_task", ["id" => $v1Phase, "priority" => "low"]);

@@ -677,6 +677,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     $notes = mb_substr(trim((string) ($_POST["notes"] ?? "")), 0, CONTENT_NOTES_MAX);
 
+    // Due date travels with priority: when the team should have it done.
+    $dueDate = trim((string) ($_POST["due_date"] ?? ""));
+    if ($dueDate !== "") {
+        $d = DateTime::createFromFormat("!Y-m-d", $dueDate);
+        if (!$d || $d->format("Y-m-d") !== $dueDate) {
+            response(false, "Due date must be a valid date.", [], 400);
+        }
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Who may write this
@@ -729,6 +738,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         if (!$setsPriority) {
             $priority = (string) ($existing["priority"] ?? "medium");
             $notes = (string) ($existing["notes"] ?? "");
+            $dueDate = (string) ($existing["due_date"] ?? "");
         }
 
         if (!canEditContent(
@@ -979,10 +989,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     status,
                     priority,
                     notes,
+                    due_date,
                     created_by
                 )
                 VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                 )
             ");
 
@@ -1004,6 +1015,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 $status,
                 $priority,
                 $notes !== "" ? $notes : null,
+                $dueDate !== "" ? $dueDate : null,
                 $admin["id"]
             ]);
 
@@ -1096,6 +1108,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 status = ?,
                 priority = ?,
                 notes = ?,
+                due_date = ?,
                 updated_at = CURRENT_TIMESTAMP
 
             WHERE id = ?
@@ -1119,6 +1132,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $status,
             $priority,
             $notes !== "" ? $notes : null,
+            $dueDate !== "" ? $dueDate : null,
             $id
         ]);
 

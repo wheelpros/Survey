@@ -136,13 +136,8 @@ function saveProjectTask(PDO $pdo, array $actor, array $project, $existing, arra
         throw new PortalWriteError("Description must be " . TASK_DESCRIPTION_MAX_CHARS . " characters or fewer.");
     }
 
-    /* Every phase is on the calendars, so a new one needs a date, and an
-       edit may not take away the date a phase already has. */
-    $date = $f["scheduled_date"] ?? null;
-    if (($date === null || $date === "") && (!$existing || !empty($existing["scheduled_date"]))) {
-        throw new PortalWriteError("Pick the phase's date.");
-    }
-
+    /* The date is optional: a dated phase shows on the calendars on that day,
+       an undated one does not. */
     $orientation = in_array($f["orientation"] ?? "", ["horizontal", "vertical"], true) ? $f["orientation"] : "horizontal";
 
     /* draft or published, nothing else - anything unrecognised is pinned to
@@ -228,7 +223,24 @@ function phaseFieldColumns(array $f)
         $out["notes"] = $notes === "" ? null : $notes;
     }
 
+    if (array_key_exists("due_date", $f)) {
+        $out["due_date"] = checkedDueDate($f["due_date"]);
+    }
+
     return $out;
+}
+
+/** A YYYY-MM-DD due date, or null when empty. Shared by phases and content. */
+function checkedDueDate($value)
+{
+    $value = trim((string) ($value ?? ""));
+    if ($value === "") {
+        return null;
+    }
+    if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $value, $m) || !checkdate((int) $m[2], (int) $m[3], (int) $m[1])) {
+        throw new PortalWriteError("Due date must be a valid date.");
+    }
+    return $value;
 }
 
 /*
@@ -572,7 +584,7 @@ function myPhaseAssignments(PDO $pdo, array $actor)
             s.work_note,
             t.id          AS task_id,
             t.title,
-            t.scheduled_date,
+            COALESCE(t.due_date, t.scheduled_date) AS due_on,
             t.phase_label,
             p.id          AS project_id,
             p.title       AS project_title
@@ -580,7 +592,7 @@ function myPhaseAssignments(PDO $pdo, array $actor)
         JOIN project_tasks t ON t.id = s.task_id
         JOIN projects p      ON p.id = t.project_id
         WHERE s.admin_id = ?" . $scope . "
-        ORDER BY t.scheduled_date IS NULL, t.scheduled_date ASC, s.id ASC
+        ORDER BY due_on IS NULL, due_on ASC, s.id ASC
     ");
     $stmt->execute(array_merge([(int) $actor["id"]], $scopeParams));
     $tasks = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -627,7 +639,7 @@ function myDashboardItems(PDO $pdo, array $actor)
             "assignment_id" => (int) $r["assignment_id"],
             "title" => (string) $r["title"],
             "chip" => (string) $r["project_title"],
-            "due_date" => $r["scheduled_date"],
+            "due_date" => $r["due_on"],
             "label" => $r["phase_label"],
             "status" => (string) $r["status"],
             "href" => "project-task-details.html?project=" . (int) $r["project_id"] . "&id=" . (int) $r["task_id"],
@@ -638,7 +650,7 @@ function myDashboardItems(PDO $pdo, array $actor)
     $scope = $scopeSql !== "" ? " AND " . $scopeSql : "";
 
     $stmt = $pdo->prepare("
-        SELECT t.id AS task_id, t.title, t.scheduled_date, t.phase_label, m.is_done,
+        SELECT t.id AS task_id, t.title, COALESCE(t.due_date, t.scheduled_date) AS due_on, t.phase_label, m.is_done,
                p.id AS project_id, p.title AS project_title
         FROM project_task_teammates m
         JOIN project_tasks t ON t.id = m.task_id
@@ -657,7 +669,7 @@ function myDashboardItems(PDO $pdo, array $actor)
             "id" => (int) $r["task_id"],
             "title" => (string) $r["title"],
             "chip" => (string) $r["project_title"],
-            "due_date" => $r["scheduled_date"],
+            "due_date" => $r["due_on"],
             "label" => $r["phase_label"],
             "status" => (int) $r["is_done"] === 1 ? "done" : "todo",
             "href" => "project-task-details.html?project=" . (int) $r["project_id"] . "&id=" . (int) $r["task_id"],
@@ -669,7 +681,7 @@ function myDashboardItems(PDO $pdo, array $actor)
         ensureContentColumns($pdo);
 
         $stmt = $pdo->prepare("
-            SELECT c.id, c.title, c.client, c.type_label, c.content_type, c.post_date, a.is_done, a.status
+            SELECT c.id, c.title, c.client, c.type_label, c.content_type, COALESCE(c.due_date, c.post_date) AS due_on, a.is_done, a.status
             FROM content_assignees a
             JOIN content c ON c.id = a.content_id
             WHERE a.admin_id = ?
@@ -682,7 +694,7 @@ function myDashboardItems(PDO $pdo, array $actor)
                 "id" => (int) $r["id"],
                 "title" => (string) $r["title"],
                 "chip" => trim((string) $r["client"]) !== "" ? (string) $r["client"] : "Content",
-                "due_date" => $r["post_date"],
+                "due_date" => $r["due_on"],
                 "label" => $r["type_label"] ?: $r["content_type"],
                 // A post's Assigned row has the same three steps as a phase's.
                 "status" => array_key_exists((string) $r["status"], TASK_ASSIGNMENT_STATUSES)
@@ -760,7 +772,7 @@ function teamDashboardItems(PDO $pdo, array $actor)
 
     // Every phase in scope, whether or not anyone is on it yet.
     $stmt = $pdo->prepare("
-        SELECT t.id AS task_id, t.title, t.scheduled_date, t.phase_label, t.is_complete,
+        SELECT t.id AS task_id, t.title, COALESCE(t.due_date, t.scheduled_date) AS due_on, t.phase_label, t.is_complete,
                p.id AS project_id, p.title AS project_title
         FROM project_tasks t
         JOIN projects p ON p.id = t.project_id
@@ -774,7 +786,7 @@ function teamDashboardItems(PDO $pdo, array $actor)
             "people" => [],
             "title" => (string) $r["title"],
             "chip" => (string) $r["project_title"],
-            "due_date" => $r["scheduled_date"],
+            "due_date" => $r["due_on"],
             "label" => $r["phase_label"],
             // A complete phase is done; otherwise its people decide.
             "floor" => (int) $r["is_complete"] === 1 ? "done" : "todo",
@@ -815,7 +827,7 @@ function teamDashboardItems(PDO $pdo, array $actor)
         // scheduled post at least In progress, a published one Done.
         $floors = ["draft" => "todo", "scheduled" => "in_progress", "published" => "done"];
         foreach ($pdo->query("
-            SELECT id, title, client, type_label, content_type, post_date, status
+            SELECT id, title, client, type_label, content_type, COALESCE(due_date, post_date) AS due_on, status
             FROM content
         ")->fetchAll(PDO::FETCH_ASSOC) as $r) {
             $items["content:" . (int) $r["id"]] = [
@@ -824,7 +836,7 @@ function teamDashboardItems(PDO $pdo, array $actor)
                 "people" => [],
                 "title" => (string) $r["title"],
                 "chip" => trim((string) $r["client"]) !== "" ? (string) $r["client"] : "Content",
-                "due_date" => $r["post_date"],
+                "due_date" => $r["due_on"],
                 "label" => $r["type_label"] ?: $r["content_type"],
                 "floor" => $floors[(string) $r["status"]] ?? "todo",
                 "href" => "admin-content-form.html?id=" . (int) $r["id"],

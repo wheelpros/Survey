@@ -409,6 +409,17 @@
       .field-row {
         margin-bottom: 18px;
       }
+      /* Priority and Due date share one line. */
+      .pair-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 12px;
+      }
+      @media (max-width: 480px) {
+        .pair-row {
+          grid-template-columns: 1fr;
+        }
+      }
       .field-row:last-child {
         margin-bottom: 0;
       }
@@ -1915,13 +1926,19 @@
                   <p class="hint" id="checklistHint"></p>
                 </div>
 
-                <div class="field-row">
-                  <label for="priority">Priority</label>
-                  <select id="priority">
-                    <option value="low">Low</option>
-                    <option value="medium" selected>Medium</option>
-                    <option value="high">High</option>
-                  </select>
+                <div class="field-row pair-row">
+                  <div>
+                    <label for="priority">Priority</label>
+                    <select id="priority">
+                      <option value="low">Low</option>
+                      <option value="medium" selected>Medium</option>
+                      <option value="high">High</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label for="dueDate">Due date</label>
+                    <input type="date" id="dueDate" />
+                  </div>
                 </div>
 
                 <div class="field-row">
@@ -2807,6 +2824,7 @@
         // priority_sent tells the API this save carries both fields; a save
         // from anywhere else leaves them as they are.
         form.append("priority", document.getElementById("priority").value);
+        form.append("due_date", document.getElementById("dueDate").value);
         form.append("priority_sent", "1");
         form.append("notes", document.getElementById("notes").value.trim());
 
@@ -2942,6 +2960,7 @@
           )
             ? item.priority
             : "medium";
+          document.getElementById("dueDate").value = item.due_date || "";
 
           document.getElementById("notes").value = item.notes || "";
 
@@ -3549,6 +3568,7 @@
           publishNow: document.getElementById("publishNow").checked,
           memberIds: selectedTeammateIds(),
           priority: document.getElementById("priority").value,
+          dueDate: document.getElementById("dueDate").value,
           notes: document.getElementById("notes").value,
         };
       }
@@ -3676,6 +3696,7 @@
         )
           ? draft.priority
           : "medium";
+        document.getElementById("dueDate").value = draft.dueDate || "";
         document.getElementById("notes").value = draft.notes || "";
 
         document.getElementById("postDate").value = draft.postDate || "";

@@ -84,7 +84,7 @@ $liveAt = contentLiveAtSql("c");
 $select = "
     SELECT c.id, c.title, c.client, c.link, c.caption, c.content_type, c.type_label,
            c.platform, c.category, c.orientation, c.media_path, c.media_paths, c.post_date, c.post_time,
-           c.priority, c.notes, c.created_at, c.updated_at,
+           c.priority, c.due_date, c.notes, c.created_at, c.updated_at,
            " . contentStatusSql("c") . " AS status,
            $liveAt AS live_at,
            a.name AS created_by_name
@@ -128,6 +128,7 @@ if ($id !== null) {
     $data = contentItem($row, null);
     $data["orientation"] = (string) $row["orientation"];
     $data["priority"] = (string) ($row["priority"] ?? "medium");
+    $data["due_date"] = v1NullableString($row["due_date"] ?? null);
     // The Assigned table: each teammate, what they do and their own status.
     $data["assignees"] = array_map(function ($a) {
         return ["id" => (int) $a["id"], "name" => (string) $a["name"], "role" => (string) $a["role"],

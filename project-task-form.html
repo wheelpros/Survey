@@ -217,6 +217,18 @@ select.client-filter{
 .secondary-btn:hover{background:#f6f7f9}
 .discard-btn{border:none;background:transparent;color:var(--brand);font:inherit;font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;padding:6px}
 .discard-btn:hover{text-decoration:underline}
+.primary-btn svg{width:16px;height:16px;flex:none}
+
+/* Publish immediately - the same switch as the content form's. */
+.switch-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:4px}
+.switch-row .label{font-size:13px;font-weight:700;color:var(--text)}
+label.switch{position:relative;display:inline-block;width:44px;height:24px;flex:none;margin:0}
+.switch input{position:absolute;opacity:0;width:0;height:0}
+.switch .track{position:absolute;inset:0;background:#dfe3ea;border-radius:20px;cursor:pointer;transition:background .15s}
+.switch .track:before{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .15s;box-shadow:0 1px 3px rgba(16,24,40,.2)}
+.switch input:checked + .track{background:var(--nav-active)}
+.switch input:checked + .track:before{transform:translateX(20px)}
+.switch input:focus-visible + .track{box-shadow:0 0 0 3px rgba(27,30,58,.15)}
 /* Delete sits apart from Discard: one throws away edits, the other the phase. */
 .actions .btn-link{border-top:1px solid #eef1f5;padding-top:12px;margin-top:4px;color:var(--muted)}
 .actions .btn-link:hover{color:var(--brand)}
@@ -265,8 +277,9 @@ input:focus,select:focus,textarea:focus{border-color:var(--nav-active);box-shado
 .field-row:last-child{margin-bottom:0}
 .field-row[hidden]{display:none}
 .hint{font-size:12px;color:#98a2b3;margin-top:7px}
-/* Title takes the room; Visibility sits beside it. */
-.title-row{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:12px}
+/* Priority and Due date share one line. */
+.pair-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+@media (max-width:480px){.pair-row{grid-template-columns:1fr}}
 .media-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .media-error{display:none;font-size:12px;color:var(--brand);font-weight:700;margin-top:8px}
 .media-error.show{display:block}
@@ -425,19 +438,16 @@ document.addEventListener("DOMContentLoaded", function () {
         <section class="panel">
           <div class="panel-head"><h2>Phase details</h2></div>
           <div class="panel-body">
-            <div class="field-row title-row">
-              <div>
-                <label for="taskName">Title <span class="req" aria-hidden="true">*</span></label>
-                <input type="text" id="taskName" maxlength="200" dir="auto" placeholder="Title" required aria-describedby="titleError">
-                <div class="media-error" id="titleError"></div>
-              </div>
-              <div>
-                <label for="visibility">Visibility</label>
-                <select id="visibility" onchange="paintVisibility()">
-                  <option value="published">Published</option>
-                  <option value="draft">Draft</option>
-                </select>
-              </div>
+            <div class="field-row">
+              <label for="taskName">Title <span class="req" aria-hidden="true">*</span></label>
+              <input type="text" id="taskName" maxlength="200" dir="auto" placeholder="Title" required aria-describedby="titleError">
+              <div class="media-error" id="titleError"></div>
+            </div>
+
+            <div class="field-row">
+              <label for="link">Link</label>
+              <input type="text" id="link" maxlength="500" placeholder="e.g. https://example.com/campaign">
+              <p class="hint">Optional. Shown with the phase, to the team and the client.</p>
             </div>
 
             <div class="field-row">
@@ -490,13 +500,19 @@ document.addEventListener("DOMContentLoaded", function () {
               <p class="hint" id="assignedHint"></p>
             </div>
 
-            <div class="field-row">
-              <label for="priority">Priority</label>
-              <select id="priority">
-                <option value="low">Low</option>
-                <option value="medium" selected>Medium</option>
-                <option value="high">High</option>
-              </select>
+            <div class="field-row pair-row">
+              <div>
+                <label for="priority">Priority</label>
+                <select id="priority">
+                  <option value="low">Low</option>
+                  <option value="medium" selected>Medium</option>
+                  <option value="high">High</option>
+                </select>
+              </div>
+              <div>
+                <label for="dueDate">Due date</label>
+                <input type="date" id="dueDate">
+              </div>
             </div>
 
             <div class="field-row">
@@ -591,28 +607,41 @@ document.addEventListener("DOMContentLoaded", function () {
           </div>
         </section>
 
-        <!-- Every phase is on the calendars, so it always has a date. -->
+        <!-- Optional, like a post's: a dated phase is on the calendars and
+             reaches the client on its date; with no date and Publish
+             immediately off, it is saved as a draft. See phaseStatus(). -->
         <section class="panel">
           <div class="panel-head"><h2>Scheduling</h2></div>
           <div class="panel-body">
             <div class="field-row">
-              <label for="updateDate">Date <span class="req" aria-hidden="true">*</span></label>
-              <input type="date" id="updateDate" required aria-describedby="dateError">
-              <div class="media-error" id="dateError"></div>
+              <label for="updateDate">Date</label>
+              <input type="date" id="updateDate">
             </div>
             <div class="field-row">
               <label for="updateTime">Time</label>
               <input type="time" id="updateTime">
             </div>
-            <p class="note" id="scheduleNote">The phase shows on the calendars on this date. A published phase dated in the future reaches the client on that date.</p>
+
+            <div class="switch-row">
+              <span class="label" id="publishNowLabel">Publish immediately</span>
+              <label class="switch">
+                <input type="checkbox" id="publishNow" aria-labelledby="publishNowLabel">
+                <span class="track"></span>
+              </label>
+            </div>
+
+            <p class="note" id="scheduleNote">A dated phase shows on the calendars on its date and reaches the client then. With no date and Publish immediately off, it is saved as a draft only the team sees.</p>
           </div>
         </section>
 
         <section class="panel">
           <div class="panel-body">
             <div class="actions">
-              <button class="primary-btn" type="button" id="saveBtn" onclick="save()">Save phase</button>
-              <button class="discard-btn" type="button" onclick="discard()">Discard</button>
+              <button class="primary-btn" type="button" id="saveBtn" onclick="save()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="4 3 21 12 4 21 6 12 4 3"/></svg>
+                <span id="submitLabel">Save as draft</span>
+              </button>
+              <button class="discard-btn" type="button" onclick="discard()">Discard phase</button>
               <button class="btn-link" type="button" id="deleteBtn" onclick="removePhase()" hidden>Delete phase</button>
             </div>
             <div class="status-text" id="formStatus" role="alert"></div>
@@ -754,7 +783,7 @@ let dirty       = false;
 
 /* Fields the design leaves off the page but the task still carries. They go
    back unchanged on save, so editing a phase here never wipes them. */
-let keep = { link:"", orientation:"horizontal" };
+let keep = { orientation:"horizontal" };
 
 /* The client's team, who can go on the phase: [{id, name, role}]. */
 let candidates  = [];
@@ -1007,12 +1036,37 @@ const clientFiles = makeFileList({
   limits: fileLimits, onChange: () => markDirty(), removeIcon,
 });
 
-function paintVisibility(){
-  const draft = document.getElementById("visibility").value === "draft";
-  const badge = document.getElementById("visBadge");
-  badge.textContent = draft ? "Draft" : "Published";
-  badge.classList.toggle("draft", draft);
+/* The content form's rule: Publish immediately, or a date, publishes;
+   neither keeps it a draft. A future date holds it back from the client
+   until then (TASK_IS_LIVE_SQL). */
+function phaseStatus(){
+  if (document.getElementById("publishNow").checked) return "published";
+  return document.getElementById("updateDate").value ? "published" : "draft";
 }
+
+function isLater(){
+  const date = document.getElementById("updateDate").value;
+  return !!date && date > new Date().toLocaleDateString("en-CA");
+}
+
+/* The cover badge and the save button both say what the save will do. */
+function paintVisibility(){
+  const draft = phaseStatus() === "draft";
+  const badge = document.getElementById("visBadge");
+  badge.textContent = draft ? "Draft" : isLater() ? "Scheduled" : "Published";
+  badge.classList.toggle("draft", draft);
+
+  if (saving) return;
+  document.getElementById("submitLabel").textContent = taskId
+    ? "Update phase"
+    : draft ? "Save as draft" : isLater() ? "Schedule phase" : "Publish phase";
+}
+
+["updateDate", "publishNow"].forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener("input", paintVisibility);
+  el.addEventListener("change", paintVisibility);
+});
 
 /* ── Teammates ──────────────────────────────────────────────────────────── */
 
@@ -1301,14 +1355,16 @@ function fill(task){
   document.getElementById("taskName").value   = task.title || "";
   document.getElementById("updateDate").value = task.scheduled_date || "";
   document.getElementById("updateTime").value = task.scheduled_time ? String(task.scheduled_time).slice(0, 5) : "";
-  document.getElementById("visibility").value = task.status === "draft" ? "draft" : "published";
+  // Published with no date to carry it: that is Publish immediately.
+  document.getElementById("publishNow").checked = task.status !== "draft" && !task.scheduled_date;
+  document.getElementById("link").value       = task.link || "";
   document.getElementById("priority").value   = task.priority || "medium";
+  document.getElementById("dueDate").value    = task.due_date || "";
   notes.value = task.notes || "";
 
   editor.innerHTML = task.description || "";
 
   keep = {
-    link          : task.link || "",
     orientation   : task.orientation === "vertical" ? "vertical" : "horizontal"
   };
 
@@ -1339,23 +1395,20 @@ function isDate(value){
 document.getElementById("taskName").addEventListener("input", function(){
   if (this.value.trim()) { fieldError("taskName", "titleError", ""); setStatus(""); }
 });
-document.getElementById("updateDate").addEventListener("input", function(){
-  if (isDate(this.value)) { fieldError("updateDate", "dateError", ""); setStatus(""); }
-});
 
 async function save(){
   if (saving) return;
 
   const title = document.getElementById("taskName").value.trim();
   const date  = document.getElementById("updateDate").value;
+  const due   = document.getElementById("dueDate").value;
   const problems = [];
 
   fieldError("taskName", "titleError", title ? "" : "Add the phase's title.");
   if (!title) problems.push({ id:"taskName", message:"Add the phase's title." });
 
-  // Every phase is on the calendars, so it cannot be saved without a date.
-  fieldError("updateDate", "dateError", isDate(date) ? "" : "Pick the phase's date.");
-  if (!isDate(date)) problems.push({ id:"updateDate", message:"Pick the phase's date." });
+  if (date && !isDate(date)) problems.push({ id:"updateDate", message:"Enter a valid date." });
+  if (due && !isDate(due)) problems.push({ id:"dueDate", message:"Enter a valid due date." });
 
   if (problems.length) {
     setStatus(problems.map(p => p.message).join(" "), "error");
@@ -1377,13 +1430,14 @@ async function save(){
 
   body.append("project_id", projectId);
   body.append("title", title);
-  body.append("link", keep.link);
+  body.append("link", document.getElementById("link").value.trim());
   body.append("description", editor.innerHTML.trim());
   body.append("orientation", keep.orientation);
   body.append("scheduled_date", date);
   body.append("scheduled_time", document.getElementById("updateTime").value);
-  body.append("status", document.getElementById("visibility").value);
+  body.append("status", phaseStatus());
   body.append("priority", document.getElementById("priority").value);
+  body.append("due_date", due);
   body.append("notes", notes.value);
   body.append("teammates", JSON.stringify(chosenTeammates()));
   body.append("assignments", JSON.stringify(collectAssignments()));
@@ -1423,14 +1477,21 @@ async function save(){
 
 function setBusy(busy){
   saving = busy;
-  const button = document.getElementById("saveBtn");
-  button.disabled = busy;
-  button.textContent = busy ? "Saving..." : "Save phase";
+  document.getElementById("saveBtn").disabled = busy;
+  if (busy) document.getElementById("submitLabel").textContent = "Saving...";
+  else paintVisibility();
 }
 
-/* Discard drops what was typed: back to the phase, or to the project when
-   there is no phase yet. */
-function discard(){
+/* Discard drops what was typed - after asking, as the content form does -
+   and goes back to the phase, or to the project when there is no phase yet. */
+async function discard(){
+  const ok = await askConfirm({
+    title : "Discard phase",
+    text  : taskId ? "Nothing you changed here will be saved." : "Nothing in this phase will be saved.",
+    action: "Discard phase"
+  });
+  if (!ok) return;
+
   dirty = false;
   location.href = taskId
     ? "project-task-details.html?project=" + encodeURIComponent(projectId) + "&id=" + encodeURIComponent(taskId)

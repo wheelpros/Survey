@@ -809,6 +809,11 @@ const CONTENT_EXTRA_COLUMNS = [
        version. */
     "priority"    => "VARCHAR(10) NOT NULL DEFAULT 'medium'",
     "notes"       => "TEXT NULL",
+
+    /* When the team should have it done - beside priority on the form, and
+       the dashboard's Due column (post_date when empty). sql/due_dates.sql
+       is the manual version. */
+    "due_date"    => "DATE NULL",
 ];
 
 /** Longest notes one post can carry. api/admin-content.php trims to it. */
@@ -1590,6 +1595,11 @@ const PROJECT_TASK_EXTRA_COLUMNS = [
     /* Up to five images beside the cover, shown on the phase page only -
        a JSON list, the same shape as content.media_paths. */
     "gallery_paths"      => "TEXT NULL",
+
+    /* When the team should have it done - beside priority on the form, and
+       the dashboard's Due column (scheduled_date when empty).
+       sql/due_dates.sql is the manual version. */
+    "due_date"           => "DATE NULL",
 ];
 
 /* A phase's priority, the same three content uses. */

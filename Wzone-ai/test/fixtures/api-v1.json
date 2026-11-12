@@ -623,6 +623,7 @@
         },
         "orientation": "horizontal",
         "priority": "medium",
+        "due_date": null,
         "assignees": [],
         "attachments": [],
         "created_at": "2026-11-11 11:03:53",
@@ -938,6 +939,7 @@
                 "phase_label": null,
                 "role": null,
                 "priority": "medium",
+                "due_date": null,
                 "teammates": [
                     {
                         "id": 5,
@@ -982,6 +984,7 @@
                 "phase_label": null,
                 "role": null,
                 "priority": "medium",
+                "due_date": null,
                 "teammates": [],
                 "assignments": [],
                 "untrusted_content": {
@@ -1009,6 +1012,7 @@
                 "phase_label": null,
                 "role": null,
                 "priority": "medium",
+                "due_date": null,
                 "teammates": [],
                 "assignments": [],
                 "untrusted_content": {
