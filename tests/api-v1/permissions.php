@@ -63,9 +63,14 @@ $pdo->exec("INSERT INTO admin_permission_overrides (admin_id, permission, allowe
 forgetPermissions();
 check("permissions: an admin's override beats the role", can($sam, "content.create"));
 
+$pdo->exec("INSERT INTO role_permissions (role, permission, allowed) VALUES ('super_admin', 'settings.manage', 1)");
+forgetPermissions();
+check("permissions: a Director-only key never comes from a role, even by a stray row", !can($sam, "settings.manage"));
+
 $pdo->exec("INSERT INTO admin_permission_overrides (admin_id, permission, allowed) VALUES (2, 'settings.manage', 1)");
 forgetPermissions();
-check("permissions: a Director-only key can't be handed out, even by a stray row", !can($sam, "settings.manage"));
+check("permissions: but one person can be given it", can($sam, "settings.manage")
+    && !can(["kind" => "admin", "id" => 7, "role" => "super_admin"], "settings.manage"));
 
 $pdo->exec("DELETE FROM role_permissions");
 $pdo->exec("DELETE FROM admin_permission_overrides WHERE admin_id = 2");
@@ -127,6 +132,29 @@ foreach ([
 check("permissions page: nobody else can save", $status === 403);
 forgetPermissions();
 check("permissions page: none of that stuck", !can(["id" => 2, "role" => "super_admin"], "settings.manage"));
+
+// The Director hands Sam the team and these permissions - Sam alone, not every Super Admin.
+[$status, $r] = post("api/permissions-admin.php", $owner, ["admin_id" => 2, "changes" => ["admins.manage" => true, "permissions.manage" => true]]);
+check("permissions page: a Director-only permission goes to one person", $status === 200 && ($r["success"] ?? false) === true, "HTTP $status " . json_encode($r));
+forgetPermissions();
+check("permissions page: Sam holds them, his role doesn't",
+    can(["kind" => "admin", "id" => 2, "role" => "super_admin"], "permissions.manage")
+    && !isset($r["data"]["matrix"]["super_admin"]["permissions.manage"]));
+[$status] = pageGet("api/permissions-admin.php", $sa);
+check("permissions page: Sam can open it now", $status === 200, "HTTP $status");
+[$status, $r] = post("api/permissions-admin.php", $sa, ["admin_id" => 1, "changes" => ["content.create" => false]]);
+check("permissions page: but not touch the Director's", $status === 403, "HTTP $status " . json_encode($r));
+[$status, $r] = post("api/permissions-admin.php", $sa, ["role" => "seo_admin", "changes" => ["settings.manage" => true]]);
+check("permissions page: nor hand a Director-only one to a role", $status === 403, "HTTP $status " . json_encode($r));
+[$status, $r] = post("api/admin-role.php", $sa, ["admin_id" => 1, "role" => "seo_admin"]);
+check("permissions page: nor change the Director's role", ($r["success"] ?? null) !== true
+    && one($pdo, "SELECT role FROM admins WHERE id = 1")["role"] === "owner", "HTTP $status " . json_encode($r));
+[$status, $r] = post("api/remove-admin.php", $sa, ["id" => 1]);
+check("permissions page: nor remove the Director", ($r["success"] ?? null) !== true
+    && one($pdo, "SELECT id FROM admins WHERE id = 1"), "HTTP $status " . json_encode($r));
+post("api/permissions-admin.php", $owner, ["admin_id" => 2, "changes" => ["admins.manage" => "default", "permissions.manage" => "default"]]);
+forgetPermissions();
+check("permissions page: and back to nothing", !can(["kind" => "admin", "id" => 2, "role" => "super_admin"], "permissions.manage"));
 
 // "default" puts things back, and a role change clears someone's exceptions.
 post("api/permissions-admin.php", $owner, ["role" => "super_admin", "changes" => ["content.create" => "default"]]);

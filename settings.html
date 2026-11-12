@@ -1914,17 +1914,15 @@ function renderPermRoles(){
     `<th scope="col" class="perm-col">${permEsc(r.name)}
        <button type="button" class="perm-reset" onclick="resetPermRole('${r.key}')">Reset to default</button></th>`).join("")}</tr></thead>`;
 
-  permGroups().forEach(g => {
-    const changed = g.items.filter(p => !p.owner_only)
+  // The Director-only keys never go to a role: they are handed to one person at a time.
+  permGroups().map(g => ({ ...g, items: g.items.filter(p => !p.owner_only) })).forEach(g => {
+    if (!g.items.length) return;
+    const changed = g.items
       .reduce((n, p) => n + roles.filter(r => roleValue(r.key, p.key) !== p.defaults.includes(r.key)).length, 0);
     html += permAreaHead("roles", g, roles.length + 1, changed ? `${changed} changed` : "");
     g.items.forEach(p => {
-      html += `<tr${p.owner_only ? ' class="perm-locked"' : ""}><th scope="row">${permEsc(p.label)}</th>`;
+      html += `<tr><th scope="row">${permEsc(p.label)}</th>`;
       roles.forEach(r => {
-        if (p.owner_only) {
-          html += `<td class="perm-col"><span class="perm-lock">Director</span></td>`;
-          return;
-        }
         const on = roleValue(r.key, p.key);
         const changed = on !== p.defaults.includes(r.key);
         html += `<td class="perm-col"><label class="perm-check">
@@ -1953,7 +1951,7 @@ function permAreaHead(view, g, cols, note){
     <button type="button" class="perm-fold" aria-expanded="${open}" onclick="togglePermArea('${view}','${g.area}')">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <span>${permEsc(g.label)}</span>
-      <span class="perm-count">${g.items.filter(p => view === "roles" || !p.owner_only).length}</span>
+      <span class="perm-count">${g.items.length}</span>
       ${note ? `<span class="perm-note">${permEsc(note)}</span>` : ""}
     </button></th></tr>`;
 }
@@ -2084,20 +2082,24 @@ function renderPermPerson(){
 
   let html = `<thead><tr><th scope="col">Permission</th><th scope="col" class="perm-col">${permEsc(admin.role_name)} gets</th><th scope="col" class="perm-col">${permEsc(admin.name)}</th></tr></thead>`;
   permGroups().forEach(g => {
-    if (g.items.every(p => p.owner_only)) return;
-    const set = g.items.filter(p => !p.owner_only && personValue(admin, p.key) !== null).length;
+    const set = g.items.filter(p => p.owner_only ? personValue(admin, p.key) === true : personValue(admin, p.key) !== null).length;
     html += permAreaHead("people", g, 3, set ? `${set} exception${set > 1 ? "s" : ""}` : "");
     g.items.forEach(p => {
-      if (p.owner_only) return;
-      const fromRole = roleValue(admin.role, p.key);
+      // A Director-only key: no role has it, so the only choice is to allow it for this person.
+      const fromRole = p.owner_only ? false : roleValue(admin.role, p.key);
       const v = personValue(admin, p.key);
-      html += `<tr><th scope="row">${permEsc(p.label)}</th>
-        <td class="perm-col">${fromRole ? "Yes" : "No"}</td>
-        <td class="perm-col"><select class="perm-select${v === null ? "" : " is-set"}" onchange="editPermPerson(${admin.id},'${p.key}',this.value)"
-              aria-label="${permEsc(admin.name)}: ${permEsc(p.label)}">
-          <option value="default"${v === null ? " selected" : ""}>As role (${fromRole ? "yes" : "no"})</option>
+      const allowed = v === true;
+      const options = p.owner_only
+        ? `<option value="default"${allowed ? "" : " selected"}>As role (no)</option>
+          <option value="allow"${allowed ? " selected" : ""}>Allow</option>`
+        : `<option value="default"${v === null ? " selected" : ""}>As role (${fromRole ? "yes" : "no"})</option>
           <option value="allow"${v === true ? " selected" : ""}>Allow</option>
-          <option value="deny"${v === false ? " selected" : ""}>Deny</option>
+          <option value="deny"${v === false ? " selected" : ""}>Deny</option>`;
+      html += `<tr><th scope="row">${permEsc(p.label)}</th>
+        <td class="perm-col">${p.owner_only ? "No - Director only" : fromRole ? "Yes" : "No"}</td>
+        <td class="perm-col"><select class="perm-select${(p.owner_only ? allowed : v !== null) ? " is-set" : ""}" onchange="editPermPerson(${admin.id},'${p.key}',this.value)"
+              aria-label="${permEsc(admin.name)}: ${permEsc(p.label)}">
+          ${options}
         </select></td></tr>`;
     });
     html += "</tbody>";

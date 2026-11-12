@@ -250,9 +250,9 @@ describe("private server: confirmed changes", () => {
       ["update_content_draft", { id: 1, date: "tomorrow" }],
       ["create_form_draft", { client: 10, title: "x", questions: [] }],
       ["update_task", { id: 1, date: "tomorrow" }],
-      // Every phase is on the calendars: a new one needs a date, and it can't be cleared.
-      ["post_project_update", { project: 500, title: "x" }],
-      ["update_task", { id: 1, date: "" }],
+      ["update_task", { id: 1, due_date: "soon" }],
+      ["post_project_update", { project: 500, title: "x", due_date: "13/01/2026" }],
+      ["update_content_draft", { id: 1, due_date: "friday" }],
       ["update_form", { id: 1, questions: [] }],
       ["update_form", { title: "No id" }],
       ["update_content_draft", { id: 1, type: "tiktok" }],
@@ -272,15 +272,16 @@ describe("private server: confirmed changes", () => {
     await c.close();
   });
 
-  it("asks for a phase's date and no longer for its stage or role", async () => {
+  it("leaves a phase's date optional, offers a due date, and no longer asks for its stage or role", async () => {
     fakePortal({ scopes: SEO });
     const c = await connect();
     const { tools } = await c.listTools();
     const post = tools.find((t) => t.name === "post_project_update").inputSchema;
     const update = tools.find((t) => t.name === "update_task").inputSchema;
-    expect(post.required).toContain("date");
+    expect(post.required ?? []).not.toContain("date");
     expect(update.required ?? []).not.toContain("date");
     for (const schema of [post, update]) {
+      expect(Object.keys(schema.properties)).toContain("due_date");
       expect(Object.keys(schema.properties)).not.toContain("phase");
       expect(Object.keys(schema.properties)).not.toContain("role");
     }

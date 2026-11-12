@@ -20,15 +20,23 @@ function phasePeople(PDO $pdo, $table, $taskId)
 $samBefore  = notes($pdo, "admin", 2, "project_assigned");
 $seanBefore = notes($pdo, "admin", 5, "project_assigned");
 
-// Every phase is on the calendars, so the form cannot save one without a date.
+// The date is optional: an undated phase saves, with no date. Removed again
+// so the checks below see the project as before.
 [$status, $r] = post("api/project-tasks.php", $owner, [
-    "project_id" => 500, "title" => "Undated phase", "status" => "published", "scheduled_date" => "",
+    "project_id" => 500, "title" => "Undated phase", "status" => "draft", "scheduled_date" => "",
+    "due_date" => day("+3"),
 ], [], true);
-check("phases: a new phase needs a date", $status === 400 && ($r["message"] ?? "") === "Pick the phase's date."
-    && !one($pdo, "SELECT id FROM project_tasks WHERE title = 'Undated phase'"), "HTTP $status " . json_encode($r));
-[$status, $r] = post("api/project-tasks.php", $owner, ["project_id" => 500, "title" => "Undated phase"], [], true);
-check("phases: leaving the date out is refused too", $status === 400 && ($r["message"] ?? "") === "Pick the phase's date.",
-    "HTTP $status " . json_encode($r));
+$undated = one($pdo, "SELECT * FROM project_tasks WHERE title = 'Undated phase'");
+check("phases: a phase can be saved without a date", ($r["success"] ?? false) && $undated
+    && $undated["scheduled_date"] === null && $undated["due_date"] === day("+3"), "HTTP $status " . json_encode($r));
+[$status, $r] = post("api/project-tasks.php", $owner, [
+    "project_id" => 500, "title" => "Bad due phase", "due_date" => "2026-02-31",
+], [], true);
+check("phases: a bad due date is refused", ($r["success"] ?? true) === false
+    && !one($pdo, "SELECT id FROM project_tasks WHERE title = 'Bad due phase'"), "HTTP $status " . json_encode($r));
+if ($undated) {
+    $pdo->prepare("DELETE FROM project_tasks WHERE id = ?")->execute([(int) $undated["id"]]);
+}
 
 [, $r] = post("api/project-tasks.php", $owner, [
     "project_id"  => 500,
@@ -79,9 +87,13 @@ check("phases: a save without the team leaves it alone", ($r["success"] ?? false
 [$status, $r] = post("api/project-tasks.php", $owner, [
     "id" => $phaseId, "title" => "Project brief", "status" => "published", "scheduled_date" => "",
 ], [], true);
-check("phases: an edit can't take the date away", $status === 400 && ($r["message"] ?? "") === "Pick the phase's date."
-    && one($pdo, "SELECT scheduled_date FROM project_tasks WHERE id = ?", [$phaseId])["scheduled_date"] === day("-1"),
+check("phases: an edit can clear the date", ($r["success"] ?? false)
+    && one($pdo, "SELECT scheduled_date FROM project_tasks WHERE id = ?", [$phaseId])["scheduled_date"] === null,
     "HTTP $status " . json_encode($r));
+// Put it back for the checks below.
+post("api/project-tasks.php", $owner, [
+    "id" => $phaseId, "title" => "Project brief", "status" => "published", "scheduled_date" => day("-1"),
+], [], true);
 
 [, $t] = pageGet("api/project-tasks.php?id=$phaseId", $owner);
 $pool = array_map("intval", array_column($t["candidates"] ?? [], "id"));

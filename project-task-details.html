@@ -226,6 +226,13 @@ select.client-filter{
 .facts > div > span{display:block;font-size:10px;font-weight:700;color:#98a2b3;margin-bottom:5px}
 .facts strong{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;word-break:break-word}
 .dot{width:6px;height:6px;border-radius:50%;background:#20a95a;flex:none}
+.facts .wide{grid-column:1 / -1}
+.facts a{color:#3745a4;text-decoration:none;word-break:break-all}
+.facts a:hover{text-decoration:underline}
+/* Priority and Due date side by side, as on the form. */
+.block-pair{display:flex;flex-wrap:wrap;gap:12px 32px}
+.block-pair .due{font-size:12px;font-weight:700}
+.block-pair .due.late{color:#b42318}
 
 .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:800;border:1px solid;flex:none;white-space:nowrap}
 .pill.green{color:#17803d;background:#e8faef;border-color:#b8e7c8}
@@ -400,6 +407,7 @@ document.addEventListener("DOMContentLoaded", function () {
           <div class="facts">
             <div><span>Date</span><strong id="factDue">—</strong></div>
             <div><span>Visibility</span><strong id="factVis">—</strong></div>
+            <div class="wide"><span>Link</span><strong id="factLink">—</strong></div>
           </div>
         </div>
       </section>
@@ -421,9 +429,15 @@ document.addEventListener("DOMContentLoaded", function () {
           <span class="lbl">Teammates</span>
           <div class="chips" id="teamChips"></div>
         </div>
-        <div class="block">
-          <span class="lbl">Priority</span>
-          <span class="pill" id="priorityPill"></span>
+        <div class="block block-pair">
+          <div>
+            <span class="lbl">Priority</span>
+            <span class="pill" id="priorityPill"></span>
+          </div>
+          <div>
+            <span class="lbl">Due date</span>
+            <span class="due" id="dueDate">—</span>
+          </div>
         </div>
         <div class="block">
           <span class="lbl">Notes</span>
@@ -870,6 +884,15 @@ function paintPhase(project, at){
 
   document.getElementById("factDue").textContent  = task.scheduled_date ? fmtDateShort(task.scheduled_date) : "—";
   document.getElementById("factVis").textContent  = vis.text;
+
+  // Only an http(s) link becomes an href - the client page's rule.
+  const linkSlot = document.getElementById("factLink");
+  const link = String(task.link || "").trim();
+  if (/^https?:\/\//i.test(link)) {
+    linkSlot.innerHTML = '<a href="' + esc(link) + '" target="_blank" rel="noopener noreferrer" dir="auto">' + esc(link) + "</a>";
+  } else {
+    linkSlot.textContent = link || "—";
+  }
 }
 
 /* Complete is worked out from the Assigned table: everyone done. */
@@ -890,6 +913,11 @@ function paintTeam(){
   const pill = document.getElementById("priorityPill");
   pill.className   = "pill " + (PRIORITY_TONES[priority] || "grey");
   pill.textContent = priority.charAt(0).toUpperCase() + priority.slice(1);
+
+  const due = document.getElementById("dueDate");
+  due.textContent = task.due_date ? fmtDateShort(task.due_date) : "—";
+  due.classList.toggle("late", !!task.due_date && !Number(task.is_complete)
+    && task.due_date < new Date().toLocaleDateString("en-CA"));
 
   document.getElementById("notesBox").innerHTML = task.notes
     ? renderMarkdown(task.notes)

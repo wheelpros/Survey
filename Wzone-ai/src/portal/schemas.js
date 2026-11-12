@@ -219,6 +219,7 @@ export const contentDetail = {
   ...contentItem.shape,
   orientation: text,
   priority: z.string().optional().describe("low, medium or high"),
+  due_date: maybe.describe("When the team should have it done - staff only"),
   assignees: z
     .array(
       z.object({
@@ -375,8 +376,9 @@ export const projectDetail = {
           )
           .optional()
           .describe("Files for the client - they download them from their project page once the phase is live"),
-        scheduled_date: maybe.describe("The phase's date - it shows on the calendars on this day. Every new phase has one; only phases from before dates were required can be null"),
+        scheduled_date: maybe.describe("The phase's date - it shows on the calendars on this day. Optional: null when the phase has no date"),
         scheduled_time: maybe,
+        due_date: maybe.describe("When the team should have it done - staff only"),
         link: maybe,
         created_by_name: maybe,
         created_at: dateTime,
@@ -425,7 +427,7 @@ export const myTasks = {
       id: id.describe("The phase's id, or the post's for content"),
       title: text,
       belongs_to: text.describe("The project, or the client for a post"),
-      due_date: maybe,
+      due_date: maybe.describe("The due date set beside priority, else the phase's or post's date"),
       label: maybe.describe("The post's type; for a phase, a legacy stage label - usually null"),
       status: z.string().describe("todo, in_progress or done - a teammate box or a post is todo or done"),
       link: text.describe("The portal page it opens"),
@@ -450,7 +452,7 @@ export const myTasks = {
             .describe("Everyone on the phase or post - empty when nobody is on it yet"),
           title: text,
           belongs_to: text.describe("The project, or the client for a post"),
-          due_date: maybe,
+          due_date: maybe.describe("The due date set beside priority, else the phase's or post's date"),
           label: maybe.describe("The post's type; for a phase, a legacy stage label - usually null"),
           status: z
             .string()
@@ -485,7 +487,7 @@ export const myPhases = {
       phase: z.object({ id, title: text }),
       project: z.object({ id, title: text }),
       phase_label: maybe.describe("Legacy stage label from older phases - no longer set, usually null"),
-      due_date: maybe,
+      due_date: maybe.describe("The phase's due date, else its date"),
       status: assignmentStatus,
       untrusted_content: untrusted({ work_note: text }),
     })
@@ -769,7 +771,7 @@ export const permissions = {
         key: text.describe("What set_role_permissions and set_admin_permissions take, e.g. content.create"),
         area: text,
         label: text,
-        director_only: z.boolean().describe("true: stays with the Director, can't be given to anyone"),
+        director_only: z.boolean().describe("true: no role can have it; the Director can allow it for one admin at a time (set_admin_permissions)"),
         default_roles: z.array(roleKey).describe("The roles that get it before the Director changes anything"),
       })
     )

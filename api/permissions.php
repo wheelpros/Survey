@@ -21,8 +21,10 @@
 | see within it (assigned clients, own posts, project membership) stays the
 | endpoint's job, apart from the *.view_all keys, which lift that limit.
 |
-| `owner_only` keys are the Director's alone and cannot be handed out: running
-| the portal, the team, and these permissions themselves.
+| `owner_only` keys are the Director's: running the portal, the team, and
+| these permissions themselves. No role can be given them, but the Director
+| can hand one to a single admin from the "One person" tab - only that
+| admin's own override counts, never a role row or a default.
 |
 */
 
@@ -173,16 +175,19 @@ function can($who, $perm, ?PDO $pdo = null)
     if ($role === "owner") {
         return true;
     }
-    if (isOwnerOnlyPermission($perm) || !in_array($role, PERMISSION_ROLES, true)) {
+    if (!in_array($role, PERMISSION_ROLES, true)) {
         return false;
     }
 
     $pdo = $pdo ?? ($GLOBALS["pdo"] ?? null);
     if (!$pdo) {
-        return permissionDefault($role, $perm);
+        return isOwnerOnlyPermission($perm) ? false : permissionDefault($role, $perm);
     }
 
     [$roleRows, $overrides] = permissionRows($pdo, $role, (int) ($who["id"] ?? 0));
+    if (isOwnerOnlyPermission($perm)) {
+        return $overrides[$perm] ?? false;
+    }
     if (array_key_exists($perm, $overrides)) {
         return $overrides[$perm];
     }
