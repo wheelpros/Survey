@@ -283,8 +283,8 @@ check("phases: deleting a phase takes its people with it", ($r["success"] ?? fal
 $samBefore  = notes($pdo, "admin", 2, "project_assigned");
 $seanBefore = notes($pdo, "admin", 5, "project_assigned");
 
-refusedChange("v1 phases: a phase needs a date", $owner, "post_project_update",
-    ["project" => 500, "title" => "Undated AI phase", "publish" => false], 422);
+refusedChange("v1 phases: a bad due date is refused", $owner, "post_project_update",
+    ["project" => 500, "title" => "Bad due AI phase", "publish" => false, "due_date" => "2026-02-31"], 422);
 
 [$prep, $done] = change("v1 phases: post a phase with its people", $owner, "post_project_update", [
     "project" => 500, "title" => "AI phase", "publish" => false, "date" => day("+2"),
@@ -311,7 +311,15 @@ refusedChange("v1 phases: only teammates are assigned", $owner, "update_task",
     ["id" => $v1Phase, "assignments" => [["admin_id" => 3]]], 422);
 refusedChange("v1 phases: completion is never set by hand", $owner, "update_task",
     ["id" => $v1Phase, "is_complete" => true], 422);
-refusedChange("v1 phases: the date can't be cleared", $owner, "update_task", ["id" => $v1Phase, "date" => ""], 422);
+refusedChange("v1 phases: a bad due date can't be set", $owner, "update_task", ["id" => $v1Phase, "due_date" => "soon"], 422);
+
+// The due date is set and cleared like the other optional fields.
+change("v1 phases: set the due date", $owner, "update_task", ["id" => $v1Phase, "due_date" => day("+5")]);
+check("v1 phases: the due date is stored",
+    one($pdo, "SELECT due_date FROM project_tasks WHERE id = ?", [$v1Phase])["due_date"] === day("+5"));
+change("v1 phases: clear the due date", $owner, "update_task", ["id" => $v1Phase, "due_date" => ""]);
+check("v1 phases: the due date is cleared",
+    one($pdo, "SELECT due_date FROM project_tasks WHERE id = ?", [$v1Phase])["due_date"] === null);
 
 $rowId = (int) one($pdo, "SELECT id FROM project_task_assignments WHERE task_id = ?", [$v1Phase])["id"];
 change("v1 phases: change only the priority", $owner, "update_task", ["id" => $v1Phase, "priority" => "low"]);
