@@ -261,7 +261,7 @@ export const READ_TOOLS = [
     title: "Calendar",
     description:
       "Meetings with your clients between two days, plus the content going live and the project " +
-      "phases dated in the same days - what the portal Calendar shows. Content needs content:read, " +
+      "phases dated in the same days. The meetings are what the portal's Appointments page shows. Content needs content:read, " +
       "phases projects:read. Defaults to the next 30 days; at most 366 at a time.",
     input: {
       from: date("First day (default today)").optional(),

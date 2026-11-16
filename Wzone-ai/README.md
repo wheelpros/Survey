@@ -116,7 +116,7 @@ Each person gets only the tools their connection's scopes allow, so a client nev
 | `content:write` | `create_content_draft` | saves a **draft** post, with its orientation, priority, team notes and team (each new teammate is notified). Images are given as up to 5 public `https://` links (Google Drive and Dropbox share links are turned into the file behind them; a chat attachment has no link, so the tool tells the assistant to walk the person through a storage connector or a shared link); the portal downloads and checks them on confirm (JPG/PNG/WEBP/GIF, 3 MB each), never from a private address |
 | `content:write` | `update_content_draft` | changes the given fields of a **draft** post, its team notes and team included; `images` and `team` replace the whole set (`[]` removes them). Scheduled and published posts are edited in the portal |
 | `content:write` | `publish_content` | schedules a **draft** for a date and time, or publishes it now - the Director and account managers only, as in the portal. The client is notified when it goes live |
-| `calendar:write` | `propose_meeting` | asks a client for a meeting: every account at their company that you can reach, in the portal and by email, as the calendar page does |
+| `calendar:write` | `propose_meeting` | asks a client for a meeting: every account at their company that you can reach, in the portal and by email, as the Appointments page does |
 | `calendar:write` | `respond_to_meeting` | accepts or declines a client's pending request |
 | `projects:write` | `post_project_update` | adds an update to a project, published (the client is told once it's live) or as a draft |
 | `projects:write` | `update_task` | changes the given fields of an update |

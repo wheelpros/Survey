@@ -40,7 +40,7 @@ const PERMISSION_AREAS = [
     "content"   => "Content",
     "projects"  => "Projects",
     "inquiries" => "Inquiries",
-    "calendar"  => "Calendar",
+    "calendar"  => "Appointments",
     "team"      => "Team",
     "director"  => "Director only",
 ];
@@ -76,8 +76,8 @@ const PERMISSIONS = [
     "inquiries.read"     => ["area" => "inquiries", "label" => "See inquiries and their leads", "roles" => []],
     "inquiries.write"    => ["area" => "inquiries", "label" => "Create, edit and close inquiries", "roles" => []],
 
-    // Calendar
-    "calendar.use"       => ["area" => "calendar", "label" => "Use the calendar and book meetings", "roles" => ["super_admin", "account_manager"]],
+    // Appointments (the permission key keeps its old name: it is stored in role settings)
+    "calendar.use"       => ["area" => "calendar", "label" => "Use appointments and book meetings", "roles" => ["super_admin", "account_manager"]],
 
     // Team
     "team.overview"      => ["area" => "team", "label" => "See the whole team's tasks on the dashboard", "roles" => []],

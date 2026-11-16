@@ -12,7 +12,9 @@
 |       title : "Delete client",
 |       text  : '"Ada Lovelace" will be erased, along with ...',
 |       action: "Delete client",
-|       word  : "DELETE"            // omit for no typing gate
+|       word  : "DELETE",           // omit for no typing gate
+|       dismiss: "Keep it"          // optional; "Cancel" by default. Set it
+|                                   // when the action itself says "Cancel ..."
 |     });
 |
 |     if (!ok) return;
@@ -219,6 +221,7 @@
     node.querySelector("#cfTitle").textContent = options.title || "Delete";
     node.querySelector("#cfText").textContent = options.text || "";
     node.querySelector("#cfGo").textContent = options.action || "Delete";
+    node.querySelector("#cfCancel").textContent = options.dismiss || "Cancel";
 
     var wrap = node.querySelector("#cfAckWrap");
     var ack = node.querySelector("#cfAck");

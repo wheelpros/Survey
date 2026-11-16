@@ -625,6 +625,7 @@ if (in_array("--fixtures", $argv, true)) {
 }
 
 require __DIR__ . "/writes.php";
+require __DIR__ . "/appointments.php";
 require __DIR__ . "/phases.php";
 require __DIR__ . "/messages.php";
 require __DIR__ . "/positions.php";

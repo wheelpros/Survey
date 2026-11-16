@@ -333,7 +333,7 @@ function emailAdminsAboutMeetingRequest(PDO $pdo, int $userId, string $clientNam
 
     $html = adminEmailHtml(
         "New meeting request",
-        "A client has asked for a meeting. Accept or decline it on the calendar.",
+        "A client has asked for a meeting. Confirm or decline it on the Appointments page.",
         [
             "Client" => $client,
             "From"   => $clientName !== $client ? $clientName : "",
@@ -342,7 +342,7 @@ function emailAdminsAboutMeetingRequest(PDO $pdo, int $userId, string $clientNam
             "Notes"  => $notes,
         ],
         // Straight to this request, as the matching notification does.
-        $appointmentId ? "admin-calendar.html?appointment=" . $appointmentId : "admin-calendar.html",
+        $appointmentId ? "admin-appointments.html?appointment=" . $appointmentId : "admin-appointments.html",
         "Open the request"
     );
 
@@ -382,4 +382,53 @@ function emailClientsAboutMeetingRequest(array $clients, string $adminName, stri
     );
 
     return sendPortalEmail($recipients, "Meeting request: " . $topic, $html);
+}
+
+/**
+ * A meeting's answer reached the client: the team confirmed or declined what
+ * the client asked for, or cancelled a meeting (or a request of its own). Goes
+ * to everyone on the client's account who can sign in - the portal shows it
+ * only to whoever happens to look, and a meeting someone is planning their
+ * day around should not depend on that.
+ *
+ * $outcome is "confirmed", "declined" or "cancelled".
+ */
+function emailClientsAboutMeetingOutcome(array $people, string $adminName, string $outcome, string $topic, string $date, string $time, string $note = ""): int
+{
+    $recipients = [];
+
+    foreach ($people as $person) {
+        if ((int) ($person["approved"] ?? 1) === 1 && trim((string) ($person["email"] ?? "")) !== "") {
+            $recipients[] = ["email" => $person["email"], "name" => $person["name"] ?? ""];
+        }
+    }
+
+    if (!$recipients) {
+        return 0;
+    }
+
+    $copy = [
+        "confirmed" => ["Your meeting is confirmed", "It is in your portal calendar.", "Meeting confirmed: "],
+        "declined"  => ["Your meeting request was declined", "The time you asked for doesn't work. You can ask for another one in your portal.", "Meeting request declined: "],
+        "cancelled" => ["A meeting was cancelled", "This meeting is off. Your portal calendar shows it as cancelled.", "Meeting cancelled: "],
+    ][$outcome] ?? null;
+
+    if (!$copy) {
+        return 0;
+    }
+
+    $html = adminEmailHtml(
+        $copy[0],
+        $copy[1],
+        [
+            "Topic" => $topic,
+            "When"  => $date . " at " . substr($time, 0, 5),
+            "By"    => $adminName,
+            "Note"  => $note,
+        ],
+        "dashboard.html",
+        "Open your portal"
+    );
+
+    return sendPortalEmail($recipients, $copy[2] . $topic, $html);
 }

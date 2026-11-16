@@ -272,7 +272,7 @@ export const meeting = z.object({
   client: clientRef,
   date: text,
   time: text.describe("HH:MM"),
-  status: z.string().describe("pending, approved or rejected"),
+  status: z.string().describe("pending, approved, rejected (declined) or cancelled"),
   requested_by: z
     .string()
     .describe("'admin': staff asked and the client answers; 'user': the client asked and staff answer"),
@@ -848,7 +848,7 @@ export const myMeeting = z.object({
   id,
   date: text,
   time: text.describe("HH:MM"),
-  status: z.string().describe("pending, approved or rejected"),
+  status: z.string().describe("pending, approved, rejected (declined) or cancelled"),
   requested_by: z.string().describe("'admin': your team asked you and you answer; 'user': you asked and your team answers"),
   with: maybe.describe("The person on your team who asked, or answered"),
   untrusted_content: untrusted({ topic: text, notes: text }),

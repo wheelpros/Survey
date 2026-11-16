@@ -5,7 +5,7 @@
 | Calendar: meeting requests between admins and clients
 |--------------------------------------------------------------------------
 |
-| Backs dashboard.html and admin-calendar.html. One row in
+| Backs dashboard.html and admin-appointments.html. One row in
 | `appointments` is one request, and `requested_by` says which way it points:
 |
 |   'admin'  an admin asked a client for time. The user accepts or declines.
@@ -208,7 +208,7 @@ if ($action === "get_clients" && $admin) {
     reply(true, "", ["clients" => $clients]);
 }
 
-/* The "Send a new request" form on admin-calendar.html.
+/* The "New appointment" dialog on admin-appointments.html.
 
    The admin picks a company, not a person - the same choice content posts
    offer - so this fans out to every client account carrying that name. One
@@ -256,86 +256,22 @@ if ($action === "respond_request" && $admin) {
     reply(true, $status === "approved" ? "Meeting confirmed" : "Request declined");
 }
 
-/*
-| The posts the calendar files under the day they go (or went) live: every
-| post for an admin holding content.view_all, otherwise the ones they created
-| or are assigned to - the same rule as admin-content.html and api/v1. Drafts
-| come too, marked by status, since this is the team's own schedule. A
-| database without the content tables costs the calendar its posts, never its
-| meetings.
-*/
-function adminCalendarContent(PDO $pdo, array $admin)
-{
+/* Call off a confirmed meeting, or a request still waiting on an answer. */
+if ($action === "cancel_meeting" && $admin) {
+
+    // cancelMeeting() is in meeting-writes.php: the client hears about it in
+    // the portal and by email.
     try {
-        ensureContentColumns($pdo);
-
-        $where = "";
-        $params = [contentNow()];
-
-        if (!contentSeesAll($admin)) {
-            [$visibleSql, $visibleParams] = contentVisibleSql("c", (int) $admin["id"]);
-            $where = "WHERE " . $visibleSql;
-            $params = array_merge($params, $visibleParams);
-        }
-
-        $stmt = $pdo->prepare("
-            SELECT c.id, c.title, c.client, c.platform, c.type_label,
-                   " . contentStatusSql("c") . " AS status,
-                   " . contentLiveAtSql("c") . " AS live_at
-            FROM content c
-            $where
-            ORDER BY live_at ASC, c.id ASC
-        ");
-        $stmt->execute($params);
-
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } catch (Throwable $e) {
-        error_log("calendar.php: could not load content: " . $e->getMessage());
-        return [];
+        cancelMeeting($pdo, $admin, (int) field($input, "id", "0"), field($input, "reason"));
+    } catch (PortalWriteError $e) {
+        reply(false, $e->getMessage());
     }
+
+    reply(true, "Meeting cancelled. The client has been told.");
 }
 
-/*
-| Dated phases of the projects this admin can see (projectScopeSql(), the
-| Project Management rule). Someone else's draft stays out unless the admin may
-| see every draft - the same rule project-details.html follows.
-*/
-function adminCalendarPhases(PDO $pdo, array $admin)
-{
-    try {
-        ensureProjectTables($pdo);
-
-        [$scopeSql, $params] = projectScopeSql($admin);
-        $where = ["t.scheduled_date IS NOT NULL"];
-
-        if ($scopeSql !== "") {
-            $where[] = $scopeSql;
-        }
-        if (!can($admin, "tasks.see_drafts", $pdo)) {
-            $where[] = "(t.status <> 'draft' OR t.created_by_admin_id = ? OR p.account_manager_admin_id = ?)";
-            $params[] = (int) $admin["id"];
-            $params[] = (int) $admin["id"];
-        }
-
-        $stmt = $pdo->prepare("
-            SELECT t.id, t.project_id, t.title, t.status, t.scheduled_date, t.scheduled_time,
-                   t.is_complete, p.title AS project_title, u.company_name
-            FROM project_tasks t
-            INNER JOIN projects p ON p.id = t.project_id
-            LEFT JOIN users u ON u.id = p.client_id
-            WHERE " . implode(" AND ", $where) . "
-            ORDER BY t.scheduled_date ASC, t.scheduled_time ASC, t.id ASC
-        ");
-        $stmt->execute($params);
-
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } catch (Throwable $e) {
-        error_log("calendar.php: could not load phases: " . $e->getMessage());
-        return [];
-    }
-}
-
-/* Everything admin-calendar.html paints, across the admin's whole scope. */
+/* Everything admin-appointments.html paints, across the admin's whole scope.
+   Meetings only: posts live on the Content page and phases on the projects. */
 if ($action === "get_admin_calendar" && $admin) {
 
     $clients = scopedClients($pdo, $admin);
@@ -345,8 +281,6 @@ if ($action === "get_admin_calendar" && $admin) {
         reply(true, "", [
             "appointments" => [],
             "clients" => [],
-            "content" => adminCalendarContent($pdo, $admin),
-            "phases" => adminCalendarPhases($pdo, $admin),
             "admin_id" => (int) $admin["id"]
         ]);
     }
@@ -367,8 +301,6 @@ if ($action === "get_admin_calendar" && $admin) {
     reply(true, "", [
         "appointments" => $appointments,
         "clients" => $clients,
-        "content" => adminCalendarContent($pdo, $admin),
-        "phases" => adminCalendarPhases($pdo, $admin),
         "admin_id" => (int) $admin["id"]
     ]);
 }
