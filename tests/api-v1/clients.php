@@ -191,6 +191,7 @@ if (in_array("--fixtures", $argv, true)) {
     foreach ([
         "my_calendar" => "me/calendar.php?from=" . day("-1") . "&to=" . day("+10"),
         "get_my_meeting" => "me/calendar.php?id=421",
+        "list_my_booking_requests" => "me/calendar.php?booking_requests=1",
         "my_forms" => "me/forms.php",
         "get_my_form" => "me/forms.php?id=102",
         "my_content" => "me/content.php",

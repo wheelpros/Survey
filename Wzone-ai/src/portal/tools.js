@@ -287,10 +287,36 @@ export const READ_TOOLS = [
     name: "get_meeting",
     scope: "calendar:read",
     title: "Get a meeting",
-    description: "One meeting or meeting request, with its client, topic and notes.",
+    description: "One meeting or meeting request, with its client or guest, topic, notes and length.",
     input: { id: recordId("The meeting's id") },
     output: S.meeting.shape,
     path: "calendar.php",
+  },
+  {
+    name: "list_booking_requests",
+    scope: "calendar:read",
+    title: "Booking links sent",
+    description:
+      "Your booking requests - links sent to a client or a guest to pick one of your open times - " +
+      "with their state (open, picked, booked, declined, expired, cancelled) and how many people opened them. " +
+      "Every one for the Director. A picked time waits in list_pending_approvals (waiting_on_you).",
+    input: {},
+    output: S.bookingRequests,
+    path: "calendar.php",
+    query: () => ({ booking_requests: 1 }),
+  },
+  {
+    name: "get_open_times",
+    scope: "calendar:read",
+    title: "My open times",
+    description:
+      "When you're free to meet: your open times over the next days, worked out like a booking link " +
+      "(your hours, minus days off and meetings, the gap between them and the minimum notice), " +
+      "plus the availability they come from. Set on the portal's Appointments page.",
+    input: { days: z.number().int().min(1).max(90).optional().describe("How many days ahead (default 14)") },
+    output: S.openTimes,
+    path: "calendar.php",
+    query: (args) => ({ ...args, open_times: 1 }),
   },
 
   // ── Projects ──────────────────────────────────────────────────────────
@@ -564,6 +590,18 @@ export const READ_TOOLS = [
     },
     output: S.myCalendar,
     path: "me/calendar.php",
+  },
+  {
+    name: "list_my_booking_requests",
+    scope: "self:read",
+    title: "Meeting times to pick",
+    description:
+      "Your team asked you to pick a meeting time: each request with the times you can choose from. " +
+      "Pick one with pick_meeting_time.",
+    input: {},
+    output: S.myBookingRequests,
+    path: "me/calendar.php",
+    query: () => ({ booking_requests: 1 }),
   },
   {
     name: "get_my_meeting",

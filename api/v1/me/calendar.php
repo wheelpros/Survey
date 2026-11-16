@@ -3,6 +3,9 @@
 /*
 | GET me/calendar.php?from=&to=   my_calendar
 | GET me/calendar.php?id=N        one of my meetings
+| GET me/calendar.php?booking_requests=1
+|                                 list_my_booking_requests: the team asked you
+|                                 to pick one of their open times
 |
 | The client's meetings (calendar.php get_user_calendar), the content that
 | went live in the same days (user-content.php) and their projects' live
@@ -22,6 +25,15 @@ const ME_MEETING_SELECT = "
     FROM appointments a
     LEFT JOIN admins ad ON ad.id = a.admin_id
 ";
+
+/* Booking requests to this account, still open, with the times still free. */
+if (!empty($_GET["booking_requests"])) {
+    require_once __DIR__ . "/../../booking-writes.php";
+    ensureBookingTables($pdo);
+    v1Reply(200, ["items" => array_map(function ($r) use ($pdo) {
+        return meBookingItem($pdo, $r, true);
+    }, clientBookingRequests($pdo, (int) $p["account_id"]))]);
+}
 
 $id = v1IntParam("id");
 if ($id !== null) {

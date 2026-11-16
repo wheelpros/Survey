@@ -85,7 +85,9 @@ Each person gets only the tools their connection's scopes allow, so a client nev
 | `forms:read` | `list_forms`, `get_form`, `list_forms_awaiting_review`, `list_form_responses`, `get_form_response` | forms: the Director and account managers see all, others the forms they wrote. Responses: from your assigned clients |
 | `inquiries:read` | `list_inquiries`, `get_inquiry_form`, `list_inquiry_leads`, `get_inquiry_lead` | the Director, and account managers with inquiries access |
 | `content:read` | `list_content`, `get_content`, `list_content_types` | the Director and account managers see all posts, others their own |
-| `calendar:read` | `get_calendar`, `list_pending_approvals`, `get_meeting` | meetings of your assigned clients, plus the posts (with `content:read`) and project phases (with `projects:read`) in the range; closed to SEO admins |
+| `calendar:read` | `get_calendar`, `list_pending_approvals`, `get_meeting` | meetings of your assigned clients and your guests (people without a portal account), with length, time zone and how each was booked, plus the posts (with `content:read`) and project phases (with `projects:read`) in the range; closed to SEO admins |
+| `calendar:read` | `list_booking_requests` | the booking links you sent, their state and how many people opened them; every one for the Director |
+| `calendar:read` | `get_open_times` | your own open times and the availability they come from (set on the Appointments page) |
 | `projects:read` | `list_projects`, `get_project`, `get_dashboard` | your clients' projects, the ones you manage, and the ones you're a member of; drafts as on the project page |
 | `notifications:read` | `list_my_notifications` | your own inbox |
 | `messages:read` | `list_messages`, `read_chat`, `list_message_people` | the portal's Messages page: your own chats with other admins, private to the two of you (the Director included). Tracking doesn't record them |
@@ -117,7 +119,11 @@ Each person gets only the tools their connection's scopes allow, so a client nev
 | `content:write` | `update_content_draft` | changes the given fields of a **draft** post, its team notes and team included; `images` and `team` replace the whole set (`[]` removes them). Scheduled and published posts are edited in the portal |
 | `content:write` | `publish_content` | schedules a **draft** for a date and time, or publishes it now - the Director and account managers only, as in the portal. The client is notified when it goes live |
 | `calendar:write` | `propose_meeting` | asks a client for a meeting: every account at their company that you can reach, in the portal and by email, as the Appointments page does |
-| `calendar:write` | `respond_to_meeting` | accepts or declines a client's pending request |
+| `calendar:write` | `respond_to_meeting` | accepts or declines a client's pending request, or a time picked from your booking link; accepting sends the calendar invite |
+| `calendar:write` | `add_meeting` | puts a confirmed meeting on the calendar with a client or a guest, who gets a calendar invite; refuses a clash or a time outside your hours unless `allow_clash` |
+| `calendar:write` | `send_booking_request` | sends a client or a guest a link to pick one of your open times; for a guest the result includes the link |
+| `calendar:write` | `withdraw_booking_request`, `resend_booking_request` | takes a link back, or emails a new one (the old one stops working) |
+| `calendar:write` | `cancel_meeting` | calls off a meeting or a request still out; they're told, with a cancellation for their calendar |
 | `projects:write` | `post_project_update` | adds an update to a project, published (the client is told once it's live) or as a draft |
 | `projects:write` | `update_task` | changes the given fields of an update |
 | `notifications:write` | `mark_notifications_read` | marks your own notifications read. **The only change without a confirmation step** |
@@ -171,7 +177,8 @@ A client's connection sees only that client's own records, from [`api/v1/me/`](.
 
 | Scope | Tool | What it does |
 |---|---|---|
-| `self:read` | `my_overview` | what's waiting on them (meeting requests, forms to fill in) and what's coming up |
+| `self:read` | `my_overview` | what's waiting on them (meeting requests, booking requests to pick a time from, forms to fill in) and what's coming up |
+| `self:read` | `list_my_booking_requests` | the booking requests their team sent them, with the times they can pick |
 | `self:read` | `my_calendar`, `get_my_meeting` | their meetings, the posts that went live and the live phases of their projects in the range |
 | `self:read` | `my_forms`, `get_my_form` | released forms only, with their own answers once sent |
 | `self:read` | `my_content` | live posts for their company, plus posts for every client |
@@ -179,10 +186,11 @@ A client's connection sees only that client's own records, from [`api/v1/me/`](.
 | `self:read` | `my_notifications` | their own inbox |
 | `self:write` | `request_meeting` | asks the W\|ZONE team for a meeting, as the dashboard does |
 | `self:write` | `respond_to_my_meeting` | accepts or declines a meeting W\|ZONE asked for |
+| `self:write` | `pick_meeting_time` | picks one of the offered times from a booking request; the host then confirms it |
 | `self:write` | `submit_my_form` | sends their answers to a form (see below) |
 | `self:write` | `mark_my_notifications_read` | own inbox, no confirmation |
 
-The three `self:write` changes go through the same prepare → `confirm_change` steps as staff changes. `changes.php` never lets a client reach a staff change, or the other way round.
+The `self:write` changes go through the same prepare → `confirm_change` steps as staff changes. `changes.php` never lets a client reach a staff change, or the other way round.
 
 **`submit_my_form`** is checked more strictly than the page checks it:
 - Every question needs an answer, and ticked options must come from the form's own list.

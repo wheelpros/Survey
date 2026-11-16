@@ -355,12 +355,79 @@ export const WRITE_TOOLS = [
   {
     name: "respond_to_meeting",
     scope: "calendar:write",
-    title: "Answer a client's meeting request",
-    description: "Accepts or declines a meeting request a client sent. The client is notified." + TWO_STEP,
+    title: "Answer a meeting request",
+    description:
+      "Accepts or declines a meeting request a client sent, or a time someone picked from your booking link. " +
+      "They are told; accepting sends them a calendar invite." + TWO_STEP,
     input: {
       id: recordId("The meeting's id - from list_pending_approvals (waiting_on_you)"),
       decision: z.enum(["accept", "decline"]),
     },
+  },
+  {
+    name: "cancel_meeting",
+    scope: "calendar:write",
+    title: "Cancel a meeting",
+    description:
+      "Calls off a confirmed meeting, or withdraws a meeting request still waiting on an answer. " +
+      "The client or guest is told by email (a client in the portal too), and a confirmed meeting's " +
+      "calendar invite is cancelled." + TWO_STEP,
+    input: {
+      id: recordId("The meeting's id - from get_calendar or list_pending_approvals"),
+      reason: z.string().max(500).optional().describe("Sent to them as written"),
+    },
+  },
+  {
+    name: "add_meeting",
+    scope: "calendar:write",
+    title: "Add a confirmed meeting",
+    description:
+      "Puts a meeting straight on the calendar, confirmed, with a client (every account at their company) " +
+      "or a guest. They get an email with a calendar invite. Your meeting length and time zone apply " +
+      "(get_open_times shows them). A time that clashes with another meeting or is outside your hours is " +
+      "refused unless allow_clash is true - say so to the person first." + TWO_STEP,
+    input: {
+      client: clientId.optional().describe("The client - from search_clients. Or give guest_name and guest_email"),
+      guest_name: z.string().min(1).max(150).optional().describe("A guest without a portal account: their name"),
+      guest_email: z.string().email().max(190).optional().describe("The guest's email - everything reaches them there"),
+      date: date("The day"),
+      time: time("The start time, in your time zone"),
+      topic: z.string().min(1).max(200).describe("What the meeting is about - they see this"),
+      notes: z.string().max(2000).optional(),
+      allow_clash: z.boolean().optional().describe("true adds it even if it clashes or is outside your hours"),
+    },
+  },
+  {
+    name: "send_booking_request",
+    scope: "calendar:write",
+    title: "Send a booking link",
+    description:
+      "Sends a client (everyone on their company's accounts) or a guest a link to pick one of your open times " +
+      "in the next window_days days. When they pick, it waits in list_pending_approvals for you to confirm " +
+      "(respond_to_meeting) or decline; confirming sends the calendar invite. For a guest, the result " +
+      "includes the link - it is a credential, share it only with them." + TWO_STEP,
+    input: {
+      client: clientId.optional().describe("The client - from search_clients. Or give guest_name and guest_email"),
+      guest_name: z.string().min(1).max(150).optional().describe("A guest without a portal account: their name"),
+      guest_email: z.string().email().max(190).optional().describe("The guest's email - everything reaches them there"),
+      topic: z.string().min(1).max(200).describe("What the meeting is about - they see this"),
+      notes: z.string().max(2000).optional(),
+      window_days: z.union([z.literal(7), z.literal(14), z.literal(30)]).optional().describe("How long they have to pick (default 14)"),
+    },
+  },
+  {
+    name: "withdraw_booking_request",
+    scope: "calendar:write",
+    title: "Withdraw a booking link",
+    description: "Withdraws a booking request nobody has picked from: its links stop working. Nobody is emailed." + TWO_STEP,
+    input: { id: recordId("The booking request's id - from list_booking_requests") },
+  },
+  {
+    name: "resend_booking_request",
+    scope: "calendar:write",
+    title: "Send a booking link again",
+    description: "Emails an open booking request again, with new links; the old ones stop working." + TWO_STEP,
+    input: { id: recordId("The booking request's id - from list_booking_requests") },
   },
   // ── Messages and announcements ───────────────────────────────────────
   {
@@ -767,6 +834,20 @@ export const WRITE_TOOLS = [
       time: time("The start time"),
       topic: z.string().min(1).max(200).describe("What you'd like to talk about"),
       notes: z.string().max(2000).optional(),
+    },
+  },
+  {
+    name: "pick_meeting_time",
+    scope: "self:write",
+    title: "Pick a meeting time",
+    description:
+      "Picks one of the open times your team offered (list_my_booking_requests). They confirm it, " +
+      "and you get a calendar invite by email." + TWO_STEP,
+    input: {
+      id: recordId("The booking request's id - from list_my_booking_requests"),
+      date: date("One of the offered days"),
+      time: time("One of the offered times on that day"),
+      message: z.string().max(1000).optional().describe("Anything they should know first"),
     },
   },
   {

@@ -11,6 +11,8 @@ v1RequireMethod("GET");
 v1RequireScope($p, "self:read");
 
 ensureAppointmentTables($pdo);
+require_once __DIR__ . "/../../booking-writes.php";
+ensureBookingTables($pdo);
 ensureContentColumns($pdo);
 ensureProjectTables($pdo);
 ensureNotificationsTable($pdo);
@@ -75,6 +77,10 @@ v1Reply(200, [
         "company_name" => v1NullableString($me["company_name"]),
     ],
     "meetings_waiting_on_you" => array_map("meMeetingItem", $waiting->fetchAll()),
+    // The team asked you to pick a time: list_my_booking_requests has the times.
+    "booking_requests_waiting_on_you" => array_map(function ($r) use ($pdo) {
+        return meBookingItem($pdo, $r, false);
+    }, clientBookingRequests($pdo, (int) $p["account_id"])),
     "upcoming_meetings" => $meetings,
     "forms_to_fill_in" => array_map(function ($r) {
         return ["id" => (int) $r["id"], "title" => (string) $r["title"], "created_at" => (string) $r["created_at"]];
