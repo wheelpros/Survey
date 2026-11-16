@@ -955,12 +955,14 @@ function teamAttention(PDO $pdo, array $actor, $scope, array $scopeParams)
                 SELECT COUNT(*) FROM appointments WHERE status = 'pending' AND requested_by = 'user'
             ")->fetchColumn();
         } else {
+            // Their clients' requests, and times guests picked from their booking links.
             $stmt = $pdo->prepare("
                 SELECT COUNT(*) FROM appointments ap
-                JOIN admin_user_assignments aua ON aua.user_id = ap.user_id AND aua.admin_id = ?
+                LEFT JOIN admin_user_assignments aua ON aua.user_id = ap.user_id AND aua.admin_id = ?
                 WHERE ap.status = 'pending' AND ap.requested_by = 'user'
+                  AND (aua.admin_id IS NOT NULL OR (ap.user_id IS NULL AND ap.admin_id = ?))
             ");
-            $stmt->execute([(int) $actor["id"]]);
+            $stmt->execute([(int) $actor["id"], (int) $actor["id"]]);
             $meetings = (int) $stmt->fetchColumn();
         }
     } catch (Throwable $e) {

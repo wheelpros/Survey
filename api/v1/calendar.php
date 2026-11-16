@@ -7,11 +7,14 @@
 |   GET calendar.php?from=&to=&client=   get_calendar
 |   GET calendar.php?pending=1           list_pending_approvals
 |   GET calendar.php?id=N                get_meeting
+|   GET calendar.php?booking_requests=1  list_booking_requests
+|   GET calendar.php?open_times=1&days=  get_open_times (your own)
 |
 | Scope calendar:read, held by the owner, super admins and account managers -
 | calendar.php closes itself to seo_admin. Meetings follow calendar.php's
 | scopedClients(): the owner sees every client's, everyone else those of the
-| clients assigned to them. The content in the range follows content's own
+| clients assigned to them. A guest's meeting (no client account) belongs to
+| whoever hosts it, and to the owner. The content in the range follows content's own
 | rule and only appears with content:read as well.
 |
 | Meeting topics and notes are typed by clients as often as by staff, so they
@@ -27,20 +30,26 @@ v1RequireScope($p, "calendar:read");
 
 ensureUserProfileColumns($pdo);
 ensureAppointmentTables($pdo);
+require_once __DIR__ . "/../booking-writes.php";
 
 // The widest range one call may ask for, and the most rows it returns.
 const CALENDAR_MAX_DAYS = 366;
 const CALENDAR_MAX_ROWS = 500;
 
-$scope = v1ClientScopeSql($p, "a.user_id");
+// A client's meeting when the client is theirs; a guest's when they host it.
+[$clientSql, $clientParams] = v1ClientScopeSql($p, "a.user_id");
+$scope = $clientSql === ""
+    ? ["", []]
+    : ["($clientSql OR (a.user_id IS NULL AND a.admin_id = ?))", array_merge($clientParams, [(int) $p["id"]])];
 
 const MEETING_SQL = "
     SELECT a.id, a.user_id, a.title, a.topic, a.notes, a.date, a.time, a.status,
-           a.requested_by, a.created_at,
+           a.requested_by, a.created_at, a.admin_id, a.duration_min, a.timezone, a.source,
+           a.guest_name, a.guest_email, a.attendee_message, a.booking_request_id,
            u.name AS user_name, u.email AS user_email, u.company_name,
            ad.name AS admin_name
     FROM appointments a
-    JOIN users u ON u.id = a.user_id
+    LEFT JOIN users u ON u.id = a.user_id
     LEFT JOIN admins ad ON ad.id = a.admin_id
 ";
 
@@ -48,11 +57,19 @@ function meetingItem(array $r)
 {
     return [
         "id" => (int) $r["id"],
-        "client" => v1ClientRef($r["user_id"], $r["user_name"], $r["company_name"], $r["user_email"]),
+        // null for a guest: someone without a portal account (see guest_email).
+        "client" => $r["user_id"] ? v1ClientRef($r["user_id"], $r["user_name"], $r["company_name"], $r["user_email"]) : null,
+        "guest_email" => v1NullableString($r["guest_email"] ?? null),
         "date" => (string) $r["date"],
         "time" => substr((string) $r["time"], 0, 5),
-        // pending | approved | rejected
+        // pending | approved | rejected | cancelled
         "status" => (string) $r["status"],
+        "duration_min" => (int) ($r["duration_min"] ?: 30),
+        // The zone date and time are in; null on meetings made before zones were kept.
+        "timezone" => v1NullableString($r["timezone"] ?? null),
+        // direct | booking | request | proposal; null on older meetings.
+        "source" => v1NullableString($r["source"] ?? null),
+        "booking_request_id" => $r["booking_request_id"] ? (int) $r["booking_request_id"] : null,
         // 'admin': W|ZONE asked the client, who answers it.
         // 'user':  the client asked, and an admin answers it.
         "requested_by" => (string) ($r["requested_by"] ?? "admin"),
@@ -62,6 +79,9 @@ function meetingItem(array $r)
         "untrusted_content" => [
             "topic" => (string) ($r["topic"] ?? $r["title"] ?? ""),
             "notes" => (string) ($r["notes"] ?? ""),
+            "guest_name" => (string) ($r["guest_name"] ?? ""),
+            // What whoever picked the time wrote to the host.
+            "message" => (string) ($r["attendee_message"] ?? ""),
         ],
     ];
 }
@@ -85,9 +105,64 @@ if ($id !== null) {
     v1Reply(200, $found[0]);
 }
 
+// The booking links still out (and recent ones): yours, or every one for the owner.
+if (!empty($_GET["booking_requests"])) {
+    ensureBookingTables($pdo);
+    $items = array_map(function ($r) {
+        return [
+            "id" => $r["id"],
+            "client" => v1NullableString($r["client"]),
+            "guest_email" => v1NullableString($r["guest_email"]),
+            "host" => (string) $r["host_name"],
+            // open | picked | booked | declined | expired | cancelled
+            "state" => $r["state"],
+            "duration_min" => $r["duration_min"],
+            "timezone" => (string) $r["timezone"],
+            "window_from" => (string) $r["window_from"],
+            "window_to" => (string) $r["window_to"],
+            "meeting_id" => $r["appointment_id"],
+            "recipients" => $r["recipients"],
+            "opened" => $r["opened"],
+            "created_at" => (string) $r["created_at"],
+            "untrusted_content" => ["topic" => (string) $r["topic"], "notes" => (string) ($r["notes"] ?? ""), "guest_name" => (string) ($r["guest_name"] ?? "")],
+        ];
+    }, adminBookingRequests($pdo, $p));
+    v1Reply(200, ["items" => $items]);
+}
+
+// Your own open times, as a booking link would offer them.
+if (!empty($_GET["open_times"])) {
+    ensureBookingTables($pdo);
+    $days = v1IntParam("days") ?? 14;
+    if ($days < 1 || $days > 90) {
+        v1Error(422, "invalid_parameter", "days must be between 1 and 90.");
+    }
+    $a = loadAvailability($pdo, (int) $p["id"]);
+    $first = availabilityNow($a)->format("Y-m-d");
+    $last = availabilityNow($a)->modify("+$days days")->format("Y-m-d");
+    $slots = openSlots($pdo, (int) $p["id"], $first, $last, null, $a);
+    v1Reply(200, [
+        "timezone" => $a["timezone"],
+        "slot_minutes" => (int) $a["slot_minutes"],
+        "from" => $first,
+        "to" => $last,
+        "availability" => [
+            "set" => (bool) $a["saved"],
+            "weekly" => $a["weekly"],
+            "buffer_minutes" => (int) $a["buffer_minutes"],
+            "notice_hours" => (int) $a["notice_hours"],
+            "horizon_days" => (int) $a["horizon_days"],
+            "days_off" => array_map(function ($o) { return ["from" => $o["from"], "to" => $o["to"], "label" => $o["label"]]; }, $a["off"]),
+        ],
+        "slots" => array_slice($slots, 0, 500),
+        "truncated" => count($slots) > 500,
+    ]);
+}
+
 if (!empty($_GET["pending"])) {
     $order = "a.date ASC, a.time ASC, a.id ASC";
-    // A client asked; one of the admin team answers (calendar.php respond_request).
+    // A client asked, or someone picked a time from a booking link; one of the
+    // admin team answers (calendar.php respond_request).
     [$onYou, $moreOnYou] = meetings($pdo, [
         $scope, ["a.requested_by = 'user' AND a.status = 'pending'", []],
     ], $order, 200);

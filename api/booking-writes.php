@@ -27,9 +27,21 @@ require_once __DIR__ . "/availability.php";
 
 const BOOKING_WINDOWS = [7, 14, 30];
 
-/** "client" (a company) or "guest" (name and email), checked. */
+/**
+ * "client" (a company) or "guest" (name and email), checked. api/v1 names a
+ * client by account instead: "account" is that users row, already checked as
+ * one the admin may see; it fans out to its company like the page does, or
+ * stays that one account when it has no company name.
+ */
 function bookingTarget(PDO $pdo, array $admin, array $input)
 {
+    if (!empty($input["account"])) {
+        $account = $input["account"];
+        $company = trim((string) ($account["company_name"] ?? ""));
+        $accounts = $company !== "" ? meetingTargetsForCompany($pdo, $admin, $company) : [$account];
+        return ["kind" => "client", "company" => $company !== "" ? $company : (string) $account["name"], "accounts" => $accounts ?: [$account]];
+    }
+
     if (($input["who"] ?? "client") === "guest") {
         $name = mb_substr(trim((string) ($input["guest_name"] ?? "")), 0, 150);
         $email = mb_substr(trim((string) ($input["guest_email"] ?? "")), 0, 190);

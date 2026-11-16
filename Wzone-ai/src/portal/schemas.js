@@ -269,17 +269,74 @@ export const contentTypes = { items: z.array(z.object({ id: text, label: text })
 
 export const meeting = z.object({
   id,
-  client: clientRef,
+  client: clientRef.nullable().describe("null for a guest: someone without a portal account (see guest_email)"),
+  guest_email: maybe.describe("The guest's email; null for a client's meeting"),
   date: text,
-  time: text.describe("HH:MM"),
+  time: text.describe("HH:MM, in timezone"),
   status: z.string().describe("pending, approved, rejected (declined) or cancelled"),
+  duration_min: id.describe("Length in minutes"),
+  timezone: maybe.describe("The time zone date and time are in; null on older meetings"),
+  source: maybe.describe(
+    "How it was made: direct (added straight to the calendar), booking (picked from a booking link), " +
+      "request (the client asked), proposal (staff proposed one time); null on older meetings"
+  ),
+  booking_request_id: id.nullable().describe("The booking request it was picked from"),
   requested_by: z
     .string()
-    .describe("'admin': staff asked and the client answers; 'user': the client asked and staff answer"),
-  admin_name: maybe,
+    .describe(
+      "'admin': staff asked and the client answers; 'user': the client asked, or someone picked a time from a booking link, and staff answer"
+    ),
+  admin_name: maybe.describe("The host, or who asked or answered"),
   created_at: dateTime,
-  untrusted_content: untrusted({ topic: text, notes: text }),
+  untrusted_content: untrusted({
+    topic: text,
+    notes: text,
+    guest_name: text.describe("Empty for a client's meeting"),
+    message: text.describe("What whoever picked the time wrote to the host"),
+  }),
 });
+
+const weeklyHours = z
+  .record(z.string(), z.array(z.array(text)))
+  .describe('Bookable hours per day, mon..sun: [["09:00","17:00"], ...]; an empty list is a day off');
+
+export const openTimes = {
+  timezone: text,
+  slot_minutes: id.describe("Meeting length; each open time is one meeting of this length"),
+  from: text,
+  to: text,
+  availability: z.object({
+    set: z.boolean().describe("false: never saved on the Appointments page, so these are the defaults"),
+    weekly: weeklyHours,
+    buffer_minutes: id,
+    notice_hours: id,
+    horizon_days: id,
+    days_off: z.array(z.object({ from: text, to: text, label: text })),
+  }),
+  slots: z.array(z.object({ date: text, time: text.describe("HH:MM, in timezone") })),
+  truncated: z.boolean(),
+};
+
+export const bookingRequests = {
+  items: z.array(
+    z.object({
+      id,
+      client: maybe.describe("The client company; null for a guest"),
+      guest_email: maybe,
+      host: text,
+      state: z.string().describe("open, picked (a time waits on the host), booked, declined, expired or cancelled"),
+      duration_min: id,
+      timezone: text,
+      window_from: text,
+      window_to: text.describe("The last day a time can be picked"),
+      meeting_id: id.nullable().describe("The meeting the picked time became"),
+      recipients: id.describe("How many people got a link"),
+      opened: id.describe("How many of them opened it"),
+      created_at: dateTime,
+      untrusted_content: untrusted({ topic: text, notes: text, guest_name: text }),
+    })
+  ),
+};
 
 export const calendar = {
   from: text,
@@ -876,9 +933,30 @@ const myProjectItem = z.object({
   end_date: text,
 });
 
+const myBookingRequest = z.object({
+  id,
+  with: text.describe("Who you'd meet"),
+  duration_min: id,
+  timezone: text.describe("The zone the open times are in"),
+  pick_by: text.describe("The last day you can pick"),
+  open_times: id,
+  untrusted_content: untrusted({ topic: text, notes: text }),
+});
+
+export const myBookingRequests = {
+  items: z.array(
+    myBookingRequest.extend({
+      slots: z.array(z.object({ date: text, time: text.describe("HH:MM, in timezone") })).describe("The times you can pick"),
+    })
+  ),
+};
+
 export const myOverview = {
   me: z.object({ name: text, email: text, company_name: maybe }),
   meetings_waiting_on_you: z.array(myMeeting).describe("Requests from your team you haven't answered"),
+  booking_requests_waiting_on_you: z
+    .array(myBookingRequest)
+    .describe("Your team asked you to pick a meeting time - list_my_booking_requests gives the times"),
   upcoming_meetings: z.array(myMeeting),
   forms_to_fill_in: z.array(z.object({ id, title: text, created_at: dateTime })),
   recent_content: z.array(myPost),

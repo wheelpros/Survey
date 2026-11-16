@@ -60,7 +60,7 @@ function meMeetingItem(array $r)
         "id" => (int) $r["id"],
         "date" => (string) $r["date"],
         "time" => substr((string) $r["time"], 0, 5),
-        // pending | approved | rejected
+        // pending | approved | rejected | cancelled
         "status" => (string) $r["status"],
         // 'admin': W|ZONE asked you; 'user': you asked W|ZONE.
         "requested_by" => (string) ($r["requested_by"] ?? "admin"),
@@ -70,6 +70,29 @@ function meMeetingItem(array $r)
             "notes" => (string) ($r["notes"] ?? ""),
         ],
     ];
+}
+
+/**
+ * A booking request to this account: the team asked them to pick one of the
+ * host's open times. $withSlots adds those times (list_my_booking_requests);
+ * the overview only counts them.
+ */
+function meBookingItem(PDO $pdo, array $r, $withSlots)
+{
+    $public = bookingRequestPublic($pdo, $r);
+    $item = [
+        "id" => (int) $r["id"],
+        "with" => (string) $public["host"],
+        "duration_min" => (int) $public["duration_min"],
+        "timezone" => (string) $public["timezone"],
+        "pick_by" => (string) $public["window_to"],
+        "open_times" => count($public["slots"]),
+        "untrusted_content" => ["topic" => (string) $public["topic"], "notes" => (string) $public["notes"]],
+    ];
+    if ($withSlots) {
+        $item["slots"] = array_slice($public["slots"], 0, 300);
+    }
+    return $item;
 }
 
 function meContentItem(array $r, $captionMax)

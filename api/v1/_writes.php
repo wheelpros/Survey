@@ -56,6 +56,7 @@
 
 require_once __DIR__ . "/../survey-writes.php";
 require_once __DIR__ . "/../meeting-writes.php";
+require_once __DIR__ . "/../booking-writes.php";
 require_once __DIR__ . "/../task-writes.php";
 require_once __DIR__ . "/../inquiry-templates.php";
 require_once __DIR__ . "/../survey-submit.php";
@@ -391,18 +392,93 @@ function quoteFor($text, $max = 120)
     return "\"" . (mb_strlen($text) > $max ? rtrim(mb_substr($text, 0, $max - 1)) . "…" : $text) . "\"";
 }
 
+/**
+ * Who a booking is with, from the tool's arguments: client (an account id the
+ * admin can see) or guest_name + guest_email. Returns [bookingTarget() input,
+ * label for the summary].
+ */
+function bookingWho(PDO $pdo, array $p, array $a)
+{
+    $client = argInt($a, "client", false);
+    $guestName = argText($a, "guest_name", 150, false);
+    $guestEmail = argText($a, "guest_email", 190, false);
+    if ($client !== null && ($guestName !== "" || $guestEmail !== "")) {
+        throw new PortalWriteError("Give either client or guest_name and guest_email, not both.");
+    }
+    if ($client !== null) {
+        $account = v1VisibleClient($pdo, $p, $client);
+        $company = trim((string) ($account["company_name"] ?? ""));
+        return [["account" => $account, "client" => $client], $company !== "" ? $company : (string) $account["name"], false];
+    }
+    if ($guestName === "" || !filter_var($guestEmail, FILTER_VALIDATE_EMAIL)) {
+        throw new PortalWriteError("Give client (from search_clients), or guest_name and a valid guest_email for someone without a portal account.");
+    }
+    return [["who" => "guest", "guest_name" => $guestName, "guest_email" => $guestEmail], "$guestName <$guestEmail> (guest)", true];
+}
+
+/** Rebuilds bookingWho()'s input from stored args, re-checking the client. */
+function bookingWhoAgain(PDO $pdo, array $p, array $a)
+{
+    if (!empty($a["client"])) {
+        return ["account" => v1VisibleClient($pdo, $p, $a["client"])];
+    }
+    return ["who" => "guest", "guest_name" => $a["guest_name"], "guest_email" => $a["guest_email"]];
+}
+
+/** A meeting row the admin may act on - a client's they can see, or a guest's they host. */
+function loadOwnMeeting(PDO $pdo, array $p, $id)
+{
+    ensureAppointmentTables($pdo);
+    $stmt = $pdo->prepare("
+        SELECT a.*, u.name, u.company_name
+        FROM appointments a
+        LEFT JOIN users u ON u.id = a.user_id
+        WHERE a.id = ?
+        LIMIT 1
+    ");
+    $stmt->execute([$id]);
+    $row = $stmt->fetch();
+    if (!$row || !meetingInAdminScope($pdo, $p, $row)) {
+        throw new PortalWriteError("No meeting with that id among your clients' meetings or your guests'.", 404);
+    }
+    return $row;
+}
+
+function meetingWhoLabel(array $row)
+{
+    if (!$row["user_id"]) {
+        return ($row["guest_name"] ?: "a guest") . " (guest)";
+    }
+    return clientLabelFor($row);
+}
+
+/** A booking request the admin may manage: theirs, or any for the owner. */
+function loadOwnBookingRequest(PDO $pdo, array $p, $id)
+{
+    ensureAppointmentTables($pdo);
+    $request = bookingRequestById($pdo, $id);
+    if (!$request || !bookingRequestInScope($pdo, $p, $request)) {
+        throw new PortalWriteError("No booking request with that id among yours.", 404);
+    }
+    return $request;
+}
+
 /** A meeting the admin may answer: a client's request, from one of their clients. */
 function loadClientRequest(PDO $pdo, array $p, $id)
 {
+    // A client's request from one of their clients, or a time a guest picked
+    // from their own booking link.
     [$scopeSql, $scopeParams] = v1ClientScopeSql($p, "a.user_id");
     $stmt = $pdo->prepare("
-        SELECT a.id, a.user_id, a.date, a.time, a.status, a.topic, a.title, u.name, u.company_name
+        SELECT a.id, a.user_id, a.date, a.time, a.status, a.topic, a.title, a.guest_name,
+               COALESCE(u.name, CONCAT(COALESCE(a.guest_name, 'A guest'), ' (guest)')) AS name, u.company_name
         FROM appointments a
-        JOIN users u ON u.id = a.user_id
-        WHERE a.id = ? AND a.requested_by = 'user'" . ($scopeSql !== "" ? " AND $scopeSql" : "") . "
+        LEFT JOIN users u ON u.id = a.user_id
+        WHERE a.id = ? AND a.requested_by = 'user'"
+        . ($scopeSql !== "" ? " AND ($scopeSql OR (a.user_id IS NULL AND a.admin_id = ?))" : "") . "
         LIMIT 1
     ");
-    $stmt->execute(array_merge([$id], $scopeParams));
+    $stmt->execute(array_merge([$id], $scopeParams, $scopeSql !== "" ? [(int) $p["id"]] : []));
     $row = $stmt->fetch();
     if (!$row) {
         throw new PortalWriteError("No meeting request from your clients with that id.", 404);
@@ -1679,6 +1755,162 @@ function v1WriteHandlers()
             },
         ],
 
+        "cancel_meeting" => [
+            "scope" => "calendar:write",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                $id = argInt($a, "id");
+                $reason = argText($a, "reason", 500, false);
+                $row = loadOwnMeeting($pdo, $p, $id);
+                if (!in_array($row["status"], ["pending", "approved"], true)) {
+                    throw new PortalWriteError($row["status"] === "cancelled" ? "That meeting is already cancelled." : "A declined meeting has nothing to cancel.", 409);
+                }
+                $isRequest = $row["status"] === "pending";
+                $topic = (string) ($row["topic"] ?? $row["title"] ?? "");
+                return [
+                    "args" => ["id" => $id, "reason" => $reason],
+                    "summary" => ($isRequest ? "Cancel the meeting request " : "Cancel the meeting ") . quoteFor($topic) . " with " . meetingWhoLabel($row)
+                        . " on {$row["date"]} at " . substr((string) $row["time"], 0, 5) . ". They are told by email"
+                        . ($row["user_id"] ? " and in the portal" : "") . ($isRequest ? "." : ", with a cancellation for their calendar.") . " This can't be undone.",
+                    "preview" => [
+                        "meeting_id" => $id, "status" => (string) $row["status"],
+                        "date" => (string) $row["date"], "time" => substr((string) $row["time"], 0, 5),
+                        "untrusted_content" => ["topic" => $topic, "reason" => $reason],
+                    ],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                ensureNotificationsTable($pdo);
+                cancelMeeting($pdo, $p, $a["id"], $a["reason"]);
+                return ["meeting_id" => $a["id"], "status" => "cancelled"];
+            },
+        ],
+
+        "add_meeting" => [
+            "scope" => "calendar:write",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                ensureAppointmentTables($pdo);
+                [$who, $label] = bookingWho($pdo, $p, $a);
+                $date = argDate($a, "date");
+                $time = argTime($a, "time");
+                if ($date === null || $time === null) {
+                    throw new PortalWriteError("date and time are required.");
+                }
+                $topic = argText($a, "topic", 200);
+                $notes = argText($a, "notes", 2000, false);
+                $allowClash = argBool($a, "allow_clash", false);
+                $avail = loadAvailability($pdo, (int) $p["id"]);
+                if ($date . " " . $time < availabilityNow($avail)->format("Y-m-d H:i")) {
+                    throw new PortalWriteError("That time has passed (times are in " . $avail["timezone"] . ").");
+                }
+                $warnings = meetingTimeWarnings($pdo, (int) $p["id"], $date, $time, (int) $avail["slot_minutes"]);
+                if ($warnings && !$allowClash) {
+                    throw new PortalWriteError(implode(" ", $warnings) . " Pick another time, or set allow_clash to true to add it anyway.", 409);
+                }
+                return [
+                    "args" => array_merge(["client" => null, "guest_name" => null, "guest_email" => null], $who, ["account" => null,
+                        "date" => $date, "time" => $time, "topic" => $topic, "notes" => $notes, "allow_clash" => $allowClash]),
+                    "summary" => "Add a confirmed meeting with $label on $date at $time ({$avail["slot_minutes"]} min, {$avail["timezone"]}) about " . quoteFor($topic)
+                        . ". They get an email with a calendar invite" . (empty($who["client"]) ? "" : ", and see it in the portal") . "."
+                        . ($warnings ? " Note: " . implode(" ", $warnings) : ""),
+                    "preview" => [
+                        "date" => $date, "time" => $time, "duration_min" => (int) $avail["slot_minutes"], "timezone" => $avail["timezone"],
+                        "warnings" => $warnings,
+                        "untrusted_content" => ["topic" => $topic, "notes" => $notes, "with" => $label],
+                    ],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                ensureNotificationsTable($pdo);
+                $input = array_merge(bookingWhoAgain($pdo, $p, $a), ["topic" => $a["topic"], "notes" => $a["notes"], "date" => $a["date"], "time" => $a["time"]]);
+                $ids = addMeetingDirectly($pdo, $p, $input, true);
+                return ["meeting_ids" => $ids, "status" => "approved"];
+            },
+        ],
+
+        "send_booking_request" => [
+            "scope" => "calendar:write",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                ensureAppointmentTables($pdo);
+                [$who, $label, $guest] = bookingWho($pdo, $p, $a);
+                $topic = argText($a, "topic", 200);
+                $notes = argText($a, "notes", 2000, false);
+                $days = argInt($a, "window_days", false) ?? 14;
+                if (!in_array($days, BOOKING_WINDOWS, true)) {
+                    throw new PortalWriteError("window_days must be one of: " . implode(", ", BOOKING_WINDOWS) . ".");
+                }
+                $avail = loadAvailability($pdo, (int) $p["id"]);
+                $from = availabilityNow($avail)->format("Y-m-d");
+                $to = availabilityNow($avail)->modify("+" . min($days, (int) $avail["horizon_days"]) . " days")->format("Y-m-d");
+                $count = count(openSlots($pdo, (int) $p["id"], $from, $to, null, $avail));
+                if (!$count) {
+                    throw new PortalWriteError("You have no open times in the next $days days. Add hours on the Appointments page (Availability), or give them longer.", 409);
+                }
+                return [
+                    "args" => array_merge(["client" => null, "guest_name" => null, "guest_email" => null], $who, ["account" => null,
+                        "topic" => $topic, "notes" => $notes, "window_days" => $days]),
+                    "summary" => "Send $label a link to pick a time for " . quoteFor($topic) . " by $to: $count open times of {$avail["slot_minutes"]} min ({$avail["timezone"]})."
+                        . ($guest ? " The link is emailed to them." : " Everyone on the account gets their own link by email, and the request in the portal.")
+                        . " You then confirm or reject the time they pick.",
+                    "preview" => [
+                        "window_to" => $to, "open_times" => $count, "duration_min" => (int) $avail["slot_minutes"], "timezone" => $avail["timezone"],
+                        "untrusted_content" => ["topic" => $topic, "notes" => $notes, "with" => $label],
+                    ],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                ensureNotificationsTable($pdo);
+                $input = array_merge(bookingWhoAgain($pdo, $p, $a), ["topic" => $a["topic"], "notes" => $a["notes"], "window_days" => $a["window_days"]]);
+                $made = createBookingRequest($pdo, $p, $input);
+                return ["booking_request_id" => $made["id"], "sent_to" => $made["sent_to"], "open_times" => $made["slots"], "link" => $made["link"]];
+            },
+        ],
+
+        "withdraw_booking_request" => [
+            "scope" => "calendar:write",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                $id = argInt($a, "id");
+                $request = loadOwnBookingRequest($pdo, $p, $id);
+                $state = bookingRequestState($pdo, $request);
+                if ($state === "picked") {
+                    throw new PortalWriteError("A time was already picked. Confirm or decline that meeting (respond_to_meeting) instead.", 409);
+                }
+                if ($state !== "open" && $state !== "expired") {
+                    throw new PortalWriteError("That booking request is already closed ($state).", 409);
+                }
+                return [
+                    "args" => ["id" => $id],
+                    "summary" => "Withdraw the booking request " . quoteFor($request["topic"]) . " for " . ($request["client"] ?: $request["guest_name"] . " (guest)")
+                        . ". Its links stop working; nobody is emailed.",
+                    "preview" => ["booking_request_id" => $id, "state" => $state, "untrusted_content" => ["topic" => (string) $request["topic"]]],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                cancelBookingRequest($pdo, $p, $a["id"]);
+                return ["booking_request_id" => $a["id"], "state" => "cancelled"];
+            },
+        ],
+
+        "resend_booking_request" => [
+            "scope" => "calendar:write",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                $id = argInt($a, "id");
+                $request = loadOwnBookingRequest($pdo, $p, $id);
+                if (bookingRequestState($pdo, $request) !== "open") {
+                    throw new PortalWriteError("Only an open booking request can be sent again.", 409);
+                }
+                return [
+                    "args" => ["id" => $id],
+                    "summary" => "Email the booking link for " . quoteFor($request["topic"]) . " again to " . ($request["client"] ?: $request["guest_name"] . " (guest)")
+                        . ", with a new link. The old link stops working.",
+                    "preview" => ["booking_request_id" => $id, "untrusted_content" => ["topic" => (string) $request["topic"]]],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                $link = renewBookingLinks($pdo, $p, $a["id"], true);
+                return ["booking_request_id" => $a["id"], "link" => $link];
+            },
+        ],
+
         // ── Messages and announcements ───────────────────────────────────
 
         "send_message" => [
@@ -2773,6 +3005,50 @@ function v1WriteHandlers()
                 ensureAppointmentTables($pdo);
                 $id = requestMeetingFromAdmins($pdo, clientRow($pdo, $p), $a["date"], $a["time"], $a["topic"], $a["notes"]);
                 return ["meeting_id" => $id, "status" => "pending"];
+            },
+        ],
+
+        "pick_meeting_time" => [
+            "scope" => "self:write",
+            "kind" => "user",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                ensureAppointmentTables($pdo);
+                $id = argInt($a, "id");
+                $date = argDate($a, "date");
+                $time = argTime($a, "time");
+                if ($date === null || $time === null) {
+                    throw new PortalWriteError("date and time are required - one of the open times from list_my_booking_requests.");
+                }
+                $message = argText($a, "message", 1000, false);
+                $stmt = $pdo->prepare("SELECT id FROM booking_request_links WHERE booking_request_id = ? AND user_id = ? LIMIT 1");
+                $stmt->execute([$id, $p["account_id"]]);
+                $request = $stmt->fetchColumn() ? bookingRequestById($pdo, $id) : null;
+                if (!$request) {
+                    throw new PortalWriteError("No booking request to you with that id.", 404);
+                }
+                if (bookingRequestState($pdo, $request) !== "open") {
+                    throw new PortalWriteError("That booking request is closed.", 409);
+                }
+                if (!slotIsOpen($pdo, (int) $request["admin_id"], $date, $time, (int) $request["duration_min"])
+                    || $date < $request["window_from"] || $date > $request["window_to"]) {
+                    throw new PortalWriteError("That time isn't open. Pick one of the times list_my_booking_requests gives.", 409);
+                }
+                return [
+                    "args" => ["id" => $id, "date" => $date, "time" => $time, "message" => $message],
+                    "summary" => "Ask for $date at $time ({$request["timezone"]}) for " . quoteFor($request["topic"]) . " with {$request["host_name"]}."
+                        . " They confirm it, and you get a calendar invite by email.",
+                    "preview" => ["booking_request_id" => $id, "date" => $date, "time" => $time, "timezone" => (string) $request["timezone"],
+                        "untrusted_content" => ["topic" => (string) $request["topic"], "message" => $message]],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                ensureNotificationsTable($pdo);
+                $me = clientRow($pdo, $p);
+                $meetingId = pickBookingSlot($pdo, $a["id"], $a["date"], $a["time"], [
+                    "account_id" => (int) $p["account_id"], "person_id" => (int) $p["id"],
+                    "name" => (string) $me["name"], "email" => (string) $me["email"], "message" => $a["message"],
+                ]);
+                return ["meeting_id" => $meetingId, "status" => "pending"];
             },
         ],
 

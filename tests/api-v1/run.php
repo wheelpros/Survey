@@ -179,6 +179,18 @@ seed($pdo, "appointments", [
      "status" => "approved", "requested_by" => "admin", "admin_id" => 3],
 ]);
 
+// Booking requests: Olivia's link to a guest, Amy's to Acme Ltd (Alice's link).
+seed($pdo, "booking_requests", [
+    ["id" => 600, "admin_id" => 1, "guest_name" => "Gail Guest", "guest_email" => "gail@guest.test", "topic" => "Guest intro",
+     "duration_min" => 30, "timezone" => "UTC", "window_from" => day("0"), "window_to" => day("+14")],
+    ["id" => 601, "admin_id" => 3, "client" => "Acme Ltd", "topic" => "Pick a slot", "notes" => "Agenda to follow",
+     "duration_min" => 30, "timezone" => "UTC", "window_from" => day("0"), "window_to" => day("+14")],
+]);
+seed($pdo, "booking_request_links", [
+    ["booking_request_id" => 600, "name" => "Gail Guest", "email" => "gail@guest.test", "token_hash" => hash("sha256", "seed-600")],
+    ["booking_request_id" => 601, "user_id" => 10, "name" => "Alice", "email" => "alice@acme.test", "token_hash" => hash("sha256", "seed-601")],
+]);
+
 seed($pdo, "projects", [
     ["id" => 500, "client_id" => 10, "title" => "Acme rebrand", "start_date" => day("-10"), "end_date" => day("+50"),
      "status" => "active", "progress" => 40, "account_manager_admin_id" => 3, "created_by_admin_id" => 3],
@@ -610,6 +622,8 @@ if (in_array("--fixtures", $argv, true)) {
         "get_calendar" => ["calendar.php", $owner],
         "list_pending_approvals" => ["calendar.php?pending=1", $owner],
         "get_meeting" => ["calendar.php?id=400", $owner],
+        "list_booking_requests" => ["calendar.php?booking_requests=1", $owner],
+        "get_open_times" => ["calendar.php?open_times=1&days=7", $am],
         "list_projects" => ["projects.php", $owner],
         "get_project" => ["projects.php?id=501", $owner],
         "list_phase_teammates" => ["projects.php?id=500&teammates=1", $owner],
@@ -642,6 +656,7 @@ require __DIR__ . "/client-account-tools.php";
 require __DIR__ . "/ai-connections.php";
 require __DIR__ . "/appointments.php";
 require __DIR__ . "/booking.php";
+require __DIR__ . "/booking-ai.php";
 // Keep this last: it fills the login attempt limit for this run's one address.
 require __DIR__ . "/login-limits.php";
 
