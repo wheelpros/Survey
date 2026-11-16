@@ -113,8 +113,11 @@ function portalEmailPlainText(string $html): string
  * $recipients is a list of ["email" => ..., "name" => ...]. Each gets their
  * own message rather than sharing a To line, so no admin sees who else was
  * told. Works for admins and clients alike. Returns how many were sent.
+ *
+ * $attachments is a list of [filename, content, mime type], sent with every
+ * message - a meeting's calendar invite (.ics), for one.
  */
-function sendPortalEmail(array $recipients, string $subject, string $html): int
+function sendPortalEmail(array $recipients, string $subject, string $html, array $attachments = []): int
 {
     if (!$recipients) {
         return 0;
@@ -136,6 +139,10 @@ function sendPortalEmail(array $recipients, string $subject, string $html): int
         $mail->Subject = $subject;
         $mail->Body = $html;
         $mail->AltBody = portalEmailPlainText($html);
+
+        foreach ($attachments as [$fileName, $content, $mime]) {
+            $mail->addStringAttachment((string) $content, (string) $fileName, PHPMailer::ENCODING_BASE64, (string) $mime);
+        }
     } catch (Throwable $e) {
         error_log("sendPortalEmail setup failed: " . $e->getMessage());
         return 0;
@@ -233,7 +240,13 @@ function adminEmailHtml(string $heading, string $intro, array $rows, string $pag
             . "</tr>";
     }
 
-    $url = $e(APP_URL . "/" . ltrim($page, "/"));
+    // No button when $button is empty: a guest has no portal page to open.
+    $buttonHtml = "";
+    if ($button !== "") {
+        // A full URL (a booking link) is used as it is; a page is under APP_URL.
+        $url = $e(preg_match('#^https?://#', $page) ? $page : APP_URL . "/" . ltrim($page, "/"));
+        $buttonHtml = "<a href='{$url}' style='display:inline-block;background:#1b1e3a;color:#ffffff;text-decoration:none;font-weight:bold;font-size:14px;padding:12px 20px;border-radius:10px'>{$e($button)}</a>";
+    }
 
     return "
 <div style='font-family:Arial,Helvetica,sans-serif;background:#f6f7fb;padding:24px'>
@@ -241,10 +254,10 @@ function adminEmailHtml(string $heading, string $intro, array $rows, string $pag
     <h2 style='margin:0 0 8px;font-size:20px;color:#101828'>{$e($heading)}</h2>
     <p style='margin:0 0 18px;font-size:14px;color:#667085;line-height:1.5'>{$e($intro)}</p>
     <table style='border-collapse:collapse;margin-bottom:22px'>{$rowsHtml}</table>
-    <a href='{$url}' style='display:inline-block;background:#1b1e3a;color:#ffffff;text-decoration:none;font-weight:bold;font-size:14px;padding:12px 20px;border-radius:10px'>{$e($button)}</a>
+    {$buttonHtml}
   </div>
   <p style='max-width:520px;margin:14px auto 0;font-size:12px;color:#98a2b3;text-align:center'>
-    Sent by {$e(portalName())} because this is waiting on you.
+    Sent by {$e(portalName())}{$e($button !== "" ? " because this is waiting on you." : ".")}
   </p>
 </div>";
 }
@@ -393,8 +406,12 @@ function emailClientsAboutMeetingRequest(array $clients, string $adminName, stri
  *
  * $outcome is "confirmed", "declined" or "cancelled".
  */
-function emailClientsAboutMeetingOutcome(array $people, string $adminName, string $outcome, string $topic, string $date, string $time, string $note = ""): int
+function emailClientsAboutMeetingOutcome(array $people, string $adminName, string $outcome, string $topic, string $date, string $time, string $note = "", array $options = []): int
 {
+    // $options: "guest" => true for someone without a portal login (no
+    // portal button or wording), "timezone" => the zone the time is in,
+    // "attachments" => the calendar invite.
+    $guest = !empty($options["guest"]);
     $recipients = [];
 
     foreach ($people as $person) {
@@ -407,28 +424,84 @@ function emailClientsAboutMeetingOutcome(array $people, string $adminName, strin
         return 0;
     }
 
+    $invite = !empty($options["attachments"]) ? " The calendar invite is attached." : "";
     $copy = [
-        "confirmed" => ["Your meeting is confirmed", "It is in your portal calendar.", "Meeting confirmed: "],
-        "declined"  => ["Your meeting request was declined", "The time you asked for doesn't work. You can ask for another one in your portal.", "Meeting request declined: "],
-        "cancelled" => ["A meeting was cancelled", "This meeting is off. Your portal calendar shows it as cancelled.", "Meeting cancelled: "],
+        "confirmed" => ["Your meeting is confirmed", ($guest ? "See you then." : "It is in your portal calendar.") . $invite, "Meeting confirmed: "],
+        "booked"    => ["A meeting was booked with you", ($guest ? "It's in the diary." : "It is in your portal calendar.") . $invite, "Meeting booked: "],
+        "declined"  => ["Your meeting request was declined",
+            $guest ? "The time you picked doesn't work. Reply to this email to find another one." : "The time you asked for doesn't work. You can ask for another one in your portal.",
+            "Meeting request declined: "],
+        "cancelled" => ["A meeting was cancelled", ($guest ? "This meeting is off." : "This meeting is off. Your portal calendar shows it as cancelled.") . $invite, "Meeting cancelled: "],
     ][$outcome] ?? null;
 
     if (!$copy) {
         return 0;
     }
 
+    $zone = trim((string) ($options["timezone"] ?? ""));
     $html = adminEmailHtml(
         $copy[0],
         $copy[1],
         [
             "Topic" => $topic,
-            "When"  => $date . " at " . substr($time, 0, 5),
-            "By"    => $adminName,
+            "When"  => $date . " at " . substr($time, 0, 5) . ($zone !== "" ? " (" . $zone . ")" : ""),
+            "With"  => $adminName,
             "Note"  => $note,
         ],
         "dashboard.html",
-        "Open your portal"
+        $guest ? "" : "Open your portal"
     );
 
-    return sendPortalEmail($recipients, $copy[2] . $topic, $html);
+    return sendPortalEmail($recipients, $copy[2] . $topic, $html, $options["attachments"] ?? []);
+}
+
+/**
+ * A booking request: a link to pick one of the host's open times. Each
+ * person gets their own link (one token each), so this is one email per call.
+ */
+function emailBookingInvite(array $person, string $hostName, string $topic, string $notes, string $link, string $lastDay, int $minutes, string $zone): int
+{
+    $html = adminEmailHtml(
+        "Pick a time to meet",
+        $hostName . " would like to meet. Choose any time that suits you; you'll get a calendar invite once it's confirmed.",
+        [
+            "Topic"   => $topic,
+            "Length"  => $minutes . " minutes",
+            "Pick by" => $lastDay,
+            "Times in" => $zone,
+            "Notes"   => $notes,
+        ],
+        $link,
+        "Choose a time"
+    );
+
+    return sendPortalEmail([$person], "Pick a time: " . $topic, $html);
+}
+
+/**
+ * Someone picked a time from a booking link: the host (and the owner, who
+ * sees every client) are asked to confirm or reject it.
+ */
+function emailHostAboutPickedTime(PDO $pdo, array $adminIds, string $who, string $topic, string $date, string $time, string $zone, string $message, int $appointmentId): int
+{
+    $recipients = adminRecipients($pdo, $adminIds);
+
+    if (!$recipients) {
+        return 0;
+    }
+
+    $html = adminEmailHtml(
+        "A time was picked",
+        "Confirm it and they get a calendar invite, or reject it and they're told.",
+        [
+            "Who"     => $who,
+            "Topic"   => $topic,
+            "When"    => $date . " at " . substr($time, 0, 5) . " (" . $zone . ")",
+            "Message" => $message,
+        ],
+        "admin-appointments.html?appointment=" . $appointmentId,
+        "Confirm or reject"
+    );
+
+    return sendPortalEmail($recipients, "Time picked: " . $topic, $html);
 }

@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<title>Book a meeting</title>
+<script src="assets/brand.js" defer></script>
+<!--
+  The page a booking request's email opens: book.html?t=<token>. The token is
+  the only credential (api/public-booking.php), so it works for a guest with
+  no account and for a client who isn't signed in. It shows the host's open
+  times, takes one, and says what happens next. It never shows the host's
+  email or who else the request went to.
+-->
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,"Segoe UI",Tahoma,sans-serif}
+:root{
+  --nav:#1b1e3a;--brand:#c9000b;--text:#101828;--muted:#667085;--line:#eaecf0;--soft:#f8fafc;
+  --ok-bg:#e8faef;--ok-ink:#17803d;--wait-bg:#fef3c7;--wait-ink:#b45309;--off-bg:#f2f4f7;--off-ink:#475467;
+}
+body{background:#f6f7fb;color:var(--text);min-height:100vh;padding:32px 16px 48px}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--nav);outline-offset:2px}
+.wrap{max-width:960px;margin:0 auto}
+.brand{display:flex;justify-content:center;margin-bottom:22px;min-height:34px}
+.brand img{width:132px;height:auto;display:block}
+.card{background:#fff;border-radius:22px;box-shadow:0 20px 50px rgba(16,24,40,.08);display:grid;grid-template-columns:300px minmax(0,1fr);overflow:hidden}
+.card.single{grid-template-columns:minmax(0,1fr)}
+.side{padding:28px;border-right:1px solid #eef1f5;display:grid;gap:18px;align-content:start}
+.host{display:flex;gap:12px;align-items:center}
+.av{width:44px;height:44px;border-radius:50%;background:#dce3ff;color:#3745a4;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;flex:none}
+.host b{display:block;font-size:15px}
+.host span{font-size:13px;color:var(--muted)}
+.side h1{font-size:22px;line-height:1.25;overflow-wrap:anywhere}
+.facts{display:grid;gap:10px;font-size:14px;color:#475467}
+.facts div{display:flex;gap:10px;align-items:flex-start}
+.facts svg{width:16px;height:16px;flex:none;color:var(--muted);margin-top:1px}
+.notes{font-size:14px;color:#475467;line-height:1.55;white-space:pre-line;overflow-wrap:anywhere;border-top:1px solid #eef1f5;padding-top:14px}
+.main{padding:28px;min-width:0}
+.main h2{font-size:17px;margin-bottom:4px}
+.sub{font-size:13px;color:var(--muted);margin-bottom:18px}
+.picker{display:grid;grid-template-columns:minmax(0,1fr) 210px;gap:22px}
+.month-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;font-weight:800;font-size:14px}
+.days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.days .h{font-size:11px;font-weight:700;color:var(--muted);text-align:center;padding:4px 0}
+.days button,.days .blank{height:44px;border-radius:10px;border:1px solid transparent;background:none;font-size:14px;font-weight:700;color:#98a2b3;display:flex;align-items:center;justify-content:center}
+.days button:disabled{cursor:default}
+.days button.has{background:#eef0f6;color:var(--nav)}
+.days button.has:hover{border-color:var(--nav)}
+.days button[aria-pressed="true"]{background:var(--nav);color:#fff}
+.times{display:grid;gap:8px;align-content:start;max-height:380px;overflow:auto;padding:2px}
+.times .tday{font-size:13px;font-weight:800;margin-bottom:2px}
+.times button{min-height:42px;padding:7px 8px;line-height:1.25;border-radius:10px;border:1px solid #c9cfda;background:#fff;font-size:14px;font-weight:700;color:var(--nav)}
+.times button:hover{border-color:var(--nav)}
+.times button[aria-pressed="true"]{background:var(--nav);border-color:var(--nav);color:#fff}
+.times small{font-size:11px;color:var(--muted);font-weight:600;display:block;margin-top:2px}
+.times button[aria-pressed="true"] small{color:#d0d5dd}
+.tz-line{font-size:12px;color:var(--muted);margin-top:14px;line-height:1.5}
+.details{margin-top:22px;padding-top:20px;border-top:1px solid #eef1f5;display:grid;gap:14px}
+.summary{display:flex;gap:10px;align-items:center;background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:14px;font-weight:700}
+.summary svg{width:18px;height:18px;flex:none;color:var(--muted)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+label{display:block;font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+label .opt{text-transform:none;font-weight:600;letter-spacing:0}
+input,textarea{width:100%;border:1px solid #dfe3ea;background:var(--soft);border-radius:11px;padding:11px 13px;font-size:14px;color:var(--text);font-family:inherit;outline:none}
+input:focus,textarea:focus{border-color:var(--nav);box-shadow:0 0 0 3px rgba(27,30,58,.10)}
+input[aria-invalid="true"]{border-color:var(--brand)}
+textarea{min-height:80px;resize:vertical;line-height:1.5}
+.as{font-size:13px;color:#475467}
+.err{font-size:13px;color:#b42318;font-weight:700}
+.err:empty{display:none}
+.send{width:100%;height:46px;border:none;border-radius:10px;background:var(--nav);color:#fff;font-size:14px;font-weight:700}
+.send:hover{background:#2b2f57}
+.send:disabled{opacity:.6;cursor:default}
+.after{font-size:12px;color:var(--muted);text-align:center;margin-top:7px}
+.state{padding:48px 28px;text-align:center;display:grid;gap:12px;justify-items:center}
+.ring{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.ring svg{width:26px;height:26px}
+.ring.ok{background:var(--ok-bg);color:var(--ok-ink)}
+.ring.wait{background:var(--wait-bg);color:var(--wait-ink)}
+.ring.off{background:var(--off-bg);color:var(--off-ink)}
+.state h2{font-size:20px}
+.state p{font-size:14px;color:var(--muted);max-width:440px;line-height:1.6}
+.loading{padding:60px 28px;text-align:center;color:var(--muted);font-size:14px}
+.foot{text-align:center;font-size:12px;color:var(--muted);margin-top:18px}
+@media (max-width:860px){
+  .card{grid-template-columns:minmax(0,1fr)}
+  .side{border-right:none;border-bottom:1px solid #eef1f5;padding:22px}
+  .main{padding:22px}
+  .picker{grid-template-columns:minmax(0,1fr)}
+  .times{max-height:none;grid-template-columns:repeat(3,minmax(0,1fr))}
+  .times .tday{grid-column:1/-1}
+  .two{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:400px){
+  body{padding:20px 12px 40px}
+  .times{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+</style>
+<script src="/assets/clarity.js" defer></script>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand"><img src="logo.png" alt="" onerror="this.remove()"></div>
+  <main class="card single" id="card" aria-live="polite">
+    <p class="loading">Loading your booking link…</p>
+  </main>
+  <p class="foot">&copy; <span class="yr"></span> <span data-brand="legal">Client Portal</span></p>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  document.querySelector(".yr").textContent = new Date().getFullYear();
+
+  const token = new URLSearchParams(location.search).get("t") || "";
+  const card = document.getElementById("card");
+  const viewerTz = (Intl.DateTimeFormat().resolvedOptions().timeZone) || "";
+  let B = null;                       // the booking, as api/public-booking.php gives it
+  const sel = { date: null, time: null };
+
+  const esc = v => String(v == null ? "" : v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const pad = n => String(n).padStart(2, "0");
+  const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const parse = s => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+  const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+  const fmtDay = (s, o) => parse(s).toLocaleDateString(undefined, o || { weekday: "long", day: "numeric", month: "long" });
+  const first = name => String(name || "").trim().split(/\s+/)[0] || "They";
+  const initials = name => String(name || "?").trim().split(/\s+/).map(p => p[0]).join("").slice(0, 2).toUpperCase();
+
+  const ICON = {
+    clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+    globe: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>',
+    check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>',
+    wait: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    off: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 8l8 8"/></svg>'
+  };
+
+  /* A wall-clock time in the host's zone, shown on the viewer's clock -
+     empty when both are in the same zone. */
+  function localTime(date, time) {
+    if (!viewerTz || !B || viewerTz === B.timezone) return "";
+    try {
+      const [y, m, d] = date.split("-").map(Number), [h, mi] = time.split(":").map(Number);
+      const want = Date.UTC(y, m - 1, d, h, mi);
+      let guess = want;
+      for (let i = 0; i < 2; i++) {
+        const p = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: B.timezone, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
+          .formatToParts(new Date(guess)).map(x => [x.type, x.value]));
+        guess += want - Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute);
+      }
+      const at = new Date(guess);
+      const sameDay = at.toLocaleDateString("en-CA", { timeZone: viewerTz }) === date;
+      return at.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: viewerTz })
+        + (sameDay ? "" : " " + at.toLocaleDateString(undefined, { weekday: "short", timeZone: viewerTz }));
+    } catch (e) { return ""; }
+  }
+
+  function side() {
+    return `<aside class="side">`
+      + `<div class="host"><span class="av" aria-hidden="true">${esc(initials(B.host))}</span><div><b>${esc(B.host)}</b><span>Your meeting host</span></div></div>`
+      + `<h1>${esc(B.topic)}</h1>`
+      + `<div class="facts"><div>${ICON.clock}${B.duration_min} minutes</div>`
+      + (B.state === "open" ? `<div>${ICON.cal}Pick a time by ${esc(fmtDay(B.window_to, { weekday: "short", day: "numeric", month: "long" }))}</div>` : "")
+      + `<div>${ICON.globe}Times in ${esc(B.timezone)}</div></div>`
+      + (B.notes ? `<p class="notes">${esc(B.notes)}</p>` : "")
+      + `</aside>`;
+  }
+
+  function stateBox(kind, title, text) {
+    return `<section class="state"><span class="ring ${kind}">${ICON[kind === "ok" ? "check" : kind]}</span><h2>${title}</h2><p>${text}</p></section>`;
+  }
+
+  function stateCard() {
+    const host = esc(first(B.host));
+    const when = B.picked ? `<b>${esc(fmtDay(B.picked.date))}, ${esc(B.picked.time)}</b>` : "";
+    switch (B.state) {
+      case "picked": return stateBox("wait", `Waiting for ${host} to confirm`, `${when ? "The time picked is " + when + ". " : ""}You'll get an email with a calendar invite once it's confirmed.`);
+      case "booked": return stateBox("ok", "This meeting is booked", `${when ? when + (B.picked.by ? ", picked by " + esc(B.picked.by) : "") + ". " : ""}The calendar invite went out by email.`);
+      case "declined": return stateBox("off", "That time didn't work", `${host} couldn't make the time that was picked. Reply to the email to find another.`);
+      case "expired": return stateBox("off", "This link has expired", `The window to pick a time has closed. Reply to the email and ${host} can send a new one.`);
+      case "cancelled": return stateBox("off", "This request was withdrawn", `${host} no longer needs a time for this meeting.`);
+    }
+    return stateBox("off", "Something's not right", "Reload the page to try again.");
+  }
+
+  function byDay() {
+    const out = {};
+    (B.slots || []).forEach(s => { (out[s.date] = out[s.date] || []).push(s.time); });
+    return out;
+  }
+
+  function picker() {
+    const days = byDay(), keys = Object.keys(days).sort();
+    if (!keys.length) {
+      return stateBox("off", "No times left", `Every open time in this window has been taken. Reply to the email and ${esc(first(B.host))} can offer more.`);
+    }
+    if (!sel.date || !days[sel.date]) sel.date = keys[0];
+
+    // Whole weeks from this week to the last day they can pick.
+    const start = addDays(parse(iso(new Date())), -((new Date().getDay() + 6) % 7));
+    const end = parse(B.window_to);
+    let grid = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(n => `<span class="h" aria-hidden="true">${n}</span>`).join("");
+    let lastMonth = "";
+    const months = [];
+    for (let d = start; d <= end || (d.getDay() + 6) % 7 !== 0; d = addDays(d, 1)) {
+      const ds = iso(d), has = !!days[ds];
+      const m = d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+      if (m !== lastMonth && d <= end) { months.push(m); lastMonth = m; }
+      grid += has
+        ? `<button type="button" class="has" data-date="${ds}" aria-pressed="${sel.date === ds}" aria-label="${esc(fmtDay(ds))}, ${days[ds].length} times">${d.getDate()}</button>`
+        : `<span class="blank" aria-hidden="true">${d.getDate()}</span>`;
+    }
+    const times = days[sel.date].map(t => {
+      const local = localTime(sel.date, t);
+      return `<button type="button" data-time="${t}" aria-pressed="${sel.time === t}">${t}${local ? `<small>${esc(local)} your time</small>` : ""}</button>`;
+    }).join("");
+    const tzLine = !viewerTz || viewerTz === B.timezone
+      ? `Times are in ${esc(B.timezone)}, your time zone.`
+      : `Times are in ${esc(B.timezone)}. Under each one is the time where you are (${esc(viewerTz)}).`;
+
+    return `<div class="picker"><div><div class="month-bar"><span>${esc(months.join(" – "))}</span></div>`
+      + `<div class="days" role="group" aria-label="Days with open times">${grid}</div><p class="tz-line">${tzLine}</p></div>`
+      + `<div class="times" role="group" aria-label="Open times"><div class="tday">${esc(fmtDay(sel.date, { weekday: "long", day: "numeric", month: "short" }))}</div>${times}</div></div>`;
+  }
+
+  function details() {
+    if (!sel.time) return "";
+    const you = B.you || {}, guest = you.guest !== false;
+    return `<form class="details" id="form" novalidate>`
+      + `<div class="summary">${ICON.cal}${esc(fmtDay(sel.date))}, ${esc(sel.time)}</div>`
+      + (guest
+        ? `<div class="two"><div><label for="name">Your name</label><input type="text" id="name" autocomplete="name" maxlength="150" value="${esc(you.name)}"></div>`
+          + `<div><label for="email">Your email</label><input type="email" id="email" autocomplete="email" maxlength="190" value="${esc(you.email)}"></div></div>`
+        : `<p class="as">Booking as <b>${esc(you.name || you.email)}</b>${B.company ? " for " + esc(B.company) : ""}.</p>`)
+      + `<div><label for="message">Message <span class="opt">(optional)</span></label><textarea id="message" maxlength="1000" placeholder="Anything ${esc(first(B.host))} should know first"></textarea></div>`
+      + `<p class="err" id="err" role="alert"></p>`
+      + `<div><button class="send" type="submit" id="send">Request this time</button>`
+      + `<p class="after">${esc(first(B.host))} confirms it, then you get an email with a calendar invite.</p></div></form>`;
+  }
+
+  function render(focus) {
+    if (B.state !== "open") {
+      card.className = "card";
+      card.innerHTML = side() + `<section class="main">${stateCard()}</section>`;
+      return;
+    }
+    card.className = "card";
+    card.innerHTML = side() + `<section class="main"><h2>Choose a time</h2>`
+      + `<p class="sub">${(B.slots || []).length} open times. Pick a day, then a time.</p>${picker()}${details()}</section>`;
+    if (focus) { const el = card.querySelector(focus); if (el) el.focus(); }
+  }
+
+  function fatal(title, text) {
+    card.className = "card single";
+    card.innerHTML = stateBox("off", title, text);
+  }
+
+  async function load() {
+    if (!/^[a-f0-9]{64}$/.test(token)) {
+      return fatal("This link doesn't work", "It may have been copied wrongly. Open it again from the email, or ask the person who sent it for a new one.");
+    }
+    try {
+      const res = await fetch("api/public-booking.php?t=" + encodeURIComponent(token), { cache: "no-store" });
+      const data = await res.json();
+      if (!data.success) {
+        if (res.status === 429) return fatal("Too many attempts", "Please wait a minute, then reload the page.");
+        return fatal("This link doesn't work", "It may have been replaced by a newer one. Use the latest email, or ask the person who sent it for a new link.");
+      }
+      B = data.booking;
+      render();
+    } catch (e) {
+      fatal("Couldn't load your booking link", "Check your connection, then reload the page.");
+    }
+  }
+
+  async function send(event) {
+    event.preventDefault();
+    const err = document.getElementById("err");
+    const guest = (B.you || {}).guest !== false;
+    const name = guest ? document.getElementById("name").value.trim() : "";
+    const email = guest ? document.getElementById("email").value.trim() : "";
+    const problems = [];
+    if (guest && !name) problems.push(["name", "Add your name."]);
+    if (guest && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) problems.push(["email", "Add a valid email so the invite reaches you."]);
+    if (guest) ["name", "email"].forEach(id => document.getElementById(id).setAttribute("aria-invalid", String(problems.some(p => p[0] === id))));
+    err.textContent = problems.map(p => p[1]).join(" ");
+    if (problems.length) return document.getElementById(problems[0][0]).focus();
+
+    const button = document.getElementById("send");
+    button.disabled = true;
+    button.textContent = "Sending…";
+    try {
+      const res = await fetch("api/public-booking.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ t: token, date: sel.date, time: sel.time, name, email, message: document.getElementById("message").value.trim() })
+      });
+      const data = await res.json();
+      if (!data.success) {
+        if (res.status === 409) {
+          // Taken meanwhile, or the request changed: show what's true now.
+          await load();
+          const after = document.getElementById("err");
+          if (after) after.textContent = data.message;
+          else if (B && B.state === "open") card.querySelector(".sub").textContent = data.message + " " + card.querySelector(".sub").textContent;
+          return;
+        }
+        throw new Error(data.message || "Couldn't send your time.");
+      }
+      B = data.booking;
+      card.className = "card";
+      card.innerHTML = side() + `<section class="main">` + stateBox("ok", "Request sent",
+        `You asked for <b>${esc(fmtDay(sel.date))}, ${esc(sel.time)}</b>. ${esc(first(B.host))} will confirm it, and you'll get an email with a calendar invite.`) + `</section>`;
+      card.querySelector("h2").setAttribute("tabindex", "-1");
+      card.querySelector("h2").focus();
+    } catch (e) {
+      err.textContent = e.message || "Couldn't send your time. Try again.";
+      button.disabled = false;
+      button.textContent = "Request this time";
+    }
+  }
+
+  card.addEventListener("click", e => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    if (b.dataset.date) { sel.date = b.dataset.date; sel.time = null; render(".times button"); return; }
+    if (b.dataset.time) {
+      // Keep what they typed when they change their mind about the time.
+      const keep = ["name", "email", "message"].reduce((o, id) => { const el = document.getElementById(id); if (el) o[id] = el.value; return o; }, {});
+      sel.time = b.dataset.time;
+      render();
+      Object.keys(keep).forEach(id => { const el = document.getElementById(id); if (el) el.value = keep[id]; });
+      const next = document.getElementById((B.you || {}).guest === false ? "message" : "name");
+      if (next) next.focus();
+    }
+  });
+  card.addEventListener("submit", e => { if (e.target.id === "form") send(e); });
+
+  load();
+})();
+</script>
+</body>
+</html>

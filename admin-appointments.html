@@ -149,7 +149,7 @@ select.client-filter{
   padding-right:38px;
 }
 /* ── Appointments page ─────────────────────────────────────────────────────
-   Meetings only. The calendar takes the full width; one "To handle" section
+   Meetings only. The calendar takes the full width; one "Requests & meetings" section
    sits under it, its tabs acting as filters over the three lists. The design
    was picked from demo/appointment-designs (option A). */
 :root{
@@ -160,6 +160,7 @@ select.client-filter{
   --ask-bg:#e8f1ff;--ask-line:#c7dbff;--ask-ink:#1f4fb8;
   --off-bg:#f2f4f7;--off-line:#e4e7ec;--off-ink:#667085;
   --weekend:#f7f8fb;
+  --closed:#eceef3;  /* outside your hours */
   --today:#0369a1;
   --row:30px; /* half an hour in the time grid */
 }
@@ -265,7 +266,7 @@ button{font:inherit;cursor:pointer}
 .badge.sent{background:var(--ask-bg);color:var(--ask-ink)}
 .badge.off{background:var(--off-bg);color:var(--off-ink)}
 
-/* ── To handle: one section, tabs on the right as filters ── */
+/* ── Requests & meetings: one section, tabs on the right as filters ── */
 .tabs{display:inline-flex;background:#f2f4f7;border-radius:10px;padding:3px;gap:2px}
 .tabs button{border:none;background:transparent;border-radius:8px;padding:7px 12px;font-size:13px;font-weight:700;color:var(--muted);display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
 .tabs button[aria-selected="true"]{background:#fff;color:var(--text);box-shadow:0 1px 3px rgba(16,24,40,.12)}
@@ -281,7 +282,14 @@ button{font:inherit;cursor:pointer}
 .item-note{font-size:12px;color:var(--muted)}
 .item-acts{display:flex;gap:8px;flex-wrap:wrap}
 .who-tag{display:inline-flex;align-items:center;font-size:11px;font-weight:700;color:#475467;background:#f2f4f7;border-radius:6px;padding:2px 7px;white-space:nowrap}
-.show-more{margin-top:14px}
+.list-pager{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:16px}
+.list-pager .pg{min-width:34px;height:34px;padding:0 10px;border-radius:8px;border:1px solid var(--line);background:#fff;font-size:13px;font-weight:700;color:var(--text)}
+.list-pager .pg:hover:not(:disabled){background:#f2f4f8}
+.list-pager .pg:disabled{color:#98a2b3;cursor:default}
+.list-pager .pg[aria-current="page"]{background:var(--nav-active);border-color:var(--nav-active);color:#fff}
+.list-pager .pg-gap{color:var(--muted);padding:0 2px}
+/* The count sits at the end of the row; on a phone, on its own line under it. */
+.list-pager .pg-count{margin-left:auto;font-size:12px;color:var(--muted)}
 
 /* ── Dialogs ── */
 .dlg-scrim{position:fixed;inset:0;background:rgba(16,24,40,.45);display:none;align-items:flex-start;justify-content:center;padding:6vh 16px;z-index:300;overflow:auto}
@@ -311,10 +319,50 @@ button{font:inherit;cursor:pointer}
 .toast.show{opacity:1;transform:translateX(-50%)}
 .toast.error{background:#b42318}
 
+/* ── Your hours on the grid ── */
+.tgrid .dcol{background:var(--closed)}
+.tgrid .dcol .open{position:absolute;left:0;right:0;background:#fff}
+.tgrid .dcol .day-off{position:absolute;inset:0;background:repeating-linear-gradient(135deg,var(--closed) 0 6px,#e4e7ec 6px 12px)}
+.tgrid .dcol .day-off span{position:absolute;top:8px;left:8px;right:8px;font-size:11px;font-weight:700;color:#475467;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tgrid .slot-line{position:relative}
+.mgrid .mc.closed{background:var(--closed)}
+
+/* ── Dialog extras ── */
+.dlg.wide{width:min(720px,100%)}
+.lbl{display:block;font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#667085;margin-bottom:7px}
+.dlg .sub-lbl{font-size:10px;margin-bottom:5px}
+.opt{text-transform:none;font-weight:600;letter-spacing:0}
+.full-seg{display:flex;width:100%}
+.full-seg button{flex:1}
+.hint.warn{color:var(--wait-ink);font-weight:700}
+.hint:empty{display:none}
+.hint.ok{color:var(--ok-ink);font-weight:700}
+.link-box{display:flex;gap:8px}
+.link-box input{flex:1;min-width:0}
+.week-rows{display:grid;gap:4px}
+.wrow{display:grid;grid-template-columns:130px minmax(0,1fr);gap:12px;align-items:start;padding:8px 0;border-bottom:1px solid #f2f4f7}
+.wrow:last-child{border-bottom:none}
+.wday{display:flex;align-items:center;gap:9px;font-size:14px;font-weight:700;color:var(--text);padding-top:9px;cursor:pointer}
+.wday input{width:18px;height:18px;accent-color:var(--nav-active);flex:none}
+.dlg label.wday{text-transform:none;letter-spacing:0;font-size:14px;color:var(--text);margin:0}
+.ranges{display:grid;gap:6px}
+.range{display:flex;align-items:center;gap:8px}
+.range input{width:130px}
+.range .to{font-size:12px;color:var(--muted)}
+.unavail{font-size:13px;color:var(--muted);padding-top:10px}
+.linkish{border:none;background:none;color:var(--nav-active);font-weight:700;font-size:12px;padding:4px 0;text-align:left;text-decoration:underline;justify-self:start}
+.off-list{display:grid;gap:6px;margin-bottom:10px}
+.off-row{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px}
+.off-add{display:grid;grid-template-columns:1fr 1fr 1.4fr auto;gap:8px;align-items:end}
+.preview-line{margin-right:auto;font-size:13px;font-weight:700;color:var(--ok-ink);align-self:center}
+.dlg-foot .preview-line:empty{display:none}
+.badge.expired{background:var(--off-bg);color:var(--off-ink)}
+.badge.open{background:#eef0f6;color:var(--nav-active)}
+
 @media (max-width:1100px){
   .cards{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
-/* Phone: the To handle tabs drop under the title, full width, with short
+/* Phone: the Requests & meetings tabs drop under the title, full width, with short
    names; the calendar head becomes two rows; a week is a list and a day gets
    a strip of the week's days; month days are dots and open with a tap. */
 @media (max-width:700px){
@@ -327,6 +375,8 @@ button{font:inherit;cursor:pointer}
   .tabs button{flex:1;justify-content:center;padding:8px 6px}
   .tlong{display:none}
   .tshort{display:inline}
+  .list-pager{justify-content:center}
+  .list-pager .pg-count{flex-basis:100%;margin:2px 0 0;text-align:center}
 
   .cal-head{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"title nav" "seg seg";gap:12px;padding:14px}
   .cal-title{grid-area:title;min-width:0;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -349,6 +399,14 @@ button{font:inherit;cursor:pointer}
   .mgrid .more{display:none}
 
   .two{grid-template-columns:minmax(0,1fr)}
+  .wrow{grid-template-columns:minmax(0,1fr)}
+  .wday{padding-top:0}
+  .range input{width:auto;flex:1;min-width:0}
+  .off-add{grid-template-columns:1fr 1fr}
+  .off-add > div:nth-child(3){grid-column:1/-1}
+  .off-add .btn{grid-column:1/-1}
+  .link-box{flex-direction:column}
+  .dlg-foot .preview-line{flex-basis:100%}
   .kv{grid-template-columns:minmax(0,1fr)}
   .kv dt{margin-bottom:-6px}
 }
@@ -424,9 +482,13 @@ document.addEventListener("DOMContentLoaded", function () {
     <div class="page-head">
       <div class="page-title">
         <h1>Appointments</h1>
-        <p>Your client meetings and the requests waiting on an answer.</p>
+        <p>Your meetings and booking requests.</p>
       </div>
       <div class="head-actions">
+        <button class="btn" type="button" id="availBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          Availability
+        </button>
         <button class="btn primary" type="button" id="newBtn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
           New appointment
@@ -457,13 +519,15 @@ document.addEventListener("DOMContentLoaded", function () {
         <span><i style="background:var(--wait-bg);border-color:var(--wait-line)"></i>Needs your answer</span>
         <span><i style="background:var(--ask-bg);border-color:var(--ask-line)"></i>Waiting on the client</span>
         <span><i style="background:var(--off-bg);border-color:var(--off-line)"></i>Declined or cancelled</span>
+        <span><i style="background:#fff;border-color:var(--line)"></i>Your hours</span>
+        <span><i style="background:var(--closed);border-color:var(--closed)"></i>Unavailable</span>
       </div>
       <div id="calBody"></div>
     </section>
 
     <section class="panel" id="listPanel" aria-labelledby="listTitle">
       <div class="panel-head">
-        <h2 id="listTitle">To handle</h2>
+        <h2 id="listTitle">Requests &amp; meetings</h2>
         <div class="tabs" role="tablist" aria-label="Show" id="tabs">
           <button type="button" role="tab" id="tab-needs" data-tab="needs" aria-controls="tabBody" aria-selected="true" tabindex="0">
             <span class="tlong">Needs your action</span><span class="tshort">To answer</span>
@@ -485,8 +549,8 @@ document.addEventListener("DOMContentLoaded", function () {
   </div>
 </div>
 
-<!-- New appointment: ask a client for a time. Everyone on the account is
-     told in the portal and by email, and accepts or declines it there. -->
+<!-- New appointment: add a confirmed meeting now, or send a booking request
+     so the client or guest picks one of your open times. -->
 <div class="dlg-scrim" id="dlgNew">
   <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlgNewTitle">
     <div class="dlg-head">
@@ -496,28 +560,130 @@ document.addEventListener("DOMContentLoaded", function () {
       </button>
     </div>
     <form class="dlg-body" id="newForm" novalidate>
-      <p class="choice-note">Everyone on that client's account gets the request in their portal and by email, and accepts or declines it there.</p>
+      <div class="seg full-seg" role="group" aria-label="How to book">
+        <button type="button" data-mode="now" aria-pressed="true">Add to calendar now</button>
+        <button type="button" data-mode="ask" aria-pressed="false">Send booking request</button>
+      </div>
+      <p class="choice-note" id="modeNote"></p>
       <div>
+        <span class="lbl" id="whoLabel">Meeting with</span>
+        <div class="seg full-seg" role="group" aria-labelledby="whoLabel">
+          <button type="button" data-who="client" aria-pressed="true">Client in the portal</button>
+          <button type="button" data-who="guest" aria-pressed="false">Guest</button>
+        </div>
+      </div>
+      <div id="whoClient">
         <label for="reqClient">Client</label>
-        <select id="reqClient" required><option value="">Loading clients…</option></select>
+        <select id="reqClient"><option value="">Loading clients…</option></select>
+        <p class="hint">Everyone on that client's account is told, in the portal and by email.</p>
+      </div>
+      <div id="whoGuest" hidden>
+        <div class="two">
+          <div><label for="guestName">Guest name</label><input type="text" id="guestName" maxlength="150" autocomplete="off" placeholder="Full name"></div>
+          <div><label for="guestEmail">Guest email</label><input type="email" id="guestEmail" maxlength="190" autocomplete="off" placeholder="name@company.com"></div>
+        </div>
+        <p class="hint">For someone without a portal account. Everything reaches them by email.</p>
       </div>
       <div>
         <label for="reqTopic">Topic</label>
-        <input type="text" id="reqTopic" maxlength="200" placeholder="What the meeting is about" required>
-      </div>
-      <div class="two">
-        <div><label for="reqDate">Date</label><input type="date" id="reqDate" required></div>
-        <div><label for="reqTime">Time</label><input type="time" id="reqTime" step="900" required></div>
+        <input type="text" id="reqTopic" maxlength="200" placeholder="What the meeting is about">
       </div>
       <div>
-        <label for="reqNotes">Notes <span style="text-transform:none;font-weight:600">(optional)</span></label>
+        <label for="reqNotes">Notes <span class="opt">(optional)</span></label>
         <textarea id="reqNotes" placeholder="Agenda, links, anything they should know"></textarea>
+      </div>
+      <div id="modeNow">
+        <div class="two">
+          <div><label for="reqDate">Date</label><input type="date" id="reqDate"></div>
+          <div><label for="reqTime">Time</label><input type="time" id="reqTime" step="900"></div>
+        </div>
+        <p class="hint" id="nowHint" aria-live="polite"></p>
+      </div>
+      <div id="modeAsk" hidden>
+        <label for="reqWindow">They can pick a time in</label>
+        <select id="reqWindow">
+          <option value="7">The next 7 days</option>
+          <option value="14" selected>The next 14 days</option>
+          <option value="30">The next 30 days</option>
+        </select>
+        <p class="hint" id="askHint" aria-live="polite"></p>
       </div>
       <p class="form-error" id="newError" role="alert"></p>
     </form>
     <div class="dlg-foot">
       <button class="btn" type="button" data-close>Cancel</button>
-      <button class="btn primary" type="submit" form="newForm" id="newSubmit">Send request</button>
+      <button class="btn primary" type="submit" form="newForm" id="newSubmit">Add meeting</button>
+    </div>
+  </div>
+</div>
+
+<!-- A guest's booking link, right after it is made or renewed. -->
+<div class="dlg-scrim" id="dlgLink">
+  <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlgLinkTitle">
+    <div class="dlg-head">
+      <h2 id="dlgLinkTitle">Booking link</h2>
+      <button class="icon-btn" type="button" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="dlg-body">
+      <p id="linkIntro"></p>
+      <div class="link-box">
+        <input type="text" id="linkField" readonly aria-label="Booking link">
+        <button class="btn primary" type="button" id="copyLink">Copy link</button>
+      </div>
+      <p class="hint">Anyone with this link can pick a time, so share it only with them. A new link replaces it.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Your own bookable hours. Each person on the team sets theirs. -->
+<div class="dlg-scrim" id="dlgAvail">
+  <div class="dlg wide" role="dialog" aria-modal="true" aria-labelledby="dlgAvailTitle">
+    <div class="dlg-head">
+      <h2 id="dlgAvailTitle">Your availability</h2>
+      <button class="icon-btn" type="button" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="dlg-body">
+      <p class="choice-note">Booking links offer only times inside these hours, outside your days off, and away from meetings you already have. Each person on the team sets their own.</p>
+      <div class="two">
+        <div><label for="aTz">Time zone</label><select id="aTz"></select></div>
+        <div><label for="aSlot">Meeting length</label>
+          <select id="aSlot"><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="45">45 minutes</option><option value="60">60 minutes</option></select></div>
+      </div>
+      <div class="two">
+        <div><label for="aBuffer">Gap between meetings</label>
+          <select id="aBuffer"><option value="0">None</option><option value="5">5 minutes</option><option value="10">10 minutes</option><option value="15">15 minutes</option><option value="30">30 minutes</option></select></div>
+        <div><label for="aNotice">Minimum notice</label>
+          <select id="aNotice"><option value="0">None</option><option value="2">2 hours</option><option value="12">12 hours</option><option value="24">1 day</option><option value="48">2 days</option></select></div>
+      </div>
+      <div class="two">
+        <div><label for="aHorizon">Bookable up to</label>
+          <select id="aHorizon"><option value="14">14 days ahead</option><option value="30">30 days ahead</option><option value="60">60 days ahead</option><option value="90">90 days ahead</option></select></div>
+        <div></div>
+      </div>
+      <div>
+        <span class="lbl">Weekly hours</span>
+        <div class="week-rows" id="weekRows"></div>
+      </div>
+      <div>
+        <span class="lbl">Days off</span>
+        <div class="off-list" id="offList"></div>
+        <div class="off-add">
+          <div><label for="offFrom" class="sub-lbl">From</label><input type="date" id="offFrom"></div>
+          <div><label for="offTo" class="sub-lbl">To</label><input type="date" id="offTo"></div>
+          <div><label for="offLabel" class="sub-lbl">Reason <span class="opt">(optional)</span></label><input type="text" id="offLabel" maxlength="120"></div>
+          <button class="btn" type="button" id="offAdd">Add</button>
+        </div>
+      </div>
+      <p class="form-error" id="availError" role="alert"></p>
+    </div>
+    <div class="dlg-foot">
+      <span class="preview-line" id="availPreview" aria-live="polite"></span>
+      <button class="btn" type="button" data-close>Cancel</button>
+      <button class="btn primary" type="button" id="availSave">Save availability</button>
     </div>
   </div>
 </div>
@@ -555,20 +721,26 @@ if (adminToken && !adminCan("calendar.use")) {
 
 /* ── State ─────────────────────────────────────────────────────────────── */
 
-let meetings = [];          // rows from get_admin_calendar
+let meetings = [];          // appointments rows (get_admin_calendar)
+let bookings = [];          // booking requests: one per company or guest
+let avail = null;           // your own availability (api/availability.php)
+let myId = 0;
 let loadFailed = false;
 
 const S = {
   view: "week",             // day | week | month
   anchor: "",               // the day the view is built around, YYYY-MM-DD
   tab: "needs",             // needs | waiting | upcoming
-  showAll: false            // the To handle list past its first CARDS_SHOWN
+  page: { needs: 1, waiting: 1, upcoming: 1 },  // each tab's page of cards
+  mode: "now",              // New appointment: now | ask
+  who: "client"             // client | guest
 };
 
-/* No length is stored on a meeting yet, so each one fills half an hour. */
-const MEETING_MINUTES = 30;
-const CARDS_SHOWN = 9;
+const DEFAULT_MINUTES = 30;
+const PAGE_SIZE = 6;     // two rows of three cards on a wide screen
 const MONTH_CHIPS = 3;
+const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+const DAY_NAMES = { mon: "Monday", tue: "Tuesday", wed: "Wednesday", thu: "Thursday", fri: "Friday", sat: "Saturday", sun: "Sunday" };
 
 /* A phone has room for one day of hours, not seven: there a week is a list,
    and the day view gets a strip of the week's days to move between. */
@@ -590,6 +762,8 @@ const mondayOf = d => addDays(d, -((d.getDay() + 6) % 7));
 const todayIso = () => iso(new Date());
 const toMin = t => { const [h, m] = String(t || "0:0").split(":").map(Number); return (h || 0) * 60 + (m || 0); };
 const fmtDay = (s, opts) => parse(s).toLocaleDateString(undefined, opts || { weekday: "short", day: "numeric", month: "short" });
+const dayKey = ds => DAYS[(parse(ds).getDay() + 6) % 7];
+const minutesOf = m => Number(m.duration_min) || DEFAULT_MINUTES;
 
 /** "3:00 PM" from "15:00" or "15:00:00", as the rest of the portal writes it. */
 function prettyTime(value) {
@@ -600,7 +774,8 @@ function prettyTime(value) {
 
 /*
 | What a row means on this page, from requested_by and status:
-|   needs     a client asked and nobody has answered - it waits on you
+|   needs     a client asked, or someone picked a time from your booking
+|             link, and nobody has answered - it waits on you
 |   sent      the team asked a client, who has not answered yet
 |   approved  confirmed
 |   off       declined or cancelled
@@ -616,14 +791,23 @@ function statusText(m) {
   if (m.status === "rejected") return "Declined";
   return KIND_LABEL[kindOf(m)];
 }
-const company = m => m.company_name || m.client || m.user_name || "Client";
-const person = m => (m.requested_by === "user" ? (m.requested_by_name || m.user_name) : m.user_name) || "";
+const isGuest = m => !m.user_id && !!m.guest_email;
+const company = m => isGuest(m) ? (m.guest_name || m.guest_email) : (m.company_name || m.client || m.user_name || "Client");
+const person = m => isGuest(m) ? "" : ((m.requested_by === "user" ? (m.requested_by_name || m.user_name) : m.user_name) || "");
 const topic = m => m.topic || m.title || "Meeting";
 const byTime = (a, b) => (a.date + a.time).localeCompare(b.date + b.time);
 const onDay = ds => meetings.filter(m => m.date === ds).sort(byTime);
+const SOURCE_TEXT = {
+  direct: "Added directly", booking: "Picked from a booking link", request: "Asked for by the client", proposal: "Sent to the client"
+};
+function sourceText(m) {
+  if (m.source && SOURCE_TEXT[m.source]) return SOURCE_TEXT[m.source];
+  return m.requested_by === "user" ? "Asked for by the client" : "Sent to the client";
+}
 
 function needsList() { return meetings.filter(m => kindOf(m) === "needs").sort(byTime); }
-function waitingList() { return meetings.filter(m => kindOf(m) === "sent").sort(byTime); }
+function sentList() { return meetings.filter(m => kindOf(m) === "sent").sort(byTime); }
+function openBookings() { return bookings.filter(b => b.state === "open" || b.state === "expired"); }
 function upcomingList() {
   const today = todayIso();
   return meetings.filter(m => kindOf(m) === "approved" && m.date >= today).sort(byTime);
@@ -636,37 +820,108 @@ function toast(message, isError) {
   t.classList.toggle("error", !!isError);
   t.classList.add("show");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove("show"), 3200);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 3600);
 }
 
 /* ── Local preview data ────────────────────────────────────────────────────
    The bypass button on admin-login.html writes a token no server accepts, so
-   the page runs on this fixture instead and keeps every action working in
-   memory. Nothing here is reachable with a real session. */
+   the page runs on this fixture instead, answering its own calls in memory.
+   Nothing here is reachable with a real session. */
 
 const PREVIEW = adminToken === "preview";
 const DEMO_CLIENTS = ["Acme Media", "Northwind", "Vertex Labs"];
-
-function demoDate(offset) { return iso(addDays(new Date(), offset)); }
-function demoData() {
-  const row = (id, offset, time, t, status, by, name, co, extra) => Object.assign({
-    id, date: demoDate(offset), time, topic: t, title: t, notes: "", status, requested_by: by,
-    user_name: name, company_name: co, client: co, admin_name: "Sarah Miller"
+const preview = PREVIEW ? (function () {
+  const d = n => iso(addDays(new Date(), n));
+  const row = (id, n, time, t, status, by, name, co, extra) => Object.assign({
+    id, date: d(n), time, topic: t, title: t, notes: "", status, requested_by: by, admin_id: 1, duration_min: 30,
+    timezone: "UTC", user_id: name ? 10 + id : null, user_name: name, company_name: co, client: co, admin_name: "Sarah Miller"
   }, extra || {});
-  return [
-    row(1, 0, "10:30:00", "AI research interview", "pending", "user", "Jane Cooper", "Acme Media", { notes: "Wants the Q3 numbers first" }),
-    row(2, 2, "15:00:00", "Lead gen survey review", "pending", "user", "Peter Lee", "Northwind"),
-    row(3, 0, "09:30:00", "Modern SaaS architecture", "approved", "admin", "Jane Cooper", "Acme Media", { notes: "Kick-off for the new build" }),
-    row(4, 1, "12:00:00", "User experience trends", "approved", "admin", "Dana White", "Vertex Labs"),
-    row(5, 6, "15:00:00", "Feedback loop review", "pending", "admin", "Peter Lee", "Northwind"),
-    row(6, -3, "11:00:00", "Content strategy", "rejected", "admin", "Dana White", "Vertex Labs", { admin_name: "Rob Lee" })
-  ];
+  const weekly = {};
+  DAYS.forEach(k => { weekly[k] = ["sat", "sun"].includes(k) ? [] : [["09:00", "17:00"]]; });
+  return {
+    meetings: [
+      row(1, 0, "10:30:00", "AI research interview", "pending", "user", "Jane Cooper", "Acme Media", { notes: "Wants the Q3 numbers first", source: "request" }),
+      row(2, 2, "15:00:00", "Discovery call", "pending", "user", "", null, { user_id: null, guest_name: "Omar Nabil", guest_email: "omar@example.com", source: "booking", attendee_message: "Could we cover hosting too?" }),
+      row(3, 0, "09:30:00", "Modern SaaS architecture", "approved", "admin", "Jane Cooper", "Acme Media", { source: "direct" }),
+      row(4, 1, "12:00:00", "User experience trends", "approved", "admin", "Dana White", "Vertex Labs", { source: "booking" }),
+      row(5, 6, "15:00:00", "Feedback loop review", "pending", "admin", "Peter Lee", "Northwind", { source: "proposal" }),
+      row(6, -3, "11:00:00", "Content strategy", "rejected", "admin", "Dana White", "Vertex Labs")
+    ],
+    bookings: [
+      { id: 1, client: "Northwind", topic: "Social media audit", state: "open", window_to: d(12), recipients: 2, opened: 1, admin_id: 1 },
+      { id: 2, guest_name: "Mona Adel", guest_email: "mona@example.com", topic: "Intro call", state: "open", window_to: d(6), recipients: 1, opened: 0, admin_id: 1 }
+    ],
+    avail: { timezone: "UTC", slot_minutes: 30, buffer_minutes: 15, notice_hours: 24, horizon_days: 30, weekly, off: [{ from: d(9), to: d(9), label: "Training" }] }
+  };
+})() : null;
+
+function previewApi(action, body) {
+  const p = preview, nextId = list => list.reduce((n, x) => Math.max(n, Number(x.id) || 0), 0) + 1;
+  const find = id => p.meetings.find(m => String(m.id) === String(id));
+  switch (action) {
+    case "get_admin_calendar": return { success: true, appointments: p.meetings, booking_requests: p.bookings, availability: p.avail, admin_id: 1 };
+    case "get_clients": return { success: true, clients: DEMO_CLIENTS };
+    case "respond_request": find(body.id).status = body.status; return { success: true };
+    case "cancel_meeting": find(body.id).status = "cancelled"; return { success: true };
+    case "save_availability": p.avail = Object.assign({}, p.avail, body); return { success: true, message: "Availability saved.", availability: p.avail };
+    case "open_slots": return { success: true, count: localOpenSlots(Number(body.days) || 14).length };
+    case "check_time": return { success: true, warnings: localWarnings(body.date, body.time) };
+    case "add_meeting": {
+      const w = localWarnings(body.date, body.time);
+      if (w.length && !body.force) return { success: false, needs_force: true, message: w.join(" ") };
+      p.meetings.push({ id: nextId(p.meetings), date: body.date, time: body.time + ":00", topic: body.topic, title: body.topic, notes: body.notes,
+        status: "approved", requested_by: "admin", admin_id: 1, duration_min: p.avail.slot_minutes, source: "direct",
+        user_id: body.who === "guest" ? null : 99, guest_name: body.guest_name, guest_email: body.who === "guest" ? body.guest_email : null,
+        company_name: body.client, client: body.client, admin_name: adminUser.name || "You" });
+      return { success: true, message: "Meeting added. They've been sent the calendar invite." };
+    }
+    case "create_booking_request": {
+      const id = nextId(p.bookings);
+      p.bookings.unshift({ id, client: body.who === "client" ? body.client : null, guest_name: body.guest_name, guest_email: body.who === "guest" ? body.guest_email : null,
+        topic: body.topic, state: "open", window_to: iso(addDays(new Date(), Number(body.window_days))), recipients: 1, opened: 0, admin_id: 1 });
+      return { success: true, message: "Booking request sent to 1 person.", link: body.who === "guest" ? location.origin + "/book.html?t=preview" : null };
+    }
+    case "cancel_booking_request": p.bookings.find(b => b.id === body.id).state = "cancelled"; return { success: true, message: "Booking request withdrawn." };
+    case "renew_booking_links": return { success: true, message: body.email === false ? "New link ready." : "Sent again with a new link.", link: location.origin + "/book.html?t=preview" };
+  }
+  return { success: false, message: "Not in preview." };
 }
 
-/* ── Load ──────────────────────────────────────────────────────────────── */
+/* Open times computed in the page - the preview's stand-in for the server. */
+function localOpenSlots(days) {
+  const a = avail, out = [], now = new Date(), earliest = new Date(now.getTime() + a.notice_hours * 3600e3);
+  for (let i = 0; i <= days; i++) {
+    const ds = iso(addDays(now, i));
+    if (a.off.some(o => ds >= o.from && ds <= o.to)) continue;
+    const busy = meetings.filter(m => m.date === ds && ["approved", "pending"].includes(m.status))
+      .map(m => [toMin(m.time) - a.buffer_minutes, toMin(m.time) + minutesOf(m) + a.buffer_minutes]);
+    (a.weekly[dayKey(ds)] || []).forEach(([f, t]) => {
+      for (let s = toMin(f); s + a.slot_minutes <= toMin(t); s += a.slot_minutes) {
+        const at = parse(ds); at.setMinutes(s);
+        if (at < earliest || busy.some(([x, y]) => s < y && s + a.slot_minutes > x)) continue;
+        out.push(ds);
+      }
+    });
+  }
+  return out;
+}
+function localWarnings(date, time) {
+  const s = toMin(time), len = avail.slot_minutes, out = [];
+  meetings.filter(m => m.date === date && ["approved", "pending"].includes(m.status)).forEach(m => {
+    if (s < toMin(m.time) + minutesOf(m) && s + len > toMin(m.time)) out.push(`It clashes with "${topic(m)}" at ${m.time.slice(0, 5)}.`);
+  });
+  const inside = (avail.weekly[dayKey(date)] || []).some(([f, t]) => s >= toMin(f) && s + len <= toMin(t));
+  if (avail.off.some(o => date >= o.from && date <= o.to)) out.push("That's one of your days off.");
+  else if (!inside) out.push("It's outside your hours.");
+  return out;
+}
 
-async function api(action, body) {
-  const res = await fetch("api/calendar.php?action=" + action, {
+/* ── Server ────────────────────────────────────────────────────────────── */
+
+async function api(action, body, query) {
+  if (PREVIEW) return previewApi(action, Object.assign({}, body || {}, query || {}));
+  const qs = new URLSearchParams(Object.assign({ action }, query || {}));
+  const res = await fetch("api/calendar.php?" + qs, {
     method: body ? "POST" : "GET",
     headers: Object.assign({ Authorization: "Bearer " + adminToken }, body ? { "Content-Type": "application/json" } : {}),
     body: body ? JSON.stringify(body) : undefined
@@ -676,15 +931,13 @@ async function api(action, body) {
 }
 
 async function loadMeetings() {
-  if (PREVIEW) {
-    if (!meetings.length) meetings = demoData();
-    loadFailed = false;
-    return renderAll();
-  }
   try {
     const data = await api("get_admin_calendar");
     if (!data.success) throw new Error(data.message || "Failed");
     meetings = data.appointments || [];
+    bookings = data.booking_requests || [];
+    avail = data.availability || avail;
+    myId = Number(data.admin_id) || 0;
     loadFailed = false;
   } catch (err) {
     console.error(err);
@@ -699,7 +952,6 @@ async function loadClients() {
     select.innerHTML = `<option value="">Select a client</option>`
       + list.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
   };
-  if (PREVIEW) return fill(DEMO_CLIENTS);
   try {
     const data = await api("get_clients");
     fill(data.success ? (data.clients || []) : []);
@@ -723,16 +975,42 @@ function label(m) {
   return `${topic(m)}, ${company(m)}, ${fmtDay(m.date, { weekday: "long", day: "numeric", month: "long" })} ${prettyTime(m.time)}, ${statusText(m)}`;
 }
 
-/* The hours the grid shows: the working day, stretched to fit any meeting
+const dayOff = ds => avail ? avail.off.find(o => ds >= o.from && ds <= o.to) : null;
+const hoursOn = ds => avail && !dayOff(ds) ? (avail.weekly[dayKey(ds)] || []) : [];
+
+/* The hours the grid shows: your working day, stretched to fit any meeting
    that falls outside it. */
 function gridHours(dates) {
   let from = 8 * 60, to = 18 * 60;
+  dates.forEach(ds => hoursOn(ds).forEach(([f, t]) => {
+    from = Math.min(from, Math.floor(toMin(f) / 60) * 60);
+    to = Math.max(to, Math.ceil(toMin(t) / 60) * 60);
+  }));
   meetings.forEach(m => {
     if (!dates.includes(m.date)) return;
     from = Math.min(from, Math.floor(toMin(m.time) / 60) * 60);
-    to = Math.max(to, Math.ceil((toMin(m.time) + MEETING_MINUTES) / 60) * 60);
+    to = Math.max(to, Math.ceil((toMin(m.time) + minutesOf(m)) / 60) * 60);
   });
-  return [from, Math.min(to, 24 * 60)];
+  return [Math.max(0, from), Math.min(to, 24 * 60)];
+}
+
+/* Meetings that overlap share the column side by side: each gets a lane,
+   and every meeting in a run of overlaps knows how many lanes it has. */
+function lanes(list) {
+  const out = [];
+  let run = [], ends = [], runEnd = -1;
+  const flush = () => { run.forEach(x => { x.of = ends.length; }); run = []; ends = []; };
+  list.forEach(m => {
+    const s = toMin(m.time), e = s + minutesOf(m);
+    if (run.length && s >= runEnd) flush();
+    let lane = ends.findIndex(end => end <= s);
+    if (lane < 0) { lane = ends.length; ends.push(e); } else ends[lane] = e;
+    runEnd = run.length ? Math.max(runEnd, e) : e;
+    const item = { m, lane, of: 1 };
+    run.push(item); out.push(item);
+  });
+  flush();
+  return out;
 }
 
 function timeGrid(dates) {
@@ -747,12 +1025,21 @@ function timeGrid(dates) {
   for (let t = from; t < to; t += 60) html += `<div class="hlabel">${prettyTime(pad(t / 60) + ":00").replace(":00 ", " ")}</div>`;
   html += "</div>";
   dates.forEach(ds => {
-    const weekend = [0, 6].includes(parse(ds).getDay());
-    html += `<div class="dcol${weekend ? " weekend" : ""}">`;
+    html += `<div class="dcol">`;
+    const off = dayOff(ds);
+    if (off) {
+      html += `<div class="day-off"><span>${esc(off.label || "Day off")}</span></div>`;
+    } else {
+      hoursOn(ds).forEach(([f, t]) => {
+        const a = Math.max(toMin(f), from), b = Math.min(toMin(t), to);
+        if (b > a) html += `<div class="open" style="top:${px(a - from)};height:${px(b - a)}" aria-hidden="true"></div>`;
+      });
+    }
     for (let t = from; t < to; t += 60) html += `<div class="slot-line"></div>`;
-    onDay(ds).forEach(m => {
-      const start = toMin(m.time), short = MEETING_MINUTES <= 30, kind = kindOf(m);
-      html += `<button type="button" class="ev ${kind}${short ? " short" : ""}" data-meeting="${m.id}" style="top:${px(start - from)};height:${px(MEETING_MINUTES)}" aria-label="${esc(label(m))}">`
+    lanes(onDay(ds)).forEach(({ m, lane, of }) => {
+      const start = toMin(m.time), len = minutesOf(m), short = len <= 30, kind = kindOf(m);
+      const place = of > 1 ? `;left:calc(4px + (100% - 8px) * ${lane} / ${of});width:calc((100% - 8px) / ${of} - 2px);right:auto` : "";
+      html += `<button type="button" class="ev ${kind}${short ? " short" : ""}" data-meeting="${m.id}" style="top:${px(start - from)};height:${px(len)}${place}" aria-label="${esc(label(m))}">`
         + `<b>${esc((short ? prettyTime(m.time) + " " : "") + topic(m))}</b><span>${esc(prettyTime(m.time) + " · " + company(m))}</span></button>`;
     });
     if (ds === todayIso()) {
@@ -770,7 +1057,8 @@ function monthGrid() {
   for (let i = 0; i < 42; i++) {
     const d = addDays(start, i), ds = iso(d), list = onDay(ds);
     if (i === 35 && d.getMonth() !== a.getMonth()) break;
-    const cls = ["mc", d.getMonth() !== a.getMonth() ? "other" : "", ds === todayIso() ? "today" : "", [0, 6].includes(d.getDay()) ? "weekend" : ""].join(" ");
+    const other = d.getMonth() !== a.getMonth();
+    const cls = ["mc", other ? "other" : "", ds === todayIso() ? "today" : "", !other && avail && !hoursOn(ds).length ? "closed" : ""].join(" ");
     html += `<div class="${cls}" data-day="${ds}"><span>${d.getDate()}</span>`
       + list.slice(0, MONTH_CHIPS).map(m => `<button type="button" class="chip ${kindOf(m)}" data-meeting="${m.id}" aria-label="${esc(label(m))}">${esc(prettyTime(m.time) + " " + topic(m))}</button>`).join("")
       + (list.length > MONTH_CHIPS ? `<button type="button" class="more" data-open-day="${ds}">+${list.length - MONTH_CHIPS} more</button>` : "")
@@ -788,7 +1076,7 @@ function agenda(fromIso, days) {
     html += `<div class="ag-day${ds === todayIso() ? " today" : ""}">${ds === todayIso() ? "Today · " : ""}${esc(fmtDay(ds, { weekday: "long", day: "numeric", month: "long" }))}</div>`;
     list.forEach(m => {
       html += `<button type="button" class="ag-row" data-meeting="${m.id}"><span class="ag-time">${esc(prettyTime(m.time))}</span>`
-        + `<span class="ag-main"><b>${esc(topic(m))}</b><span>${esc(company(m))}</span></span>`
+        + `<span class="ag-main"><b>${esc(topic(m))}</b><span>${esc(company(m))}${isGuest(m) ? " · Guest" : ""}</span></span>`
         + `<span class="badge ${kindOf(m)}">${esc(statusText(m))}</span></button>`;
     });
   }
@@ -819,7 +1107,7 @@ function renderCalendar() {
   else if (phone()) body.innerHTML = agenda(iso(monday), 7);
   else body.innerHTML = timeGrid([0, 1, 2, 3, 4, 5, 6].map(i => iso(addDays(monday, i))));
 
-  // Start the hours at the first meeting, or 9 AM, rather than at the top.
+  // Start the hours at the first meeting, or the top of the grid.
   const wrap = document.getElementById("gridWrap");
   if (wrap && !phone()) {
     const first = wrap.querySelector(".ev");
@@ -827,12 +1115,13 @@ function renderCalendar() {
   }
 }
 
-/* ── To handle ─────────────────────────────────────────────────────────── */
+/* ── Requests & meetings ─────────────────────────────────────────────────────────── */
 
-function card(m, tab) {
-  const asked = m.requested_by === "user"
-    ? `Asked by ${esc(person(m) || company(m))}`
-    : `Sent by ${esc(m.admin_name || "the team")}${person(m) ? " to " + esc(person(m)) : ""}`;
+function meetingCard(m, tab) {
+  let note;
+  if (m.source === "booking") note = `Picked from your booking link${m.requested_by_name && !isGuest(m) ? " by " + esc(m.requested_by_name) : ""}`;
+  else if (m.requested_by === "user") note = `Asked by ${esc(person(m) || company(m))}`;
+  else note = `Sent by ${esc(m.admin_name || "the team")}${person(m) ? " to " + esc(person(m)) : ""}`;
   let acts = "";
   if (tab === "needs") {
     acts = `<button class="btn small primary" type="button" data-decide="approved" data-id="${m.id}">Confirm</button>`
@@ -841,14 +1130,49 @@ function card(m, tab) {
     acts = `<button class="btn small danger" type="button" data-cancel="${m.id}">Cancel request</button>`;
   }
   return `<div class="tcard"><div class="item-top"><div><b>${esc(topic(m))}</b><span>${esc(company(m))}</span></div>`
-    + `<span class="who-tag">Client</span></div>`
-    + `<div class="item-when">${esc(fmtDay(m.date, { weekday: "long", day: "numeric", month: "short" }))} · ${esc(prettyTime(m.time))}</div>`
-    + `<span class="item-note">${asked}</span>`
+    + `<span class="who-tag">${isGuest(m) ? "Guest" : "Client"}</span></div>`
+    + `<div class="item-when">${esc(fmtDay(m.date, { weekday: "long", day: "numeric", month: "short" }))} · ${esc(prettyTime(m.time))} · ${minutesOf(m)} min</div>`
+    + `<span class="item-note">${note}</span>`
     + `<div class="item-acts">${acts}<button class="btn small" type="button" data-meeting="${m.id}">Details</button></div></div>`;
 }
 
+function bookingCard(b) {
+  const guest = !!b.guest_email, expired = b.state === "expired";
+  const opened = b.recipients > 1 ? `Opened by ${b.opened} of ${b.recipients}` : (b.opened ? "Opened" : "Not opened yet");
+  const host = b.admin_id !== myId && b.host_name ? ` · from ${esc(b.host_name)}` : "";
+  return `<div class="tcard"><div class="item-top"><div><b>${esc(b.topic)}</b><span>${esc(guest ? b.guest_name : b.client)}</span></div>`
+    + `<span class="badge ${expired ? "expired" : "open"}">${expired ? "Expired" : "Pick by " + esc(fmtDay(b.window_to))}</span></div>`
+    + `<div class="item-when">Booking link · ${guest ? "Guest" : "Client"}</div>`
+    + `<span class="item-note">${expired ? "Nobody picked a time" : opened}${host}</span>`
+    + `<div class="item-acts">`
+    + (!expired && guest ? `<button class="btn small" type="button" data-copy-link="${b.id}">Copy new link</button>` : "")
+    + (!expired ? `<button class="btn small" type="button" data-resend="${b.id}">Resend</button>` : "")
+    + `<button class="btn small danger" type="button" data-withdraw="${b.id}">${expired ? "Remove" : "Withdraw"}</button></div></div>`;
+}
+
+/* Prev, the page numbers (with gaps when there are many), Next, and which
+   cards are showing. The tab keeps its page while you look at another tab. */
+function pager(page, pages, total) {
+  const nums = [];
+  for (let p = 1; p <= pages; p++) {
+    if (p === 1 || p === pages || Math.abs(p - page) <= 1) nums.push(p);
+    else if (nums[nums.length - 1] !== "…") nums.push("…");
+  }
+  const first = (page - 1) * PAGE_SIZE + 1, last = Math.min(page * PAGE_SIZE, total);
+  return `<nav class="list-pager" aria-label="Pages">`
+    + `<button type="button" class="pg" data-page="${page - 1}"${page === 1 ? " disabled" : ""}>Prev</button>`
+    + nums.map(p => p === "…" ? `<span class="pg-gap" aria-hidden="true">…</span>`
+      : `<button type="button" class="pg num" data-page="${p}"${p === page ? ' aria-current="page"' : ""} aria-label="Page ${p}">${p}</button>`).join("")
+    + `<button type="button" class="pg" data-page="${page + 1}"${page === pages ? " disabled" : ""}>Next</button>`
+    + `<span class="pg-count">${first}–${last} of ${total}</span></nav>`;
+}
+
 function renderList() {
-  const lists = { needs: needsList(), waiting: waitingList(), upcoming: upcomingList() };
+  const lists = {
+    needs: needsList().map(m => ["m", m]),
+    waiting: openBookings().map(b => ["b", b]).concat(sentList().map(m => ["m", m])),
+    upcoming: upcomingList().map(m => ["m", m])
+  };
   document.querySelectorAll("[data-count]").forEach(el => {
     const n = lists[el.dataset.count].length;
     el.textContent = n;
@@ -864,14 +1188,16 @@ function renderList() {
   if (loadFailed) { body.innerHTML = `<p class="empty">Nothing to show until the meetings load.</p>`; return; }
   const list = lists[S.tab];
   const empty = {
-    needs: "Nothing waiting on you. Client requests show up here.",
-    waiting: "No requests out. The ones you send stay here until the client answers.",
+    needs: "Nothing waiting on you. Client requests and picked times show up here.",
+    waiting: "Nothing out. Booking links and requests you send stay here until they're answered.",
     upcoming: "No confirmed meetings coming up."
   }[S.tab];
   if (!list.length) { body.innerHTML = `<p class="empty">${empty}</p>`; return; }
-  const shown = S.showAll ? list : list.slice(0, CARDS_SHOWN);
-  body.innerHTML = `<div class="cards">${shown.map(m => card(m, S.tab)).join("")}</div>`
-    + (list.length > CARDS_SHOWN ? `<button class="btn small show-more" type="button" data-show-all>${S.showAll ? "Show fewer" : "Show all " + list.length}</button>` : "");
+  const pages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+  const page = S.page[S.tab] = Math.min(Math.max(1, S.page[S.tab] || 1), pages);
+  const shown = list.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  body.innerHTML = `<div class="cards">${shown.map(([k, x]) => k === "b" ? bookingCard(x) : meetingCard(x, S.tab)).join("")}</div>`
+    + (pages > 1 ? pager(page, pages, list.length) : "");
 }
 
 function renderAll() { renderCalendar(); renderList(); }
@@ -880,15 +1206,15 @@ function renderAll() { renderCalendar(); renderList(); }
 
 let lastFocus = null;
 function openDialog(id) {
-  lastFocus = document.activeElement;
+  if (!document.querySelector(".dlg-scrim.open")) lastFocus = document.activeElement;
   const el = document.getElementById(id);
   el.classList.add("open");
-  const first = el.querySelector("input, select, textarea, .dlg-foot button:not([data-close])") || el.querySelector("button");
+  const first = el.querySelector(".dlg-body input:not([type=hidden]):not([readonly]), .dlg-body select, .dlg-body textarea, .dlg-foot button:not([data-close])") || el.querySelector("button");
   if (first) first.focus();
 }
 function closeDialog(el) {
   el.classList.remove("open");
-  if (lastFocus && document.contains(lastFocus)) lastFocus.focus();
+  if (!document.querySelector(".dlg-scrim.open") && lastFocus && document.contains(lastFocus)) lastFocus.focus();
 }
 
 function showMeeting(id) {
@@ -896,12 +1222,16 @@ function showMeeting(id) {
   if (!m) return false;
   const kind = kindOf(m);
   document.getElementById("mTitle").textContent = topic(m);
+  const zone = m.timezone || (avail && avail.timezone) || "";
   const rows = [
     ["Status", `<span class="badge ${kind}">${esc(statusText(m))}</span>`],
-    ["Client", esc(company(m)) + (person(m) ? `<small>${esc(person(m))}</small>` : "")],
-    ["When", esc(fmtDay(m.date, { weekday: "long", day: "numeric", month: "long", year: "numeric" })) + ", " + esc(prettyTime(m.time))],
-    ["Asked by", m.requested_by === "user" ? esc(person(m) || company(m)) : esc(m.admin_name || "The team")],
+    [isGuest(m) ? "Guest" : "Client", esc(company(m)) + (isGuest(m) ? `<small>${esc(m.guest_email)}</small>` : person(m) ? `<small>${esc(person(m))}</small>` : "")],
+    ["When", esc(fmtDay(m.date, { weekday: "long", day: "numeric", month: "long", year: "numeric" })) + ", " + esc(prettyTime(m.time))
+      + `<small>${minutesOf(m)} min${zone ? " · " + esc(zone) : ""}</small>`],
+    ["How", esc(sourceText(m))],
+    ["Host", esc(m.admin_name || "Not answered yet")],
     m.responded_by_name ? ["Answered by", esc(m.responded_by_name)] : null,
+    m.attendee_message ? ["Their message", esc(m.attendee_message)] : null,
     ["Notes", m.notes ? esc(m.notes) : `<small>None</small>`]
   ].filter(Boolean);
   document.getElementById("mBody").innerHTML = `<dl class="kv">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>`;
@@ -913,28 +1243,23 @@ function showMeeting(id) {
   } else if (kind === "sent") {
     foot = `<button class="btn danger" type="button" data-cancel="${m.id}">Cancel request</button>`;
   } else if (kind === "approved") {
-    foot = `<button class="btn danger" type="button" data-cancel="${m.id}">Cancel meeting</button>`;
+    foot = `<button class="btn" type="button" data-ics="${m.id}">Download .ics</button>`
+      + `<button class="btn danger" type="button" data-cancel="${m.id}">Cancel meeting</button>`;
   }
   document.getElementById("mFoot").innerHTML = foot;
   openDialog("dlgMeeting");
   return true;
 }
 
-/* ── Actions ───────────────────────────────────────────────────────────── */
+/* ── Meeting actions ───────────────────────────────────────────────────── */
 
 async function decide(id, status, button) {
-  const m = meetings.find(x => String(x.id) === String(id));
-  if (!m) return;
   if (button) button.disabled = true;
   try {
-    if (PREVIEW) {
-      m.status = status;
-    } else {
-      const data = await api("respond_request", { id, status });
-      if (!data.success) throw new Error(data.message || "Couldn't save the answer.");
-    }
+    const data = await api("respond_request", { id, status });
+    if (!data.success) throw new Error(data.message || "Couldn't save the answer.");
     closeDialog(document.getElementById("dlgMeeting"));
-    toast(status === "approved" ? "Confirmed. The client has been told." : "Declined. The client has been told.");
+    toast(status === "approved" ? "Confirmed. They've been sent the calendar invite." : "Declined. They've been told.");
     await loadMeetings();
   } catch (err) {
     toast(err.message || "Couldn't save the answer.", true);
@@ -949,64 +1274,285 @@ async function cancel(id) {
   const ok = await askConfirm({
     title: isRequest ? "Cancel this request" : "Cancel this meeting",
     text: `"${topic(m)}" with ${company(m)} on ${fmtDay(m.date, { weekday: "long", day: "numeric", month: "long" })} at ${prettyTime(m.time)}. `
-      + "The client is told in the portal and by email. This can't be undone.",
+      + "They're told by email" + (isGuest(m) ? "" : " and in the portal") + ". This can't be undone.",
     action: isRequest ? "Cancel request" : "Cancel meeting",
     dismiss: isRequest ? "Keep the request" : "Keep the meeting",
     icon: "warn"
   });
   if (!ok) return;
   try {
-    if (PREVIEW) {
-      m.status = "cancelled";
-    } else {
-      const data = await api("cancel_meeting", { id });
-      if (!data.success) throw new Error(data.message || "Couldn't cancel it.");
-    }
+    const data = await api("cancel_meeting", { id });
+    if (!data.success) throw new Error(data.message || "Couldn't cancel it.");
     closeDialog(document.getElementById("dlgMeeting"));
-    toast(isRequest ? "Request cancelled. The client has been told." : "Meeting cancelled. The client has been told.");
+    toast(isRequest ? "Request cancelled. They've been told." : "Meeting cancelled. They've been told.");
     await loadMeetings();
   } catch (err) {
     toast(err.message || "Couldn't cancel it.", true);
   }
 }
 
-async function sendRequest(event) {
+async function downloadIcs(id) {
+  if (PREVIEW) return toast("The real page downloads the calendar file here.");
+  try {
+    const res = await fetch("api/calendar.php?action=download_ics&id=" + encodeURIComponent(id), { headers: { Authorization: "Bearer " + adminToken } });
+    if (!res.ok || !(res.headers.get("Content-Type") || "").includes("text/calendar")) throw new Error("Couldn't make the calendar file.");
+    const url = URL.createObjectURL(await res.blob());
+    const a = Object.assign(document.createElement("a"), { href: url, download: "meeting-" + id + ".ics" });
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+/* ── Booking request actions ───────────────────────────────────────────── */
+
+function showLink(link, intro) {
+  document.getElementById("linkIntro").textContent = intro;
+  document.getElementById("linkField").value = link;
+  openDialog("dlgLink");
+  document.getElementById("copyLink").focus();
+}
+
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; }
+  catch (err) {
+    const f = document.getElementById("linkField");
+    f.focus(); f.select();
+    return false;
+  }
+}
+
+async function renew(id, email) {
+  const b = bookings.find(x => x.id === Number(id));
+  if (!b) return;
+  if (email === false) {
+    const ok = await askConfirm({
+      title: "Make a new link",
+      text: `The link already sent to ${b.guest_name || "them"} for "${b.topic}" stops working.`,
+      action: "Make new link", dismiss: "Keep the old one", icon: "warn"
+    });
+    if (!ok) return;
+  }
+  try {
+    const data = await api("renew_booking_links", { id: b.id, email });
+    if (!data.success) throw new Error(data.message || "Couldn't make a new link.");
+    if (email === false && data.link) showLink(data.link, `A new booking link for ${b.guest_name || "your guest"}. The old one no longer works.`);
+    else toast(data.message || "Sent again.");
+    await loadMeetings();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function withdraw(id) {
+  const b = bookings.find(x => x.id === Number(id));
+  if (!b) return;
+  const ok = await askConfirm({
+    title: b.state === "expired" ? "Remove this booking request" : "Withdraw this booking request",
+    text: `"${b.topic}" for ${b.guest_name || b.client}. Its links stop working; nobody is emailed.`,
+    action: b.state === "expired" ? "Remove" : "Withdraw", dismiss: "Keep it", icon: "warn"
+  });
+  if (!ok) return;
+  try {
+    const data = await api("cancel_booking_request", { id: b.id });
+    if (!data.success) throw new Error(data.message || "Couldn't withdraw it.");
+    toast(data.message || "Withdrawn.");
+    await loadMeetings();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+/* ── New appointment ───────────────────────────────────────────────────── */
+
+function setMode(mode) {
+  S.mode = mode;
+  document.querySelectorAll("[data-mode]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.mode === mode)));
+  document.getElementById("modeNow").hidden = mode !== "now";
+  document.getElementById("modeAsk").hidden = mode !== "ask";
+  document.getElementById("newSubmit").textContent = mode === "now" ? "Add meeting" : "Send booking request";
+  document.getElementById("modeNote").textContent = mode === "now"
+    ? "Confirmed straight away. They get an email with a calendar invite."
+    : "They get a link to pick one of your open times. You confirm or reject the time they pick.";
+  if (mode === "ask") askHint(); else nowHint();
+}
+function setWho(who) {
+  S.who = who;
+  document.querySelectorAll("[data-who]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.who === who)));
+  document.getElementById("whoClient").hidden = who !== "client";
+  document.getElementById("whoGuest").hidden = who !== "guest";
+}
+
+let hintSeq = 0;
+async function askHint() {
+  const el = document.getElementById("askHint"), seq = ++hintSeq;
+  const days = Number(document.getElementById("reqWindow").value);
+  el.className = "hint"; el.textContent = "Counting your open times…";
+  try {
+    const data = await api("open_slots", null, { days });
+    if (seq !== hintSeq) return;
+    const n = Number(data.count) || 0, len = avail ? avail.slot_minutes : DEFAULT_MINUTES;
+    el.className = "hint " + (n ? "ok" : "warn");
+    el.textContent = n ? `${n} open times of ${len} min in that window.` : "You have no open times in that window. Add hours in Availability first.";
+  } catch (err) {
+    el.textContent = "";
+  }
+}
+async function nowHint() {
+  const el = document.getElementById("nowHint"), seq = ++hintSeq;
+  const date = document.getElementById("reqDate").value, time = document.getElementById("reqTime").value;
+  // Only a problem with the chosen time is worth a line here.
+  el.className = "hint";
+  el.textContent = "";
+  if (!date || !time) return;
+  try {
+    const data = await api("check_time", { date, time });
+    if (seq !== hintSeq) return;
+    const w = data.warnings || [];
+    el.className = "hint warn";
+    el.textContent = w.length ? w.join(" ") + " You can still add it." : "";
+  } catch (err) { /* the hint is a nicety */ }
+}
+
+function newProblems() {
+  const v = id => document.getElementById(id).value.trim();
+  const problems = [];
+  if (S.who === "client" && !v("reqClient")) problems.push(["reqClient", "Pick the client."]);
+  if (S.who === "guest" && !v("guestName")) problems.push(["guestName", "Add the guest's name."]);
+  if (S.who === "guest" && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v("guestEmail"))) problems.push(["guestEmail", "Add a valid email for the guest."]);
+  if (!v("reqTopic")) problems.push(["reqTopic", "Say what the meeting is about."]);
+  if (S.mode === "now") {
+    if (!v("reqDate")) problems.push(["reqDate", "Pick a date."]);
+    else if (v("reqDate") < todayIso()) problems.push(["reqDate", "Pick a date that hasn't passed."]);
+    if (!v("reqTime")) problems.push(["reqTime", "Pick a time."]);
+  }
+  ["reqClient", "guestName", "guestEmail", "reqTopic", "reqDate", "reqTime"].forEach(id =>
+    document.getElementById(id).setAttribute("aria-invalid", String(problems.some(p => p[0] === id))));
+  return problems;
+}
+
+async function submitNew(event) {
   event.preventDefault();
   const v = id => document.getElementById(id).value.trim();
   const error = document.getElementById("newError");
-  const problems = [];
-  if (!v("reqClient")) problems.push(["reqClient", "Pick the client."]);
-  if (!v("reqTopic")) problems.push(["reqTopic", "Say what the meeting is about."]);
-  if (!v("reqDate")) problems.push(["reqDate", "Pick a date."]);
-  else if (v("reqDate") < todayIso()) problems.push(["reqDate", "Pick a date that hasn't passed."]);
-  if (!v("reqTime")) problems.push(["reqTime", "Pick a time."]);
-  ["reqClient", "reqTopic", "reqDate", "reqTime"].forEach(id =>
-    document.getElementById(id).setAttribute("aria-invalid", String(problems.some(p => p[0] === id))));
+  const problems = newProblems();
   error.textContent = problems.map(p => p[1]).join(" ");
   if (problems.length) { document.getElementById(problems[0][0]).focus(); return; }
+
+  const body = { who: S.who, topic: v("reqTopic"), notes: v("reqNotes") };
+  if (S.who === "client") body.client = v("reqClient");
+  else Object.assign(body, { guest_name: v("guestName"), guest_email: v("guestEmail") });
 
   const button = document.getElementById("newSubmit");
   button.disabled = true;
   try {
-    const body = { client: v("reqClient"), date: v("reqDate"), time: v("reqTime"), topic: v("reqTopic"), notes: v("reqNotes") };
-    let message = "Request sent.";
-    if (PREVIEW) {
-      const id = meetings.reduce((max, a) => Math.max(max, Number(a.id) || 0), 0) + 1;
-      meetings.push({ id, date: body.date, time: body.time + ":00", topic: body.topic, title: body.topic, notes: body.notes,
-        status: "pending", requested_by: "admin", company_name: body.client, client: body.client, user_name: "", admin_name: adminUser.name || "You" });
+    if (S.mode === "now") {
+      Object.assign(body, { date: v("reqDate"), time: v("reqTime") });
+      let data = await api("add_meeting", body);
+      if (!data.success && data.needs_force) {
+        const ok = await askConfirm({ title: "Add it anyway?", text: data.message, action: "Add anyway", dismiss: "Pick another time", icon: "warn" });
+        if (!ok) { button.disabled = false; return; }
+        data = await api("add_meeting", Object.assign(body, { force: true }));
+      }
+      if (!data.success) throw new Error(data.message || "Couldn't add the meeting.");
+      finishNew();
+      S.anchor = body.date; S.tab = "upcoming";
+      toast(data.message || "Meeting added.");
     } else {
-      const data = await api("create_admin_request", body);
-      if (!data.success) throw new Error(data.message || "Couldn't send the request.");
-      message = data.message || message;
+      body.window_days = Number(v("reqWindow"));
+      const data = await api("create_booking_request", body);
+      if (!data.success) throw new Error(data.message || "Couldn't send the booking request.");
+      finishNew();
+      S.tab = "waiting";
+      if (data.link) showLink(data.link, `Emailed to ${body.guest_name}. You can also share this link with them yourself.`);
+      else toast(data.message || "Booking request sent.");
     }
-    document.getElementById("newForm").reset();
-    closeDialog(document.getElementById("dlgNew"));
-    S.tab = "waiting"; S.showAll = false;
-    S.anchor = body.date;
-    toast(message);
     await loadMeetings();
   } catch (err) {
-    error.textContent = err.message || "Couldn't send the request.";
+    error.textContent = err.message || "Something went wrong.";
+  }
+  button.disabled = false;
+}
+
+function finishNew() {
+  document.getElementById("newForm").reset();
+  document.getElementById("newError").textContent = "";
+  closeDialog(document.getElementById("dlgNew"));
+}
+
+/* ── Availability ──────────────────────────────────────────────────────── */
+
+let draft = null;   // the Availability dialog's working copy
+
+function zoneList(current) {
+  let zones = [];
+  try { zones = Intl.supportedValuesOf("timeZone"); } catch (e) { /* older browsers */ }
+  if (!zones.length) zones = ["UTC", "Europe/London", "Africa/Cairo", "Asia/Dubai", "Asia/Riyadh", "America/New_York"];
+  if (!zones.includes("UTC")) zones.unshift("UTC");
+  if (current && !zones.includes(current)) zones.unshift(current);
+  return zones;
+}
+
+function openAvailability() {
+  const a = avail || { timezone: "UTC", slot_minutes: 30, buffer_minutes: 0, notice_hours: 24, horizon_days: 30, weekly: {}, off: [] };
+  draft = JSON.parse(JSON.stringify(a));
+  DAYS.forEach(k => { draft.weekly[k] = draft.weekly[k] || []; });
+  const tz = document.getElementById("aTz");
+  tz.innerHTML = zoneList(draft.timezone).map(z => `<option${z === draft.timezone ? " selected" : ""}>${esc(z)}</option>`).join("");
+  document.getElementById("aSlot").value = draft.slot_minutes;
+  document.getElementById("aBuffer").value = draft.buffer_minutes;
+  document.getElementById("aNotice").value = draft.notice_hours;
+  document.getElementById("aHorizon").value = draft.horizon_days;
+  document.getElementById("availError").textContent = "";
+  document.getElementById("availPreview").textContent = "";
+  renderWeek();
+  openDialog("dlgAvail");
+  previewCount();
+}
+
+function renderWeek() {
+  document.getElementById("weekRows").innerHTML = DAYS.map(d => {
+    const r = draft.weekly[d];
+    return `<div class="wrow"><label class="wday"><input type="checkbox" data-day="${d}"${r.length ? " checked" : ""}> ${DAY_NAMES[d]}</label>`
+      + `<div class="ranges">` + (r.length ? r.map((x, i) =>
+        `<div class="range"><input type="time" step="900" value="${x[0]}" data-r="${d}:${i}:0" aria-label="${DAY_NAMES[d]} from">`
+        + `<span class="to">to</span><input type="time" step="900" value="${x[1]}" data-r="${d}:${i}:1" aria-label="${DAY_NAMES[d]} to">`
+        + (r.length > 1 ? `<button type="button" class="icon-btn" data-rm="${d}:${i}" aria-label="Remove these hours on ${DAY_NAMES[d]}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>` : "")
+        + `</div>`).join("") + (r.length < 4 ? `<button type="button" class="linkish" data-addr="${d}">Add hours</button>` : "")
+        : `<span class="unavail">Unavailable</span>`) + `</div></div>`;
+  }).join("");
+  document.getElementById("offList").innerHTML = draft.off.length ? draft.off.map((o, i) =>
+    `<div class="off-row"><span><b>${esc(fmtDay(o.from, { weekday: "short", day: "numeric", month: "short" }))}${o.to !== o.from ? " – " + esc(fmtDay(o.to, { weekday: "short", day: "numeric", month: "short" })) : ""}</b>${o.label ? " · " + esc(o.label) : ""}</span>`
+    + `<button type="button" class="icon-btn" data-offrm="${i}" aria-label="Remove this day off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>`).join("")
+    : `<p class="empty">No days off.</p>`;
+}
+
+function previewCount() {
+  // What's saved now, in the next 7 days: a feel for how open you are.
+  api("open_slots", null, { days: 7 }).then(data => {
+    if (data && data.success) document.getElementById("availPreview").textContent = `Next 7 days: ${data.count} open times (saved hours).`;
+  }).catch(() => {});
+}
+
+async function saveAvailability() {
+  draft.timezone = document.getElementById("aTz").value;
+  ["slot_minutes:aSlot", "buffer_minutes:aBuffer", "notice_hours:aNotice", "horizon_days:aHorizon"].forEach(pair => {
+    const [k, id] = pair.split(":");
+    draft[k] = Number(document.getElementById(id).value);
+  });
+  const error = document.getElementById("availError");
+  const button = document.getElementById("availSave");
+  button.disabled = true;
+  try {
+    const data = await api("save_availability", draft);
+    if (!data.success) throw new Error(data.message || "Couldn't save your availability.");
+    avail = data.availability || draft;
+    closeDialog(document.getElementById("dlgAvail"));
+    toast(data.message || "Availability saved.");
+    renderCalendar();
+  } catch (err) {
+    error.textContent = err.message;
   }
   button.disabled = false;
 }
@@ -1034,9 +1580,27 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("newBtn").addEventListener("click", () => {
     document.getElementById("newError").textContent = "";
     document.getElementById("reqDate").min = todayIso();
+    setMode(S.mode); setWho(S.who);
     openDialog("dlgNew");
   });
-  document.getElementById("newForm").addEventListener("submit", sendRequest);
+  document.getElementById("availBtn").addEventListener("click", openAvailability);
+  document.getElementById("availSave").addEventListener("click", saveAvailability);
+  document.getElementById("newForm").addEventListener("submit", submitNew);
+  document.getElementById("copyLink").addEventListener("click", async () => {
+    const ok = await copyText(document.getElementById("linkField").value);
+    toast(ok ? "Link copied." : "Press Ctrl+C to copy the selected link.");
+  });
+  document.getElementById("offAdd").addEventListener("click", () => {
+    const from = document.getElementById("offFrom").value, to = document.getElementById("offTo").value || from;
+    const err = document.getElementById("availError");
+    if (!from) { err.textContent = "Pick the first day off."; return document.getElementById("offFrom").focus(); }
+    if (to < from) { err.textContent = "The last day off can't be before the first."; return document.getElementById("offTo").focus(); }
+    err.textContent = "";
+    draft.off.push({ from, to, label: document.getElementById("offLabel").value.trim() });
+    draft.off.sort((x, y) => x.from.localeCompare(y.from));
+    ["offFrom", "offTo", "offLabel"].forEach(id => { document.getElementById(id).value = ""; });
+    renderWeek();
+  });
 
   document.addEventListener("click", e => {
     // A month day on a phone: its dots are too small to tap, so the day opens.
@@ -1057,8 +1621,37 @@ document.addEventListener("DOMContentLoaded", () => {
     if (d.meeting) return showMeeting(d.meeting);
     if (d.decide) return decide(d.id, d.decide, t);
     if (d.cancel) return cancel(d.cancel);
-    if (d.tab) { S.tab = d.tab; S.showAll = false; renderList(); return document.getElementById("tab-" + d.tab).focus(); }
-    if (d.showAll !== undefined) { S.showAll = !S.showAll; return renderList(); }
+    if (d.ics) return downloadIcs(d.ics);
+    if (d.copyLink) return renew(d.copyLink, false);
+    if (d.resend) return renew(d.resend, true);
+    if (d.withdraw) return withdraw(d.withdraw);
+    if (d.mode) return setMode(d.mode);
+    if (d.who) return setWho(d.who);
+    if (d.tab) { S.tab = d.tab; renderList(); return document.getElementById("tab-" + d.tab).focus(); }
+    if (d.page) {
+      S.page[S.tab] = Number(d.page);
+      renderList();
+      // Keep the reader in the list: back to its top, focus on the new page's number.
+      document.getElementById("listPanel").scrollIntoView({ block: "nearest" });
+      const now = document.querySelector('.list-pager [aria-current="page"]');
+      if (now) now.focus();
+      return;
+    }
+    if (d.addr) {
+      const r = draft.weekly[d.addr], last = r[r.length - 1];
+      r.push(last ? [last[1], last[1] < "17:00" ? "17:00" : "18:00"] : ["09:00", "17:00"]);
+      return renderWeek();
+    }
+    if (d.rm) { const [day, i] = d.rm.split(":"); draft.weekly[day].splice(Number(i), 1); return renderWeek(); }
+    if (d.offrm !== undefined) { draft.off.splice(Number(d.offrm), 1); return renderWeek(); }
+  });
+
+  document.addEventListener("change", e => {
+    const t = e.target;
+    if (t.dataset.day) { draft.weekly[t.dataset.day] = t.checked ? [["09:00", "17:00"]] : []; return renderWeek(); }
+    if (t.dataset.r) { const [day, i, k] = t.dataset.r.split(":"); draft.weekly[day][Number(i)][Number(k)] = t.value; return; }
+    if (t.id === "reqWindow") return askHint();
+    if (t.id === "reqDate" || t.id === "reqTime") return nowHint();
   });
 
   document.addEventListener("keydown", e => {
@@ -1066,14 +1659,13 @@ document.addEventListener("DOMContentLoaded", () => {
     if ((e.key === "ArrowRight" || e.key === "ArrowLeft") && e.target.dataset && e.target.dataset.tab) {
       const keys = ["needs", "waiting", "upcoming"], i = keys.indexOf(e.target.dataset.tab);
       S.tab = keys[(i + (e.key === "ArrowRight" ? 1 : keys.length - 1)) % keys.length];
-      S.showAll = false;
-      renderList();
+        renderList();
       document.getElementById("tab-" + S.tab).focus();
       return;
     }
     if (e.key === "Escape") {
-      const open = document.querySelector(".dlg-scrim.open");
-      if (open) closeDialog(open);
+      const open = [...document.querySelectorAll(".dlg-scrim.open")].pop();
+      if (open && !document.querySelector(".cf-modal.show")) closeDialog(open);
     }
   });
 

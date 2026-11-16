@@ -1,5 +1,4 @@
-<!-- Status: PR 1 (rename to Appointments, meetings only, confirm/decline/cancel with emails) is built.
-     PR 2 (availability) and PR 3 (booking links, guest page, .ics) are not. -->
+<!-- Status: all three parts are built on the appointments branch - the rename and meetings-only page, availability, and booking (direct add, booking links for clients and guests, book.html, .ics invites). -->
 
 # Appointments: rename the staff Calendar, add direct booking, booking links and availability
 

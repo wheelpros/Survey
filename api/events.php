@@ -78,6 +78,8 @@ const EVENT_INQUIRY_ACCESS        = "inquiry.access_changed";
 const EVENT_MEETING_PROPOSED      = "meeting.proposed";
 const EVENT_MEETING_ANSWERED      = "meeting.answered";
 const EVENT_MEETING_CANCELLED     = "meeting.cancelled";
+const EVENT_MEETING_BOOKED        = "meeting.booked";
+const EVENT_BOOKING_SENT          = "meeting.booking_sent";
 
 const EVENT_SOURCE_CHANGED        = "source.changed";
 
