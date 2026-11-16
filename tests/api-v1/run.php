@@ -502,11 +502,27 @@ check("content types", count($types["data"]["items"] ?? []) === 9 && $types["dat
 
 // ── Calendar ─────────────────────────────────────────────────────────────
 
-sees("owner calendar", "calendar.php", $owner, [400, 401, 402], "meetings");
+// The owner sees their own meetings like everyone else: none of the seeded
+// ones (Acme and Beta have managers). Only a request from a client nobody is
+// assigned to (Gina, 12) falls to them, and one they host.
+$pdo->exec("INSERT INTO appointments (id, user_id, title, topic, date, time, status, requested_by)
+            VALUES (403, 12, 'Hello', 'Hello', '" . day("+3") . "', '09:00:00', 'pending', 'user')");
+$pdo->exec("INSERT INTO appointments (id, user_id, title, topic, date, time, status, requested_by, admin_id)
+            VALUES (404, 11, 'Owner call', 'Owner call', '" . day("+5") . "', '09:00:00', 'approved', 'admin', 1)");
+sees("owner calendar: their own and unassigned clients' requests", "calendar.php", $owner, [403, 404], "meetings");
+sees("account manager still sees the owner's meeting with their client", "calendar.php", $am2, [401, 404], "meetings");
+sees("super admin doesn't see an unassigned client's request", "calendar.php", $sa, [400, 402], "meetings");
+[, $pending] = get("calendar.php?pending=1", $owner);
+check("owner pending: only the unassigned client's request", ids($pending, "waiting_on_you") === [403], json_encode($pending));
+refused("owner can't open a manager's client meeting", "calendar.php?id=400", $owner, 404);
+$pdo->exec("DELETE FROM appointments WHERE id IN (403, 404)");
+
 sees("super admin calendar", "calendar.php", $sa, [400, 402], "meetings");
 sees("account manager calendar", "calendar.php", $am2, [401], "meetings");
 refused("seo admin has no calendar", "calendar.php", $seo, 403);
-$cal = sees("calendar for one client", "calendar.php?client=10", $owner, [400, 402], "meetings");
+sees("calendar for one client", "calendar.php?client=10", $sa, [400, 402], "meetings");
+// The owner's view of the same client: all its content, none of its meetings (Amy's and Sam's).
+$cal = sees("owner calendar for one client: no meetings that aren't theirs", "calendar.php?client=10", $owner, [], "meetings");
 check("calendar carries the client's content", ids($cal, "content") === [303, 302, 300], json_encode($cal["data"]["content"] ?? null));
 check("live_at has no fractional seconds", preg_match('/^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$/', $cal["data"]["content"][1]["live_at"] ?? "") === 1, json_encode($cal["data"]["content"] ?? null));
 refused("calendar range too long", "calendar.php?from=2026-01-01&to=2027-06-01", $owner, 422);
@@ -524,9 +540,9 @@ sees("account manager sees their project's phases", "calendar.php?$phaseRange", 
 sees("super admin outside the project sees none of its phases", "calendar.php?$phaseRange", $sa, [], "phases");
 sees("calendar for one client keeps only that client's phases", "calendar.php?$phaseRange&client=10", $owner, [], "phases");
 
-[, $pending] = get("calendar.php?pending=1", $owner);
+[, $pending] = get("calendar.php?pending=1", $sa);
 check("pending approvals split by who answers",
-    ids($pending, "waiting_on_you") === [400] && ids($pending, "waiting_on_client") === [401], json_encode($pending));
+    ids($pending, "waiting_on_you") === [400] && ids($pending, "waiting_on_client") === [], json_encode($pending));
 [, $pending] = get("calendar.php?pending=1", $am2);
 check("pending approvals scoped", ids($pending, "waiting_on_you") === [] && ids($pending, "waiting_on_client") === [401], json_encode($pending));
 
@@ -619,9 +635,9 @@ if (in_array("--fixtures", $argv, true)) {
         "get_content" => ["content.php?id=300", $owner],
         "list_content_types" => ["content.php?types=1", $owner],
         "list_content_teammates" => ["content.php?teammates=1&id=300", $owner],
-        "get_calendar" => ["calendar.php", $owner],
-        "list_pending_approvals" => ["calendar.php?pending=1", $owner],
-        "get_meeting" => ["calendar.php?id=400", $owner],
+        "get_calendar" => ["calendar.php", $sa],
+        "list_pending_approvals" => ["calendar.php?pending=1", $sa],
+        "get_meeting" => ["calendar.php?id=400", $sa],
         "list_booking_requests" => ["calendar.php?booking_requests=1", $owner],
         "get_open_times" => ["calendar.php?open_times=1&days=7", $am],
         "list_projects" => ["projects.php", $owner],

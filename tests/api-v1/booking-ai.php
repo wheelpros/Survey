@@ -41,7 +41,8 @@ $states = array_column($r["data"]["items"] ?? [], "state", "id");
 check("ai booking: list_booking_requests shows Amy's links and their state",
     ($states[(int) ($made["id"] ?? 0)] ?? "") === "picked" && !isset($states[600]), json_encode($states));
 [, $r] = get("calendar.php?booking_requests=1", $owner);
-check("ai booking: the owner sees every link", isset(array_column($r["data"]["items"] ?? [], "state", "id")[(int) ($made["id"] ?? 0)]));
+$ownerStates = array_column($r["data"]["items"] ?? [], "state", "id");
+check("ai booking: the owner sees only their own links", isset($ownerStates[600]) && !isset($ownerStates[(int) ($made["id"] ?? 0)]), json_encode($ownerStates));
 
 [$status, $r] = get("calendar.php?open_times=1&days=3", $am);
 check("ai booking: get_open_times gives the hours and the free times",

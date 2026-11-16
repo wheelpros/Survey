@@ -279,6 +279,8 @@ function issueBookingLink(PDO $pdo, $requestId, array $person, $email = true)
     $url = bookingLinkUrl($raw);
     if ($email) {
         $request = bookingRequestById($pdo, $requestId);
+        // From the host: their name on the email, and replies reach them.
+        [$hostName, $hostEmail] = meetingOrganizer($pdo, (int) $request["admin_id"], []);
         emailBookingInvite(
             ["name" => (string) ($person["name"] ?? ""), "email" => $person["email"]],
             (string) $request["host_name"],
@@ -287,7 +289,8 @@ function issueBookingLink(PDO $pdo, $requestId, array $person, $email = true)
             $url,
             (string) $request["window_to"],
             (int) $request["duration_min"],
-            (string) $request["timezone"]
+            (string) $request["timezone"],
+            ["name" => $hostName, "email" => $hostEmail]
         );
     }
     return $url;
@@ -469,10 +472,10 @@ function ownerAdminIds(PDO $pdo)
     }
 }
 
-/** Whether $admin may manage this booking request: its host, or the owner's view. */
+/** Whether $admin may manage this booking request: only its host, the Director included. */
 function bookingRequestInScope(PDO $pdo, array $admin, array $request)
 {
-    return (int) $request["admin_id"] === (int) $admin["id"] || can($admin, "clients.view_all", $pdo);
+    return (int) $request["admin_id"] === (int) $admin["id"];
 }
 
 /**
@@ -535,18 +538,18 @@ function renewBookingLinks(PDO $pdo, array $admin, $requestId, $email = true)
  */
 function adminBookingRequests(PDO $pdo, array $admin)
 {
-    $all = can($admin, "clients.view_all", $pdo);
+    // Only the links they sent - the Director's list is theirs too.
     $stmt = $pdo->prepare("
         SELECT r.*, a.name AS host_name,
                (SELECT COUNT(*) FROM booking_request_links l WHERE l.booking_request_id = r.id) AS recipients,
                (SELECT COUNT(*) FROM booking_request_links l WHERE l.booking_request_id = r.id AND l.opened_at IS NOT NULL) AS opened
         FROM booking_requests r
         LEFT JOIN admins a ON a.id = r.admin_id
-        WHERE (r.status = 'open' OR r.created_at > NOW() - INTERVAL 30 DAY)" . ($all ? "" : " AND r.admin_id = ?") . "
+        WHERE (r.status = 'open' OR r.created_at > NOW() - INTERVAL 30 DAY) AND r.admin_id = ?
         ORDER BY r.created_at DESC
         LIMIT 200
     ");
-    $stmt->execute($all ? [] : [(int) $admin["id"]]);
+    $stmt->execute([(int) $admin["id"]]);
 
     return array_map(function ($r) use ($pdo) {
         return [

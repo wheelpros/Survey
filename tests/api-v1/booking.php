@@ -85,7 +85,8 @@ check("booking: the host sees the guest meeting", in_array((int) $direct["id"], 
 [, $r] = pageGet("api/calendar.php?action=get_admin_calendar", $am3);
 check("booking: another manager doesn't", !in_array((int) $direct["id"], array_map("intval", array_column($r["appointments"] ?? [], "id")), true));
 [, $r] = pageGet("api/calendar.php?action=get_admin_calendar", $owner);
-check("booking: the owner does", in_array((int) $direct["id"], array_map("intval", array_column($r["appointments"] ?? [], "id")), true));
+check("booking: nor does the owner - it is Amy's", !in_array((int) $direct["id"], array_map("intval", array_column($r["appointments"] ?? [], "id")), true));
+check("booking: but the owner can still book with every client", count($r["clients"] ?? []) >= 3, json_encode($r["clients"] ?? $r));
 
 /* The invite. */
 [$status, $ics] = rawGet("api/calendar.php?action=download_ics&id=" . (int) $direct["id"], $am);

@@ -946,25 +946,18 @@ function teamAttention(PDO $pdo, array $actor, $scope, array $scopeParams)
     } catch (Throwable $e) {
     }
 
-    // Meeting requests a client sent and nobody answered: every client for
-    // the Director, an account manager's own clients otherwise.
+    // Meeting requests waiting on them: the same meetings the Appointments
+    // page shows them (meetingVisibilitySql()), the Director included.
     $meetings = 0;
     try {
-        if (can($actor, "clients.view_all", $pdo)) {
-            $meetings = (int) $pdo->query("
-                SELECT COUNT(*) FROM appointments WHERE status = 'pending' AND requested_by = 'user'
-            ")->fetchColumn();
-        } else {
-            // Their clients' requests, and times guests picked from their booking links.
-            $stmt = $pdo->prepare("
-                SELECT COUNT(*) FROM appointments ap
-                LEFT JOIN admin_user_assignments aua ON aua.user_id = ap.user_id AND aua.admin_id = ?
-                WHERE ap.status = 'pending' AND ap.requested_by = 'user'
-                  AND (aua.admin_id IS NOT NULL OR (ap.user_id IS NULL AND ap.admin_id = ?))
-            ");
-            $stmt->execute([(int) $actor["id"], (int) $actor["id"]]);
-            $meetings = (int) $stmt->fetchColumn();
-        }
+        require_once __DIR__ . "/meeting-writes.php";
+        [$visible, $params] = meetingVisibilitySql($pdo, $actor, "ap");
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) FROM appointments ap
+            WHERE ap.status = 'pending' AND ap.requested_by = 'user' AND $visible
+        ");
+        $stmt->execute($params);
+        $meetings = (int) $stmt->fetchColumn();
     } catch (Throwable $e) {
     }
 

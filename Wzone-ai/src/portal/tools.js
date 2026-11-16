@@ -260,9 +260,11 @@ export const READ_TOOLS = [
     scope: "calendar:read",
     title: "Calendar",
     description:
-      "Meetings with your clients between two days, plus the content going live and the project " +
-      "phases dated in the same days. The meetings are what the portal's Appointments page shows. Content needs content:read, " +
-      "phases projects:read. Defaults to the next 30 days; at most 366 at a time.",
+      "Your meetings between two days - with the clients assigned to you and the ones you host - plus the content " +
+      "going live and the project phases dated in the same days. The meetings are what the portal's Appointments page " +
+      "shows. Content needs content:read, phases projects:read. Defaults to the next 30 days; at most 366 at a time. " +
+      "To book or send a meeting, use add_meeting (confirmed), send_booking_request (a link to pick a time) " +
+      "or propose_meeting.",
     input: {
       from: date("First day (default today)").optional(),
       to: date("Last day (default 30 days after from)").optional(),

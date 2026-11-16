@@ -11,10 +11,10 @@
 |   GET calendar.php?open_times=1&days=  get_open_times (your own)
 |
 | Scope calendar:read, held by the owner, super admins and account managers -
-| calendar.php closes itself to seo_admin. Meetings follow calendar.php's
-| scopedClients(): the owner sees every client's, everyone else those of the
-| clients assigned to them. A guest's meeting (no client account) belongs to
-| whoever hosts it, and to the owner. The content in the range follows content's own
+| calendar.php closes itself to seo_admin. Meetings follow meetingVisibilitySql()
+| (meeting-writes.php), like the Appointments page: the clients assigned to
+| them and the meetings they host - the owner too, who also gets requests from
+| clients nobody is assigned to. The content in the range follows content's own
 | rule and only appears with content:read as well.
 |
 | Meeting topics and notes are typed by clients as often as by staff, so they
@@ -36,11 +36,9 @@ require_once __DIR__ . "/../booking-writes.php";
 const CALENDAR_MAX_DAYS = 366;
 const CALENDAR_MAX_ROWS = 500;
 
-// A client's meeting when the client is theirs; a guest's when they host it.
-[$clientSql, $clientParams] = v1ClientScopeSql($p, "a.user_id");
-$scope = $clientSql === ""
-    ? ["", []]
-    : ["($clientSql OR (a.user_id IS NULL AND a.admin_id = ?))", array_merge($clientParams, [(int) $p["id"]])];
+// Their own meetings: their clients' and the ones they host - the same list
+// as the Appointments page, the Director included.
+$scope = meetingVisibilitySql($pdo, $p, "a");
 
 const MEETING_SQL = "
     SELECT a.id, a.user_id, a.title, a.topic, a.notes, a.date, a.time, a.status,

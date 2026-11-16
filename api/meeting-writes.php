@@ -128,7 +128,9 @@ function requestMeetingFromClients(PDO $pdo, array $admin, array $targets, $comp
         $people = array_merge($people, clientAccountPeople($pdo, $target["id"]));
     }
 
-    emailClientsAboutMeetingRequest($people, (string) $admin["name"], $topic, $date, $time, $notes);
+    [$hostName, $hostEmail] = meetingOrganizer($pdo, (int) $admin["id"], $admin);
+    emailClientsAboutMeetingRequest($people, $hostName ?: (string) $admin["name"], $topic, $date, $time, $notes,
+        ["name" => $hostName, "email" => $hostEmail]);
 
     return $ids;
 }
@@ -140,11 +142,35 @@ function requestMeetingFromClients(PDO $pdo, array $admin, array $targets, $comp
  */
 function meetingInAdminScope(PDO $pdo, array $admin, array $row)
 {
-    if ((int) ($row["user_id"] ?? 0) > 0) {
-        $allowed = array_map("intval", array_column(meetingScopedClients($pdo, $admin), "id"));
-        return in_array((int) $row["user_id"], $allowed, true);
+    [$sql, $params] = meetingVisibilitySql($pdo, $admin, "a");
+    $stmt = $pdo->prepare("SELECT 1 FROM appointments a WHERE a.id = ? AND $sql LIMIT 1");
+    $stmt->execute(array_merge([(int) ($row["id"] ?? 0)], $params));
+    return (bool) $stmt->fetchColumn();
+}
+
+/**
+ * Which meetings an admin sees and acts on, as [sql, params] over the
+ * appointments alias $a. The same rule for every role, the Director
+ * included: meetings with the clients assigned to them, and meetings they
+ * host (a client's or a guest's). Booking is wider - meetingScopedClients()
+ * still lets the Director book with any client - but other people's
+ * meetings stay theirs.
+ *
+ * So no request goes unseen, whoever sees every client also gets a client's
+ * unanswered request (no host yet) when nobody is assigned to that client.
+ */
+function meetingVisibilitySql(PDO $pdo, array $admin, $a = "a")
+{
+    $id = (int) $admin["id"];
+    $sql = "($a.user_id IN (SELECT user_id FROM admin_user_assignments WHERE admin_id = ?) OR $a.admin_id = ?";
+    $params = [$id, $id];
+
+    if (can($admin, "clients.view_all", $pdo)) {
+        $sql .= " OR ($a.admin_id IS NULL AND $a.user_id IS NOT NULL
+                  AND NOT EXISTS (SELECT 1 FROM admin_user_assignments x WHERE x.user_id = $a.user_id))";
     }
-    return (int) ($row["admin_id"] ?? 0) === (int) $admin["id"] || can($admin, "clients.view_all", $pdo);
+
+    return [$sql . ")", $params];
 }
 
 /** The staff member who owns a meeting, as [name, email] for invites. */
@@ -201,24 +227,44 @@ function tellMeetingAttendees(PDO $pdo, array $admin, array $row, $outcome, $not
         );
     }
 
+    // The meeting's host - whoever acted when it has none yet. Emails go out
+    // in their name, and replies reach them.
+    $organizer = meetingOrganizer($pdo, (int) ($row["admin_id"] ?? 0) ?: (int) $admin["id"], $admin);
+    $host = ["name" => $organizer[0] ?: (string) $admin["name"], "email" => $organizer[1]];
+
     [$people, $guest] = meetingAttendees($pdo, $row);
     $attachments = [];
     if (in_array($outcome, ["confirmed", "booked", "cancelled"], true)) {
-        $organizer = meetingOrganizer($pdo, $row["admin_id"] ?? 0, $admin);
         $attendees = array_map(function ($p) { return [(string) ($p["name"] ?? ""), (string) ($p["email"] ?? "")]; }, $people);
         $attachments[] = meetingIcsAttachment($row, $organizer, $attendees, $outcome === "cancelled" ? "CANCEL" : "REQUEST");
     }
 
     emailClientsAboutMeetingOutcome(
         $people,
-        meetingOrganizer($pdo, $row["admin_id"] ?? 0, $admin)[0] ?: (string) $admin["name"],
+        $host["name"],
         $outcome,
         $topic,
         (string) $row["date"],
         (string) $row["time"],
         (string) $note,
-        ["guest" => $guest, "timezone" => (string) ($row["timezone"] ?? ""), "attachments" => $attachments]
+        ["guest" => $guest, "timezone" => (string) ($row["timezone"] ?? ""), "attachments" => $attachments, "sender" => $host]
     );
+
+    // The host's copy, with the same invite, so it is in their calendar too.
+    // A declined request leaves nothing to put there.
+    if ($attachments) {
+        emailHostMeetingCopy($host, $outcome, meetingWhoName($pdo, $row), $topic, (string) $row["date"], (string) $row["time"],
+            (string) ($row["timezone"] ?? ""), (int) ($row["id"] ?? 0), $attachments);
+    }
+}
+
+/** Who a meeting is with, for the host's emails: the client's company, or the guest. */
+function meetingWhoName(PDO $pdo, array $row)
+{
+    if ((int) ($row["user_id"] ?? 0) > 0) {
+        return clientLabel($pdo, (int) $row["user_id"]) ?: "a client";
+    }
+    return trim((string) ($row["guest_name"] ?? "")) ?: "a guest";
 }
 
 const MEETING_ROW_COLUMNS = "id, user_id, title, topic, notes, status, date, time, requested_by, admin_id,
@@ -471,6 +517,24 @@ function answerAdminMeetingRequest(PDO $pdo, array $user, $appointmentId, $statu
             "user",
             (int) $user["id"]
         );
+
+        // And by email: an accepted meeting comes with its calendar invite,
+        // so it lands in the host's calendar.
+        $stmt = $pdo->prepare("SELECT " . MEETING_ROW_COLUMNS . " FROM appointments WHERE id = ?");
+        $stmt->execute([(int) $appointmentId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        [$hostName, $hostEmail] = meetingOrganizer($pdo, (int) $request["admin_id"], []);
+        if ($row && $hostEmail !== "") {
+            $attachments = [];
+            if ($status === "approved") {
+                [$people] = meetingAttendees($pdo, $row);
+                $attendees = array_map(function ($p) { return [(string) ($p["name"] ?? ""), (string) ($p["email"] ?? "")]; }, $people);
+                $attachments[] = meetingIcsAttachment($row, [$hostName, $hostEmail], $attendees, "REQUEST");
+            }
+            emailHostMeetingCopy(["name" => $hostName, "email" => $hostEmail], $status === "approved" ? "accepted" : "declined_by_client",
+                meetingWhoName($pdo, $row), (string) ($row["topic"] ?: $row["title"] ?: "Meeting"), (string) $row["date"], (string) $row["time"],
+                (string) ($row["timezone"] ?? ""), (int) $row["id"], $attachments);
+        }
     }
 
     return $request;

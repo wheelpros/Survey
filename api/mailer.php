@@ -116,8 +116,13 @@ function portalEmailPlainText(string $html): string
  *
  * $attachments is a list of [filename, content, mime type], sent with every
  * message - a meeting's calendar invite (.ics), for one.
+ *
+ * $sender (["name", "email"]) is the staff member the email is on behalf of:
+ * their name is shown beside the portal's, and replies go to them. The
+ * message itself still leaves from the portal's mailbox - the mail server
+ * refuses, or spam filters bin, a From address it doesn't own.
  */
-function sendPortalEmail(array $recipients, string $subject, string $html, array $attachments = []): int
+function sendPortalEmail(array $recipients, string $subject, string $html, array $attachments = [], array $sender = []): int
 {
     if (!$recipients) {
         return 0;
@@ -134,7 +139,14 @@ function sendPortalEmail(array $recipients, string $subject, string $html, array
         // Several recipients share one connection instead of a login each.
         $mail->SMTPKeepAlive = true;
 
-        $mail->setFrom($mail->Username, portalName());
+        $senderName = mb_substr(trim(preg_replace('/[\r\n]+/', " ", (string) ($sender["name"] ?? ""))), 0, 100);
+        $senderEmail = trim((string) ($sender["email"] ?? ""));
+        if ($senderEmail !== "" && filter_var($senderEmail, FILTER_VALIDATE_EMAIL)) {
+            $mail->setFrom($mail->Username, $senderName !== "" ? $senderName . " (" . portalName() . ")" : portalName());
+            $mail->addReplyTo($senderEmail, $senderName);
+        } else {
+            $mail->setFrom($mail->Username, portalName());
+        }
         $mail->isHTML(true);
         $mail->Subject = $subject;
         $mail->Body = $html;
@@ -367,7 +379,7 @@ function emailAdminsAboutMeetingRequest(PDO $pdo, int $userId, string $clientNam
  * request went to (id, name, email, approved); an account still waiting on
  * approval cannot sign in to answer, so it is left out.
  */
-function emailClientsAboutMeetingRequest(array $clients, string $adminName, string $topic, string $date, string $time, string $notes): int
+function emailClientsAboutMeetingRequest(array $clients, string $adminName, string $topic, string $date, string $time, string $notes, array $sender = []): int
 {
     $recipients = [];
 
@@ -394,7 +406,7 @@ function emailClientsAboutMeetingRequest(array $clients, string $adminName, stri
         "Answer the request"
     );
 
-    return sendPortalEmail($recipients, "Meeting request: " . $topic, $html);
+    return sendPortalEmail($recipients, "Meeting request: " . $topic, $html, [], $sender);
 }
 
 /**
@@ -410,7 +422,8 @@ function emailClientsAboutMeetingOutcome(array $people, string $adminName, strin
 {
     // $options: "guest" => true for someone without a portal login (no
     // portal button or wording), "timezone" => the zone the time is in,
-    // "attachments" => the calendar invite.
+    // "attachments" => the calendar invite, "sender" => the host
+    // (["name", "email"]) it is sent on behalf of.
     $guest = !empty($options["guest"]);
     $recipients = [];
 
@@ -452,14 +465,56 @@ function emailClientsAboutMeetingOutcome(array $people, string $adminName, strin
         $guest ? "" : "Open your portal"
     );
 
-    return sendPortalEmail($recipients, $copy[2] . $topic, $html, $options["attachments"] ?? []);
+    return sendPortalEmail($recipients, $copy[2] . $topic, $html, $options["attachments"] ?? [], $options["sender"] ?? []);
+}
+
+/**
+ * The host's own copy of a meeting's outcome, with the same calendar invite
+ * the client got, so it lands in the host's calendar too. $host is
+ * ["name", "email"]; $who names the client or guest.
+ *
+ * $outcome is "confirmed", "booked", "cancelled", or the client's answer to
+ * the host's request: "accepted" or "declined_by_client".
+ */
+function emailHostMeetingCopy(array $host, string $outcome, string $who, string $topic, string $date, string $time, string $zone = "", int $appointmentId = 0, array $attachments = []): int
+{
+    if (!filter_var(trim((string) ($host["email"] ?? "")), FILTER_VALIDATE_EMAIL)) {
+        return 0;
+    }
+
+    $invite = $attachments ? " The calendar invite is attached." : "";
+    $copy = [
+        "confirmed"          => ["Meeting confirmed", "You confirmed this meeting; they have been told." . $invite, "Confirmed: "],
+        "booked"             => ["Meeting booked", "You booked this meeting; they have been told." . $invite, "Booked: "],
+        "cancelled"          => ["Meeting cancelled", "This meeting is off; they have been told." . $invite, "Cancelled: "],
+        "accepted"           => ["Your meeting request was accepted", "The client accepted your meeting." . $invite, "Accepted: "],
+        "declined_by_client" => ["Your meeting request was declined", "The client declined this time. You can suggest another one.", "Declined: "],
+    ][$outcome] ?? null;
+
+    if (!$copy) {
+        return 0;
+    }
+
+    $html = adminEmailHtml(
+        $copy[0],
+        $copy[1],
+        [
+            "With"  => $who,
+            "Topic" => $topic,
+            "When"  => $date . " at " . substr($time, 0, 5) . ($zone !== "" ? " (" . $zone . ")" : ""),
+        ],
+        $appointmentId ? "admin-appointments.html?appointment=" . $appointmentId : "admin-appointments.html",
+        "Open Appointments"
+    );
+
+    return sendPortalEmail([["email" => $host["email"], "name" => $host["name"] ?? ""]], $copy[2] . $topic . " with " . $who, $html, $attachments);
 }
 
 /**
  * A booking request: a link to pick one of the host's open times. Each
  * person gets their own link (one token each), so this is one email per call.
  */
-function emailBookingInvite(array $person, string $hostName, string $topic, string $notes, string $link, string $lastDay, int $minutes, string $zone): int
+function emailBookingInvite(array $person, string $hostName, string $topic, string $notes, string $link, string $lastDay, int $minutes, string $zone, array $sender = []): int
 {
     $html = adminEmailHtml(
         "Pick a time to meet",
@@ -475,7 +530,7 @@ function emailBookingInvite(array $person, string $hostName, string $topic, stri
         "Choose a time"
     );
 
-    return sendPortalEmail([$person], "Pick a time: " . $topic, $html);
+    return sendPortalEmail([$person], "Pick a time: " . $topic, $html, [], $sender);
 }
 
 /**

@@ -452,7 +452,7 @@ function meetingWhoLabel(array $row)
     return clientLabelFor($row);
 }
 
-/** A booking request the admin may manage: theirs, or any for the owner. */
+/** A booking request the admin may manage: only one they sent. */
 function loadOwnBookingRequest(PDO $pdo, array $p, $id)
 {
     ensureAppointmentTables($pdo);
@@ -466,19 +466,18 @@ function loadOwnBookingRequest(PDO $pdo, array $p, $id)
 /** A meeting the admin may answer: a client's request, from one of their clients. */
 function loadClientRequest(PDO $pdo, array $p, $id)
 {
-    // A client's request from one of their clients, or a time a guest picked
-    // from their own booking link.
-    [$scopeSql, $scopeParams] = v1ClientScopeSql($p, "a.user_id");
+    // A request from one of their clients, or a time someone picked from
+    // their own booking link - the meetings they see (meetingVisibilitySql()).
+    [$scopeSql, $scopeParams] = meetingVisibilitySql($pdo, $p, "a");
     $stmt = $pdo->prepare("
         SELECT a.id, a.user_id, a.date, a.time, a.status, a.topic, a.title, a.guest_name,
                COALESCE(u.name, CONCAT(COALESCE(a.guest_name, 'A guest'), ' (guest)')) AS name, u.company_name
         FROM appointments a
         LEFT JOIN users u ON u.id = a.user_id
-        WHERE a.id = ? AND a.requested_by = 'user'"
-        . ($scopeSql !== "" ? " AND ($scopeSql OR (a.user_id IS NULL AND a.admin_id = ?))" : "") . "
+        WHERE a.id = ? AND a.requested_by = 'user' AND $scopeSql
         LIMIT 1
     ");
-    $stmt->execute(array_merge([$id], $scopeParams, $scopeSql !== "" ? [(int) $p["id"]] : []));
+    $stmt->execute(array_merge([$id], $scopeParams));
     $row = $stmt->fetch();
     if (!$row) {
         throw new PortalWriteError("No meeting request from your clients with that id.", 404);
