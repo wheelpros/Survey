@@ -220,6 +220,24 @@ body {
   font-size: 14px;
 }
 
+/* ── Pick a meeting time (booking requests) ── */
+.pick-item{border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;gap:12px}
+.pick-item + .pick-item{margin-top:12px}
+.pick-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.pick-top b{display:block;font-size:15px;color:var(--text);overflow-wrap:anywhere}
+.pick-top span{font-size:13px;color:var(--muted)}
+.pick-days{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px}
+.pick-days button,.pick-times button{border:1px solid #c9cfda;background:#fff;border-radius:10px;font:inherit;font-size:13px;font-weight:700;color:var(--nav-active);cursor:pointer;white-space:nowrap}
+.pick-days button{padding:8px 12px;flex:none}
+.pick-times{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:6px}
+.pick-times button{height:38px}
+.pick-days button[aria-pressed="true"],.pick-times button[aria-pressed="true"]{background:var(--nav-active);border-color:var(--nav-active);color:#fff}
+.pick-msg{width:100%;border:1px solid #dfe3ea;border-radius:10px;padding:10px 12px;font:inherit;font-size:14px;min-height:60px;resize:vertical}
+.pick-foot{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.pick-note{font-size:12px;color:var(--muted)}
+.pick-err{font-size:13px;color:#b42318;font-weight:700}
+.pick-err:empty{display:none}
+
 /* Panel & Card Styles */
 .card {
   background: #ffffff;
@@ -326,6 +344,8 @@ body {
 .event-card.approved { background: #e8faef; border: 1px solid #b8e7c8; color: #17803d; }
 .event-card.pending { background: #fef3c7; border: 1px solid #fde68a; color: #b45309; }
 .event-card.rejected { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
+/* Called off by the team: kept on the calendar, struck through, so the day still says what happened. */
+.event-card.cancelled { background: #f2f4f7; border: 1px solid #e4e7ec; color: #667085; text-decoration: line-through; }
 
 /* Content that went live that day. A link to the post, in its own colour so
    it never reads as a meeting - on a phone it is a purple dot. */
@@ -413,6 +433,7 @@ th {
 .badge.pending { background: #fef3c7; color: #b45309; }
 .badge.approved { background: #e8faef; color: #17803d; }
 .badge.rejected { background: #ffe8e8; color: #c9000b; }
+.badge.cancelled { background: #f2f4f7; color: #475467; }
 
 .btn-accept { background: #20a95a; color: #ffffff; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-weight: bold; }
 .btn-reject { background: #c9000b; color: #ffffff; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-weight: bold; margin-left: 5px; }
@@ -1399,6 +1420,15 @@ th {
         <div class="schedule-list" id="dailySchedule"></div>
       </div>
 
+      <!-- Booking requests: the team asked this client to pick one of their
+           open times. The same choice as the emailed link, signed in. -->
+      <section class="card pick-card" id="pickCard" hidden aria-labelledby="pickTitle">
+        <div class="section-head">
+          <h3 id="pickTitle">Pick a meeting time</h3>
+        </div>
+        <div id="pickList"></div>
+      </section>
+
       <!-- Requests waiting on this client's answer -->
       <div class="card">
         <div class="section-head">
@@ -1564,6 +1594,7 @@ function initials(name) {
 function statusLabel(status) {
   if (status === "approved") return "Confirmed";
   if (status === "rejected") return "Declined";
+  if (status === "cancelled") return "Cancelled";
   return "Pending";
 }
 
@@ -1677,6 +1708,104 @@ async function fetchCalendarData() {
     showLoadError(err.message);
   }
 }
+
+/* ── Pick a meeting time ────────────────────────────────────────────────────
+   Booking requests the team sent this account: pick one of the host's open
+   times, as the emailed link does. The host then confirms it. */
+
+let bookingRequests = [];
+const pickState = {};   // request id -> { date, time }
+const pickSent = [];    // what was just sent, so the card says so instead of vanishing
+
+async function fetchBookingRequests() {
+  if (PREVIEW) return;
+  try {
+    const res = await fetch("api/calendar.php?action=get_booking_requests", { headers: { Authorization: "Bearer " + token } });
+    const data = await res.json();
+    bookingRequests = data.success ? (data.booking_requests || []) : [];
+  } catch (err) {
+    bookingRequests = [];
+  }
+  renderBookingRequests();
+}
+
+function renderBookingRequests() {
+  const card = document.getElementById("pickCard");
+  const list = document.getElementById("pickList");
+  const open = bookingRequests.filter(b => b.state === "open");
+  card.hidden = !open.length && !pickSent.length;
+  if (card.hidden) return;
+
+  list.innerHTML = pickSent.map(s =>
+    `<div class="pick-item" role="status"><div class="pick-top"><div><b>Time sent: ${esc(s.topic)}</b>`
+    + `<span>${esc(parseDateStr(s.date).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" }))} at ${esc(prettyTime(s.time))}. `
+    + `${esc(s.host)} will confirm it, and you'll get a calendar invite by email.</span></div></div></div>`).join("")
+    + open.map(b => {
+    const days = {};
+    (b.slots || []).forEach(s => { (days[s.date] = days[s.date] || []).push(s.time); });
+    const keys = Object.keys(days).sort();
+    const st = pickState[b.id] = pickState[b.id] || {};
+    if (!st.date || !days[st.date]) st.date = keys[0];
+    const dayBtns = keys.map(ds => `<button type="button" data-pick-day="${b.id}|${ds}" aria-pressed="${st.date === ds}">${esc(parseDateStr(ds).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }))}</button>`).join("");
+    const timeBtns = (days[st.date] || []).map(t => `<button type="button" data-pick-time="${b.id}|${t}" aria-pressed="${st.time === t}">${esc(prettyTime(t))}</button>`).join("");
+    return `<div class="pick-item">`
+      + `<div class="pick-top"><div><b>${esc(b.topic)}</b><span>From ${esc(b.host)} · ${b.duration_min} min · times in ${esc(b.timezone)}</span></div>`
+      + `<span class="pick-note">Pick by ${esc(prettyDate(b.window_to))}</span></div>`
+      + (keys.length
+        ? `<div class="pick-days" role="group" aria-label="Days with open times">${dayBtns}</div>`
+          + `<div class="pick-times" role="group" aria-label="Open times">${timeBtns}</div>`
+          + `<textarea class="pick-msg" id="pickMsg${b.id}" maxlength="1000" placeholder="Message (optional)" aria-label="Message for ${esc(b.host)} (optional)"></textarea>`
+          + `<div class="pick-foot"><button type="button" class="btn-primary" data-pick-send="${b.id}"${st.time ? "" : " disabled"}>${st.time ? "Request " + esc(prettyTime(st.time)) : "Pick a time"}</button>`
+          + `<span class="pick-note">${esc(b.host)} confirms it, then you get a calendar invite by email.</span></div>`
+          + `<p class="pick-err" id="pickErr${b.id}" role="alert"></p>`
+        : `<p class="pick-note">Every open time has been taken. Reply to the email and ${esc(b.host)} can offer more.</p>`)
+      + `</div>`;
+  }).join("");
+}
+
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-pick-day],[data-pick-time],[data-pick-send]");
+  if (!b) return;
+  if (b.dataset.pickDay) {
+    const [id, ds] = b.dataset.pickDay.split("|");
+    pickState[id] = { date: ds, time: null };
+    return renderBookingRequests();
+  }
+  if (b.dataset.pickTime) {
+    const [id, t] = b.dataset.pickTime.split("|");
+    const msg = document.getElementById("pickMsg" + id);
+    const kept = msg ? msg.value : "";
+    pickState[id].time = t;
+    renderBookingRequests();
+    const again = document.getElementById("pickMsg" + id);
+    if (again) again.value = kept;
+    const send = document.querySelector(`[data-pick-send="${id}"]`);
+    if (send) send.focus();
+    return;
+  }
+  const id = b.dataset.pickSend, st = pickState[id];
+  if (!st || !st.time) return;
+  b.disabled = true;
+  try {
+    const res = await fetch("api/calendar.php?action=pick_booking_slot", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+      body: JSON.stringify({ id: Number(id), date: st.date, time: st.time, message: (document.getElementById("pickMsg" + id) || {}).value || "" })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message || "Couldn't send that time.");
+    const sent = bookingRequests.find(x => String(x.id) === String(id));
+    pickSent.push({ topic: sent ? sent.topic : "Meeting", host: sent ? sent.host : "Your team", date: st.date, time: st.time });
+    delete pickState[id];
+    await Promise.all([fetchBookingRequests(), fetchCalendarData()]);
+  } catch (err) {
+    // Show the times as they are now (one may have just been taken), then say why.
+    if (pickState[id]) pickState[id].time = null;
+    await fetchBookingRequests();
+    const box = document.getElementById("pickErr" + id);
+    if (box) box.textContent = err.message;
+  }
+});
 
 /* A failed load says so, rather than leaving an empty grid that reads as
    "nothing booked". */
@@ -2594,6 +2723,7 @@ document.addEventListener("DOMContentLoaded", () => {
   fetchCalendarData();
   fetchContent();
   fetchPhases();
+  fetchBookingRequests();
 });
 </script>
 <div class="calendar-modal" id="calendarModal">

@@ -341,7 +341,7 @@ export const WRITE_TOOLS = [
     scope: "calendar:write",
     title: "Ask a client for a meeting",
     description:
-      "Sends a meeting request for one date and time. Like the portal's calendar, it goes to " +
+      "Sends a meeting request for one date and time. Like the portal's Appointments page, it goes to " +
       "every account at the client's company that you can reach; each is notified in the portal " +
       "and by email, and accepts or declines." + TWO_STEP,
     input: {

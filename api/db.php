@@ -1234,6 +1234,16 @@ const APPOINTMENT_EXTRA_COLUMNS = [
     "requested_by" => "VARCHAR(10) NOT NULL DEFAULT 'admin'",
     "admin_id"     => "INT NULL",
     "client"       => "VARCHAR(150) NULL",
+    // Appointments (sql/booking.sql): how long, in whose time zone, who a
+    // guest is (no users row), how the meeting was made, and the booking
+    // request it came from. Old rows leave them NULL: 30 minutes, portal zone.
+    "duration_min"       => "INT NULL",
+    "timezone"           => "VARCHAR(64) NULL",
+    "guest_name"         => "VARCHAR(150) NULL",
+    "guest_email"        => "VARCHAR(190) NULL",
+    "source"             => "VARCHAR(12) NULL",
+    "booking_request_id" => "INT NULL",
+    "attendee_message"   => "TEXT NULL",
 ];
 
 function ensureAppointmentTables(PDO $pdo)
@@ -1272,8 +1282,97 @@ function ensureAppointmentTables(PDO $pdo)
                 $pdo->exec("ALTER TABLE appointments ADD COLUMN `$column` $type");
             }
         }
+
+        // A guest has no users row, so user_id may be empty.
+        $nullable = $pdo->query("
+            SELECT IS_NULLABLE
+            FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'appointments' AND COLUMN_NAME = 'user_id'
+        ")->fetchColumn();
+        if ($nullable === "NO") {
+            $pdo->exec("ALTER TABLE appointments MODIFY user_id INT NULL");
+        }
     } catch (PDOException $e) {
         // Read-only DB user: calendar.php falls back to the base columns.
+    }
+
+    ensureBookingTables($pdo);
+}
+
+/**
+ * Each staff member's bookable hours, their days off, and the booking
+ * requests they send - one per client company or guest, with one link per
+ * person it went to. sql/booking.sql is the same schema to run by hand.
+ *
+ * Times are wall-clock times in the staff member's own time zone (the
+ * `timezone` column); weekly_json is {"mon":[["09:00","17:00"]], ...}.
+ */
+function ensureBookingTables(PDO $pdo)
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    try {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS staff_availability (
+              admin_id       INT          NOT NULL PRIMARY KEY,
+              timezone       VARCHAR(64)  NOT NULL DEFAULT 'UTC',
+              slot_minutes   INT          NOT NULL DEFAULT 30,
+              buffer_minutes INT          NOT NULL DEFAULT 0,
+              notice_hours   INT          NOT NULL DEFAULT 24,
+              horizon_days   INT          NOT NULL DEFAULT 30,
+              weekly_json    TEXT         NOT NULL,
+              updated_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS staff_time_off (
+              id        INT AUTO_INCREMENT PRIMARY KEY,
+              admin_id  INT          NOT NULL,
+              date_from DATE         NOT NULL,
+              date_to   DATE         NOT NULL,
+              label     VARCHAR(120)     NULL,
+              KEY idx_admin_dates (admin_id, date_from)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS booking_requests (
+              id             INT AUTO_INCREMENT PRIMARY KEY,
+              admin_id       INT          NOT NULL,
+              client         VARCHAR(150)     NULL,
+              guest_name     VARCHAR(150)     NULL,
+              guest_email    VARCHAR(190)     NULL,
+              topic          VARCHAR(200) NOT NULL,
+              notes          TEXT             NULL,
+              duration_min   INT          NOT NULL,
+              timezone       VARCHAR(64)  NOT NULL,
+              window_from    DATE         NOT NULL,
+              window_to      DATE         NOT NULL,
+              status         VARCHAR(12)  NOT NULL DEFAULT 'open',
+              appointment_id INT              NULL,
+              created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              KEY idx_admin_status (admin_id, status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS booking_request_links (
+              id                 INT AUTO_INCREMENT PRIMARY KEY,
+              booking_request_id INT          NOT NULL,
+              user_id            INT              NULL,
+              name               VARCHAR(150)     NULL,
+              email              VARCHAR(190) NOT NULL,
+              token_hash         CHAR(64)     NOT NULL,
+              opened_at          DATETIME         NULL,
+              used_at            DATETIME         NULL,
+              UNIQUE KEY uniq_token (token_hash),
+              KEY idx_request (booking_request_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+    } catch (PDOException $e) {
+        // Read-only DB user: booking is unavailable, meetings still load.
     }
 }
 

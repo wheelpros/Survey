@@ -190,10 +190,10 @@ foreach (["super admin" => $sa, "account manager" => $am, "admin" => $seo] as $w
         ["role" => "seo_admin", "changes" => ["calendar.use" => true]], 403);
 }
 
-[$prep] = change("permissions v1: Admins get the calendar", $owner, "set_role_permissions",
+[$prep] = change("permissions v1: Admins get appointments", $owner, "set_role_permissions",
     ["role" => "seo_admin", "changes" => ["calendar.use" => true]]);
 check("permissions v1: the summary says what changes",
-    strpos($prep["data"]["summary"] ?? "", "can now: use the calendar") !== false, json_encode($prep));
+    strpos($prep["data"]["summary"] ?? "", "can now: use appointments") !== false, json_encode($prep));
 [$status] = get("calendar.php", $seo);
 check("permissions v1: and Sean can open it", $status === 200, "HTTP $status");
 

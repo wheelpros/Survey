@@ -5,7 +5,7 @@
 | Calendar: meeting requests between admins and clients
 |--------------------------------------------------------------------------
 |
-| Backs dashboard.html and admin-calendar.html. One row in
+| Backs dashboard.html and admin-appointments.html. One row in
 | `appointments` is one request, and `requested_by` says which way it points:
 |
 |   'admin'  an admin asked a client for time. The user accepts or declines.
@@ -28,6 +28,7 @@ if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") {
 
 require_once "db.php";
 require_once "meeting-writes.php";
+require_once "booking-writes.php";
 require_once "events.php";
 
 function reply($success, $message = "", $extra = [])
@@ -162,6 +163,38 @@ if ($action === "create_user_request" && $user) {
     reply(true, "Request sent to the admin team.");
 }
 
+/* Booking requests waiting on this client, with their open times. */
+if ($action === "get_booking_requests" && $user) {
+    $out = [];
+    foreach (clientBookingRequests($pdo, (int) $user["account_id"]) as $request) {
+        $out[] = array_merge(["id" => (int) $request["id"]], bookingRequestPublic($pdo, $request));
+    }
+    reply(true, "", ["booking_requests" => $out]);
+}
+
+/* "Pick a time" on dashboard.html: the same as the emailed link, signed in. */
+if ($action === "pick_booking_slot" && $user) {
+    $requestId = (int) field($input, "id", "0");
+    // Only a request this account was sent.
+    $stmt = $pdo->prepare("SELECT id FROM booking_request_links WHERE booking_request_id = ? AND user_id = ? LIMIT 1");
+    $stmt->execute([$requestId, (int) $user["account_id"]]);
+    if (!$stmt->fetchColumn()) {
+        reply(false, "That booking request isn't yours.");
+    }
+    try {
+        pickBookingSlot($pdo, $requestId, field($input, "date"), field($input, "time"), [
+            "account_id" => (int) $user["account_id"],
+            "person_id" => (int) $user["id"],
+            "name" => (string) $user["name"],
+            "email" => (string) ($user["email"] ?? ""),
+            "message" => field($input, "message"),
+        ]);
+    } catch (PortalWriteError $e) {
+        reply(false, $e->getMessage());
+    }
+    reply(true, "Time sent. You'll hear once it's confirmed.");
+}
+
 /* Everything dashboard.html paints, in one round trip. */
 if ($action === "get_user_calendar" && $user) {
 
@@ -208,7 +241,7 @@ if ($action === "get_clients" && $admin) {
     reply(true, "", ["clients" => $clients]);
 }
 
-/* The "Send a new request" form on admin-calendar.html.
+/* The "New appointment" dialog on admin-appointments.html.
 
    The admin picks a company, not a person - the same choice content posts
    offer - so this fans out to every client account carrying that name. One
@@ -256,121 +289,152 @@ if ($action === "respond_request" && $admin) {
     reply(true, $status === "approved" ? "Meeting confirmed" : "Request declined");
 }
 
-/*
-| The posts the calendar files under the day they go (or went) live: every
-| post for an admin holding content.view_all, otherwise the ones they created
-| or are assigned to - the same rule as admin-content.html and api/v1. Drafts
-| come too, marked by status, since this is the team's own schedule. A
-| database without the content tables costs the calendar its posts, never its
-| meetings.
-*/
-function adminCalendarContent(PDO $pdo, array $admin)
-{
+/* Call off a confirmed meeting, or a request still waiting on an answer. */
+if ($action === "cancel_meeting" && $admin) {
+
+    // cancelMeeting() is in meeting-writes.php: the client hears about it in
+    // the portal and by email.
     try {
-        ensureContentColumns($pdo);
-
-        $where = "";
-        $params = [contentNow()];
-
-        if (!contentSeesAll($admin)) {
-            [$visibleSql, $visibleParams] = contentVisibleSql("c", (int) $admin["id"]);
-            $where = "WHERE " . $visibleSql;
-            $params = array_merge($params, $visibleParams);
-        }
-
-        $stmt = $pdo->prepare("
-            SELECT c.id, c.title, c.client, c.platform, c.type_label,
-                   " . contentStatusSql("c") . " AS status,
-                   " . contentLiveAtSql("c") . " AS live_at
-            FROM content c
-            $where
-            ORDER BY live_at ASC, c.id ASC
-        ");
-        $stmt->execute($params);
-
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } catch (Throwable $e) {
-        error_log("calendar.php: could not load content: " . $e->getMessage());
-        return [];
+        cancelMeeting($pdo, $admin, (int) field($input, "id", "0"), field($input, "reason"));
+    } catch (PortalWriteError $e) {
+        reply(false, $e->getMessage());
     }
+
+    reply(true, "Meeting cancelled. The client has been told.");
 }
 
-/*
-| Dated phases of the projects this admin can see (projectScopeSql(), the
-| Project Management rule). Someone else's draft stays out unless the admin may
-| see every draft - the same rule project-details.html follows.
-*/
-function adminCalendarPhases(PDO $pdo, array $admin)
-{
-    try {
-        ensureProjectTables($pdo);
-
-        [$scopeSql, $params] = projectScopeSql($admin);
-        $where = ["t.scheduled_date IS NOT NULL"];
-
-        if ($scopeSql !== "") {
-            $where[] = $scopeSql;
-        }
-        if (!can($admin, "tasks.see_drafts", $pdo)) {
-            $where[] = "(t.status <> 'draft' OR t.created_by_admin_id = ? OR p.account_manager_admin_id = ?)";
-            $params[] = (int) $admin["id"];
-            $params[] = (int) $admin["id"];
-        }
-
-        $stmt = $pdo->prepare("
-            SELECT t.id, t.project_id, t.title, t.status, t.scheduled_date, t.scheduled_time,
-                   t.is_complete, p.title AS project_title, u.company_name
-            FROM project_tasks t
-            INNER JOIN projects p ON p.id = t.project_id
-            LEFT JOIN users u ON u.id = p.client_id
-            WHERE " . implode(" AND ", $where) . "
-            ORDER BY t.scheduled_date ASC, t.scheduled_time ASC, t.id ASC
-        ");
-        $stmt->execute($params);
-
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } catch (Throwable $e) {
-        error_log("calendar.php: could not load phases: " . $e->getMessage());
-        return [];
-    }
-}
-
-/* Everything admin-calendar.html paints, across the admin's whole scope. */
+/* Everything admin-appointments.html paints, across the admin's whole scope.
+   Meetings only: posts live on the Content page and phases on the projects. */
 if ($action === "get_admin_calendar" && $admin) {
 
     $clients = scopedClients($pdo, $admin);
     $ids = array_map("intval", array_column($clients, "id"));
 
-    if (!$ids) {
-        reply(true, "", [
-            "appointments" => [],
-            "clients" => [],
-            "content" => adminCalendarContent($pdo, $admin),
-            "phases" => adminCalendarPhases($pdo, $admin),
-            "admin_id" => (int) $admin["id"]
-        ]);
+    // A client's meetings when the client is theirs; a guest's (no user_id)
+    // when they host it, or every guest meeting for whoever sees every client.
+    $where = [];
+    $params = [];
+    if ($ids) {
+        $where[] = "a.user_id IN (" . implode(",", array_fill(0, count($ids), "?")) . ")";
+        $params = $ids;
     }
-
-    $placeholders = implode(",", array_fill(0, count($ids), "?"));
+    if (can($admin, "clients.view_all", $pdo)) {
+        $where[] = "a.user_id IS NULL";
+    } else {
+        $where[] = "(a.user_id IS NULL AND a.admin_id = ?)";
+        $params[] = (int) $admin["id"];
+    }
 
     $stmt = $pdo->prepare("
         SELECT a.*, u.name AS user_name, u.company_name, ad.name AS admin_name
         FROM appointments a
-        INNER JOIN users u ON u.id = a.user_id
+        LEFT JOIN users u ON u.id = a.user_id
         LEFT JOIN admins ad ON ad.id = a.admin_id
-        WHERE a.user_id IN ($placeholders)
+        WHERE " . implode(" OR ", $where) . "
         ORDER BY a.date DESC, a.time DESC
     ");
-    $stmt->execute($ids);
-    $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $stmt->execute($params);
 
     reply(true, "", [
-        "appointments" => $appointments,
+        "appointments" => $stmt->fetchAll(PDO::FETCH_ASSOC),
+        "booking_requests" => adminBookingRequests($pdo, $admin),
+        "availability" => loadAvailability($pdo, (int) $admin["id"]),
         "clients" => $clients,
-        "content" => adminCalendarContent($pdo, $admin),
-        "phases" => adminCalendarPhases($pdo, $admin),
         "admin_id" => (int) $admin["id"]
     ]);
+}
+
+/* Your own bookable hours (the Availability dialog). */
+if ($action === "get_availability" && $admin) {
+    reply(true, "", ["availability" => loadAvailability($pdo, (int) $admin["id"])]);
+}
+
+if ($action === "save_availability" && $admin) {
+    try {
+        $saved = saveAvailability($pdo, (int) $admin["id"], $input);
+    } catch (PortalWriteError $e) {
+        reply(false, $e->getMessage());
+    }
+    reply(true, "Availability saved. Booking links use it straight away.", ["availability" => $saved]);
+}
+
+/* Your open times over the next N days - the counts the dialogs show. */
+if ($action === "open_slots" && $admin) {
+    $days = max(1, min(90, (int) ($_GET["days"] ?? $input["days"] ?? 14)));
+    $a = loadAvailability($pdo, (int) $admin["id"]);
+    $from = availabilityNow($a)->format("Y-m-d");
+    $to = availabilityNow($a)->modify("+$days days")->format("Y-m-d");
+    $slots = openSlots($pdo, (int) $admin["id"], $from, $to, null, $a);
+    reply(true, "", ["count" => count($slots), "slots" => array_slice($slots, 0, 500), "slot_minutes" => $a["slot_minutes"], "timezone" => $a["timezone"]]);
+}
+
+/* Is a hand-picked time free? Warnings for the "Add to calendar now" form. */
+if ($action === "check_time" && $admin) {
+    $a = loadAvailability($pdo, (int) $admin["id"]);
+    reply(true, "", ["warnings" => meetingTimeWarnings($pdo, (int) $admin["id"], field($input, "date"), field($input, "time"), (int) $a["slot_minutes"])]);
+}
+
+/* "Add to calendar now": confirmed at once, the attendee gets the invite. */
+if ($action === "add_meeting" && $admin) {
+    try {
+        $ids = addMeetingDirectly($pdo, $admin, $input, !empty($input["force"]));
+    } catch (PortalWriteError $e) {
+        // 409: it clashes or is outside your hours - the page asks, then sends force.
+        reply(false, $e->getMessage(), $e->status === 409 ? ["needs_force" => true] : []);
+    }
+    reply(true, "Meeting added. They've been sent the calendar invite.", ["ids" => $ids]);
+}
+
+/* "Send booking request": they pick one of your open times. */
+if ($action === "create_booking_request" && $admin) {
+    try {
+        $made = createBookingRequest($pdo, $admin, $input);
+    } catch (PortalWriteError $e) {
+        reply(false, $e->getMessage());
+    }
+    $who = $made["sent_to"] === 1 ? "1 person" : $made["sent_to"] . " people";
+    reply(true, "Booking request sent to $who.", $made);
+}
+
+if ($action === "cancel_booking_request" && $admin) {
+    try {
+        cancelBookingRequest($pdo, $admin, (int) field($input, "id", "0"));
+    } catch (PortalWriteError $e) {
+        reply(false, $e->getMessage());
+    }
+    reply(true, "Booking request withdrawn. Its links no longer work.");
+}
+
+/* Resend (new links, emailed), or a guest's new link to copy (not emailed). */
+if ($action === "renew_booking_links" && $admin) {
+    $email = !isset($input["email"]) || !empty($input["email"]);
+    try {
+        $link = renewBookingLinks($pdo, $admin, (int) field($input, "id", "0"), $email);
+    } catch (PortalWriteError $e) {
+        reply(false, $e->getMessage());
+    }
+    reply(true, $email ? "Sent again with a new link. The old link no longer works." : "New link ready. The old one no longer works.", ["link" => $link]);
+}
+
+/* A meeting's calendar file, for the Download .ics button. */
+if ($action === "download_ics" && $admin) {
+    $stmt = $pdo->prepare("SELECT " . MEETING_ROW_COLUMNS . " FROM appointments WHERE id = ? LIMIT 1");
+    $stmt->execute([(int) ($_GET["id"] ?? 0)]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$row || !meetingInAdminScope($pdo, $admin, $row)) {
+        reply(false, "That meeting is not yours.");
+    }
+    [$people] = meetingAttendees($pdo, $row);
+    $ics = meetingIcs(
+        $row,
+        meetingOrganizer($pdo, $row["admin_id"], $admin),
+        array_map(function ($person) { return [(string) ($person["name"] ?? ""), (string) ($person["email"] ?? "")]; }, $people),
+        $row["status"] === "cancelled" ? "CANCEL" : "REQUEST"
+    );
+    header("Content-Type: text/calendar; charset=UTF-8");
+    header('Content-Disposition: attachment; filename="meeting-' . (int) $row["id"] . '.ics"');
+    echo $ics;
+    exit;
 }
 
 /*

@@ -5,7 +5,7 @@
 | Meetings: W|ZONE asking a client for time, and answering a client's ask
 |--------------------------------------------------------------------------
 |
-| Shared by calendar.php (admin-calendar.html) and the AI-facing api/v1, so
+| Shared by calendar.php (admin-appointments.html) and the AI-facing api/v1, so
 | a meeting an assistant proposes reaches the same people, in the portal and
 | by email, as one sent from the page. calendar.php's header explains the
 | `appointments` row and its requested_by column.
@@ -19,6 +19,7 @@ require_once __DIR__ . "/db.php";
 require_once __DIR__ . "/notify.php";
 require_once __DIR__ . "/mailer.php";
 require_once __DIR__ . "/events.php";
+require_once __DIR__ . "/ics.php";
 
 /**
  * The client accounts a request for $company goes to: every account the
@@ -133,10 +134,102 @@ function requestMeetingFromClients(PDO $pdo, array $admin, array $targets, $comp
 }
 
 /**
- * Accepts ('approved') or declines ('rejected') a request a client sent.
- * Only one from a client the admin may reach. $onlyIfPending refuses one
- * already answered - api/v1 sets it, so an assistant never overturns a
- * decision someone made in the meantime; the page may change its mind.
+ * Whether $admin may act on this meeting row: a client's meeting when the
+ * client is theirs to reach; a guest's (no user_id) when they host it or see
+ * every client.
+ */
+function meetingInAdminScope(PDO $pdo, array $admin, array $row)
+{
+    if ((int) ($row["user_id"] ?? 0) > 0) {
+        $allowed = array_map("intval", array_column(meetingScopedClients($pdo, $admin), "id"));
+        return in_array((int) $row["user_id"], $allowed, true);
+    }
+    return (int) ($row["admin_id"] ?? 0) === (int) $admin["id"] || can($admin, "clients.view_all", $pdo);
+}
+
+/** The staff member who owns a meeting, as [name, email] for invites. */
+function meetingOrganizer(PDO $pdo, $adminId, array $fallback)
+{
+    if ((int) $adminId > 0) {
+        $stmt = $pdo->prepare("SELECT name, email FROM admins WHERE id = ?");
+        $stmt->execute([(int) $adminId]);
+        if ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            return [(string) $row["name"], (string) $row["email"]];
+        }
+    }
+    return [(string) ($fallback["name"] ?? ""), (string) ($fallback["email"] ?? "")];
+}
+
+/**
+ * Who hears about a meeting by email: everyone on the client's account, or
+ * the guest. Returns [people, isGuest].
+ */
+function meetingAttendees(PDO $pdo, array $row)
+{
+    if ((int) ($row["user_id"] ?? 0) > 0) {
+        return [clientAccountPeople($pdo, (int) $row["user_id"]), false];
+    }
+    $email = trim((string) ($row["guest_email"] ?? ""));
+    return [$email !== "" ? [["name" => (string) ($row["guest_name"] ?? ""), "email" => $email, "approved" => 1]] : [], true];
+}
+
+/**
+ * Tells the client (in the portal) and every attendee (by email) what
+ * happened to a meeting. $outcome: confirmed | booked | declined | cancelled.
+ * Confirmed, booked and cancelled meetings carry a calendar invite.
+ */
+function tellMeetingAttendees(PDO $pdo, array $admin, array $row, $outcome, $note = "")
+{
+    $topic = (string) ($row["topic"] ?: ($row["title"] ?? "") ?: "Meeting");
+
+    if ((int) ($row["user_id"] ?? 0) > 0) {
+        $titles = [
+            "confirmed" => "Your meeting was confirmed",
+            "booked" => "A meeting was booked with you",
+            "declined" => "Your meeting request was declined",
+            "cancelled" => "A meeting was cancelled",
+        ];
+        notifyClientAccount(
+            $pdo,
+            (int) $row["user_id"],
+            NOTIFY_APPOINTMENT_ANSWERED,
+            $titles[$outcome],
+            $topic . " - " . $row["date"] . " at " . substr((string) $row["time"], 0, 5),
+            "dashboard.html",
+            "admin",
+            (int) $admin["id"]
+        );
+    }
+
+    [$people, $guest] = meetingAttendees($pdo, $row);
+    $attachments = [];
+    if (in_array($outcome, ["confirmed", "booked", "cancelled"], true)) {
+        $organizer = meetingOrganizer($pdo, $row["admin_id"] ?? 0, $admin);
+        $attendees = array_map(function ($p) { return [(string) ($p["name"] ?? ""), (string) ($p["email"] ?? "")]; }, $people);
+        $attachments[] = meetingIcsAttachment($row, $organizer, $attendees, $outcome === "cancelled" ? "CANCEL" : "REQUEST");
+    }
+
+    emailClientsAboutMeetingOutcome(
+        $people,
+        meetingOrganizer($pdo, $row["admin_id"] ?? 0, $admin)[0] ?: (string) $admin["name"],
+        $outcome,
+        $topic,
+        (string) $row["date"],
+        (string) $row["time"],
+        (string) $note,
+        ["guest" => $guest, "timezone" => (string) ($row["timezone"] ?? ""), "attachments" => $attachments]
+    );
+}
+
+const MEETING_ROW_COLUMNS = "id, user_id, title, topic, notes, status, date, time, requested_by, admin_id,
+    duration_min, timezone, guest_name, guest_email, source, booking_request_id";
+
+/**
+ * Accepts ('approved') or declines ('rejected') a request waiting on the team:
+ * one a client sent, or a time someone picked from a booking link. Only one
+ * the admin may reach. $onlyIfPending refuses one already answered - api/v1
+ * sets it, so an assistant never overturns a decision someone made in the
+ * meantime; the page may change its mind.
  *
  * Returns the appointment as it was: ["user_id", "topic", "status", ...].
  */
@@ -147,7 +240,7 @@ function answerClientMeetingRequest(PDO $pdo, array $admin, $appointmentId, $sta
     }
 
     $stmt = $pdo->prepare("
-        SELECT user_id, topic, status, date, time
+        SELECT " . MEETING_ROW_COLUMNS . "
         FROM appointments
         WHERE id = ? AND requested_by = 'user'
         LIMIT 1
@@ -155,37 +248,115 @@ function answerClientMeetingRequest(PDO $pdo, array $admin, $appointmentId, $sta
     $stmt->execute([(int) $appointmentId]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    $allowed = array_map("intval", array_column(meetingScopedClients($pdo, $admin), "id"));
-
-    if (!$row || !in_array((int) $row["user_id"], $allowed, true)) {
+    if (!$row || !meetingInAdminScope($pdo, $admin, $row)) {
         throw new PortalWriteError("That request is not yours to answer.", 404);
     }
     if ($onlyIfPending && $row["status"] !== "pending") {
         throw new PortalWriteError("That request has already been answered.", 409);
     }
+    // A cancelled meeting stays cancelled: reviving it would surprise a client
+    // who was already told it is off.
+    if ($row["status"] === "cancelled") {
+        throw new PortalWriteError("That meeting was cancelled.", 409);
+    }
 
+    // A booked time keeps its host; a client's ask belongs to whoever answers.
     $stmt = $pdo->prepare("
         UPDATE appointments
-        SET status = ?, admin_id = ?
+        SET status = ?, admin_id = COALESCE(admin_id, ?)
         WHERE id = ?
     ");
     $stmt->execute([$status, $admin["id"], (int) $appointmentId]);
+    if (!$row["admin_id"]) {
+        $row["admin_id"] = $admin["id"];
+    }
 
+    // The booking request it came from is done either way.
+    if ((int) $row["booking_request_id"] > 0) {
+        $pdo->prepare("UPDATE booking_requests SET status = 'closed' WHERE id = ?")
+            ->execute([(int) $row["booking_request_id"]]);
+    }
+
+    $who = (int) $row["user_id"] > 0 ? eventClientName($pdo, $row["user_id"]) : ($row["guest_name"] ?: "a guest");
     logEvent($pdo, EVENT_MEETING_ANSWERED, "meeting", $appointmentId, (string) ($row["topic"] ?? ""),
-        ($status === "approved" ? "Accepted " : "Declined ") . eventClientName($pdo, $row["user_id"])
+        ($status === "approved" ? "Accepted " : "Declined ") . $who
         . "'s meeting request \"" . ($row["topic"] ?? "Meeting") . "\" on " . $row["date"] . " at " . $row["time"],
-        $row["user_id"]);
+        (int) $row["user_id"] > 0 ? $row["user_id"] : null);
 
-    notifyClientAccount(
-        $pdo,
-        (int) $row["user_id"],
-        NOTIFY_APPOINTMENT_ANSWERED,
-        $status === "approved" ? "Your meeting was confirmed" : "Your meeting request was declined",
-        (string) ($row["topic"] ?? "Meeting"),
-        "dashboard.html",
-        "admin",
-        (int) $admin["id"]
-    );
+    // In the portal every time; by email only when the answer changed, so
+    // re-saving the same decision sends nobody a second copy.
+    if ($row["status"] !== $status) {
+        tellMeetingAttendees($pdo, $admin, $row, $status === "approved" ? "confirmed" : "declined");
+    } elseif ((int) $row["user_id"] > 0) {
+        notifyClientAccount(
+            $pdo,
+            (int) $row["user_id"],
+            NOTIFY_APPOINTMENT_ANSWERED,
+            $status === "approved" ? "Your meeting was confirmed" : "Your meeting request was declined",
+            (string) ($row["topic"] ?? "Meeting"),
+            "dashboard.html",
+            "admin",
+            (int) $admin["id"]
+        );
+    }
+
+    return $row;
+}
+
+/**
+ * Calls a meeting off: a confirmed one, or one still waiting on an answer
+ * (a client's ask, a picked time, or a request the team sent). Only one the
+ * admin may reach. The row stays, marked 'cancelled', so both calendars can
+ * still say what happened; the attendees are told in the portal and by email,
+ * with a cancellation for their calendar when the meeting had been on.
+ *
+ * $reason is optional and goes to them as written.
+ * Returns the appointment as it was.
+ */
+function cancelMeeting(PDO $pdo, array $admin, $appointmentId, $reason = "")
+{
+    $reason = mb_substr(trim((string) $reason), 0, 500);
+
+    $stmt = $pdo->prepare("SELECT " . MEETING_ROW_COLUMNS . " FROM appointments WHERE id = ? LIMIT 1");
+    $stmt->execute([(int) $appointmentId]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$row || !meetingInAdminScope($pdo, $admin, $row)) {
+        throw new PortalWriteError("That meeting is not yours to cancel.", 404);
+    }
+    if (!in_array($row["status"], ["pending", "approved"], true)) {
+        throw new PortalWriteError(
+            $row["status"] === "cancelled" ? "That meeting is already cancelled." : "A declined meeting has nothing to cancel.",
+            409
+        );
+    }
+
+    // Only while it is still in that state, so two people cancelling at once
+    // send one email between them.
+    $stmt = $pdo->prepare("
+        UPDATE appointments
+        SET status = 'cancelled'
+        WHERE id = ? AND status = ?
+    ");
+    $stmt->execute([(int) $appointmentId, $row["status"]]);
+
+    if ($stmt->rowCount() === 0) {
+        throw new PortalWriteError("That meeting changed in the meantime. Reload and try again.", 409);
+    }
+
+    if ((int) $row["booking_request_id"] > 0) {
+        $pdo->prepare("UPDATE booking_requests SET status = 'closed' WHERE id = ?")
+            ->execute([(int) $row["booking_request_id"]]);
+    }
+
+    $topic = (string) ($row["topic"] ?: "Meeting");
+    $who = (int) $row["user_id"] > 0 ? eventClientName($pdo, $row["user_id"]) : ($row["guest_name"] ?: "a guest");
+
+    logEvent($pdo, EVENT_MEETING_CANCELLED, "meeting", $appointmentId, $topic,
+        "Cancelled the meeting with " . $who . " \"" . $topic . "\" on " . $row["date"] . " at " . $row["time"],
+        (int) $row["user_id"] > 0 ? $row["user_id"] : null);
+
+    tellMeetingAttendees($pdo, $admin, $row, "cancelled", $reason);
 
     return $row;
 }
@@ -240,7 +411,7 @@ function requestMeetingFromAdmins(PDO $pdo, array $user, $date, $time, $topic, $
         NOTIFY_APPOINTMENT_REQUEST,
         "Meeting request from " . $user["name"],
         $topic . " - " . $date . " at " . $time,
-        "admin-calendar.html?appointment=" . $appointmentId
+        "admin-appointments.html?appointment=" . $appointmentId
     );
 
     // The same admins, by email: a request left unseen in the portal is a
@@ -296,7 +467,7 @@ function answerAdminMeetingRequest(PDO $pdo, array $user, $appointmentId, $statu
             NOTIFY_APPOINTMENT_ANSWERED,
             $user["name"] . ($status === "approved" ? " confirmed your meeting" : " declined your meeting"),
             (string) ($request["topic"] ?? "Meeting"),
-            "admin-calendar.html?appointment=" . (int) $appointmentId,
+            "admin-appointments.html?appointment=" . (int) $appointmentId,
             "user",
             (int) $user["id"]
         );

@@ -640,6 +640,8 @@ require __DIR__ . "/team-forms.php";
 require __DIR__ . "/client-team.php";
 require __DIR__ . "/client-account-tools.php";
 require __DIR__ . "/ai-connections.php";
+require __DIR__ . "/appointments.php";
+require __DIR__ . "/booking.php";
 // Keep this last: it fills the login attempt limit for this run's one address.
 require __DIR__ . "/login-limits.php";
 

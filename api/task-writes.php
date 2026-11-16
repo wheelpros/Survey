@@ -969,7 +969,7 @@ function teamAttention(PDO $pdo, array $actor, $scope, array $scopeParams)
     return [
         "unassigned_phases" => $unassigned,
         "forms_to_review" => ["count" => $forms, "href" => "admin.html"],
-        "meetings_waiting" => ["count" => $meetings, "href" => "admin-calendar.html"],
+        "meetings_waiting" => ["count" => $meetings, "href" => "admin-appointments.html"],
     ];
 }
 
