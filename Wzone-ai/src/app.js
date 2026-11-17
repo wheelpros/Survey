@@ -13,6 +13,23 @@ import { createWzoneOAuthProvider, sha256 } from "./oauth/provider.js";
 import { mountIcons } from "./icons.js";
 import { pingUpstream, portalUrl } from "./wzoneClient.js";
 
+// Where the MCP endpoint lives. "/mcp" unless MCP_PATH says otherwise, e.g.
+// MCP_PATH=/connect when the connector URL should not end in /mcp. The OAuth
+// metadata path and the token audience follow it, because both are derived
+// from the resource URL that is built from this value.
+const RESERVED_FIRST_SEGMENTS = new Set([
+  "healthz", "readyz", "register", "authorize", "token", "revoke", "public", ".well-known",
+]);
+
+function resolveMcpPath(raw = process.env.MCP_PATH) {
+  const value = String(raw ?? "/mcp").trim() || "/mcp";
+  const path = "/" + value.replace(/^\/+|\/+$/g, "");
+  if (path === "/" || /[\s?#]/.test(path) || RESERVED_FIRST_SEGMENTS.has(path.split("/")[1])) {
+    throw new Error(`MCP_PATH must be a plain path such as /mcp or /connect, got "${value}"`);
+  }
+  return path;
+}
+
 function rpcError(res, status, code, message) {
   res.status(status).json({ jsonrpc: "2.0", error: { code, message }, id: null });
 }
@@ -79,6 +96,7 @@ function mcpHandler(build) {
  */
 export function createApp({ mode = process.env.MCP_MODE || "public" } = {}) {
   const app = express();
+  const MCP_PATH = resolveMcpPath();
 
   // Coolify puts a reverse proxy in front of this container, so the socket
   // peer is always the proxy. Without this, req.ip is the proxy's address
@@ -145,15 +163,15 @@ export function createApp({ mode = process.env.MCP_MODE || "public" } = {}) {
     // how /mcp answers, so a path is either behind a login or it isn't.
     // /public/mcp only ever builds the anonymous server - the same one
     // MCP_MODE=public serves - so no portal tool is reachable through it.
-    mountPrivate(app, limiter);
+    mountPrivate(app, limiter, MCP_PATH);
     publicEndpoint("/public/mcp", makeLimiter());
   } else {
-    publicEndpoint("/mcp", limiter);
+    publicEndpoint(MCP_PATH, limiter);
   }
 
   // Streamable HTTP is POST-only for a stateless server like this one -
   // no GET (SSE stream) / DELETE (end session) semantics to support.
-  app.all(["/mcp", "/public/mcp"], (req, res) => {
+  app.all([MCP_PATH, "/public/mcp"], (req, res) => {
     rpcError(res, 405, -32000, "Method not allowed - this server is stateless (POST only)");
   });
 
@@ -190,7 +208,7 @@ export function createApp({ mode = process.env.MCP_MODE || "public" } = {}) {
 | for exactly this resource; a 401 carries WWW-Authenticate pointing at the
 | metadata, which is how Claude and other clients discover the login flow.
 */
-function mountPrivate(app, limiter) {
+function mountPrivate(app, limiter, mcpPath) {
   const publicUrl = process.env.MCP_PUBLIC_URL;
   if (!publicUrl) {
     throw new Error("MCP_MODE=private needs MCP_PUBLIC_URL - this server's own https origin.");
@@ -200,7 +218,7 @@ function mountPrivate(app, limiter) {
   }
 
   const issuerUrl = new URL(publicUrl);
-  const resourceUrl = new URL("/mcp", issuerUrl);
+  const resourceUrl = new URL(mcpPath, issuerUrl);
   const provider = createWzoneOAuthProvider({
     resourceUrl,
     consentUrl: portalUrl("oauth-consent.html"),
@@ -237,7 +255,7 @@ function mountPrivate(app, limiter) {
   });
 
   app.post(
-    "/mcp",
+    mcpPath,
     limiter,
     bearer,
     express.json({ limit: "100kb" }),
