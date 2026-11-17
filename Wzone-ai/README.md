@@ -85,7 +85,7 @@ Each person gets only the tools their connection's scopes allow, so a client nev
 | `forms:read` | `list_forms`, `get_form`, `list_forms_awaiting_review`, `list_form_responses`, `get_form_response` | forms: the Director and account managers see all, others the forms they wrote. Responses: from your assigned clients |
 | `inquiries:read` | `list_inquiries`, `get_inquiry_form`, `list_inquiry_leads`, `get_inquiry_lead` | the Director, and account managers with inquiries access |
 | `content:read` | `list_content`, `get_content`, `list_content_types` | the Director and account managers see all posts, others their own |
-| `calendar:read` | `get_calendar`, `list_pending_approvals`, `get_meeting` | meetings of your assigned clients and your guests (people without a portal account), with length, time zone and how each was booked, plus the posts (with `content:read`) and project phases (with `projects:read`) in the range; closed to SEO admins |
+| `calendar:read` | `list_meetings`, `list_pending_approvals`, `get_meeting` | the Appointments page: meetings of your assigned clients and the ones you host, guests (people without a portal account) included, with length, time zone and how each was booked. Meetings only (posts are in `list_content`, phases in `get_project`); closed to SEO admins |
 | `calendar:read` | `list_booking_requests` | the booking links you sent, their state and how many people opened them; every one for the Director |
 | `calendar:read` | `get_open_times` | your own open times and the availability they come from (set on the Appointments page) |
 | `projects:read` | `list_projects`, `get_project`, `get_dashboard` | your clients' projects, the ones you manage, and the ones you're a member of; drafts as on the project page |

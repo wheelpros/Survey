@@ -308,29 +308,18 @@ if ($action === "cancel_meeting" && $admin) {
 if ($action === "get_admin_calendar" && $admin) {
 
     $clients = scopedClients($pdo, $admin);
-    $ids = array_map("intval", array_column($clients, "id"));
 
-    // A client's meetings when the client is theirs; a guest's (no user_id)
-    // when they host it, or every guest meeting for whoever sees every client.
-    $where = [];
-    $params = [];
-    if ($ids) {
-        $where[] = "a.user_id IN (" . implode(",", array_fill(0, count($ids), "?")) . ")";
-        $params = $ids;
-    }
-    if (can($admin, "clients.view_all", $pdo)) {
-        $where[] = "a.user_id IS NULL";
-    } else {
-        $where[] = "(a.user_id IS NULL AND a.admin_id = ?)";
-        $params[] = (int) $admin["id"];
-    }
+    // Every client they may book with goes to the dialogs, but the list shows
+    // only their own meetings: their clients' and the ones they host - the
+    // Director included (meetingVisibilitySql()).
+    [$visible, $params] = meetingVisibilitySql($pdo, $admin, "a");
 
     $stmt = $pdo->prepare("
         SELECT a.*, u.name AS user_name, u.company_name, ad.name AS admin_name
         FROM appointments a
         LEFT JOIN users u ON u.id = a.user_id
         LEFT JOIN admins ad ON ad.id = a.admin_id
-        WHERE " . implode(" OR ", $where) . "
+        WHERE $visible
         ORDER BY a.date DESC, a.time DESC
     ");
     $stmt->execute($params);

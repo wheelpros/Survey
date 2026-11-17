@@ -23,7 +23,7 @@ check("ai booking: a guest meeting reads with its guest, length and zone",
 check("ai booking: not another manager's guest", $status === 404, "HTTP $status");
 
 [, $r] = get("calendar.php?from=" . day("0") . "&to=" . day("+7"), $am);
-check("ai booking: get_calendar includes the host's guest meetings",
+check("ai booking: list_meetings includes the host's guest meetings",
     in_array($guestMeeting, array_map(function ($m) { return $m["id"]; }, $r["data"]["meetings"] ?? []), true));
 
 /* A guest picks a time, then list_pending_approvals shows it to the host. */
@@ -41,7 +41,8 @@ $states = array_column($r["data"]["items"] ?? [], "state", "id");
 check("ai booking: list_booking_requests shows Amy's links and their state",
     ($states[(int) ($made["id"] ?? 0)] ?? "") === "picked" && !isset($states[600]), json_encode($states));
 [, $r] = get("calendar.php?booking_requests=1", $owner);
-check("ai booking: the owner sees every link", isset(array_column($r["data"]["items"] ?? [], "state", "id")[(int) ($made["id"] ?? 0)]));
+$ownerStates = array_column($r["data"]["items"] ?? [], "state", "id");
+check("ai booking: the owner sees only their own links", isset($ownerStates[600]) && !isset($ownerStates[(int) ($made["id"] ?? 0)]), json_encode($ownerStates));
 
 [$status, $r] = get("calendar.php?open_times=1&days=3", $am);
 check("ai booking: get_open_times gives the hours and the free times",

@@ -42,7 +42,8 @@ const PROMPTS = [
         `1. Call get_client_overview with client ${client}. If it isn't found, say so and stop.`,
         "2. For each section the overview includes, look closer where it helps:",
         `   - responses submitted since ${weekAgo}: get_form_response for each;`,
-        `   - meetings, content and dated phases from ${weekAgo} to ${nextWeek}: get_calendar with that range and client ${client};`,
+        `   - meetings from ${weekAgo} to ${nextWeek}: list_meetings with that range and client ${client};`,
+        `   - posts going live from ${weekAgo} to ${nextWeek}: list_content with that range and client ${client};`,
         "   - each active project: get_project, and note phases that went live or were finished this week,",
         "     and assignments still in progress past their due date.",
         "   Skip any tool you don't have; mention sections listed in not_included as not covered.",
@@ -58,7 +59,7 @@ const PROMPTS = [
     needs: ["calendar:read", "clients:read"],
     title: "Prepare for a meeting",
     description: "A one-page brief before a client meeting.",
-    args: { meeting: idArg("The meeting's id (get_calendar or list_pending_approvals lists them)") },
+    args: { meeting: idArg("The meeting's id (list_meetings or list_pending_approvals lists them)") },
     text: ({ meeting }) =>
       [
         `Prepare me for meeting ${meeting}.`,

@@ -1,21 +1,22 @@
 <?php
 
 /*
-| Calendar - meetings with clients, and the content and project phases dated
-| in the same days (phases need projects:read as well).
+| Appointments - the meetings the portal's Appointments page shows. Meetings
+| only: posts going live are in content.php (list_content), dated phases in
+| projects.php (get_project). The file keeps its old name, and the scope is
+| still calendar:read, as stored in tokens and role settings.
 |
-|   GET calendar.php?from=&to=&client=   get_calendar
+|   GET calendar.php?from=&to=&client=   list_meetings
 |   GET calendar.php?pending=1           list_pending_approvals
 |   GET calendar.php?id=N                get_meeting
 |   GET calendar.php?booking_requests=1  list_booking_requests
 |   GET calendar.php?open_times=1&days=  get_open_times (your own)
 |
 | Scope calendar:read, held by the owner, super admins and account managers -
-| calendar.php closes itself to seo_admin. Meetings follow calendar.php's
-| scopedClients(): the owner sees every client's, everyone else those of the
-| clients assigned to them. A guest's meeting (no client account) belongs to
-| whoever hosts it, and to the owner. The content in the range follows content's own
-| rule and only appears with content:read as well.
+| calendar.php closes itself to seo_admin. Meetings follow meetingVisibilitySql()
+| (meeting-writes.php), like the Appointments page: the clients assigned to
+| them and the meetings they host - the owner too, who also gets requests from
+| clients nobody is assigned to.
 |
 | Meeting topics and notes are typed by clients as often as by staff, so they
 | come back under untrusted_content.
@@ -36,11 +37,9 @@ require_once __DIR__ . "/../booking-writes.php";
 const CALENDAR_MAX_DAYS = 366;
 const CALENDAR_MAX_ROWS = 500;
 
-// A client's meeting when the client is theirs; a guest's when they host it.
-[$clientSql, $clientParams] = v1ClientScopeSql($p, "a.user_id");
-$scope = $clientSql === ""
-    ? ["", []]
-    : ["($clientSql OR (a.user_id IS NULL AND a.admin_id = ?))", array_merge($clientParams, [(int) $p["id"]])];
+// Their own meetings: their clients' and the ones they host - the same list
+// as the Appointments page, the Director included.
+$scope = meetingVisibilitySql($pdo, $p, "a");
 
 const MEETING_SQL = "
     SELECT a.id, a.user_id, a.title, a.topic, a.notes, a.date, a.time, a.status,
@@ -188,11 +187,11 @@ if ((strtotime($to) - strtotime($from)) / 86400 > CALENDAR_MAX_DAYS) {
 }
 
 $parts = [$scope, ["a.date BETWEEN ? AND ?", [$from, $to]]];
-$company = null;
 
 $client = v1IntParam("client");
 if ($client !== null) {
-    $company = trim((string) (v1VisibleClient($pdo, $p, $client)["company_name"] ?? ""));
+    // 404s a client this person can't see.
+    v1VisibleClient($pdo, $p, $client);
     $parts[] = ["a.user_id = ?", [$client]];
 }
 
@@ -200,103 +199,7 @@ if ($client !== null) {
 
 $data = ["from" => $from, "to" => $to, "meetings" => $meetingItems];
 
-if (hasScope($p, "content:read")) {
-    ensureContentColumns($pdo);
-    $now = contentNow();
-    $liveAt = contentLiveAtSql("c");
-
-    $contentParts = [
-        v1SeesAllContent($p) ? ["", []] : contentVisibleSql("c", (int) $p["id"]),
-        ["$liveAt BETWEEN ? AND ?", [$from . " 00:00:00", $to . " 23:59:59"]],
-    ];
-    if ($client !== null) {
-        // Tied by company name; a client without one has no content.
-        $contentParts[] = $company === "" ? ["1 = 0", []] : ["c.client = ?", [$company]];
-    }
-    [$where, $params] = v1Where($contentParts);
-
-    $stmt = $pdo->prepare("
-        SELECT c.id, c.title, c.client, c.type_label,
-               " . contentStatusSql("c") . " AS status, $liveAt AS live_at
-        FROM content c
-        $where
-        ORDER BY live_at ASC, c.id ASC
-        LIMIT " . (CALENDAR_MAX_ROWS + 1)
-    );
-    $stmt->execute(array_merge([$now], $params));
-    $rows = $stmt->fetchAll();
-
-    $truncated = $truncated || count($rows) > CALENDAR_MAX_ROWS;
-    $data["content"] = array_map(function ($r) {
-        return [
-            "id" => (int) $r["id"],
-            "title" => (string) $r["title"],
-            "client" => v1NullableString($r["client"]),
-            "type_label" => v1NullableString($r["type_label"]),
-            "status" => (string) $r["status"],
-            "live_at" => v1DateTime($r["live_at"]),
-        ];
-    }, array_slice($rows, 0, CALENDAR_MAX_ROWS));
-}
-
-/*
-| The project phases dated in the range - what admin-calendar.html shows
-| beside meetings and posts. Only with projects:read as well, and within
-| projectScopeSql(), the Project Management rule. Someone else's draft stays
-| out unless the person may see every draft, as on project-details.html.
-*/
-if (hasScope($p, "projects:read")) {
-    ensureProjectTables($pdo);
-
-    $phaseParts = [
-        v1ProjectScopeSql($p),
-        ["t.scheduled_date BETWEEN ? AND ?", [$from, $to]],
-    ];
-    if (!can($p, "tasks.see_drafts", $pdo)) {
-        $phaseParts[] = [
-            "(t.status <> 'draft' OR t.created_by_admin_id = ? OR p.account_manager_admin_id = ?)",
-            [(int) $p["id"], (int) $p["id"]],
-        ];
-    }
-    if ($client !== null) {
-        $phaseParts[] = ["p.client_id = ?", [$client]];
-    }
-    [$where, $params] = v1Where($phaseParts);
-
-    $stmt = $pdo->prepare("
-        SELECT t.id, t.title, t.status, t.scheduled_date, t.scheduled_time, t.is_complete,
-               " . TASK_IS_LIVE_SQL . " AS is_live,
-               p.id AS project_id, p.title AS project_title, p.client_id,
-               u.name AS user_name, u.company_name
-        FROM project_tasks t
-        JOIN projects p ON p.id = t.project_id
-        LEFT JOIN users u ON u.id = p.client_id
-        $where
-        ORDER BY t.scheduled_date ASC, t.scheduled_time ASC, t.id ASC
-        LIMIT " . (CALENDAR_MAX_ROWS + 1)
-    );
-    $stmt->execute($params);
-    $rows = $stmt->fetchAll();
-
-    $truncated = $truncated || count($rows) > CALENDAR_MAX_ROWS;
-    $data["phases"] = array_map(function ($r) {
-        return [
-            "id" => (int) $r["id"],
-            "title" => (string) $r["title"],
-            "project" => ["id" => (int) $r["project_id"], "title" => (string) $r["project_title"]],
-            "client" => v1ClientRef($r["client_id"], $r["user_name"], $r["company_name"]),
-            "date" => (string) $r["scheduled_date"],
-            "time" => $r["scheduled_time"] === null ? null : substr((string) $r["scheduled_time"], 0, 5),
-            // draft | published
-            "status" => (string) $r["status"],
-            // Whether the client can see it yet.
-            "is_live" => (int) $r["is_live"] === 1,
-            "is_complete" => (int) $r["is_complete"] === 1,
-        ];
-    }, array_slice($rows, 0, CALENDAR_MAX_ROWS));
-}
-
-// More than CALENDAR_MAX_ROWS of any of them: ask for a shorter range.
+// More than CALENDAR_MAX_ROWS meetings: ask for a shorter range.
 $data["truncated"] = $truncated;
 
 v1Reply(200, $data);

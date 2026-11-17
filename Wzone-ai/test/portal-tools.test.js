@@ -55,7 +55,7 @@ function fakePortal({ scopes, v1 } = {}) {
       "announcements.php": "get_announcement",
       "events.php": "get_tracking",
       "ai-activity.php": "get_ai_activity",
-      "calendar.php": q.has("id") ? "get_meeting" : q.has("pending") ? "list_pending_approvals" : "get_calendar",
+      "calendar.php": q.has("id") ? "get_meeting" : q.has("pending") ? "list_pending_approvals" : "list_meetings",
     }[path];
     return pick ? jsonResponse(200, { ok: true, data: fixtures[pick] }) : jsonResponse(404, { ok: false, error: { code: "not_found", message: "No such thing" } });
   });
@@ -133,7 +133,7 @@ describe("private server: per-person tools", () => {
     const c = await connect();
     const names = await toolNames(c);
     expect(names).toContain("get_client_overview");
-    expect(names).not.toContain("get_calendar");
+    expect(names).not.toContain("list_meetings");
     expect(names).not.toContain("list_inquiry_leads");
     expect(names).not.toContain("get_tracking");
     expect(names).not.toContain("get_ai_activity");
@@ -163,7 +163,7 @@ describe("private server: per-person tools", () => {
     await c.callTool({ name: "list_forms_awaiting_review", arguments: { limit: 5 } });
     await c.callTool({ name: "list_my_notifications", arguments: { unread: true } });
     await c.callTool({ name: "list_my_notifications", arguments: { unread: false } });
-    await c.callTool({ name: "get_calendar", arguments: { from: "2026-10-01", client: 10 } });
+    await c.callTool({ name: "list_meetings", arguments: { from: "2026-10-01", client: 10 } });
     await c.callTool({ name: "list_phase_teammates", arguments: { id: 500 } });
     await c.callTool({ name: "list_my_phases", arguments: {} });
     await c.callTool({ name: "get_dashboard", arguments: {} });
@@ -215,7 +215,7 @@ describe("private server: per-person tools", () => {
   it("rejects bad arguments before calling the portal", async () => {
     const upstream = fakePortal({ scopes: ALL_STAFF });
     const c = await connect();
-    const r = await c.callTool({ name: "get_calendar", arguments: { from: "next tuesday" } });
+    const r = await c.callTool({ name: "list_meetings", arguments: { from: "next tuesday" } });
     expect(r.isError).toBe(true);
     expect(v1Calls(upstream)).toEqual([]);
     await c.close();
