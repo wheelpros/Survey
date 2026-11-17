@@ -23,7 +23,7 @@ check("ai booking: a guest meeting reads with its guest, length and zone",
 check("ai booking: not another manager's guest", $status === 404, "HTTP $status");
 
 [, $r] = get("calendar.php?from=" . day("0") . "&to=" . day("+7"), $am);
-check("ai booking: get_calendar includes the host's guest meetings",
+check("ai booking: list_meetings includes the host's guest meetings",
     in_array($guestMeeting, array_map(function ($m) { return $m["id"]; }, $r["data"]["meetings"] ?? []), true));
 
 /* A guest picks a time, then list_pending_approvals shows it to the host. */

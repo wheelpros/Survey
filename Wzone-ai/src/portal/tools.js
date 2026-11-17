@@ -254,15 +254,15 @@ export const READ_TOOLS = [
     query: (args) => ({ ...args, teammates: 1 }),
   },
 
-  // ── Calendar ──────────────────────────────────────────────────────────
+  // ── Appointments ──────────────────────────────────────────────────────
   {
-    name: "get_calendar",
+    name: "list_meetings",
     scope: "calendar:read",
-    title: "Calendar",
+    title: "Appointments",
     description:
-      "Your meetings between two days - with the clients assigned to you and the ones you host - plus the content " +
-      "going live and the project phases dated in the same days. The meetings are what the portal's Appointments page " +
-      "shows. Content needs content:read, phases projects:read. Defaults to the next 30 days; at most 366 at a time. " +
+      "Your meetings between two days - with the clients assigned to you and the ones you host, guests included: " +
+      "what the portal's Appointments page shows. Defaults to the next 30 days; at most 366 at a time. " +
+      "Posts going live are in list_content, project phases in get_project. " +
       "To book or send a meeting, use add_meeting (confirmed), send_booking_request (a link to pick a time) " +
       "or propose_meeting.",
     input: {
@@ -270,7 +270,7 @@ export const READ_TOOLS = [
       to: date("Last day (default 30 days after from)").optional(),
       client: clientId.optional(),
     },
-    output: S.calendar,
+    output: S.meetingList,
     path: "calendar.php",
   },
   {

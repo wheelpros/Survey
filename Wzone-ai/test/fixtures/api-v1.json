@@ -695,7 +695,7 @@
             }
         ]
     },
-    "get_calendar": {
+    "list_meetings": {
         "from": "2026-11-16",
         "to": "2026-12-16",
         "meetings": [
@@ -752,25 +752,6 @@
                 }
             }
         ],
-        "content": [
-            {
-                "id": 303,
-                "title": "Acme hello",
-                "client": "Acme Ltd",
-                "type_label": "Photos",
-                "status": "published",
-                "live_at": "2026-11-16 14:10:39"
-            },
-            {
-                "id": 302,
-                "title": "Acme reel",
-                "client": "Acme Ltd",
-                "type_label": "Social Media",
-                "status": "scheduled",
-                "live_at": "2026-11-19 12:00:00"
-            }
-        ],
-        "phases": [],
         "truncated": false
     },
     "list_pending_approvals": {

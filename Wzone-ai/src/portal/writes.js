@@ -373,7 +373,7 @@ export const WRITE_TOOLS = [
       "The client or guest is told by email (a client in the portal too), and a confirmed meeting's " +
       "calendar invite is cancelled." + TWO_STEP,
     input: {
-      id: recordId("The meeting's id - from get_calendar or list_pending_approvals"),
+      id: recordId("The meeting's id - from list_meetings or list_pending_approvals"),
       reason: z.string().max(500).optional().describe("Sent to them as written"),
     },
   },

@@ -523,22 +523,14 @@ refused("seo admin has no calendar", "calendar.php", $seo, 403);
 sees("calendar for one client", "calendar.php?client=10", $sa, [400, 402], "meetings");
 // The owner's view of the same client: all its content, none of its meetings (Amy's and Sam's).
 $cal = sees("owner calendar for one client: no meetings that aren't theirs", "calendar.php?client=10", $owner, [], "meetings");
-check("calendar carries the client's content", ids($cal, "content") === [303, 302, 300], json_encode($cal["data"]["content"] ?? null));
-check("live_at has no fractional seconds", preg_match('/^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$/', $cal["data"]["content"][1]["live_at"] ?? "") === 1, json_encode($cal["data"]["content"] ?? null));
+check("appointments are meetings only: no content, no phases",
+    !array_key_exists("content", $cal["data"] ?? []) && !array_key_exists("phases", $cal["data"] ?? []), json_encode($cal["data"] ?? null));
 refused("calendar range too long", "calendar.php?from=2026-01-01&to=2027-06-01", $owner, 422);
 refused("calendar range backwards", "calendar.php?from=2026-02-01&to=2026-01-01", $owner, 422);
 
-// Phases dated in the range sit beside the meetings, as on admin-calendar.html.
-// Undated drafts (600, 602) never land on a calendar.
-$phaseRange = "from=" . day("-2") . "&to=" . day("+10");
-$cal = sees("calendar carries dated phases", "calendar.php?$phaseRange", $owner, [601], "phases");
-check("a calendar phase names its project and client",
-    ($cal["data"]["phases"][0]["project"]["id"] ?? null) === 501
-    && ($cal["data"]["phases"][0]["client"]["id"] ?? null) === 11
-    && ($cal["data"]["phases"][0]["is_live"] ?? null) === true, json_encode($cal["data"]["phases"] ?? null));
-sees("account manager sees their project's phases", "calendar.php?$phaseRange", $am2, [601], "phases");
-sees("super admin outside the project sees none of its phases", "calendar.php?$phaseRange", $sa, [], "phases");
-sees("calendar for one client keeps only that client's phases", "calendar.php?$phaseRange&client=10", $owner, [], "phases");
+// Appointments is meetings only: a dated phase (601) in the range stays out.
+[, $cal] = get("calendar.php?from=" . day("-2") . "&to=" . day("+10"), $owner);
+check("appointments leave dated phases out", !array_key_exists("phases", $cal["data"] ?? []), json_encode($cal["data"] ?? null));
 
 [, $pending] = get("calendar.php?pending=1", $sa);
 check("pending approvals split by who answers",
@@ -635,7 +627,7 @@ if (in_array("--fixtures", $argv, true)) {
         "get_content" => ["content.php?id=300", $owner],
         "list_content_types" => ["content.php?types=1", $owner],
         "list_content_teammates" => ["content.php?teammates=1&id=300", $owner],
-        "get_calendar" => ["calendar.php", $sa],
+        "list_meetings" => ["calendar.php", $sa],
         "list_pending_approvals" => ["calendar.php?pending=1", $sa],
         "get_meeting" => ["calendar.php?id=400", $sa],
         "list_booking_requests" => ["calendar.php?booking_requests=1", $owner],
