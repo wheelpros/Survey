@@ -455,6 +455,8 @@ th {
 .calendar-modal-box {
   width: 100%;
   max-width: 450px;
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
   background: #fff;
   border-radius: 18px;
   padding: 24px;
@@ -1315,6 +1317,7 @@ th {
 })();
 </script>
 <link rel="stylesheet" href="assets/shell.css?v=8" />
+<script src="assets/dismiss.js?v=2"></script>
 <script src="/assets/clarity.js" defer></script>
 </head>
 
@@ -2738,6 +2741,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   </div>
 </div>
+<script>
+// Read-only, so a click outside or Escape closes it straight away.
+wzDismiss(document.getElementById("calendarModal"), closeCalendarModal, {
+  isOpen: () => document.getElementById("calendarModal").classList.contains("show")
+});
+</script>
 
 <!-- One meeting in full, opened from the kebab in the tables and the eye in
      the lists on a phone. An admin's pending request is answered here too. -->

@@ -20,6 +20,8 @@
 */
 
 require_once "db.php";
+require_once "auth.php";
+requirePage($pdo, "forms"); // "Open X" in Settings > Permissions
 
 header("Content-Type: application/json");
 

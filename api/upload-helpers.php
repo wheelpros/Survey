@@ -39,6 +39,17 @@ const ATTACHMENT_TYPES = [
     "xlsx" => ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/zip", "application/octet-stream"],
 ];
 
+/* Daily report files may also be photos - a whiteboard, a receipt, a
+   screenshot of the day's numbers. Only that owner type takes them
+   (saveAttachments(..., DAILY_REPORT_FILES_OWNER) passes $allowImages). */
+const DAILY_REPORT_FILES_OWNER = "daily_report";
+const ATTACHMENT_IMAGE_TYPES = [
+    "jpg"  => ["image/jpeg"],
+    "jpeg" => ["image/jpeg"],
+    "png"  => ["image/png"],
+    "webp" => ["image/webp"],
+];
+
 /* The type each one is served back as. */
 const ATTACHMENT_SERVE_TYPES = [
     "pdf"  => "application/pdf",
@@ -48,6 +59,10 @@ const ATTACHMENT_SERVE_TYPES = [
     "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "xls"  => "application/vnd.ms-excel",
     "xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "jpg"  => "image/jpeg",
+    "jpeg" => "image/jpeg",
+    "png"  => "image/png",
+    "webp" => "image/webp",
 ];
 
 /* A post's files for its client - shown and downloadable on the client's
@@ -159,7 +174,7 @@ function checkUploadArrived(array $file, $what)
  * on the list and the bytes must agree with it, so a renamed program is
  * refused.
  */
-function checkAttachment(array $file)
+function checkAttachment(array $file, $allowImages = false)
 {
     checkUploadArrived($file, "File");
 
@@ -169,13 +184,16 @@ function checkAttachment(array $file)
         throw new PortalWriteError("\"" . $name . "\" is larger than 8 MB.");
     }
 
+    $types = $allowImages ? ATTACHMENT_TYPES + ATTACHMENT_IMAGE_TYPES : ATTACHMENT_TYPES;
     $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-    if (!isset(ATTACHMENT_TYPES[$ext])) {
-        throw new PortalWriteError("Only PDF, TXT, MD, Word and Excel files can be attached.");
+    if (!isset($types[$ext])) {
+        throw new PortalWriteError($allowImages
+            ? "Only PDF, TXT, MD, Word, Excel and image (JPG, PNG, WebP) files can be attached."
+            : "Only PDF, TXT, MD, Word and Excel files can be attached.");
     }
 
     $mime = (new finfo(FILEINFO_MIME_TYPE))->file($file["tmp_name"]);
-    if (!in_array($mime, ATTACHMENT_TYPES[$ext], true)) {
+    if (!in_array($mime, $types[$ext], true)) {
         throw new PortalWriteError("\"" . $name . "\" is not a real ." . $ext . " file.");
     }
 
@@ -251,7 +269,8 @@ function saveAttachments(PDO $pdo, $ownerType, $ownerId, $keepIds, array $files,
         throw new PortalWriteError("Up to " . ATTACHMENT_MAX_FILES . " files can be attached.");
     }
 
-    $exts = array_map("checkAttachment", $files);
+    $allowImages = $ownerType === DAILY_REPORT_FILES_OWNER;
+    $exts = array_map(function ($f) use ($allowImages) { return checkAttachment($f, $allowImages); }, $files);
     $dir = attachmentsDir();
 
     $saved = [];

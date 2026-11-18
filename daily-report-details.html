@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Report — Admin</title>
+
+<script>
+// Runs before paint so the collapsed state never flashes open on load.
+(function () {
+  var root = document.documentElement;
+  var KEY = "wz_sidebar_collapsed";
+  var MOBILE = 950;
+  var DRAWER = 768;   // below this the sidebar is a drawer, never a rail
+  function prefersCollapsed(){ return localStorage.getItem(KEY) === "1"; }
+  function apply(){ root.classList.toggle("sidebar-collapsed", window.innerWidth > DRAWER && (window.innerWidth <= MOBILE || prefersCollapsed())); }
+  window.toggleSidebar = function(){
+    if (window.innerWidth <= MOBILE) return; // forced collapsed, nothing to toggle
+    localStorage.setItem(KEY, prefersCollapsed() ? "0" : "1");
+    apply();
+  };
+  apply();
+  window.addEventListener("resize", apply);
+})();
+
+// Sidebar account card -> popup: identity and logout.
+function openAccount(){ document.getElementById("acctModal").classList.add("show"); }
+function closeAccount(){ document.getElementById("acctModal").classList.remove("show"); }
+document.addEventListener("DOMContentLoaded", function () {
+  var a = {};
+  try { a = JSON.parse(localStorage.getItem("admin_user") || "{}"); } catch (e) {}
+  var name = a.name || "Admin";
+  var label = ({ owner: "Director", super_admin: "Super Admin", account_manager: "Account Manager", seo_admin: "Admin" })[a.role] || "";
+  function set(id, v){ var el = document.getElementById(id); if (el) el.textContent = v; }
+  set("adminName", name);  set("adminRole", label);  set("adminAvatar", name.charAt(0).toUpperCase());
+  set("acctRole", label);
+});
+</script>
+<link rel="stylesheet" href="assets/shell.css?v=8" />
+<link rel="stylesheet" href="assets/daily-reports.css?v=2" />
+<script src="assets/permissions.js?v=2"></script>
+<script src="/assets/clarity.js" defer></script>
+</head>
+
+<body>
+
+<aside class="admin-sidebar">
+  <div>
+    <div class="side-head">
+      <div class="side-logo">
+        <img src="logo.png" alt="Logo" onerror="this.remove()">
+      </div>
+      <button class="side-toggle" type="button" onclick="toggleSidebar()" title="Toggle sidebar" aria-label="Toggle sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9.5 4v16"/></svg>
+      </button>
+    </div>
+    <nav class="side-nav"></nav>
+    <script src="assets/admin-nav.js?v=6"></script>
+  </div>
+
+  <button class="side-user" type="button" onclick="openAccount()" title="Account">
+    <div class="side-avatar" id="adminAvatar">A</div>
+    <div class="side-meta">
+      <strong id="adminName">Admin</strong>
+      <span id="adminRole"></span>
+    </div>
+    <svg class="side-dots" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
+  </button>
+</aside>
+
+<div class="admin-main">
+  <div class="admin-content">
+
+    <a class="back-link" href="daily-reports.html" id="backLink">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      Daily Reports
+    </a>
+
+    <div class="report" id="report">
+      <div class="report-head"><p>Loading the report...</p></div>
+    </div>
+    <div class="sr-only" id="liveStatus" role="status" aria-live="polite"></div>
+
+    <!-- Floats at the bottom of the screen while activities are being edited. -->
+    <div class="edit-bar" id="editBar" role="region" aria-label="Unsaved changes" hidden>
+      <div class="edit-bar-text">
+        <strong id="editBarTitle">Editing 1 activity</strong>
+        <span class="form-status" id="editBarStatus" role="status"></span>
+      </div>
+      <button class="btn" type="button" id="editCancel" onclick="cancelEdits()">Cancel</button>
+      <button class="btn primary" type="button" id="editSave" onclick="saveEdits()">Save changes</button>
+    </div>
+
+  </div>
+</div>
+
+<input type="file" id="fileInput" multiple hidden accept=".pdf,.txt,.md,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp">
+
+<!-- CLOSE POPUP: the author sends the day's report from here -->
+<div class="acct-modal" id="closeModal">
+  <div class="acct-box rv-box" role="dialog" aria-modal="true" aria-labelledby="closeTitle" aria-describedby="closeText">
+    <div class="acct-head">
+      <h2 id="closeTitle">Close today's report?</h2>
+      <button type="button" onclick="closeCloseDialog()" aria-label="Close">&times;</button>
+    </div>
+    <div class="rv-body">
+      <p class="rv-note" id="closeText"></p>
+      <div class="close-warn" id="closeWarn" hidden>
+        <strong id="closeWarnTitle"></strong>
+        <ul id="closeWarnList"></ul>
+        <span>They'll be sent as they are.</span>
+      </div>
+    </div>
+    <div class="rv-foot">
+      <div class="form-status" id="closeStatus" role="status"></div>
+      <button class="btn" type="button" id="closeCancel" onclick="closeCloseDialog()">Cancel</button>
+      <button class="btn primary" type="button" id="closeConfirm" onclick="confirmClose()">Close report</button>
+    </div>
+  </div>
+</div>
+
+<!-- REVIEW POPUP: one Done activity (Reviewed / Needs changes), or the whole report -->
+<div class="acct-modal" id="rvModal">
+  <div class="acct-box rv-box" role="dialog" aria-modal="true" aria-labelledby="rvTitle">
+    <div class="acct-head">
+      <h2 id="rvTitle" dir="auto">Review</h2>
+      <button type="button" onclick="closeReview()" aria-label="Close">&times;</button>
+    </div>
+    <form id="rvForm" novalidate onsubmit="confirmReview(event)">
+      <div class="rv-body">
+        <fieldset class="rv-choices" id="rvChoices">
+          <legend class="sr-only">Your review</legend>
+          <label class="rv-choice">
+            <input type="radio" name="rvState" value="approved" checked>
+            <span><strong>Reviewed</strong><small id="rvApprovedHint">Locks it. Feedback is optional.</small></span>
+          </label>
+          <label class="rv-choice">
+            <input type="radio" name="rvState" value="changes">
+            <span><strong>Needs changes</strong><small>Back to In progress, with your feedback.</small></span>
+          </label>
+        </fieldset>
+        <p class="rv-note" id="rvNote" hidden></p>
+        <div id="rvFeedbackBox">
+          <label class="field-label" for="rvFeedback"><span id="rvFeedbackLabel">Feedback</span> <span class="optional" id="rvOptional">(optional)</span></label>
+          <textarea class="textarea" id="rvFeedback" maxlength="2000" dir="auto"></textarea>
+          <div class="field-error" id="rvError"></div>
+        </div>
+      </div>
+      <div class="rv-foot">
+        <div class="form-status" id="rvStatus" role="status"></div>
+        <button class="btn" type="button" id="rvCancel" onclick="closeReview()">Cancel</button>
+        <button class="btn primary" type="submit" id="rvConfirm">Confirm</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ACCOUNT POPUP (opened from the sidebar card) -->
+<div class="acct-modal" id="acctModal">
+  <div class="acct-box" role="dialog" aria-modal="true" aria-labelledby="acctTitle">
+    <div class="acct-head">
+      <h2 id="acctTitle">Account</h2>
+      <button type="button" onclick="closeAccount()" aria-label="Close">&times;</button>
+    </div>
+    <div class="acct-body">
+      <div class="acct-avatar" id="acctAvatar">A</div>
+      <strong id="acctName">Admin</strong>
+      <div class="acct-role" id="acctRole"></div>
+      <button class="acct-logout" type="button" onclick="logoutAdmin()">&#8617; Log out</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/confirm.js?v=5"></script>
+<script src="assets/dismiss.js?v=2"></script>
+<script src="assets/daily-reports.js?v=2"></script>
+<script>
+/* One report. Its author edits activities in place (the pencils) while it can still change.
+   Whoever may review it (can_review_activities) reviews each Done activity
+   as soon as it's saved - Reviewed, or Needs changes with feedback - and,
+   once it's sent, the whole report: that approves the Done activities left
+   and locks it. api/daily-reports.php refuses a report this person may not
+   see. */
+
+const esc = DR.esc;
+const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>';
+const params = new URLSearchParams(location.search);
+const reportId = Number(params.get("id"));
+
+// Back to the tab it was opened from.
+if (document.referrer && /daily-reports\.html\?tab=team/.test(document.referrer)) {
+  document.getElementById("backLink").href = document.referrer;
+}
+
+function text(value, empty) {
+  const v = String(value || "").trim();
+  return v
+    ? `<div class="detail-text" dir="auto">${esc(v)}</div>`
+    : `<div class="detail-text is-empty">${esc(empty || "Nothing written.")}</div>`;
+}
+
+const ICON_EDIT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
+
+/* Activities the author is editing in place: id -> { status, outcome, count_value }.
+   The drafts live here, so a re-render keeps what was typed. */
+let editing = {};
+let lastData = null;
+
+function isEditing() { return Object.keys(editing).length > 0 || !!filesDraft; }
+
+const ICON_CHEV = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
+
+/* Rows opened with their arrow: id -> true/false. Unset means the default:
+   open when the reviewer sent it back, so the feedback is in view. */
+let expanded = {};
+
+function isOpen(a) {
+  const id = Number(a.id);
+  if (editing[id]) return true;
+  return expanded[id] !== undefined ? expanded[id] : DR.reviewState(a) === "changes";
+}
+
+/* A click anywhere on a row's header opens or closes it, except on its own controls
+   (and not while it's being edited). The arrow button stays the keyboard control. */
+document.getElementById("report").addEventListener("click", e => {
+  const line = e.target.closest(".act-line.is-clickable");
+  if (!line || e.target.closest("button, a, select, input, textarea, label")) return;
+  if (window.getSelection && String(window.getSelection()).length) return;   // selecting text, not toggling
+  toggleAct(Number(line.dataset.act));
+});
+
+function toggleAct(id) {
+  const a = (current.activities || []).find(x => Number(x.id) === id);
+  if (!a) return;
+  expanded[id] = !isOpen(a);
+  render(lastData);
+  const t = document.querySelector("#act-" + id + " .act-toggle");
+  if (t) t.focus({ preventScroll: true });
+}
+
+/** Inline edit: the status is the dropdown in the row; here, the outcome and how many. */
+function editFields(a, d) {
+  const id = Number(a.id);
+  return `
+      <div class="act-edit">
+        <div>
+          <label class="field-label" for="eO${id}">Outcome</label>
+          <textarea class="textarea" id="eO${id}" data-edit="${id}" data-field="outcome" maxlength="5000" dir="auto" placeholder="What came of it, and what happens next">${esc(d.outcome)}</textarea>
+        </div>
+        ${a.count_unit ? `
+        <div>
+          <label class="field-label" for="eC${id}">How many</label>
+          <span class="unit-input"><input id="eC${id}" data-edit="${id}" data-field="count_value" type="number" min="0" step="1" inputmode="numeric" placeholder="0" value="${d.count_value == null ? "" : esc(d.count_value)}"><span>${esc(a.count_unit)}</span></span>
+          <div class="field-error" id="eCE${id}"></div>
+        </div>` : ""}
+      </div>`;
+}
+
+/** One activity as a compact row that opens in place: number, title, a peek at the outcome, status and review. */
+function activityHTML(a, i, canReview, canEdit) {
+  const id = Number(a.id);
+  const draft = editing[id];
+  const state = DR.reviewState(a);
+  const open = isOpen(a);
+  const status = draft
+    ? `<select class="pill-select" id="eS${id}" data-edit="${id}" data-field="status" aria-label="Status of “${esc(a.title)}”">${DR.ACTIVITY_STATUS.map(([v, l]) =>
+        `<option value="${v}"${v === draft.status ? " selected" : ""}>${l}</option>`).join("")}</select>`
+    : DR.activityPill(a.status);
+  // The reviewer's button takes the place of the "Awaiting review" pill. On a phone there's
+  // no room for it beside the title, so it moves into the row's ⋮ and the pill comes back.
+  const canReviewThis = canReview && state === "awaiting";
+  const reviewBtn = canReviewThis
+    ? `<button class="btn btn-sm lg-only" type="button" onclick="openActivityReview(${id}, this)">${ICON_CHECK} Mark as reviewed</button>` : "";
+  const reviewMore = canReviewThis
+    ? `<span class="sm-only">${DR.kebab("More actions for “" + a.title + "”", "actMenu(this, " + id + ")")}</span>` : "";
+  const reviewTag = canReviewThis ? `<span class="sm-only">${DR.reviewPill(a)}</span>` : DR.reviewPill(a);
+  const edit = canEdit && !draft && state !== "approved"
+    ? `<button class="icon-btn edit-btn" type="button" onclick="startEdit(${id})" aria-label="Edit “${esc(a.title)}”" title="Edit">${ICON_EDIT}</button>` : "";
+  const toggle = draft ? "" : `<button class="act-toggle" type="button" onclick="toggleAct(${id})" aria-expanded="${open}" aria-controls="actb-${id}" aria-label="${open ? "Hide" : "Show"} details of “${esc(a.title)}”">${ICON_CHEV}</button>`;
+  const peek = String(a.outcome || "").trim();
+  const desc = String(a.description || "").trim();
+  return `
+    <div class="act-row${open ? " is-open" : ""}${state === "changes" ? " is-chg" : ""}" id="act-${id}" tabindex="-1">
+      <div class="act-line${draft ? "" : " is-clickable"}" data-act="${id}">
+        <span class="act-num">${String(i + 1).padStart(2, "0")}</span>
+        <div class="act-main">
+          <h3 dir="auto">${esc(a.title)}</h3>
+          ${open ? "" : `<p class="act-peek${peek ? "" : " is-empty"}" dir="auto">${peek ? esc(peek) : "No outcome yet"}</p>`}
+        </div>
+        <div class="act-tags">${status}${reviewTag}</div>
+        <div class="act-ctl">${reviewBtn}${edit}${reviewMore}${toggle}</div>
+      </div>
+      ${open ? `
+      <div class="act-body" id="actb-${id}">
+        ${desc ? `<span class="detail-label">Description</span>${text(desc)}` : ""}
+        ${draft ? DR.reviewLine(a) + editFields(a, draft)
+          : `<span class="detail-label">Outcome</span>${text(peek, "No outcome yet.")}` + DR.reviewLine(a)}
+        ${DR.reviewHistory(a)}
+      </div>` : ""}
+    </div>`;
+}
+
+let flash = DR.takeFlash();
+let headerActions = { edit: false, remove: false };
+
+/* Phones get the review actions from ⋮ menus instead of buttons (see .sm-only / .lg-only). */
+const PHONE = window.matchMedia("(max-width: 640px)");
+
+/** The header's ⋮ menu: Edit plan (desktop; phones have a button) and Delete report, when allowed. */
+function headerMenu(button) {
+  const items = [];
+  if (headerActions.edit && !PHONE.matches) items.push({ label: "Edit plan", href: "daily-report-plan.html?id=" + reportId });
+  if (headerActions.remove) items.push({ label: "Delete report", danger: true, onSelect: deleteReport });
+  DR.rowMenu(button, items);
+}
+
+/** A row's ⋮ on a phone: Mark as reviewed. */
+function actMenu(button, id) {
+  DR.rowMenu(button, [{ label: "Mark as reviewed", onSelect: () => openActivityReview(id, button) }]);
+}
+
+function render(data) {
+  lastData = data;
+  const r = data.report;
+  const sentBanner = flash || (params.get("sent") === "new"
+    ? `Sent to ${r.reviewer_name}. They've been told it's waiting for them.`
+    : params.get("sent") === "edited" ? "Your changes are saved." : "");
+  flash = "";
+
+  const canReview = !!data.can_review_activities;
+  // Open report: everything not reviewed. Closed: only what the reviewer sent back.
+  const canEdit = !!data.can_fill;
+  const canFix = !!data.can_fix;
+  const activities = (r.activities || []).map((a, i) => activityHTML(a, i, canReview, canEdit || (canFix && DR.reviewState(a) === "changes"))).join("");
+  // Activities can be reviewed before the report is sent; the report itself only after.
+  const earlyHint = canReview && r.status === "planned"
+    ? `<p class="review-hint">${esc(r.admin_name)} hasn't sent this report yet. You can review the activities they've saved as Done now, and the whole report once it's sent.</p>` : "";
+
+  const files = filesDraft ? filesEditor() : (r.files || []).length
+    ? `<ul class="files">${r.files.map(f => `
+        <li>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>
+          <span class="file-name" dir="auto">${esc(f.name)}</span>
+          <span class="file-size">${esc(DR.fileSize(f.size))}</span>
+          <a href="#" data-file="${Number(f.id)}" data-name="${esc(f.name)}" onclick="downloadFile(event, this)">Download</a>
+        </li>`).join("")}</ul><p class="field-error" id="downloadError" role="alert"></p>`
+    : `<div class="detail-text is-empty">No files attached.</div>`;
+
+  const review = r.status === "reviewed" ? `
+      <section class="section review-done" id="reviewDone" tabindex="-1">
+        <div class="section-head"><h2>Reviewed by ${esc(Number(r.reviewed_by) === Number(DR.user.id) ? "you" : (r.reviewed_by_name || r.reviewer_name))}</h2>${DR.reportPill("reviewed")}</div>
+        <p class="section-hint">${esc(DR.dateTimeLabel(r.reviewed_ts))}. The report is locked.</p>
+        ${r.reviewer_note ? text(r.reviewer_note) : ""}
+      </section>` : "";
+  // Shown once it's sent; while an activity waits on changes the popup says why it can't be done yet.
+  const reviewReportBtn = data.can_review || data.review_blocked
+    ? `<button class="btn primary lg-only" type="button" onclick="openReportReview(this)">${ICON_CHECK} Mark report as reviewed</button>` : "";
+
+  const edited = r.submitted_ts && r.updated_ts > r.submitted_ts ? ` · edited ${esc(DR.timeLabel(r.updated_ts))}` : "";
+  const sentLine = r.submitted_ts
+    ? `Sent <strong>${esc(DR.timeLabel(r.submitted_ts))}</strong>${edited}`
+    : r.report_date < (data.today || DR.todayIso()) ? "<strong>Not sent</strong>" : "<strong>Not sent yet</strong>";
+  // The author closes the day here; the badge comes back once it's closed.
+  const closeBtn = canEdit && r.status === "planned"
+    ? `<button class="btn primary lg-only" type="button" onclick="openClose(this)">${ICON_CHECK} Close report</button><span class="sm-only">${DR.sheetPill(r)}</span>` : "";
+  // Edit plan and Delete live in a ⋮ menu, like the lists: only for whoever planned it, before it's sent.
+  // On a phone, Edit plan moves to the buttons at the bottom of the header; the ⋮ keeps Delete.
+  headerActions = { edit: !!data.can_plan, remove: !!data.can_delete };
+  const moreMenu = data.can_plan || data.can_delete ? `<div class="report-more">${DR.kebab("More actions for this report", "headerMenu(this)")}</div>` : "";
+  // Phones: the header's actions as full-width buttons at its bottom.
+  const phoneActions = [
+    closeBtn ? `<button class="btn primary" type="button" onclick="openClose(this)">${ICON_CHECK} Close report</button>` : "",
+    reviewReportBtn ? `<button class="btn primary" type="button" onclick="openReportReview(this)">${ICON_CHECK} Mark report as reviewed</button>` : "",
+    data.can_plan ? `<a class="btn" href="daily-report-plan.html?id=${Number(r.id)}">Edit plan</a>` : ""
+  ].join("");
+  current = r;
+  // Your own self-planned report: the department, sent and "To" line says nothing you don't know.
+  const ownReport = r.self_made && Number(r.admin_id) === Number(DR.user.id);
+
+  document.title = r.admin_name + " · " + DR.dayLabel(r.report_date, true) + " — Daily Report";
+  document.getElementById("report").innerHTML = `
+    <div class="report-head">
+      <div class="section-head report-title">
+        <h1 dir="auto">${esc(r.admin_name)}</h1>
+        <div class="report-title-side">${closeBtn || DR.sheetPill(r) + reviewReportBtn}</div>
+        ${moreMenu}
+      </div>
+      <p>Daily report for ${esc(DR.dayLabel(r.report_date, true))} · ${r.self_made ? (ownReport ? "your own report" : "their own report") : "planned by " + esc(r.created_by_name) + (r.template_name ? " from “" + esc(r.template_name) + "”" : "")}</p>
+      ${ownReport ? "" : `<div class="report-meta">
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/></svg>
+          <span class="pill pill-dept">${esc(r.department_name || "No department")}</span></span>
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          ${sentLine}</span>
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg>
+          To <strong>${esc(r.reviewer_name || "nobody")}</strong></span>
+      </div>`}
+      ${sentBanner ? `<p class="form-status ok" style="margin-top:12px">${esc(sentBanner)}</p>` : ""}
+      ${phoneActions ? `<div class="head-actions-sm sm-only">${phoneActions}</div>` : ""}
+    </div>
+
+    ${review}
+
+    <section class="section">
+      <div class="section-head"><h2>Daily activities</h2><span class="count">${DR.progress(r.activities_done, r.activities_total)}</span></div>
+      ${earlyHint}
+      ${activities || `<div class="detail-text is-empty">No activities.</div>`}
+    </section>
+
+    <section class="section" id="filesSection" tabindex="-1">
+      <div class="section-head"><h2>Files</h2>${canEdit && !filesDraft ? `<button class="icon-btn edit-btn" type="button" onclick="startFilesEdit()" aria-label="Edit files" title="Edit">${ICON_EDIT}</button>` : ""}</div>
+      ${files}
+    </section>`;
+
+  // The "sent" banner is for the first view only, not for a reload after a review.
+  if (params.get("sent")) {
+    params.delete("sent");
+    history.replaceState(null, "", location.pathname + "?id=" + reportId);
+  }
+  syncEditBar();
+}
+
+/* ── Editing activities and files in place ─────────────────────────────── */
+
+let savingEdits = false;
+
+/* Files being edited: the saved ones kept, plus new ones picked here. */
+let filesDraft = null;   // { kept: [{ id, name, size }], added: [File] }
+
+const ICON_FILE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>';
+const ICON_X = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+
+function filesEditor() {
+  const row = (name, size, kind, i) => `
+        <li>${ICON_FILE}<span class="file-name" dir="auto">${esc(name)}</span><span class="file-size">${esc(DR.fileSize(size))}</span>
+          <button type="button" class="icon-btn" onclick="removeDraftFile('${kind}', ${i})" aria-label="Remove ${esc(name)}">${ICON_X}</button>
+        </li>`;
+  const list = filesDraft.kept.map((f, i) => row(f.name, f.size, "kept", i)).concat(filesDraft.added.map((f, i) => row(f.name, f.size, "added", i)));
+  const full = list.length >= DR.MAX_FILES;
+  return `
+      <div class="files-edit">
+        ${list.length ? `<ul class="files">${list.join("")}</ul>` : `<div class="detail-text is-empty">No files attached.</div>`}
+        <button class="btn add-files" type="button" onclick="document.getElementById('fileInput').click()"${full ? " disabled" : ""}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          Add files
+        </button>
+        <p class="section-hint after">${full ? `That's the most a report can have (${DR.MAX_FILES}).` : `PDF, Word, Excel, text or images. Up to ${DR.MAX_FILES} files, 8 MB each.`}</p>
+        <div class="field-error" id="filesError"></div>
+      </div>`;
+}
+
+function startFilesEdit() {
+  filesDraft = { kept: (current.files || []).map(f => ({ id: Number(f.id), name: f.name, size: f.size })), added: [] };
+  document.getElementById("editBarStatus").textContent = "";
+  render(lastData);
+  const add = document.querySelector(".add-files");
+  if (add) add.focus();
+}
+
+function removeDraftFile(kind, i) {
+  filesDraft[kind].splice(i, 1);
+  render(lastData);
+  const add = document.querySelector(".add-files");
+  if (add) add.focus();
+}
+
+document.getElementById("fileInput").addEventListener("change", e => {
+  const picked = Array.from(e.target.files || []);
+  e.target.value = "";
+  if (!filesDraft) return;
+  let error = "";
+  for (const file of picked) {
+    const ext = (file.name.split(".").pop() || "").toLowerCase();
+    if (filesDraft.kept.length + filesDraft.added.length >= DR.MAX_FILES) { error = `Up to ${DR.MAX_FILES} files can be attached.`; break; }
+    if (!DR.FILE_TYPES.includes(ext)) { error = `"${file.name}" can't be attached. Use PDF, Word, Excel, text or an image.`; continue; }
+    if (file.size > DR.MAX_FILE_BYTES) { error = `"${file.name}" is larger than 8 MB.`; continue; }
+    filesDraft.added.push(file);
+  }
+  render(lastData);
+  document.getElementById("filesError").textContent = error;
+});
+
+function filesChanged() {
+  if (!filesDraft) return false;
+  return filesDraft.added.length > 0 || filesDraft.kept.length !== (current.files || []).length;
+}
+
+function syncEditBar() {
+  const n = Object.keys(editing).length;
+  const any = n > 0 || !!filesDraft;
+  document.getElementById("editBar").hidden = !any;
+  document.body.classList.toggle("has-edit-bar", any);
+  const parts = [];
+  if (n) parts.push(`${n} ${n === 1 ? "activity" : "activities"}`);
+  if (filesDraft) parts.push("files");
+  document.getElementById("editBarTitle").textContent = "Editing " + parts.join(" and ");
+}
+
+function startEdit(id) {
+  const a = (current.activities || []).find(x => Number(x.id) === id);
+  if (!a) return;
+  editing[id] = { status: a.status, outcome: a.outcome || "", count_value: a.count_value == null ? "" : String(a.count_value) };
+  document.getElementById("editBarStatus").textContent = "";
+  render(lastData);
+  const field = document.getElementById("eS" + id);
+  if (field) field.focus();
+}
+
+document.getElementById("report").addEventListener("input", e => {
+  const id = e.target.dataset.edit;
+  if (!id || !editing[id]) return;
+  editing[id][e.target.dataset.field] = e.target.value;
+  e.target.classList.remove("is-invalid");
+  const err = document.getElementById("eCE" + id);
+  if (err && e.target.dataset.field === "count_value") err.textContent = "";
+});
+
+/** The drafts that differ from what's saved. */
+function changedEdits() {
+  return Object.entries(editing).filter(([id, d]) => {
+    const a = (current.activities || []).find(x => Number(x.id) === Number(id));
+    return !a || d.status !== a.status || d.outcome.trim() !== String(a.outcome || "").trim()
+      || String(d.count_value) !== (a.count_value == null ? "" : String(a.count_value));
+  });
+}
+
+function editsChanged() { return changedEdits().length > 0 || filesChanged(); }
+
+/** Leave edit mode and put focus back on what was being edited. */
+function endEditing() {
+  const first = Object.keys(editing)[0];
+  const wasFiles = !!filesDraft;
+  editing = {};
+  filesDraft = null;
+  render(lastData);
+  const back = first ? document.getElementById("act-" + first) : wasFiles ? document.getElementById("filesSection") : null;
+  if (back) back.focus({ preventScroll: true });
+}
+
+async function cancelEdits() {
+  if (savingEdits) return;
+  if (editsChanged()) {
+    const ok = await askConfirm({ title: "Discard your changes?", text: "What you changed here hasn't been saved.",
+      action: "Discard", dismiss: "Keep editing", icon: "warn" });
+    if (!ok) return;
+  }
+  endEditing();
+}
+
+async function saveEdits() {
+  if (savingEdits) return;
+  const status = document.getElementById("editBarStatus");
+  status.className = "form-status";
+  status.textContent = "";
+
+  // Counts are whole numbers, 0 or more.
+  let bad = null;
+  Object.entries(editing).forEach(([id, d]) => {
+    const v = d.count_value;
+    if (v !== "" && v != null && !(Number(v) >= 0 && Number.isInteger(Number(v)))) {
+      const input = document.getElementById("eC" + id);
+      if (input) { input.classList.add("is-invalid"); document.getElementById("eCE" + id).textContent = "A whole number, 0 or more."; }
+      if (!bad) bad = input;
+    }
+  });
+  if (bad) {
+    status.className = "form-status error";
+    status.textContent = "Check the highlighted count.";
+    bad.focus();
+    return;
+  }
+
+  // Only what changed goes back; with nothing changed, editing just ends.
+  const changed = changedEdits();
+  const files = filesChanged();
+  if (!changed.length && !files) return endEditing();
+
+  savingEdits = true;
+  ["editSave", "editCancel"].forEach(id => { document.getElementById(id).disabled = true; });
+  status.textContent = "Saving...";
+  try {
+    const messages = [];
+    if (changed.length) {
+      const data = await DR.post({ action: "update_activities", id: reportId,
+        activities: changed.map(([id, d]) => ({ id: Number(id), status: d.status, outcome: d.outcome, count_value: d.count_value })) });
+      if (!data.success) {
+        status.className = "form-status error";
+        status.textContent = data.message || "Could not save. Try again.";
+        return;
+      }
+      messages.push(data.message);
+      // Saved: these drafts are done with, even if the files below fail.
+      editing = {};
+    }
+    if (files) {
+      const body = new FormData();
+      body.append("action", "update_files");
+      body.append("report", JSON.stringify({ id: reportId, keep_file_ids: filesDraft.kept.map(f => f.id) }));
+      filesDraft.added.forEach(file => body.append("files[]", file));
+      const data = await DR.post(body);
+      if (!data.success) {
+        status.className = "form-status error";
+        status.textContent = data.message || "Could not save the files. Try again.";
+        if (changed.length) await load();
+        return;
+      }
+      messages.push(data.message);
+    }
+    flash = messages.filter(Boolean).join(" ") || "Saved.";
+    document.getElementById("liveStatus").textContent = flash;
+    editing = {};
+    filesDraft = null;
+    await load();
+  } catch (err) {
+    status.className = "form-status error";
+    status.textContent = "Connection error. Try again.";
+  } finally {
+    savingEdits = false;
+    ["editSave", "editCancel"].forEach(id => { document.getElementById(id).disabled = false; });
+  }
+}
+
+window.addEventListener("beforeunload", e => {
+  if (isEditing() && editsChanged() && !savingEdits) { e.preventDefault(); e.returnValue = ""; }
+});
+
+/* ── Closing the day ───────────────────────────────────────────────────── */
+
+const closeModal = document.getElementById("closeModal");
+let closing = false;
+let closeOpener = null;
+wzDismiss(closeModal, closeCloseDialog, { isBusy: () => closing });
+
+function openClose(opener) {
+  // Unsaved edits would be lost on the way: save or cancel them first.
+  if (isEditing()) {
+    const status = document.getElementById("editBarStatus");
+    status.className = "form-status error";
+    status.textContent = "Save or cancel your changes before closing the report.";
+    document.getElementById("editSave").focus();
+    return;
+  }
+  closeOpener = opener || null;
+  const open = (current.activities || []).map((a, i) => ({ a, i })).filter(x => x.a.status !== "done");
+  document.getElementById("closeText").textContent =
+    `It goes to ${current.reviewer_name}, who's told it's ready. After that the report is locked: you can only fix activities they send back for changes.`;
+  document.getElementById("closeWarn").hidden = !open.length;
+  document.getElementById("closeWarnTitle").textContent = open.length === 1
+    ? "1 activity isn't done yet:" : `${open.length} activities aren't done yet:`;
+  document.getElementById("closeWarnList").innerHTML = open.map(({ a, i }) =>
+    `<li><span dir="auto">${String(i + 1).padStart(2, "0")}. ${esc(a.title)}</span>${DR.activityPill(a.status)}</li>`).join("");
+  document.getElementById("closeStatus").textContent = "";
+  document.getElementById("closeConfirm").textContent = open.length ? "Close anyway" : "Close report";
+  closeModal.classList.add("show");
+  // With work still open, the safe choice gets the focus.
+  document.getElementById(open.length ? "closeCancel" : "closeConfirm").focus();
+}
+
+function closeCloseDialog() {
+  if (closing) return;
+  closeModal.classList.remove("show");
+  if (closeOpener && closeOpener.isConnected) closeOpener.focus();
+  closeOpener = null;
+}
+
+async function confirmClose() {
+  if (closing) return;
+  closing = true;
+  const status = document.getElementById("closeStatus");
+  status.className = "form-status";
+  status.textContent = "Closing...";
+  ["closeConfirm", "closeCancel"].forEach(id => { document.getElementById(id).disabled = true; });
+  try {
+    const data = await DR.post({ action: "close", id: reportId });
+    if (!data.success) {
+      status.className = "form-status error";
+      status.textContent = data.message || "Could not close it. Try again.";
+      return;
+    }
+    closing = false;
+    closeOpener = null;
+    closeCloseDialog();
+    flash = data.message || "Report closed.";
+    document.getElementById("liveStatus").textContent = flash;
+    await load();
+    const h1 = document.querySelector("#report h1");
+    if (h1) { h1.setAttribute("tabindex", "-1"); h1.focus(); }
+  } catch (err) {
+    status.className = "form-status error";
+    status.textContent = "Connection error. Try again.";
+  } finally {
+    closing = false;
+    ["closeConfirm", "closeCancel"].forEach(id => { document.getElementById(id).disabled = false; });
+  }
+}
+
+async function load() {
+  const box = document.getElementById("report");
+  if (!reportId) {
+    box.innerHTML = `<div class="report-head"><p>No report was picked.</p></div>`;
+    return;
+  }
+  try {
+    const data = await DR.get("get", { id: reportId });
+    if (!data.success) {
+      box.innerHTML = `<div class="report-head"><p>${esc(data.message || "Could not load this report.")}</p></div>`;
+      return;
+    }
+    render(data);
+  } catch (err) {
+    box.innerHTML = `<div class="report-head"><p>Connection error.</p></div>`;
+  }
+}
+
+let current = null;
+
+/* Files download with the session in a header (DR.download), never ?token= in the URL. */
+async function downloadFile(event, link) {
+  event.preventDefault();
+  const error = document.getElementById("downloadError");
+  if (error) error.textContent = "";
+  try {
+    await DR.download(link.dataset.file, link.dataset.name);
+  } catch (err) {
+    if (error) error.textContent = `Could not download “${link.dataset.name}”. Please try again.`;
+  }
+}
+
+async function deleteReport() {
+  if (!current) return;
+  const mine = Number(current.admin_id) === Number(DR.user.id);
+  const ok = await askConfirm({
+    title: mine ? "Delete your report for today?" : `Delete ${current.admin_name}'s report for ${DR.dayLabel(current.report_date, true)}?`,
+    text: mine ? "Anything you've filled in so far is lost." : "They won't see it any more, and anything they've filled in so far is lost.",
+    action: "Delete report",
+    focusCancel: true
+  });
+  if (!ok) return;
+  try {
+    const data = await DR.post({ action: "delete", id: reportId });
+    if (!data.success) return DR.notice(data.message || "Could not delete it.", "error");
+    DR.flash(data.message || "Report deleted.");
+    window.location.href = mine ? "daily-reports.html" : "daily-reports.html?tab=team";
+  } catch (err) {
+    DR.notice("Connection error. The report wasn't deleted.", "error");
+  }
+}
+
+/* ── The review popup ──────────────────────────────────────────────────────
+   One activity: Reviewed (feedback optional) or Needs changes (feedback
+   required). The whole report: optional overall feedback, and a line on
+   the Done activities it approves too. Escape and a click outside close
+   it, asking first if feedback was typed. */
+
+const rv = { mode: "", activityId: 0, opener: null, saving: false, blocked: false };
+const rvModal = document.getElementById("rvModal");
+const rvForm = document.getElementById("rvForm");
+const rvFeedback = document.getElementById("rvFeedback");
+// Only typed feedback is worth asking about; flipping the choice isn't.
+wzDismiss(rvModal, closeReview, { isBusy: () => rv.saving, isDirty: () => !rv.blocked && rvFeedback.value.trim() !== "" });
+
+function rvSet(id, value) { document.getElementById(id).textContent = value; }
+
+function rvStatus(message, kind) {
+  const el = document.getElementById("rvStatus");
+  el.textContent = message || "";
+  el.className = "form-status" + (kind ? " " + kind : "");
+}
+
+function rvClearError() {
+  rvSet("rvError", "");
+  rvFeedback.classList.remove("is-invalid");
+}
+
+function rvState() { return rvForm.querySelector("input[name=rvState]:checked").value; }
+
+/** Feedback is required only to send an activity back. */
+function syncFeedbackHint() {
+  const changes = rv.mode === "activity" && rvState() === "changes";
+  rvSet("rvOptional", changes ? "(required)" : "(optional)");
+  rvFeedback.placeholder = changes ? "Say what to change." : rv.mode === "report" ? "Anything for the whole day" : "Anything they should know";
+  rvClearError();
+}
+
+rvForm.addEventListener("change", event => { if (event.target.name === "rvState") syncFeedbackHint(); });
+rvFeedback.addEventListener("input", rvClearError);
+
+function showReview(opener) {
+  rv.opener = opener || null;
+  rvFeedback.value = "";
+  rvStatus("");
+  syncFeedbackHint();
+  rvModal.classList.add("show");
+}
+
+function openActivityReview(id, opener) {
+  const a = (current.activities || []).find(x => Number(x.id) === id);
+  if (!a) return;
+  rv.mode = "activity";
+  rv.activityId = id;
+  rv.blocked = false;
+  rvSet("rvTitle", `Review “${a.title}”`);
+  rvSet("rvApprovedHint", `Locks it for ${current.admin_name}. Feedback is optional.`);
+  rvSet("rvFeedbackLabel", "Feedback");
+  rvForm.querySelector("input[value=approved]").checked = true;
+  document.getElementById("rvChoices").hidden = false;
+  document.getElementById("rvNote").hidden = true;
+  document.getElementById("rvFeedbackBox").hidden = false;
+  document.getElementById("rvConfirm").hidden = false;
+  rvSet("rvConfirm", "Confirm");
+  rvSet("rvCancel", "Cancel");
+  showReview(opener);
+  rvForm.querySelector("input[value=approved]").focus();
+}
+
+function openReportReview(opener) {
+  const r = current;
+  const sentBack = (r.activities || []).filter(a => DR.reviewState(a) === "changes").length;
+  const left = Number(r.to_review) || 0;
+  rv.mode = "report";
+  rv.activityId = 0;
+  rv.blocked = sentBack > 0;
+  rvSet("rvTitle", `Mark ${r.admin_name}'s report as reviewed`);
+  rvSet("rvFeedbackLabel", "Overall feedback");
+  document.getElementById("rvChoices").hidden = true;
+  const note = document.getElementById("rvNote");
+  note.hidden = false;
+  if (rv.blocked) {
+    note.textContent = `${sentBack} ${sentBack === 1 ? "activity is" : "activities are"} waiting on changes from ${r.admin_name}. `
+      + "Once they save it as Done again and you've reviewed it, you can mark the report as reviewed.";
+  } else {
+    note.textContent = (left
+      ? `${left} done ${left === 1 ? "activity" : "activities"} not reviewed yet will be marked reviewed too. `
+      : "Every done activity is already reviewed. ")
+      + `The report is locked, and ${r.admin_name} is told.`;
+  }
+  document.getElementById("rvFeedbackBox").hidden = rv.blocked;
+  document.getElementById("rvConfirm").hidden = rv.blocked;
+  rvSet("rvConfirm", "Mark as reviewed");
+  rvSet("rvCancel", rv.blocked ? "Close" : "Cancel");
+  showReview(opener);
+  (rv.blocked ? document.getElementById("rvCancel") : rvFeedback).focus();
+}
+
+function closeReview() {
+  if (rv.saving) return;
+  rvModal.classList.remove("show");
+  if (rv.opener && rv.opener.isConnected) rv.opener.focus();
+  rv.opener = null;
+}
+
+async function confirmReview(event) {
+  event.preventDefault();
+  if (rv.saving || rv.blocked) return;
+  const feedback = rvFeedback.value.trim();
+  let body;
+  if (rv.mode === "activity") {
+    const state = rvState();
+    if (state === "changes" && !feedback) {
+      rvSet("rvError", "Say what to change.");
+      rvFeedback.classList.add("is-invalid");
+      rvFeedback.focus();
+      return;
+    }
+    body = { action: "review_activity", activity_id: rv.activityId, state: state, feedback: feedback };
+  } else {
+    body = { action: "review", id: reportId, feedback: feedback };
+  }
+
+  rv.saving = true;
+  ["rvConfirm", "rvCancel"].forEach(id => { document.getElementById(id).disabled = true; });
+  rvStatus("Saving...");
+  try {
+    const data = await DR.post(body);
+    if (!data.success) {
+      rvStatus(data.message || "Could not save the review.", "error");
+      return;
+    }
+    const focusAfter = rv.mode === "activity" ? "act-" + rv.activityId : "reviewDone";
+    rv.saving = false;
+    rv.opener = null;
+    closeReview();
+    if (rv.mode === "report") flash = data.message || "";
+    rvSet("liveStatus", data.message || "Saved.");
+    await load();
+    const target = document.getElementById(focusAfter);
+    if (target) target.focus({ preventScroll: rv.mode === "activity" });
+  } catch (err) {
+    rvStatus("Connection error. Try again.", "error");
+  } finally {
+    rv.saving = false;
+    ["rvConfirm", "rvCancel"].forEach(id => { document.getElementById(id).disabled = false; });
+  }
+}
+
+load();
+</script>
+
+<script src="assets/alert-sound.js?v=2"></script>
+<script src="assets/notifications.js?v=2"></script>
+<script src="assets/messages-badge.js?v=2"></script>
+<script src="assets/shell.js?v=6"></script>
+<script src="assets/sources-lock.js?v=1"></script>
+<script src="assets/role-nav.js?v=7"></script>
+
+</body>
+</html>

@@ -1,6 +1,8 @@
 <?php
 
 require_once "db.php";
+require_once "auth.php";
+requirePage($pdo, "forms"); // "Open X" in Settings > Permissions
 require_once "survey-writes.php";
 
 header("Content-Type: application/json; charset=UTF-8");

@@ -299,7 +299,7 @@ document.addEventListener("DOMContentLoaded", function () {
       </button>
     </div>
     <nav class="side-nav"></nav>
-    <script src="assets/admin-nav.js?v=3"></script>
+    <script src="assets/admin-nav.js?v=6"></script>
   </div>
 
   <button class="side-user" type="button" onclick="openAccount()" title="Account">
@@ -333,6 +333,10 @@ document.addEventListener("DOMContentLoaded", function () {
       <label class="filter">
         <span>Admin</span>
         <select id="fActor"><option value="">Everyone</option></select>
+      </label>
+      <label class="filter">
+        <span>Department</span>
+        <select id="fDept"><option value="">All departments</option></select>
       </label>
       <label class="filter">
         <span>Area</span>
@@ -490,7 +494,7 @@ let activeTab = "changes";
 
 const ROLE_LABELS = { owner: "Director", super_admin: "Super Admin", account_manager: "Account Manager", seo_admin: "Admin" };
 
-const FILTERS = { actor_id: "fActor", area: "fArea", client_id: "fClient", from: "fFrom", to: "fTo", q: "fQ" };
+const FILTERS = { actor_id: "fActor", department: "fDept", area: "fArea", client_id: "fClient", from: "fFrom", to: "fTo", q: "fQ" };
 
 function esc(value){
   return String(value == null ? "" : value)
@@ -561,6 +565,12 @@ async function loadFilters(){
 
     fill("fActor", data.admins.map(a => ({ ...a, value: a.id })),
       a => a.name + (a.removed ? " (removed)" : " - " + (ROLE_LABELS[a.role] || a.role)));
+    // A department narrows the log to what its admins did. An archived one
+    // stays, for the changes made while it was in use; "none" is everyone
+    // not in a department yet.
+    fill("fDept", (data.departments || []).map(d => ({ ...d, value: d.id })),
+      d => d.name + (Number(d.active) ? "" : " (archived)"));
+    fill("fDept", [{ value: "none" }], () => "No department");
     fill("fArea", data.areas.map(a => ({ ...a, value: a.key })), a => a.label);
     fill("fClient", data.clients.map(c => ({ ...c, value: c.id })), c => c.name);
   }catch(err){

@@ -2,6 +2,7 @@
 
 require_once "db.php";
 require_once "events.php";
+require_once "team-scope.php"; // teamPoolFor()
 
 header("Content-Type: application/json; charset=UTF-8");
 
@@ -86,56 +87,10 @@ $actorId = (int) $actor["id"];
 $seesAll = can($actor, "clients.view_all", $pdo);
 
 /*
-| Everyone the actor may add to or remove from a team, keyed by id. Removing
-| follows the same pool as adding, so an account manager cannot take an admin
-| belonging to someone else's team off a client.
+| Everyone the actor may add to or remove from a team: teamPoolFor() in
+| team-scope.php. Removing follows the same pool as adding, so an account
+| manager cannot take an admin belonging to someone else's team off a client.
 */
-function teamPoolFor(PDO $pdo, array $actor)
-{
-    $actorId = (int) $actor["id"];
-
-    if ($actor["role"] === "owner") {
-        $stmt = $pdo->query("
-            SELECT id, name, role, active
-            FROM admins
-            WHERE role IN ('account_manager', 'super_admin', 'seo_admin')
-        ");
-
-    } elseif ($actor["role"] === "account_manager") {
-        $stmt = $pdo->prepare("
-            SELECT id, name, role, active
-            FROM admins
-            WHERE (role = 'super_admin' AND managed_by_admin_id = ?)
-               OR (role = 'seo_admin' AND (
-                       managed_by_admin_id = ?
-                    OR managed_by_admin_id IN (
-                           SELECT sa.id FROM admins sa
-                           WHERE sa.role = 'super_admin' AND sa.managed_by_admin_id = ?
-                       )
-                  ))
-        ");
-        $stmt->execute([$actorId, $actorId, $actorId]);
-
-    } elseif ($actor["role"] === "super_admin") {
-        $stmt = $pdo->prepare("
-            SELECT id, name, role, active
-            FROM admins
-            WHERE role = 'seo_admin' AND managed_by_admin_id = ?
-        ");
-        $stmt->execute([$actorId]);
-
-    } else {
-        return [];
-    }
-
-    $pool = [];
-
-    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
-        $pool[(int) $row["id"]] = $row;
-    }
-
-    return $pool;
-}
 
 /* Which columns the actor may change at all - the pool above says who. */
 function editableColumnsFor($role)

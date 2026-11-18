@@ -405,7 +405,7 @@ document.addEventListener("DOMContentLoaded", function () {
       </button>
     </div>
     <nav class="side-nav"></nav>
-    <script src="assets/admin-nav.js?v=3"></script>
+    <script src="assets/admin-nav.js?v=6"></script>
   </div>
 
   <button class="side-user" type="button" onclick="openAccount()" title="Account">
@@ -1137,6 +1137,15 @@ document.addEventListener("click", function(){
   multi.querySelector(".multi-trigger").setAttribute("aria-expanded", "false");
 });
 
+document.addEventListener("keydown", function (event) {
+  if (event.key !== "Escape" || event.defaultPrevented || !multi.classList.contains("open")) return;
+  event.preventDefault();
+  multi.classList.remove("open");
+  const trigger = multi.querySelector(".multi-trigger");
+  trigger.setAttribute("aria-expanded", "false");
+  trigger.focus();
+});
+
 /* ── Assigned: one row per teammate chosen above ─────────────────────────────
    The same as a content post's Assigned. Ticking a teammate gives them a row
    with what they do; unticking takes it away. On a saved phase the viewer's
@@ -1530,7 +1539,7 @@ load();
 <script src="assets/alert-sound.js?v=2"></script>
 <script src="assets/notifications.js?v=2"></script>
 <script src="assets/messages-badge.js?v=2"></script>
-<script src="assets/confirm.js?v=1"></script>
+<script src="assets/confirm.js?v=5"></script>
 <script src="assets/shell.js?v=6"></script>
 <script src="assets/sources-lock.js?v=1"></script>
 <script src="assets/role-nav.js?v=7"></script>

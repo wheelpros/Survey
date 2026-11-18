@@ -268,7 +268,7 @@ document.addEventListener("DOMContentLoaded", function () {
       </button>
     </div>
     <nav class="side-nav"></nav>
-    <script src="assets/admin-nav.js?v=3"></script>
+    <script src="assets/admin-nav.js?v=6"></script>
   </div>
 
   <button class="side-user" type="button" onclick="openAccount()" title="Account">
@@ -514,6 +514,15 @@ function closePicker(){
 document.addEventListener("click", event => {
   const picker = document.getElementById("picker");
   if(picker && !picker.contains(event.target)) closePicker();
+});
+
+document.addEventListener("keydown", event => {
+  const picker = document.getElementById("picker");
+  if(event.key === "Escape" && !event.defaultPrevented && picker && picker.classList.contains("open")){
+    event.preventDefault();
+    closePicker();
+    document.getElementById("pickerToggle").focus();
+  }
 });
 
 /** The people the current tab offers, narrowed by the search box. */

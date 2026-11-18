@@ -19,6 +19,9 @@
 |
 |     if (!ok) return;
 |
+| focusCancel: true puts the focus on Cancel instead, for a destructive choice
+| without a typed word.
+|
 | It resolves to true or false and never throws, so the caller is a plain await
 | with an early return.
 |
@@ -57,7 +60,8 @@
        loses its colour is worse than one that repeats six hex values. */
     style.textContent = [
       ".cf-modal{position:fixed;inset:0;background:rgba(16,24,40,.55);",
-      "display:none;align-items:center;justify-content:center;z-index:99998;padding:20px}",
+      // Above every popup (.acct-modal is 99999): it's often asked over one.
+      "display:none;align-items:center;justify-content:center;z-index:100000;padding:20px}",
       ".cf-modal.show{display:flex}",
       ".cf-box{width:100%;max-width:440px;background:#fff;border-radius:20px;",
       "box-shadow:0 24px 70px rgba(16,24,40,.28);padding:28px;",
@@ -239,15 +243,23 @@
     node.classList.add("show");
     document.body.style.overflow = "hidden";
 
+    // focusCancel: for a destructive choice, Enter should mean "no".
     if (word) ack.focus();
+    else if (options.focusCancel) node.querySelector("#cfCancel").focus({ preventScroll: true });
     else node.querySelector("#cfGo").focus({ preventScroll: true });
 
     return new Promise(function (resolve) { resolveCurrent = resolve; });
   }
 
+  /* Captured, and marked handled, so Escape on a question asked over another
+     popup closes the question only - the popup underneath checks
+     defaultPrevented (assets/dismiss.js) and stays open. */
   document.addEventListener("keydown", function (event) {
-    if (event.key === "Escape" && resolveCurrent) settle(false);
-  });
+    if (event.key === "Escape" && resolveCurrent) {
+      event.preventDefault();
+      settle(false);
+    }
+  }, true);
 
   /* Pages that already define their own askConfirm (project-management.html,
      project-details.html) keep theirs - this file is additive, never a

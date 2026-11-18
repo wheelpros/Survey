@@ -38,8 +38,9 @@ $avatar = null;
 try {
     [$name, $email] = checkNewAdmin($pdo, $input["name"] ?? "", $input["email"] ?? "", $role);
     $position = checkAdminPosition($input["position"] ?? "");
+    $departmentId = checkAdminDepartment($pdo, $input["department_id"] ?? null);
     $avatar = saveAdminAvatar($_FILES["avatar"] ?? null);
-    createAdmin($pdo, $name, $email, $role, (string) $input["password"], $position, $avatar);
+    createAdmin($pdo, $name, $email, $role, (string) $input["password"], $position, $avatar, $departmentId);
 } catch (PortalWriteError $e) {
     deleteAdminAvatar($avatar);
     echo json_encode(["success"=>false,"message"=>$e->getMessage()]);

@@ -35,20 +35,41 @@ require_once __DIR__ . "/db.php";
 const PERMISSION_ROLES = ["seo_admin", "super_admin", "account_manager"];
 
 const PERMISSION_AREAS = [
+    "pages"     => "Pages",
     "clients"   => "Clients",
     "forms"     => "Forms",
     "content"   => "Content",
     "projects"  => "Projects",
     "inquiries" => "Inquiries",
-    "calendar"  => "Appointments",
     "team"      => "Team",
+    "reports"   => "Daily reports",
     "director"  => "Director only",
 ];
 
+const ALL_ADMIN_ROLES = ["seo_admin", "super_admin", "account_manager"];
+
 const PERMISSIONS = [
+    // Pages: whether a page is in the sidebar and opens at all, in sidebar order
+    // (assets/admin-nav.js redirects a page its admin can't open). The defaults are
+    // who could open each page before these existed. Four pages already had a key
+    // that did this job, so they keep it rather than getting a second switch.
+    "pages.dashboard"    => ["area" => "pages", "label" => "Open Dashboard", "roles" => ALL_ADMIN_ROLES],
+    "pages.forms"        => ["area" => "pages", "label" => "Open Forms", "roles" => ALL_ADMIN_ROLES],
+    "pages.content"      => ["area" => "pages", "label" => "Open Content", "roles" => ALL_ADMIN_ROLES],
+    "pages.projects"     => ["area" => "pages", "label" => "Open Project Management", "roles" => ALL_ADMIN_ROLES],
+    // Inquiries - account managers get read access one by one, as an override
+    "inquiries.read"     => ["area" => "pages", "label" => "Open Inquiries and see their leads", "roles" => []],
+    "clients.details"    => ["area" => "pages", "label" => "Open Clients Management", "roles" => ["super_admin", "account_manager"]],
+    "pages.files"        => ["area" => "pages", "label" => "Open Files", "roles" => ALL_ADMIN_ROLES],
+    // Appointments (the permission key keeps its old name: it is stored in role settings)
+    "calendar.use"       => ["area" => "pages", "label" => "Open Appointments and book meetings", "roles" => ["super_admin", "account_manager"]],
+    "pages.messages"     => ["area" => "pages", "label" => "Open Messages", "roles" => ALL_ADMIN_ROLES],
+    "pages.notifications" => ["area" => "pages", "label" => "Open Notifications", "roles" => ALL_ADMIN_ROLES],
+    "events.view"        => ["area" => "pages", "label" => "Open Tracking - every admin's changes and all AI activity", "roles" => []],
+    "pages.daily_reports" => ["area" => "pages", "label" => "Open Daily Reports", "roles" => ALL_ADMIN_ROLES],
+
     // Clients
     "clients.view_all"   => ["area" => "clients", "label" => "See every client, not only their own", "roles" => []],
-    "clients.details"    => ["area" => "clients", "label" => "Open Clients Management", "roles" => ["super_admin", "account_manager"]],
     "clients.edit"       => ["area" => "clients", "label" => "Edit client details and internal notes", "roles" => ["account_manager"]],
     "clients.approve"    => ["area" => "clients", "label" => "Approve or reject new registrations", "roles" => []],
     "clients.delete"     => ["area" => "clients", "label" => "Delete a client", "roles" => []],
@@ -72,19 +93,20 @@ const PERMISSIONS = [
     "tasks.edit_any"     => ["area" => "projects", "label" => "Edit or delete a teammate's update", "roles" => ["account_manager"]],
     "tasks.see_drafts"   => ["area" => "projects", "label" => "See teammates' draft updates", "roles" => ["account_manager"]],
 
-    // Inquiries - account managers get read access one by one, as an override
-    "inquiries.read"     => ["area" => "inquiries", "label" => "See inquiries and their leads", "roles" => []],
+    // Inquiries (opening the page is inquiries.read, under Pages)
     "inquiries.write"    => ["area" => "inquiries", "label" => "Create, edit and close inquiries", "roles" => []],
-
-    // Appointments (the permission key keeps its old name: it is stored in role settings)
-    "calendar.use"       => ["area" => "calendar", "label" => "Use appointments and book meetings", "roles" => ["super_admin", "account_manager"]],
 
     // Team
     "team.overview"      => ["area" => "team", "label" => "See the whole team's tasks on the dashboard", "roles" => []],
     "announcements.send" => ["area" => "team", "label" => "Send announcements", "roles" => []],
     "team_forms.send"    => ["area" => "team", "label" => "Send forms to the team", "roles" => []],
     "team_forms.responses" => ["area" => "team", "label" => "See the answers to every team form, not only the ones they sent", "roles" => []],
-    "events.view"        => ["area" => "team", "label" => "See Tracking - every admin's changes and all AI activity", "roles" => []],
+
+    // Daily reports (filling in your own report needs none of these)
+    "reports.create"     => ["area" => "reports", "label" => "Plan daily reports and templates for their team", "roles" => []],
+    "reports.self"       => ["area" => "reports", "label" => "Plan their own daily report when nobody planned one", "roles" => ["super_admin", "account_manager"]],
+    "reports.review"     => ["area" => "reports", "label" => "Review their team's daily reports", "roles" => ["super_admin", "account_manager"]],
+    "reports.view_all"   => ["area" => "reports", "label" => "See every daily report in every department", "roles" => []],
 
     // The Director's alone
     "settings.manage"    => ["area" => "director", "label" => "Change portal settings", "roles" => [], "owner_only" => true],

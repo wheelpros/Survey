@@ -475,7 +475,7 @@ body{padding:0}
 .team-head,
 .team-row {
     display: grid;
-    grid-template-columns: minmax(0, 2.4fr) minmax(0, 2fr) 150px 96px 48px;
+    grid-template-columns: minmax(0, 2.4fr) minmax(0, 2fr) minmax(0, 1.4fr) 150px 96px 48px;
     gap: 16px;
     align-items: center;
     padding: 14px 20px;
@@ -559,13 +559,164 @@ body{padding:0}
     font-style: italic;
 }
 
-.team-email {
+.team-email,
+.team-dept {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     font-size: 14px;
     color: #475467;
+}
+
+.team-dept.is-empty {
+    color: #98a2b3;
+}
+
+/* ── Departments: the list admins are grouped by ── */
+.dept-add {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.dept-add input {
+    flex: 1;
+    min-width: 0;
+    padding: 11px 14px;
+    border: 1px solid #dfe3ea;
+    border-radius: 10px;
+    font: inherit;
+    font-size: 14px;
+    color: #101828;
+}
+
+.dept-add input:focus {
+    outline: none;
+    border-color: #1b1e3a;
+    box-shadow: 0 0 0 3px rgba(27, 30, 58, .10);
+}
+
+.dept-list {
+    border: 1px solid #eaecf0;
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+.dept-list:has(> .no-admins) {
+    border: none;
+}
+
+.dept-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 120px 190px;
+    gap: 16px;
+    align-items: center;
+    padding: 10px 20px;
+    border-bottom: 1px solid #f2f4f7;
+}
+
+.dept-row:last-child {
+    border-bottom: none;
+}
+
+/* Rename in place: the name and its input share one box, so nothing moves
+   when it turns into a field. Enter saves, Escape puts the name back. */
+.dept-name {
+    display: grid;
+    height: 38px;
+    min-width: 0;
+}
+
+.dept-name > * {
+    grid-area: 1 / 1;
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0 10px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: none;
+    font: inherit;
+    font-size: 15px;
+    color: #101828;
+    text-align: left;
+}
+
+.dept-name button {
+    font-weight: 700;
+    cursor: text;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dept-name button:hover {
+    border-color: #dfe3ea;
+}
+
+.dept-name input {
+    border-color: #1b1e3a;
+    background: #fff;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(27, 30, 58, .10);
+}
+
+.dept-name [hidden] {
+    display: none;
+}
+
+.dept-row.is-archived .dept-name button {
+    color: #98a2b3;
+    font-weight: 600;
+}
+
+.dept-count {
+    font-size: 13px;
+    color: #667085;
+    white-space: nowrap;
+}
+
+.dept-actions {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.dept-actions button {
+    border: 1px solid #dfe3ea;
+    background: #fff;
+    color: #101828;
+    border-radius: 9px;
+    padding: 7px 12px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.dept-actions button:hover {
+    background: #f6f7f9;
+}
+
+.dept-tag {
+    display: inline-block;
+    margin-right: 4px;
+    padding: 3px 9px;
+    border-radius: 20px;
+    background: #f2f4f7;
+    color: #667085;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+@media (max-width: 700px) {
+    .dept-add { flex-direction: column; }
+    .dept-row { grid-template-columns: minmax(0, 1fr) auto; }
+    .dept-count { grid-row: 2; padding-left: 10px; }
 }
 
 .role-pill,
@@ -624,14 +775,27 @@ body{padding:0}
 }
 
 /* The popup that adds and edits an admin. */
+/* The form is the flex child, not .admin-form, so it has to shrink too -
+   otherwise it grows past the box and the box's overflow:hidden (shell.css)
+   cuts off Role and the Save button on short screens. */
 .admin-box {
     max-width: 520px;
     max-height: 90vh;
+    max-height: calc(100dvh - 40px);
     display: flex;
     flex-direction: column;
 }
 
+#adminForm {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
 .admin-form {
+    flex: 1 1 auto;
+    min-height: 0;
     padding: 22px 24px 8px;
     overflow-y: auto;
 }
@@ -759,14 +923,14 @@ body{padding:0}
     }
 }
 
-/* The five columns need about 780px. Whether there is that much depends on
+/* The six columns need about 900px. Whether there is that much depends on
    the list - a collapsed sidebar, a tablet, a phone - not on the screen, so the
    header row goes and each admin becomes a card by the list's own width. */
 .team-wrap {
     container-type: inline-size;
 }
 
-@container (max-width: 780px) {
+@container (max-width: 900px) {
 
     .team-list {
         display: flex;
@@ -787,6 +951,7 @@ body{padding:0}
         grid-template-areas:
             "who who"
             "email email"
+            "dept dept"
             "role status"
             "actions actions";
         gap: 10px 12px;
@@ -802,6 +967,7 @@ body{padding:0}
 
     .team-who     { grid-area: who; }
     .team-email   { grid-area: email; }
+    .team-dept    { grid-area: dept; }
     .team-role    { grid-area: role; }
     .team-status  { grid-area: status; justify-self: end; }
 
@@ -1386,6 +1552,7 @@ document.addEventListener("DOMContentLoaded", function () {
 <link rel="stylesheet" href="assets/shell.css?v=8" />
 <link rel="stylesheet" href="assets/connected-apps.css?v=2" />
 <script src="assets/permissions.js?v=2"></script>
+<script src="assets/dismiss.js?v=2"></script>
 <script src="/assets/clarity.js" defer></script>
 </head>
 
@@ -1402,7 +1569,7 @@ document.addEventListener("DOMContentLoaded", function () {
       </button>
     </div>
     <nav class="side-nav"></nav>
-    <script src="assets/admin-nav.js?v=3"></script>
+    <script src="assets/admin-nav.js?v=6"></script>
   </div>
 
   <button class="side-user" type="button" onclick="openAccount()" title="Account">
@@ -1720,6 +1887,31 @@ document.addEventListener("DOMContentLoaded", function () {
         </div>
     </div>
 
+    <!-- The departments admins are grouped by (api/departments.php). Daily
+         reports and Tracking filter by them. Archived ones stay on the admins
+         and reports that have them, and are no longer offered. -->
+    <div class="panel" id="departmentsPanel">
+        <div class="panel-head">
+            <h1>Departments</h1>
+            <p>Group admins for daily reports and Tracking. Click a name to rename it.</p>
+        </div>
+
+        <div class="panel-body">
+            <form class="dept-add" onsubmit="addDepartment(event)">
+                <input type="text" id="deptNewName" maxlength="80" autocomplete="off"
+                       placeholder="Sales and Marketing" aria-label="New department name">
+                <button type="submit" class="add-admin-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                    Add department
+                </button>
+            </form>
+            <div id="deptStatus" class="status" role="status"></div>
+            <div id="deptList" class="dept-list">
+                <div class="no-admins">Loading departments...</div>
+            </div>
+        </div>
+    </div>
+
     <!-- Add / edit an admin: one form, prefilled when editing. Reuses the
          page's dialog shell, and sits in the owner-only section so nobody
          else has it. -->
@@ -1753,6 +1945,12 @@ document.addEventListener("DOMContentLoaded", function () {
                     <label for="adminFormPosition">Position</label>
                     <input type="text" id="adminFormPosition" maxlength="100" autocomplete="off" placeholder="e.g. SEO Specialist">
                     <p class="hint">Shown in the sidebar and the account popup instead of their name.</p>
+
+                    <label for="adminFormDepartment">Department</label>
+                    <select id="adminFormDepartment">
+                        <option value="">No department</option>
+                    </select>
+                    <p class="hint">Groups their daily reports and their changes in Tracking. The list is under Departments below.</p>
 
                     <label for="adminFormEmail">Email</label>
                     <input type="email" id="adminFormEmail" maxlength="190" autocomplete="off" placeholder="name@company.com">
@@ -2215,6 +2413,7 @@ if (adminCan("admins.manage")) {
 
     loadAdmins();
     loadDistribution();
+    loadDepartments();
 
 } else {
 
@@ -2733,12 +2932,16 @@ function closeAddSlide() {
     document.getElementById("slideModal").classList.remove("show");
 }
 
-// Escape closes it, the same as the × in the header.
-document.addEventListener("keydown", function (event) {
-    if (event.key !== "Escape") return;
+// Escape and a click outside close it, the same as the × in the header -
+// not mid-upload, and only after asking once a file or a title is in.
+let slideUploading = false;
 
-    const modal = document.getElementById("slideModal");
-    if (modal && modal.classList.contains("show")) closeAddSlide();
+wzDismiss(document.getElementById("slideModal"), closeAddSlide, {
+    isOpen : () => document.getElementById("slideModal").classList.contains("show"),
+    isBusy : () => slideUploading,
+    isDirty: () => !!pendingSlideFile
+        || document.getElementById("slideTitle").value.trim() !== ""
+        || document.getElementById("slideSubtitle").value.trim() !== ""
 });
 
 /* ── The Add-a-slide dropzone ─────────────────────────────────────────────
@@ -2940,6 +3143,7 @@ async function uploadSlide() {
 
     status.innerText = "Uploading...";
     if (addBtn) addBtn.disabled = true;
+    slideUploading = true;
 
     const form = new FormData();
     form.append("slide", file);
@@ -2975,6 +3179,8 @@ async function uploadSlide() {
     } catch (err) {
         status.innerText = "An error occurred while uploading.";
         if (addBtn) addBtn.disabled = false;
+    } finally {
+        slideUploading = false;
     }
 }
 
@@ -3101,6 +3307,224 @@ async function saveSlideOrder() {
     }
 }
 
+/* ── Departments ───────────────────────────────────────────────────────────
+   api/departments.php: GET lists them with how many admins each has; POST
+   {action: create|rename|archive|restore} changes one and answers with the
+   whole list again. Archived departments stay on the admins and reports
+   that have them, so they are never deleted - only no longer offered. */
+
+let allDepartments = [];
+
+async function departmentsApi(body) {
+    const res = await fetch("api/departments.php", body ? {
+        method: "POST",
+        headers: { "Authorization": "Bearer " + adminToken, "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+    } : {
+        headers: { "Authorization": "Bearer " + adminToken }
+    });
+
+    let data = null;
+    try { data = await res.json(); } catch (error) { /* handled below */ }
+    if (!data) throw new Error("bad reply");
+    return data;
+}
+
+function deptStatus(message, isError) {
+    const el = document.getElementById("deptStatus");
+    el.textContent = message || "";
+    el.className = "status" + (isError ? " error" : "");
+}
+
+async function loadDepartments() {
+    try {
+        const data = await departmentsApi();
+        if (!data.success) {
+            document.getElementById("deptList").innerHTML =
+                `<div class="no-admins">${escapeHtml(data.message || "Could not load departments.")}</div>`;
+            return;
+        }
+        allDepartments = data.departments || [];
+        renderDepartments();
+    } catch (error) {
+        document.getElementById("deptList").innerHTML = `<div class="no-admins">Network or server error.</div>`;
+    }
+}
+
+function renderDepartments() {
+    const list = document.getElementById("deptList");
+
+    if (!allDepartments.length) {
+        list.innerHTML = `<div class="no-admins">No departments yet. Add the first one above.</div>`;
+        return;
+    }
+
+    // Active first, then archived; each alphabetical.
+    const rows = allDepartments.slice().sort((a, b) =>
+        (Number(b.active) - Number(a.active)) || String(a.name).localeCompare(String(b.name)));
+
+    list.innerHTML = rows.map(dept => {
+        const id = Number(dept.id);
+        const active = Number(dept.active) === 1;
+        const count = Number(dept.admin_count) || 0;
+
+        return `
+        <div class="dept-row ${active ? "" : "is-archived"}" id="dept-${id}">
+            <div class="dept-name">
+                <button type="button" id="deptLabel-${id}" dir="auto" title="Rename"
+                        onclick="startRenameDepartment(${id})">${escapeHtml(dept.name)}</button>
+                <input type="text" id="deptInput-${id}" maxlength="80" hidden aria-label="Department name"
+                       value="${escapeHtml(dept.name)}"
+                       onkeydown="renameKeys(event, ${id})" onblur="finishRenameDepartment(${id}, true)">
+            </div>
+            <span class="dept-count">${count} admin${count === 1 ? "" : "s"}</span>
+            <div class="dept-actions">
+                ${active ? "" : `<span class="dept-tag">Archived</span>`}
+                ${active
+                    ? `<button type="button" onclick="setDepartmentArchived(${id}, true)">Archive</button>`
+                    : `<button type="button" onclick="setDepartmentArchived(${id}, false)">Restore</button>`}
+            </div>
+        </div>`;
+    }).join("");
+}
+
+/* The Add / Edit admin popup offers active departments, plus the one the
+   admin already has when it has since been archived - editing someone must
+   not quietly take their department away. */
+function fillDepartmentSelect(currentId) {
+    const select = document.getElementById("adminFormDepartment");
+    const current = currentId ? Number(currentId) : null;
+
+    const offered = allDepartments
+        .filter(d => Number(d.active) === 1 || Number(d.id) === current)
+        .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+
+    select.innerHTML = `<option value="">No department</option>` + offered.map(d =>
+        `<option value="${Number(d.id)}">${escapeHtml(d.name)}${Number(d.active) ? "" : " (archived)"}</option>`
+    ).join("");
+
+    select.value = current ? String(current) : "";
+}
+
+async function addDepartment(event) {
+    event.preventDefault();
+
+    const input = document.getElementById("deptNewName");
+    const name = input.value.trim();
+
+    if (!name) {
+        deptStatus("Enter a department name.", true);
+        input.focus();
+        return;
+    }
+
+    try {
+        const data = await departmentsApi({ action: "create", name });
+        if (!data.success) return deptStatus(data.message || "Could not add it.", true);
+
+        allDepartments = data.departments || allDepartments;
+        input.value = "";
+        deptStatus(data.message || "Department added.");
+        renderDepartments();
+    } catch (error) {
+        deptStatus("Connection error.", true);
+    }
+}
+
+function startRenameDepartment(id) {
+    const label = document.getElementById("deptLabel-" + id);
+    const input = document.getElementById("deptInput-" + id);
+    label.hidden = true;
+    input.hidden = false;
+    input.focus();
+    input.select();
+}
+
+function renameKeys(event, id) {
+    if (event.key === "Enter") {
+        event.preventDefault();
+        finishRenameDepartment(id, true);
+    } else if (event.key === "Escape") {
+        event.preventDefault();
+        finishRenameDepartment(id, false);
+    }
+}
+
+let renamingDepartment = false;
+
+async function finishRenameDepartment(id, save) {
+    const label = document.getElementById("deptLabel-" + id);
+    const input = document.getElementById("deptInput-" + id);
+    if (!label || input.hidden || renamingDepartment) return;
+
+    const dept = allDepartments.find(d => Number(d.id) === id);
+    const name = input.value.trim();
+
+    const putBack = () => {
+        input.value = dept ? dept.name : "";
+        input.hidden = true;
+        label.hidden = false;
+    };
+
+    if (!save || !dept || !name || name === dept.name) {
+        putBack();
+        if (save && !name) deptStatus("A department needs a name.", true);
+        label.focus();
+        return;
+    }
+
+    renamingDepartment = true;
+    try {
+        const data = await departmentsApi({ action: "rename", id, name });
+        if (!data.success) {
+            putBack();
+            deptStatus(data.message || "Could not rename it.", true);
+            return;
+        }
+        allDepartments = data.departments || allDepartments;
+        deptStatus(data.message || "Department renamed.");
+        renderDepartments();
+        loadAdmins();
+    } catch (error) {
+        putBack();
+        deptStatus("Connection error.", true);
+    } finally {
+        renamingDepartment = false;
+    }
+}
+
+async function setDepartmentArchived(id, archive) {
+    const dept = allDepartments.find(d => Number(d.id) === id);
+    if (!dept) return;
+
+    const count = Number(dept.admin_count) || 0;
+    const ok = await askConfirm(archive ? {
+        title: `Archive "${dept.name}"?`,
+        text: (count
+            ? `${count} admin${count === 1 ? " keeps" : "s keep"} it until you change them. `
+            : "") + "It stops being offered when adding or editing an admin. Past reports keep it, and you can restore it any time.",
+        action: "Archive department",
+        icon: "warn"
+    } : {
+        title: `Restore "${dept.name}"?`,
+        text: "It is offered again when adding or editing an admin.",
+        action: "Restore department",
+        icon: "warn"
+    });
+
+    if (!ok) return;
+
+    try {
+        const data = await departmentsApi({ action: archive ? "archive" : "restore", id });
+        if (!data.success) return deptStatus(data.message || "Could not change it.", true);
+        allDepartments = data.departments || allDepartments;
+        deptStatus(data.message || (archive ? "Department archived." : "Department restored."));
+        renderDepartments();
+    } catch (error) {
+        deptStatus("Connection error.", true);
+    }
+}
+
 let allAdmins = [];
 
 // Eight rows to a page; the rest live behind the pager under the list.
@@ -3191,6 +3615,7 @@ function openAddAdmin() {
         document.getElementById("adminForm" + field).value = "";
     });
     document.getElementById("adminFormRole").value = "seo_admin";
+    fillDepartmentSelect(null);
     resetAdminAvatar(null);
 
     showAdminModal();
@@ -3213,6 +3638,7 @@ function openEditAdmin(adminId) {
     document.getElementById("adminFormEmail").value = admin.email || "";
     document.getElementById("adminFormPassword").value = "";
     document.getElementById("adminFormRole").value = admin.role;
+    fillDepartmentSelect(admin.department_id);
     resetAdminAvatar(admin.avatar_path || null);
 
     showAdminModal();
@@ -3227,6 +3653,7 @@ function showAdminModal() {
     syncRoleNote();
 
     adminModal().classList.add("show");
+    adminTyped.reset();
     document.getElementById("adminFormName").focus();
 }
 
@@ -3254,7 +3681,9 @@ async function saveAdmin(event) {
         name: document.getElementById("adminFormName").value.trim(),
         position: document.getElementById("adminFormPosition").value.trim(),
         email: document.getElementById("adminFormEmail").value.trim(),
-        role: document.getElementById("adminFormRole").value
+        role: document.getElementById("adminFormRole").value,
+        // "" is no department.
+        department_id: document.getElementById("adminFormDepartment").value
     };
     const password = document.getElementById("adminFormPassword").value;
 
@@ -3265,6 +3694,7 @@ async function saveAdmin(event) {
 
     const button = document.getElementById("adminSaveBtn");
     button.disabled = true;
+    adminSaving = true;
 
     try {
         // Multipart, so the photo travels with the rest; no Content-Type
@@ -3302,16 +3732,20 @@ async function saveAdmin(event) {
     } catch (error) {
         adminFormError("Connection error.");
         button.disabled = false;
+    } finally {
+        adminSaving = false;
     }
 }
 
-// Esc and a click on the backdrop close it, as with the account popup.
-adminModal().addEventListener("click", function (event) {
-    if (event.target === adminModal()) closeAdminModal();
-});
+// Esc and a click outside close it, as with the account popup - not while a
+// save is on its way, and only after asking when something was typed.
+let adminSaving = false;
+const adminTyped = wzDismiss.track(document.getElementById("adminForm"));
 
-document.addEventListener("keydown", function (event) {
-    if (event.key === "Escape" && adminModal().classList.contains("show")) closeAdminModal();
+wzDismiss(adminModal(), closeAdminModal, {
+    isOpen : () => adminModal().classList.contains("show"),
+    isBusy : () => adminSaving,
+    isDirty: () => adminTyped.changed() || !!adminAvatar.file || adminAvatar.remove
 });
 
 /* ── The photo in the popup ── */
@@ -3430,7 +3864,7 @@ function renderAdmins() {
 
     list.innerHTML = `
         <div class="team-head" aria-hidden="true">
-            <span>Admin</span><span>Email</span><span>Role</span><span>Status</span><span></span>
+            <span>Admin</span><span>Email</span><span>Department</span><span>Role</span><span>Status</span><span></span>
         </div>
     ` + pageAdmins.map(admin => {
         const isActive = Number(admin.active) === 1;
@@ -3451,6 +3885,10 @@ function renderAdmins() {
             </div>
 
             <div class="team-email" title="${escapeHtml(admin.email)}">${escapeHtml(admin.email)}</div>
+
+            <div class="team-dept ${admin.department_name ? "" : "is-empty"}" dir="auto">${
+                admin.department_name ? escapeHtml(admin.department_name) : "No department"
+            }</div>
 
             <div class="team-role">
                 <span class="role-pill role-${escapeHtml(admin.role)}">${escapeHtml(adminRoleLabel(admin.role))}</span>
@@ -3861,7 +4299,7 @@ if (adminUser.role === "owner") {
 <script src="assets/alert-sound.js?v=2"></script>
 <script src="assets/notifications.js?v=2"></script>
 <script src="assets/messages-badge.js?v=2"></script>
-<script src="assets/confirm.js?v=1"></script>
+<script src="assets/confirm.js?v=5"></script>
 <script src="assets/connected-apps.js?v=4"></script>
 <script src="assets/shell.js?v=6"></script>
 <script src="assets/sources-lock.js?v=1"></script>

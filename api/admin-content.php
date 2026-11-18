@@ -1,6 +1,10 @@
 <?php
 
 require_once "db.php";
+require_once "auth.php";
+// "Open X" in Settings > Permissions. The Dashboard's My status uses these two
+// actions too, so either page will do for them.
+requirePage($pdo, in_array(requestAction(), ["set_my_status", "set_done"], true) ? ["content", "dashboard"] : "content");
 require_once "notify.php";
 require_once "content-writes.php";
 require_once "events.php";

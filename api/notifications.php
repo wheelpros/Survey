@@ -29,6 +29,8 @@ if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") {
 }
 
 require_once "db.php";
+require_once "auth.php";
+requirePage($pdo, "notifications"); // "Open X" in Settings > Permissions
 
 function reply($success, $message = "", $extra = [])
 {

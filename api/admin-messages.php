@@ -43,6 +43,7 @@ if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") {
 
 require_once "db.php";
 require_once "auth.php";
+requirePage($pdo, "messages"); // "Open X" in Settings > Permissions
 require_once "message-writes.php";
 
 function reply($success, $message = "", $extra = [], $status = 200)

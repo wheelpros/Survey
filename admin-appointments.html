@@ -448,6 +448,7 @@ document.addEventListener("DOMContentLoaded", function () {
 </script>
 <link rel="stylesheet" href="assets/shell.css?v=8" />
 <script src="assets/permissions.js?v=2"></script>
+<script src="assets/dismiss.js?v=2"></script>
 <script src="/assets/clarity.js" defer></script>
 </head>
 
@@ -464,7 +465,7 @@ document.addEventListener("DOMContentLoaded", function () {
       </button>
     </div>
     <nav class="side-nav"></nav>
-    <script src="assets/admin-nav.js?v=3"></script>
+    <script src="assets/admin-nav.js?v=6"></script>
   </div>
 
   <button class="side-user" type="button" onclick="openAccount()" title="Account">
@@ -1205,16 +1206,53 @@ function renderAll() { renderCalendar(); renderList(); }
 /* ── Dialogs ───────────────────────────────────────────────────────────── */
 
 let lastFocus = null;
+
+/* What each form dialog held when it opened, so a click outside or Escape can
+   tell typing worth keeping from an untouched form. The availability dialog
+   edits `draft` rather than plain fields, so that is compared too. */
+const FORM_DIALOGS = { dlgNew: "newSubmit", dlgAvail: "availSave" };
+const dialogStart = new Map();
+
 function openDialog(id) {
   if (!document.querySelector(".dlg-scrim.open")) lastFocus = document.activeElement;
   const el = document.getElementById(id);
   el.classList.add("open");
+  if (FORM_DIALOGS[id]) {
+    dialogStart.set(id, { typed: wzDismiss.track(el), draft: id === "dlgAvail" ? JSON.stringify(draft) : null });
+  }
   const first = el.querySelector(".dlg-body input:not([type=hidden]):not([readonly]), .dlg-body select, .dlg-body textarea, .dlg-foot button:not([data-close])") || el.querySelector("button");
   if (first) first.focus();
 }
 function closeDialog(el) {
   el.classList.remove("open");
   if (!document.querySelector(".dlg-scrim.open") && lastFocus && document.contains(lastFocus)) lastFocus.focus();
+}
+
+/* A click outside or Escape: never while a save is on its way, and a form
+   with changes in it asks first. Cancel and × close straight away - those
+   are a decision, a stray click is not. */
+let closingFromOutside = false;
+async function closeFromOutside(el) {
+  if (closingFromOutside) return;
+  const saveId = FORM_DIALOGS[el.id];
+  if (saveId && document.getElementById(saveId).disabled) return;
+
+  const start = dialogStart.get(el.id);
+  const dirty = saveId && start && (start.typed.changed() || (start.draft !== null && start.draft !== JSON.stringify(draft)));
+
+  if (dirty) {
+    closingFromOutside = true;
+    const discard = await askConfirm({
+      title: "Discard your changes?",
+      text: "What you typed here hasn't been saved.",
+      action: "Discard",
+      dismiss: "Keep editing",
+      icon: "warn"
+    });
+    closingFromOutside = false;
+    if (!discard) return;
+  }
+  closeDialog(el);
 }
 
 function showMeeting(id) {
@@ -1607,8 +1645,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const cell = e.target.closest(".mc[data-day]");
     if (cell && phone()) { S.anchor = cell.dataset.day; S.view = "day"; renderCalendar(); return; }
 
+    // Only when the press started on the backdrop too: selecting text in a
+    // field and letting go outside the box is not a request to close it.
     const scrim = e.target.classList && e.target.classList.contains("dlg-scrim") ? e.target : null;
-    if (scrim) return closeDialog(scrim);
+    if (scrim) {
+      const pressed = pressedScrim;
+      pressedScrim = null;
+      if (pressed === scrim) closeFromOutside(scrim);
+      return;
+    }
 
     const t = e.target.closest("button");
     if (!t) return;
@@ -1663,10 +1708,17 @@ document.addEventListener("DOMContentLoaded", () => {
       document.getElementById("tab-" + S.tab).focus();
       return;
     }
-    if (e.key === "Escape") {
+    // confirm.js marks its own Escape as handled, so Escape on "Add it
+    // anyway?" closes that question and leaves the dialog under it open.
+    if (e.key === "Escape" && !e.defaultPrevented) {
       const open = [...document.querySelectorAll(".dlg-scrim.open")].pop();
-      if (open && !document.querySelector(".cf-modal.show")) closeDialog(open);
+      if (open && !document.querySelector(".cf-modal.show")) closeFromOutside(open);
     }
+  });
+
+  let pressedScrim = null;
+  document.addEventListener("pointerdown", e => {
+    pressedScrim = e.target.classList && e.target.classList.contains("dlg-scrim") ? e.target : null;
   });
 
   PHONE.addEventListener("change", () => {
@@ -1711,6 +1763,6 @@ document.addEventListener("DOMContentLoaded", () => {
 <script src="assets/shell.js?v=6"></script>
 <script src="assets/sources-lock.js?v=1"></script>
 <script src="assets/role-nav.js?v=7"></script>
-<script src="assets/confirm.js?v=2"></script>
+<script src="assets/confirm.js?v=5"></script>
 </body>
 </html>

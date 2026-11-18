@@ -176,6 +176,9 @@ if ($action === "filters") {
         ORDER BY COALESCE(NULLIF(company_name, ''), name)
     ")->fetchAll(PDO::FETCH_ASSOC);
 
+    ensureDepartmentsTable($pdo);
+    $departments = $pdo->query("SELECT id, name, active FROM departments ORDER BY active DESC, name")->fetchAll(PDO::FETCH_ASSOC);
+
     $areas = [];
     foreach (EVENT_AREAS as $key => $label) {
         $areas[] = ["key" => $key, "label" => $label];
@@ -189,6 +192,9 @@ if ($action === "filters") {
             return ["id" => (int) $c["id"], "name" => (string) ($c["company_name"] ?: $c["name"])];
         }, $clients),
         "areas" => $areas,
+        "departments" => array_map(function ($d) {
+            return ["id" => (int) $d["id"], "name" => (string) $d["name"], "active" => (int) $d["active"]];
+        }, $departments),
     ]);
 }
 
@@ -200,6 +206,7 @@ pruneAdminEvents($pdo);
 
 [$where, $params] = adminEventFilters([
     "actor_id"  => (int) ($_GET["actor_id"] ?? 0),
+    "department" => ($_GET["department"] ?? "") === "none" ? "none" : (int) ($_GET["department"] ?? 0),
     "area"      => (string) ($_GET["area"] ?? ""),
     "client_id" => (int) ($_GET["client_id"] ?? 0),
     "from"      => $date("from"),

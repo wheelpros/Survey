@@ -98,6 +98,33 @@ const SCOPE_PERMISSIONS = [
     "events:read"         => "events.view",
 ];
 
+/*
+ * The page a scope's tools belong to. A connection only gets the scope while
+ * the person may open that page ("Open X" in Settings > Permissions), so
+ * switching a page off takes it out of their AI connections too - not only
+ * out of the sidebar. Scopes not listed belong to no "Open X" switch.
+ */
+const SCOPE_PAGES = [
+    "forms:"         => "pages.forms",
+    "team_forms:"    => "pages.forms",
+    "content:"       => "pages.content",
+    "projects:"      => "pages.projects",
+    "messages:"      => "pages.messages",
+    "notifications:" => "pages.notifications",
+    "daily_reports:" => "pages.daily_reports",
+];
+
+/** The "Open X" key a scope also needs, or null. */
+function scopePagePermission($scope)
+{
+    foreach (SCOPE_PAGES as $prefix => $perm) {
+        if (strpos($scope, $prefix) === 0) {
+            return $perm;
+        }
+    }
+    return null;
+}
+
 /**
  * The scopes a person's permissions allow at all - the ceiling for any MCP
  * grant, checked again on every request so a change takes effect at once.
@@ -117,7 +144,8 @@ function scopesAllowedFor(PDO $pdo, array $p)
             return false;
         }
         $perm = SCOPE_PERMISSIONS[$scope];
-        return $perm === null || can($p, $perm, $pdo);
+        $page = scopePagePermission($scope);
+        return ($perm === null || can($p, $perm, $pdo)) && ($page === null || can($p, $page, $pdo));
     }));
 }
 
@@ -309,4 +337,59 @@ function canSeeClient(PDO $pdo, array $p, $userId)
     }
     $ids = assignedClientIds($pdo, $p);
     return $ids === null || in_array((int) $userId, $ids, true);
+}
+
+/*
+|--------------------------------------------------------------------------
+| Pages the Director switched off
+|--------------------------------------------------------------------------
+|
+| Each sidebar page has an "Open X" key (pages.* in permissions.php). The
+| sidebar hides a page its admin can't open; requirePage() makes the page's
+| endpoints refuse them too, so the switch is real and not only cosmetic.
+|
+|   requirePage($pdo, "messages");                 // pages.messages
+|   requirePage($pdo, ["content", "dashboard"]);   // either one will do
+|
+| Only admins are checked: a client, or a request with no session, is left to
+| the endpoint's own checks. The Director passes every can().
+|
+*/
+
+/** The action a request asks for: ?action=, a form field, or a JSON body's "action". */
+function requestAction()
+{
+    if (isset($_GET["action"])) {
+        return (string) $_GET["action"];
+    }
+    if (isset($_POST["action"])) {
+        return (string) $_POST["action"];
+    }
+    if (stripos($_SERVER["CONTENT_TYPE"] ?? "", "application/json") !== false) {
+        $body = json_decode((string) file_get_contents("php://input"), true);
+        if (is_array($body) && isset($body["action"])) {
+            return (string) $body["action"];
+        }
+    }
+    return "";
+}
+
+function requirePage(PDO $pdo, $pages)
+{
+    $p = currentPrincipal($pdo);
+    if (!$p || ($p["kind"] ?? "") !== "admin") {
+        return;
+    }
+    foreach ((array) $pages as $page) {
+        if (can($p, "pages." . $page, $pdo)) {
+            return;
+        }
+    }
+    http_response_code(403);
+    if (!headers_sent()) {
+        header("Content-Type: application/json; charset=UTF-8");
+    }
+    echo json_encode(["success" => false, "status" => "error",
+        "message" => "The Director has turned this page off for you."]);
+    exit;
 }

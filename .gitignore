@@ -13,3 +13,10 @@ demo/
 node_modules/
 .env
 coverage/
+
+# Working notes and plans - local only.
+docs/
+
+# Local tool output: Playwright MCP page snapshots, editor agents.
+.playwright-mcp/
+.kilo/
