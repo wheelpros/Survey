@@ -1262,6 +1262,9 @@ const canReview = adminCan("forms.review");
 let allReviewSurveys = [];
 let reviewPage = 1;
 let currentReviewSurveyId = null;
+// True while an approve or reject is on its way, so the popup can't be closed
+// out from under the answer.
+let reviewBusy = false;
 
 const REVIEW_PAGE_SIZE = 5;
 
@@ -1536,6 +1539,7 @@ async function submitReview(action){
   }
 
   statusEl.innerText = action === "approve" ? "Approving..." : "Rejecting...";
+  reviewBusy = true;
 
   try{
     const res = await fetch("api/admin-survey-review.php", {
@@ -1561,6 +1565,8 @@ async function submitReview(action){
 
   }catch(error){
     statusEl.innerText = "Connection error.";
+  }finally{
+    reviewBusy = false;
   }
 }
 
@@ -1693,6 +1699,18 @@ loadSurveyData();
 
   loadList();
 })();
+</script>
+
+<script src="assets/confirm.js?v=3"></script>
+<script src="assets/dismiss.js?v=1"></script>
+<script>
+// The review popup closes from outside it - not while a decision is being
+// sent, and only after asking when a rejection reason has been typed.
+wzDismiss(document.getElementById("reviewModal"), closeReview, {
+  isOpen : () => document.getElementById("reviewModal").classList.contains("show"),
+  isBusy : () => reviewBusy,
+  isDirty: () => document.getElementById("rejectNote").value.trim() !== ""
+});
 </script>
 
 <script src="assets/alert-sound.js?v=2"></script>

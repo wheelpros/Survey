@@ -624,14 +624,27 @@ body{padding:0}
 }
 
 /* The popup that adds and edits an admin. */
+/* The form is the flex child, not .admin-form, so it has to shrink too -
+   otherwise it grows past the box and the box's overflow:hidden (shell.css)
+   cuts off Role and the Save button on short screens. */
 .admin-box {
     max-width: 520px;
     max-height: 90vh;
+    max-height: calc(100dvh - 40px);
     display: flex;
     flex-direction: column;
 }
 
+#adminForm {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
 .admin-form {
+    flex: 1 1 auto;
+    min-height: 0;
     padding: 22px 24px 8px;
     overflow-y: auto;
 }
@@ -1386,6 +1399,7 @@ document.addEventListener("DOMContentLoaded", function () {
 <link rel="stylesheet" href="assets/shell.css?v=8" />
 <link rel="stylesheet" href="assets/connected-apps.css?v=2" />
 <script src="assets/permissions.js?v=2"></script>
+<script src="assets/dismiss.js?v=1"></script>
 <script src="/assets/clarity.js" defer></script>
 </head>
 
@@ -2733,12 +2747,16 @@ function closeAddSlide() {
     document.getElementById("slideModal").classList.remove("show");
 }
 
-// Escape closes it, the same as the × in the header.
-document.addEventListener("keydown", function (event) {
-    if (event.key !== "Escape") return;
+// Escape and a click outside close it, the same as the × in the header -
+// not mid-upload, and only after asking once a file or a title is in.
+let slideUploading = false;
 
-    const modal = document.getElementById("slideModal");
-    if (modal && modal.classList.contains("show")) closeAddSlide();
+wzDismiss(document.getElementById("slideModal"), closeAddSlide, {
+    isOpen : () => document.getElementById("slideModal").classList.contains("show"),
+    isBusy : () => slideUploading,
+    isDirty: () => !!pendingSlideFile
+        || document.getElementById("slideTitle").value.trim() !== ""
+        || document.getElementById("slideSubtitle").value.trim() !== ""
 });
 
 /* ── The Add-a-slide dropzone ─────────────────────────────────────────────
@@ -2940,6 +2958,7 @@ async function uploadSlide() {
 
     status.innerText = "Uploading...";
     if (addBtn) addBtn.disabled = true;
+    slideUploading = true;
 
     const form = new FormData();
     form.append("slide", file);
@@ -2975,6 +2994,8 @@ async function uploadSlide() {
     } catch (err) {
         status.innerText = "An error occurred while uploading.";
         if (addBtn) addBtn.disabled = false;
+    } finally {
+        slideUploading = false;
     }
 }
 
@@ -3227,6 +3248,7 @@ function showAdminModal() {
     syncRoleNote();
 
     adminModal().classList.add("show");
+    adminTyped.reset();
     document.getElementById("adminFormName").focus();
 }
 
@@ -3265,6 +3287,7 @@ async function saveAdmin(event) {
 
     const button = document.getElementById("adminSaveBtn");
     button.disabled = true;
+    adminSaving = true;
 
     try {
         // Multipart, so the photo travels with the rest; no Content-Type
@@ -3302,16 +3325,20 @@ async function saveAdmin(event) {
     } catch (error) {
         adminFormError("Connection error.");
         button.disabled = false;
+    } finally {
+        adminSaving = false;
     }
 }
 
-// Esc and a click on the backdrop close it, as with the account popup.
-adminModal().addEventListener("click", function (event) {
-    if (event.target === adminModal()) closeAdminModal();
-});
+// Esc and a click outside close it, as with the account popup - not while a
+// save is on its way, and only after asking when something was typed.
+let adminSaving = false;
+const adminTyped = wzDismiss.track(document.getElementById("adminForm"));
 
-document.addEventListener("keydown", function (event) {
-    if (event.key === "Escape" && adminModal().classList.contains("show")) closeAdminModal();
+wzDismiss(adminModal(), closeAdminModal, {
+    isOpen : () => adminModal().classList.contains("show"),
+    isBusy : () => adminSaving,
+    isDirty: () => adminTyped.changed() || !!adminAvatar.file || adminAvatar.remove
 });
 
 /* ── The photo in the popup ── */
@@ -3861,7 +3888,7 @@ if (adminUser.role === "owner") {
 <script src="assets/alert-sound.js?v=2"></script>
 <script src="assets/notifications.js?v=2"></script>
 <script src="assets/messages-badge.js?v=2"></script>
-<script src="assets/confirm.js?v=1"></script>
+<script src="assets/confirm.js?v=3"></script>
 <script src="assets/connected-apps.js?v=4"></script>
 <script src="assets/shell.js?v=6"></script>
 <script src="assets/sources-lock.js?v=1"></script>

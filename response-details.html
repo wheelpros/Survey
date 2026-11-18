@@ -506,8 +506,7 @@ function downloadWord(){
         }
         .question{font-weight:bold;margin-bottom:8px;}
       </style>
-    <script src="/assets/clarity.js" defer></script>
-</head>
+    </head>
     <body>
       <h1>Form Answers</h1>
   `;
@@ -515,9 +514,9 @@ function downloadWord(){
   responseAnswers.forEach(item => {
     content += `
       <div class="answer-box">
-        <div class="question">${item.question_text}</div>
-        <div>${item.answer || ""}</div>
-        ${item.file_name ? `<div>Attached File: ${item.file_name}</div>` : ""}
+        <div class="question">${esc(item.question_text)}</div>
+        <div>${esc(item.answer)}</div>
+        ${item.file_name ? `<div>Attached File: ${esc(item.file_name)}</div>` : ""}
       </div>
     `;
   });

@@ -516,6 +516,15 @@ document.addEventListener("click", event => {
   if(picker && !picker.contains(event.target)) closePicker();
 });
 
+document.addEventListener("keydown", event => {
+  const picker = document.getElementById("picker");
+  if(event.key === "Escape" && !event.defaultPrevented && picker && picker.classList.contains("open")){
+    event.preventDefault();
+    closePicker();
+    document.getElementById("pickerToggle").focus();
+  }
+});
+
 /** The people the current tab offers, narrowed by the search box. */
 function visiblePeople(){
   const term = document.getElementById("pickerSearch").value.trim().toLowerCase();

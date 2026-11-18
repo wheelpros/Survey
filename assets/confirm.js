@@ -245,9 +245,15 @@
     return new Promise(function (resolve) { resolveCurrent = resolve; });
   }
 
+  /* Captured, and marked handled, so Escape on a question asked over another
+     popup closes the question only - the popup underneath checks
+     defaultPrevented (assets/dismiss.js) and stays open. */
   document.addEventListener("keydown", function (event) {
-    if (event.key === "Escape" && resolveCurrent) settle(false);
-  });
+    if (event.key === "Escape" && resolveCurrent) {
+      event.preventDefault();
+      settle(false);
+    }
+  }, true);
 
   /* Pages that already define their own askConfirm (project-management.html,
      project-details.html) keep theirs - this file is additive, never a

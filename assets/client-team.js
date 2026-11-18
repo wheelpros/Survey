@@ -156,8 +156,12 @@
 
   document.getElementById("inviteClose").addEventListener("click", closeInvite);
 
-  document.addEventListener("keydown", function (event) {
-    if (event.key === "Escape" && modal.classList.contains("show")) closeInvite();
+  // Escape and a click outside close it - not while the invite is sending,
+  // and only after asking once an email has been typed.
+  window.wzDismiss(modal, closeInvite, {
+    isOpen : function () { return modal.classList.contains("show"); },
+    isBusy : function () { return document.getElementById("inviteSend").disabled; },
+    isDirty: function () { return document.getElementById("inviteEmail").value.trim() !== ""; }
   });
 
   document.getElementById("inviteForm").addEventListener("submit", async function (event) {
