@@ -14,16 +14,21 @@ require_once $root . "/api/permissions.php";
 
 /* What each role could do before - written out by hand, not read from
    PERMISSIONS, so changing a default is a deliberate edit in two places. */
+/* The pages everyone could open before Pages existed (they had no key), and
+   the daily-report keys each role starts with. */
+$everyone = ["pages.dashboard", "pages.forms", "pages.content", "pages.projects", "pages.files",
+    "pages.messages", "pages.notifications", "pages.daily_reports"];
 $before = [
-    "super_admin" => [
+    "super_admin" => array_merge($everyone, [
         "clients.details", "content.create", "projects.create", "tasks.write", "calendar.use",
-    ],
-    "account_manager" => [
+        "reports.self", "reports.review",
+    ]),
+    "account_manager" => array_merge($everyone, [
         "clients.details", "clients.edit", "forms.review", "content.view_all", "content.create",
         "content.publish", "projects.create", "tasks.write", "tasks.edit_any", "tasks.see_drafts",
-        "calendar.use",
-    ],
-    "seo_admin" => [],
+        "calendar.use", "reports.self", "reports.review",
+    ]),
+    "seo_admin" => $everyone,
 ];
 foreach ($before as $role => $held) {
     $got = array_values(array_filter(array_keys(PERMISSIONS), function ($perm) use ($role) {
@@ -193,7 +198,7 @@ foreach (["super admin" => $sa, "account manager" => $am, "admin" => $seo] as $w
 [$prep] = change("permissions v1: Admins get appointments", $owner, "set_role_permissions",
     ["role" => "seo_admin", "changes" => ["calendar.use" => true]]);
 check("permissions v1: the summary says what changes",
-    strpos($prep["data"]["summary"] ?? "", "can now: use appointments") !== false, json_encode($prep));
+    strpos($prep["data"]["summary"] ?? "", "can now: open Appointments") !== false, json_encode($prep));
 [$status] = get("calendar.php", $seo);
 check("permissions v1: and Sean can open it", $status === 200, "HTTP $status");
 

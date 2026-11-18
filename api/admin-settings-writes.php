@@ -51,7 +51,7 @@ function findAdminRow(PDO $pdo, $id)
     ensureAdminColumns($pdo);
 
     $stmt = $pdo->prepare("
-        SELECT id, name, email, role, active, managed_by_admin_id, position
+        SELECT id, name, email, role, active, managed_by_admin_id, position, department_id
         FROM admins
         WHERE id = ?
         LIMIT 1
@@ -645,15 +645,17 @@ function updateOwnProfile(PDO $pdo, $adminId, $name, $position)
 /** Every admin but the owner, with who manages them - the Available Admins panel. */
 function listTeamAdmins(PDO $pdo)
 {
-    ensureAdminColumns($pdo);
+    ensureDepartmentsTable($pdo);
 
     return $pdo->query("
         SELECT
             admins.id, admins.name, admins.email, admins.role, admins.active,
             admins.managed_by_admin_id, admins.position, admins.avatar_path,
-            manager.name AS managed_by_name
+            manager.name AS managed_by_name,
+            admins.department_id, department.name AS department_name
         FROM admins
         LEFT JOIN admins manager ON manager.id = admins.managed_by_admin_id
+        LEFT JOIN departments department ON department.id = admins.department_id
         WHERE admins.role IN ('seo_admin', 'super_admin', 'account_manager')
         ORDER BY admins.id DESC
     ")->fetchAll(PDO::FETCH_ASSOC);
@@ -840,17 +842,46 @@ function checkAdminPosition($position)
 }
 
 /**
- * $password is the plain password, or null for one nobody knows; $avatar a
- * saved photo path, or null. Returns the id.
+ * The department picked on the Add / Edit admin popup: "" or 0 for none, else
+ * an active department - or the one they already have, archived or not, so
+ * saving an edit never quietly takes it away. Returns the id or null.
  */
-function createAdmin(PDO $pdo, $name, $email, $role, $password = null, $position = null, $avatar = null)
+function checkAdminDepartment(PDO $pdo, $departmentId, $currentId = null)
+{
+    ensureDepartmentsTable($pdo);
+
+    $departmentId = (int) $departmentId;
+    if (!$departmentId) {
+        return null;
+    }
+    if ($currentId !== null && $departmentId === (int) $currentId) {
+        return $departmentId;
+    }
+    $stmt = $pdo->prepare("SELECT active FROM departments WHERE id = ?");
+    $stmt->execute([$departmentId]);
+    $active = $stmt->fetchColumn();
+    if ($active === false) {
+        throw new PortalWriteError("That department doesn't exist.");
+    }
+    if (!(int) $active) {
+        throw new PortalWriteError("That department is archived. Pick another, or restore it first.");
+    }
+    return $departmentId;
+}
+
+/**
+ * $password is the plain password, or null for one nobody knows; $avatar a
+ * saved photo path, or null; $departmentId from checkAdminDepartment().
+ * Returns the id.
+ */
+function createAdmin(PDO $pdo, $name, $email, $role, $password = null, $position = null, $avatar = null, $departmentId = null)
 {
     ensureAdminColumns($pdo);
 
     $hash = password_hash($password ?? bin2hex(random_bytes(32)), PASSWORD_DEFAULT);
 
-    $pdo->prepare("INSERT INTO admins (name, email, password, role, active, position, avatar_path) VALUES (?, ?, ?, ?, 1, ?, ?)")
-        ->execute([$name, $email, $hash, $role, $position, $avatar]);
+    $pdo->prepare("INSERT INTO admins (name, email, password, role, active, position, avatar_path, department_id) VALUES (?, ?, ?, ?, 1, ?, ?, ?)")
+        ->execute([$name, $email, $hash, $role, $position, $avatar, $departmentId]);
 
     $id = (int) $pdo->lastInsertId();
     logEvent($pdo, EVENT_ADMIN_CREATED, "admin", $id, $name, "Added " . $name . " (" . $email . ") as " . adminRoleName($role));
@@ -904,7 +935,14 @@ function checkAdminUpdate(PDO $pdo, array $owner, $targetId, array $in)
         checkAdminRoleChange($pdo, $owner, $targetId, $role);
     }
 
-    return [$target, ["name" => $name, "email" => $email, "position" => $position, "role" => $role]];
+    $clean = ["name" => $name, "email" => $email, "position" => $position, "role" => $role];
+
+    // Callers that don't send a department (older ones, the MCP) leave it as it is.
+    if (array_key_exists("department_id", $in)) {
+        $clean["department_id"] = checkAdminDepartment($pdo, $in["department_id"], $target["department_id"] ?? null);
+    }
+
+    return [$target, $clean];
 }
 
 /**
@@ -918,6 +956,15 @@ function updateAdmin(PDO $pdo, array $target, array $clean)
 
     $pdo->prepare("UPDATE admins SET name = ?, email = ?, position = ? WHERE id = ?")
         ->execute([$clean["name"], $clean["email"], $clean["position"], (int) $target["id"]]);
+
+    if (array_key_exists("department_id", $clean)
+        && (int) ($target["department_id"] ?? 0) !== (int) $clean["department_id"]) {
+        $pdo->prepare("UPDATE admins SET department_id = ? WHERE id = ?")
+            ->execute([$clean["department_id"], (int) $target["id"]]);
+        $dept = $clean["department_id"] ? $pdo->query("SELECT name FROM departments WHERE id = " . (int) $clean["department_id"])->fetchColumn() : "";
+        logEvent($pdo, EVENT_ADMIN_DEPARTMENT, "admin", $target["id"], $clean["name"],
+            $dept ? "Moved " . $target["name"] . " to the department \"" . $dept . "\"" : "Took " . $target["name"] . " out of their department");
+    }
 
     $changed = [];
     foreach (["name", "email", "position"] as $field) {

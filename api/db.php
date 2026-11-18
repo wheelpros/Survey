@@ -103,6 +103,11 @@ const ADMIN_EXTRA_COLUMNS = [
     /* The admin's photo (uploads/avatars/), set by the Director when adding
        or editing them; shown in the admin list and the sidebar. */
     "avatar_path" => "VARCHAR(255) NULL",
+
+    /* The department they work in (departments.id), set on the Add / Edit
+       admin popup. Daily reports are planned by department, and Tracking
+       filters by it. NULL: no department yet. */
+    "department_id" => "INT NULL",
 ];
 
 function ensureAdminColumns(PDO $pdo)
@@ -1656,6 +1661,136 @@ function ensureTeamFormTables(PDO $pdo)
         }
     } catch (PDOException $e) {
         // Read-only DB user: team forms cannot be sent; the endpoint says so.
+    }
+}
+
+/**
+ * The departments admins are grouped by (Settings > Departments). Archiving
+ * one hides it from new choices; admins and reports already in it keep it.
+ * sql/departments.sql is the same to run by hand.
+ */
+function ensureDepartmentsTable(PDO $pdo)
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    ensureAdminColumns($pdo);
+
+    try {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS departments (
+              id         INT AUTO_INCREMENT PRIMARY KEY,
+              name       VARCHAR(80) NOT NULL,
+              active     TINYINT(1)  NOT NULL DEFAULT 1,
+              created_at TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              UNIQUE KEY uq_name (name)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+    } catch (PDOException $e) {
+        // Read-only DB user: run sql/departments.sql by hand.
+    }
+}
+
+/**
+ * Daily reports (api/daily-report-lib.php has the rules):
+ *
+ *   daily_reports                    one per person per day, planned by
+ *                                    someone (or themselves), closed by them,
+ *                                    reviewed by one reviewer
+ *   daily_report_activities          the day's activities; the latest review
+ *                                    of each sits on its row
+ *   daily_report_activity_reviews    earlier reviews of an activity (history)
+ *   daily_report_templates           reusable activity lists (JSON)
+ *
+ * Files are attachments with owner_type 'daily_report'. sql/daily_reports.sql
+ * is the same to run by hand.
+ */
+function ensureDailyReportTables(PDO $pdo)
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    ensureDepartmentsTable($pdo);
+    ensureNotificationsTable($pdo);
+
+    try {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS daily_reports (
+              id                INT AUTO_INCREMENT PRIMARY KEY,
+              admin_id          INT          NOT NULL,
+              created_by        INT          NOT NULL,
+              reviewer_admin_id INT              NULL,
+              department_id     INT              NULL,
+              template_id       INT              NULL,
+              report_date       DATE         NOT NULL,
+              status            VARCHAR(10)  NOT NULL DEFAULT 'planned',
+              started           TINYINT(1)   NOT NULL DEFAULT 0,
+              reviewer_note     TEXT             NULL,
+              reviewed_by       INT              NULL,
+              reviewed_at       DATETIME         NULL,
+              submitted_at      DATETIME         NULL,
+              created_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              updated_at        DATETIME         NULL,
+              UNIQUE KEY uq_person_day (admin_id, report_date),
+              KEY idx_date (report_date),
+              KEY idx_reviewer (reviewer_admin_id, status),
+              KEY idx_created_by (created_by)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS daily_report_activities (
+              id              INT AUTO_INCREMENT PRIMARY KEY,
+              report_id       INT          NOT NULL,
+              sort_order      INT          NOT NULL DEFAULT 0,
+              title           VARCHAR(200) NOT NULL,
+              description     TEXT             NULL,
+              origin          VARCHAR(10)  NOT NULL DEFAULT 'planned',
+              count_unit      VARCHAR(30)      NULL,
+              count_value     INT              NULL,
+              status          VARCHAR(12)  NOT NULL DEFAULT 'todo',
+              outcome         TEXT             NULL,
+              done_at         DATETIME         NULL,
+              review_state    VARCHAR(10)      NULL,
+              review_feedback TEXT             NULL,
+              reviewed_by     INT              NULL,
+              reviewed_at     DATETIME         NULL,
+              KEY idx_report (report_id, sort_order)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS daily_report_activity_reviews (
+              id          INT AUTO_INCREMENT PRIMARY KEY,
+              activity_id INT         NOT NULL,
+              state       VARCHAR(10) NOT NULL,
+              feedback    TEXT            NULL,
+              reviewed_by INT         NOT NULL,
+              reviewed_at DATETIME    NOT NULL,
+              KEY idx_activity (activity_id, id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS daily_report_templates (
+              id                INT AUTO_INCREMENT PRIMARY KEY,
+              name              VARCHAR(80)  NOT NULL,
+              created_by        INT          NOT NULL,
+              department_id     INT              NULL,
+              reviewer_admin_id INT              NULL,
+              activities        TEXT         NOT NULL,
+              active            TINYINT(1)   NOT NULL DEFAULT 1,
+              created_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              updated_at        DATETIME         NULL,
+              KEY idx_active (active, name)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+    } catch (PDOException $e) {
+        // Read-only DB user: run sql/daily_reports.sql by hand. The endpoints
+        // answer "Daily reports aren't set up yet" until then.
     }
 }
 

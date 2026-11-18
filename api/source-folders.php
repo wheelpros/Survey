@@ -1,5 +1,7 @@
 <?php
 require_once "db.php";
+require_once "auth.php";
+requirePage($pdo, "files"); // "Open X" in Settings > Permissions
 require_once "sources-lock.php";
 require_once "events.php";
 header("Content-Type: application/json");

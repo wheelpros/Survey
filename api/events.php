@@ -89,6 +89,15 @@ const EVENT_TEAM_FORM_SENT        = "team_form.sent";
 const EVENT_TEAM_FORM_ANSWERED    = "team_form.answered";
 const EVENT_TEAM_FORM_CLOSED      = "team_form.closed";
 
+const EVENT_REPORT_PLANNED        = "report.planned";
+const EVENT_REPORT_EDITED         = "report.edited";
+const EVENT_REPORT_CLOSED         = "report.closed";
+const EVENT_REPORT_ACTIVITY_REVIEWED = "report.activity_reviewed";
+const EVENT_REPORT_REVIEWED       = "report.reviewed";
+const EVENT_REPORT_DELETED        = "report.deleted";
+const EVENT_REPORT_TEMPLATE_SAVED = "report.template_saved";
+const EVENT_REPORT_TEMPLATE_DELETED = "report.template_deleted";
+
 const EVENT_ADMIN_CREATED         = "admin.created";
 const EVENT_ADMIN_UPDATED         = "admin.updated";
 const EVENT_ADMIN_REMOVED         = "admin.removed";
@@ -97,6 +106,8 @@ const EVENT_ADMIN_ACTIVE          = "admin.active_changed";
 const EVENT_ADMIN_MANAGER         = "admin.manager_changed";
 const EVENT_ADMIN_POSITION        = "admin.position_changed";
 const EVENT_ADMIN_PERMISSIONS     = "admin.permissions_changed";
+const EVENT_ADMIN_DEPARTMENT      = "admin.department_changed";
+const EVENT_DEPARTMENT_CHANGED    = "admin.departments_changed";
 const EVENT_ROLE_PERMISSIONS      = "admin.role_permissions_changed";
 
 const EVENT_SETTINGS_CHANGED      = "settings.changed";
@@ -117,6 +128,7 @@ const EVENT_AREAS = [
     "source"       => "Source files",
     "announcement" => "Announcements",
     "team_form"    => "Team forms",
+    "report"       => "Daily reports",
     "admin"        => "Team",
     "settings"     => "Settings",
 ];
@@ -296,6 +308,16 @@ function adminEventFilters(array $f)
     if (!empty($f["actor_id"])) {
         $where[] = "actor_admin_id = ?";
         $params[] = (int) $f["actor_id"];
+    }
+    // What a department's admins did, by the department they're in now;
+    // "none" is everyone in no department, removed admins included.
+    if (!empty($f["department"])) {
+        if ($f["department"] === "none") {
+            $where[] = "actor_admin_id NOT IN (SELECT id FROM admins WHERE department_id IS NOT NULL)";
+        } else {
+            $where[] = "actor_admin_id IN (SELECT id FROM admins WHERE department_id = ?)";
+            $params[] = (int) $f["department"];
+        }
     }
     if (!empty($f["area"]) && isset(EVENT_AREAS[$f["area"]])) {
         $where[] = "action LIKE ?";

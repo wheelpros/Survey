@@ -665,6 +665,7 @@ require __DIR__ . "/ai-connections.php";
 require __DIR__ . "/appointments.php";
 require __DIR__ . "/booking.php";
 require __DIR__ . "/booking-ai.php";
+require __DIR__ . "/daily-reports.php";
 // Keep this last: it fills the login attempt limit for this run's one address.
 require __DIR__ . "/login-limits.php";
 

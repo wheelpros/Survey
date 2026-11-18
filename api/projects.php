@@ -21,6 +21,8 @@
 */
 
 require_once "db.php";
+require_once "auth.php";
+requirePage($pdo, "projects"); // "Open X" in Settings > Permissions
 require_once "notify.php";
 require_once "events.php";
 

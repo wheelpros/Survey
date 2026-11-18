@@ -1,0 +1,113 @@
+<?php
+
+/*
+|--------------------------------------------------------------------------
+| Daily reports - writing (the pages' endpoint)
+|--------------------------------------------------------------------------
+|
+| POST, JSON {action, ...}:
+|   update_activities {id, activities: [{id, status, outcome, count_value}]}
+|                       the author's in-place edits, only the changed ones
+|   close {id}          the author closes the day
+|   plan {...}          plan today's report(s); with id, change a plan
+|   delete {id}         the planner, before anything happened
+|   review_activity {activity_id, state: approved|changes, feedback}
+|   review {id, feedback}
+|   template_save {id?, name, department_id, reviewer_id, activities}
+|   template_delete {id}
+|
+| POST, multipart: action=update_files, report={"id", "keep_file_ids"} and
+| files[] - the author's files (up to 5, 8 MB each; documents and photos).
+|
+| The rules are in daily-report-lib.php, shared with the dashboard and api/v1.
+|
+*/
+
+header("Content-Type: application/json; charset=UTF-8");
+
+if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") {
+    http_response_code(204);
+    exit;
+}
+
+require_once "db.php";
+require_once "auth.php";
+requirePage($pdo, "daily_reports"); // "Open X" in Settings > Permissions
+require_once "daily-report-lib.php";
+
+function reply($success, $message = "", $extra = [], $code = 200)
+{
+    http_response_code($code);
+    echo json_encode(array_merge(["success" => $success, "message" => $message], $extra),
+        JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+    exit;
+}
+
+if ($_SERVER["REQUEST_METHOD"] !== "POST") {
+    reply(false, "Use POST.", [], 405);
+}
+
+// DDL before anything else: the writes below open transactions.
+ensureDailyReportTables($pdo);
+ensureAttachmentsTable($pdo);
+
+$p = currentPrincipal($pdo);
+if (!$p || $p["kind"] !== "admin") {
+    reply(false, "Unauthorized token", [], 401);
+}
+$p["id"] = (int) $p["id"];
+
+$multipart = stripos($_SERVER["CONTENT_TYPE"] ?? "", "multipart/form-data") !== false;
+if ($multipart) {
+    $action = (string) ($_POST["action"] ?? "");
+    $in = json_decode((string) ($_POST["report"] ?? "{}"), true) ?: [];
+} else {
+    $in = json_decode((string) file_get_contents("php://input"), true) ?: [];
+    $action = (string) ($in["action"] ?? "");
+}
+
+try {
+    switch ($action) {
+        case "update_activities":
+            reply(true, drUpdateActivities($pdo, $p, (int) ($in["id"] ?? 0), $in["activities"] ?? []));
+
+        case "close":
+            [, $message] = drClose($pdo, $p, (int) ($in["id"] ?? 0));
+            reply(true, $message);
+
+        case "update_files":
+            $gone = drUpdateFiles($pdo, $p, (int) ($in["id"] ?? 0), $in["keep_file_ids"] ?? [], uploadedFiles("files"));
+            deleteUploadedFiles($gone);
+            reply(true, "Files saved.");
+
+        case "plan":
+            [$ids, $message] = drPlan($pdo, $p, $in);
+            reply(true, $message, ["ids" => $ids]);
+
+        case "delete":
+            [, $message, $paths] = drDelete($pdo, $p, (int) ($in["id"] ?? 0));
+            deleteUploadedFiles($paths);
+            reply(true, $message);
+
+        case "review_activity":
+            [, , $message] = drReviewActivity($pdo, $p, (int) ($in["activity_id"] ?? 0), (string) ($in["state"] ?? ""), $in["feedback"] ?? "");
+            reply(true, $message);
+
+        case "review":
+            [, $message] = drReviewReport($pdo, $p, (int) ($in["id"] ?? 0), $in["feedback"] ?? "");
+            reply(true, $message);
+
+        case "template_save":
+            [$id, $message] = drTemplateSave($pdo, $p, $in);
+            reply(true, $message, ["id" => $id]);
+
+        case "template_delete":
+            reply(true, drTemplateDelete($pdo, $p, (int) ($in["id"] ?? 0)));
+    }
+    reply(false, "Unknown action.", [], 400);
+} catch (PortalWriteError $e) {
+    reply(false, $e->getMessage(), [], $e->status);
+} catch (PDOException $e) {
+    error_log("daily-report-writes.php: " . $e->getMessage());
+    reply(false, "The report couldn't be saved. Please try again.", [], 500);
+}

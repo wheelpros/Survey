@@ -25,6 +25,8 @@
 */
 
 require_once "db.php";
+require_once "auth.php";
+requirePage($pdo, "dashboard"); // "Open X" in Settings > Permissions
 require_once "task-writes.php";
 
 header("Content-Type: application/json; charset=UTF-8");

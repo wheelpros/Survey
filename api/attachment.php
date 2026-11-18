@@ -10,7 +10,8 @@
 | Attachments are the team's, so an admin session gets in when it can see
 | what the file is attached to: the phase's project (projectScopeSql) or the
 | post (contentVisibleSql, everything for the roles that see the whole
-| library). Anything else is a 404, so nothing confirms a file exists.
+| library), or the daily report (drCanSee). Anything else is a 404, so
+| nothing confirms a file exists.
 |
 | The one exception is a post's files for its client (CLIENT_FILES_OWNER):
 | a client's portal token may download those, only once the post is live
@@ -109,6 +110,13 @@ if ($client) {
     ");
     $stmt->execute(array_merge([(int) $file["owner_id"]], $scopeParams));
     $visible = (bool) $stmt->fetchColumn();
+} elseif ($file["owner_type"] === DAILY_REPORT_FILES_OWNER) {
+    // A daily report's files: whoever may see the report (daily-report-lib.php's
+    // drCanSee - the author, planner, reviewer, their team's reviewers, view_all).
+    require_once "daily-report-lib.php";
+    ensureDailyReportTables($pdo);
+    $report = drFind($pdo, (int) $file["owner_id"], false);
+    $visible = $report && drCanSee($pdo, ["id" => (int) $admin["id"], "role" => $admin["role"], "kind" => "admin"], $report);
 } elseif ($file["owner_type"] === "content" || $file["owner_type"] === CLIENT_FILES_OWNER) {
     ensureContentColumns($pdo);
     $sql = "SELECT 1 FROM content c WHERE c.id = ?";

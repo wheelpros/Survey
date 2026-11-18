@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plan a Daily Report — Admin</title>
+
+<script>
+// Runs before paint so the collapsed state never flashes open on load.
+(function () {
+  var root = document.documentElement;
+  var KEY = "wz_sidebar_collapsed";
+  var MOBILE = 950;
+  var DRAWER = 768;   // below this the sidebar is a drawer, never a rail
+  function prefersCollapsed(){ return localStorage.getItem(KEY) === "1"; }
+  function apply(){ root.classList.toggle("sidebar-collapsed", window.innerWidth > DRAWER && (window.innerWidth <= MOBILE || prefersCollapsed())); }
+  window.toggleSidebar = function(){
+    if (window.innerWidth <= MOBILE) return; // forced collapsed, nothing to toggle
+    localStorage.setItem(KEY, prefersCollapsed() ? "0" : "1");
+    apply();
+  };
+  apply();
+  window.addEventListener("resize", apply);
+})();
+
+// Sidebar account card -> popup: identity and logout.
+function openAccount(){ document.getElementById("acctModal").classList.add("show"); }
+function closeAccount(){ document.getElementById("acctModal").classList.remove("show"); }
+document.addEventListener("DOMContentLoaded", function () {
+  var a = {};
+  try { a = JSON.parse(localStorage.getItem("admin_user") || "{}"); } catch (e) {}
+  var name = a.name || "Admin";
+  var label = ({ owner: "Director", super_admin: "Super Admin", account_manager: "Account Manager", seo_admin: "Admin" })[a.role] || "";
+  function set(id, v){ var el = document.getElementById(id); if (el) el.textContent = v; }
+  set("adminName", name);  set("adminRole", label);  set("adminAvatar", name.charAt(0).toUpperCase());
+  set("acctRole", label);
+});
+</script>
+<link rel="stylesheet" href="assets/shell.css?v=8" />
+<link rel="stylesheet" href="assets/daily-reports.css?v=2" />
+<script src="assets/permissions.js?v=2"></script>
+<script src="/assets/clarity.js" defer></script>
+</head>
+
+<body>
+
+<aside class="admin-sidebar">
+  <div>
+    <div class="side-head">
+      <div class="side-logo">
+        <img src="logo.png" alt="Logo" onerror="this.remove()">
+      </div>
+      <button class="side-toggle" type="button" onclick="toggleSidebar()" title="Toggle sidebar" aria-label="Toggle sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9.5 4v16"/></svg>
+      </button>
+    </div>
+    <nav class="side-nav"></nav>
+    <script src="assets/admin-nav.js?v=6"></script>
+  </div>
+
+  <button class="side-user" type="button" onclick="openAccount()" title="Account">
+    <div class="side-avatar" id="adminAvatar">A</div>
+    <div class="side-meta">
+      <strong id="adminName">Admin</strong>
+      <span id="adminRole"></span>
+    </div>
+    <svg class="side-dots" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
+  </button>
+</aside>
+
+<div class="admin-main">
+  <div class="admin-content">
+
+    <a class="back-link" href="daily-reports.html?tab=team">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      Daily Reports
+    </a>
+
+    <form class="report" id="planForm" novalidate onsubmit="sendPlan(event)">
+
+      <div class="report-head">
+        <h1 id="planTitle">Plan today's report</h1>
+        <p id="planIntro">Write what they should work on today. They update each activity as the day goes and close the report at the end of it.</p>
+        <div class="report-meta">
+          <span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
+            For <strong id="metaDate">today</strong>
+          </span>
+        </div>
+      </div>
+
+      <!-- 1. Who: the department, then who in it fills the sheet in, and who it goes back to.
+           Planning your own report hides this section: only "Reports go to" moves to the header. -->
+      <section class="section" id="whoSection">
+        <div class="section-head">
+          <h2>1. Department and people</h2>
+          <span class="count" id="pickCount"></span>
+        </div>
+
+        <div class="who-grid">
+          <div>
+            <label class="field-label" for="dept">Department</label>
+            <select class="select" id="dept" onchange="changeDept()">
+              <option value="">Choose a department</option>
+            </select>
+            <div class="field-error" id="deptError"></div>
+          </div>
+          <div id="reviewerField">
+            <label class="field-label" for="reviewer">Reports go to</label>
+            <select class="select" id="reviewer"></select>
+            <div class="field-error" id="reviewersError"></div>
+          </div>
+        </div>
+
+        <div class="req-row" style="margin-top:16px">
+          <span class="field-label" id="peopleLabel">Report assigned to</span>
+          <button type="button" class="link-btn" id="pickAllBtn" onclick="pickAll()" hidden>Select everyone</button>
+        </div>
+        <div class="people-grid" id="people" role="group" aria-labelledby="peopleLabel">
+          <p class="people-empty">Choose a department to see its people.</p>
+        </div>
+        <div class="locked" id="whoLocked" hidden></div>
+        <div class="field-error" id="peopleError"></div>
+      </section>
+
+      <!-- 2. The day's activities. -->
+      <section class="section">
+        <div class="section-head">
+          <h2 id="activitiesTitle">2. Daily activities</h2>
+          <span class="count" id="activityCount"></span>
+        </div>
+        <p class="section-hint">A title and a description for each. Tick "Count this" for routine work you want a number for, like calls or CVs.</p>
+
+        <div class="start-bar">
+          <span class="pill pill-planned" id="loadedTemplate" hidden></span>
+          <div class="menu-wrap">
+            <button class="btn" type="button" id="templateBtn" aria-haspopup="menu" aria-expanded="false" onclick="toggleTemplateMenu()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+              <span id="templateBtnLabel">Load template</span>
+            </button>
+            <div class="menu" id="templateMenu" role="menu" hidden></div>
+          </div>
+          <button class="btn" type="button" id="scratchBtn" onclick="startFromScratch()" hidden>Start from scratch</button>
+        </div>
+
+        <div id="activities"></div>
+        <div class="field-error" id="activitiesError"></div>
+        <button type="button" class="btn add-activity" onclick="planner.add(true)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+          Add activity
+        </button>
+      </section>
+
+      <!-- Your own report only: files that back up the day, attached when it's saved. -->
+      <section class="section" id="filesSection" hidden>
+        <div class="section-head">
+          <h2>Files</h2>
+          <span class="count" id="fileCount"></span>
+        </div>
+        <p class="section-hint">Documents, images or spreadsheets that back up today's work.</p>
+        <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="Upload supporting files"
+             onclick="document.getElementById('fileInput').click()"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('fileInput').click();}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+          <strong>Upload supporting files</strong>
+          <span>PDF, Word, Excel, text or images. Up to 5 files, 8 MB each.</span>
+        </div>
+        <input type="file" id="fileInput" multiple hidden accept=".pdf,.txt,.md,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp">
+        <div class="field-error" id="filesError"></div>
+        <ul class="files" id="fileList"></ul>
+      </section>
+
+      <div class="form-foot">
+        <div class="form-status" id="formStatus" role="status"></div>
+        <a class="btn" href="daily-reports.html?tab=team">Cancel</a>
+        <button class="btn primary" type="submit" id="sendBtn">Send to employee</button>
+      </div>
+    </form>
+
+  </div>
+</div>
+
+<!-- ACCOUNT POPUP (opened from the sidebar card) -->
+<div class="acct-modal" id="acctModal">
+  <div class="acct-box" role="dialog" aria-modal="true" aria-labelledby="acctTitle">
+    <div class="acct-head">
+      <h2 id="acctTitle">Account</h2>
+      <button type="button" onclick="closeAccount()" aria-label="Close">&times;</button>
+    </div>
+    <div class="acct-body">
+      <div class="acct-avatar" id="acctAvatar">A</div>
+      <strong id="acctName">Admin</strong>
+      <div class="acct-role" id="acctRole"></div>
+      <button class="acct-logout" type="button" onclick="logoutAdmin()">&#8617; Log out</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/confirm.js?v=5"></script>
+<script src="assets/daily-reports.js?v=2"></script>
+<script>
+/* A planner (reports.create) plans today's report: a department, who in it
+   fills it in (one report each), who it goes back to (the Director or an
+   Account Manager), and the activities - typed, or loaded from a template.
+   ?self=1 is someone with reports.self planning their own. ?id= changes a
+   report that hasn't been sent yet. Reports are for the day they're made. */
+
+const selfMode = new URLSearchParams(location.search).get("self") === "1";
+let ownEdit = false;            // editing (?id=) a report you planned for yourself: set in load()
+const isOwn = () => selfMode || ownEdit;
+
+/* Your own report has nothing to choose about who: you, your department, your manager (or the
+   Director). Section 1 goes and the words say "you"; the hidden fields stay filled in behind it. */
+function useOwnLayout(me, deptId, deptName) {
+  document.getElementById("planIntro").textContent = "Write what you'll work on today. You update each activity as the day goes and close the report at the end of it.";
+  document.getElementById("whoSection").hidden = true;
+  document.getElementById("activitiesTitle").textContent = "Daily activities";
+  document.getElementById("people").hidden = true;
+  document.getElementById("pickAllBtn").hidden = true;
+  picked = new Set([Number(me.id)]);
+  const dept = document.getElementById("dept");
+  if (deptId && ![...dept.options].some(o => o.value === String(deptId))) {
+    dept.insertAdjacentHTML("beforeend", `<option value="${Number(deptId)}">${esc(deptName || "")}</option>`);
+  }
+  if (!deptId && ![...dept.options].some(o => o.value === "none")) dept.insertAdjacentHTML("beforeend", '<option value="none">No department</option>');
+  dept.value = deptId ? String(deptId) : "none";
+}
+if (DR.user.role && !DR.can(selfMode ? "reports.self" : "reports.create") && !new URLSearchParams(location.search).get("id")) {
+  window.location.href = "daily-reports.html";
+}
+
+const esc = DR.esc;
+const params = new URLSearchParams(location.search);
+const editId = Number(params.get("id")) || null;
+let options = null;
+let picked = new Set();
+let loadedTemplate = null;     // the template the activities came from
+let sending = false;
+let dirty = false;
+
+const planner = DR.planner(document.getElementById("activities"), {
+  prefix: "plan",
+  onChange: () => { dirty = true; syncCount(); }
+});
+
+function syncCount() {
+  const n = planner.count();
+  document.getElementById("activityCount").textContent = n + " activit" + (n === 1 ? "y" : "ies");
+}
+
+function setStatus(message, kind) {
+  const el = document.getElementById("formStatus");
+  el.textContent = message || "";
+  el.className = "form-status" + (kind ? " " + kind : "");
+}
+
+/* ── 1. Department and people ───────────────────────────────────────────── */
+
+function deptValue() { return document.getElementById("dept").value; }
+
+function peopleInDept() {
+  const d = deptValue();
+  if (!d) return [];
+  return options.people.filter(p => d === "none" ? !p.department_id : String(p.department_id) === d);
+}
+
+function renderPeople() {
+  const box = document.getElementById("people");
+  const people = peopleInDept();
+  const all = people.length && people.every(p => picked.has(p.id));
+  document.getElementById("pickAllBtn").hidden = people.length < 2;
+  document.getElementById("pickAllBtn").textContent = all ? "Clear" : "Select everyone";
+
+  box.innerHTML = !deptValue()
+    ? `<p class="people-empty">Choose a department to see its people.</p>`
+    : people.length ? people.map(p => `
+        <label class="person-card">
+          <input type="checkbox" ${picked.has(p.id) ? "checked" : ""} onchange="pick(${Number(p.id)}, this.checked)">
+          <span class="person-avatar" aria-hidden="true">${esc((p.name || "?").charAt(0).toUpperCase())}</span>
+          <span class="person-text"><strong dir="auto">${esc(p.name)}</strong><small>${esc(p.position || DR.ROLE_LABELS[p.role] || "")}</small></span>
+        </label>`).join("")
+      : `<p class="people-empty">Nobody in this department you can plan for.</p>`;
+
+  const n = picked.size;
+  document.getElementById("pickCount").textContent = n ? `${n} ${n === 1 ? "person" : "people"} · one report each` : "";
+}
+
+function pick(id, on) {
+  on ? picked.add(id) : picked.delete(id);
+  document.getElementById("peopleError").textContent = "";
+  dirty = true;
+  renderPeople();
+  syncReviewers();
+}
+
+function pickAll() {
+  const people = peopleInDept();
+  const all = people.every(p => picked.has(p.id));
+  people.forEach(p => { all ? picked.delete(p.id) : picked.add(p.id); });
+  dirty = true;
+  renderPeople();
+  syncReviewers();
+}
+
+// A new department starts a new choice of people.
+function changeDept() {
+  const keep = new Set(peopleInDept().map(p => p.id));
+  picked = new Set([...picked].filter(id => keep.has(id)));
+  document.getElementById("deptError").textContent = "";
+  dirty = true;
+  renderPeople();
+  syncReviewers();
+}
+
+/* "Reports go to" never offers someone the report is for: nobody reviews
+   their own report. Keeps the current choice while it's still allowed. */
+function syncReviewers(preferred) {
+  if (!options) return;
+  const select = document.getElementById("reviewer");
+  const before = preferred != null ? preferred : select.value;
+  DR.reviewerOptions(select, options.reviewers, { me: DR.user.id, exclude: [...picked], value: before });
+  if (before && select.value !== String(before)) {
+    document.getElementById("reviewersError").textContent = "The person you picked fills in this report, so it now goes to someone else. Check who.";
+  }
+}
+
+/* ── 2. Activities: a template, a blank start, or their last sheet ──────── */
+
+function syncStartBar() {
+  const tag = document.getElementById("loadedTemplate");
+  tag.hidden = !loadedTemplate;
+  tag.textContent = loadedTemplate ? "From template: " + loadedTemplate.name : "";
+  document.getElementById("templateBtnLabel").textContent = loadedTemplate ? "Change template" : "Load template";
+  document.getElementById("scratchBtn").hidden = !loadedTemplate;
+  document.getElementById("templateBtn").disabled = !options || !options.templates.length;
+  document.getElementById("templateBtn").title = options && !options.templates.length ? "No templates yet. Make one in the Templates tab." : "";
+}
+
+function renderTemplateMenu() {
+  const d = deptValue();
+  // This department's templates first, then the rest.
+  const list = options.templates.slice().sort((a, b) =>
+    (String(b.department_id) === d) - (String(a.department_id) === d) || a.name.localeCompare(b.name));
+  document.getElementById("templateMenu").innerHTML = list.map(t => `
+    <button type="button" role="menuitem" class="${loadedTemplate && loadedTemplate.id === t.id ? "is-current" : ""}" onclick="loadTemplate(${Number(t.id)})">
+      <strong>${esc(t.name)}</strong>
+      <small>${t.activities.length} activit${t.activities.length === 1 ? "y" : "ies"}${t.department_name ? " · " + esc(t.department_name) : ""}</small>
+    </button>`).join("");
+}
+
+function toggleTemplateMenu(force) {
+  const menu = document.getElementById("templateMenu");
+  const open = force != null ? force : menu.hidden;
+  if (open) renderTemplateMenu();
+  menu.hidden = !open;
+  document.getElementById("templateBtn").setAttribute("aria-expanded", String(open));
+  if (open) { const first = menu.querySelector("button"); if (first) first.focus(); }
+}
+
+document.addEventListener("click", e => {
+  if (!e.target.closest(".menu-wrap")) toggleTemplateMenu(false);
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && !document.getElementById("templateMenu").hidden) {
+    e.preventDefault();
+    toggleTemplateMenu(false);
+    document.getElementById("templateBtn").focus();
+  }
+});
+
+/** Asks before throwing away activities someone has typed. */
+async function okToReplace(title, text, action) {
+  if (!planner.count()) return true;
+  return askConfirm({ title, text, action, icon: "warn" });
+}
+
+async function loadTemplate(id) {
+  toggleTemplateMenu(false);
+  const t = options.templates.find(x => x.id === id);
+  if (!t || (loadedTemplate && loadedTemplate.id === id)) return;
+  if (!(await okToReplace(`Load "${t.name}"?`, "The activities here are replaced with the template's.", "Load template"))) return;
+  planner.replace(t.activities.map(a => ({ ...a, id: 0, origin: "planned" })));
+  loadedTemplate = t;
+  const reviewerSel = document.getElementById("reviewer");
+  if (t.reviewer_id && [...reviewerSel.options].some(o => o.value === String(t.reviewer_id))) reviewerSel.value = String(t.reviewer_id);
+  if (t.department_id && !deptValue()) {
+    document.getElementById("dept").value = String(t.department_id);
+    changeDept();
+  }
+  dirty = true;
+  syncStartBar();
+  syncCount();
+}
+
+async function startFromScratch() {
+  if (!(await okToReplace("Start from scratch?", "The activities loaded from the template are cleared.", "Clear activities"))) return;
+  planner.replace([{ title: "", description: "" }]);
+  loadedTemplate = null;
+  dirty = true;
+  syncStartBar();
+  syncCount();
+  document.getElementById("planT0").focus();
+}
+
+/* ── Load ───────────────────────────────────────────────────────────────── */
+
+async function load() {
+  try {
+    options = await DR.get("plan_options");
+    if (!options.success) return setStatus(options.message || "Could not load.", "error");
+    // The portal's today, now that the server has said what it is.
+    document.getElementById("metaDate").textContent = DR.dayLabel(DR.todayIso(), true);
+
+    // Departments that have someone to plan for, plus No department if anyone is in none.
+    const used = new Set(options.people.map(p => p.department_id ? String(p.department_id) : "none"));
+    document.getElementById("dept").insertAdjacentHTML("beforeend",
+      options.departments.filter(d => used.has(String(d.id))).map(d => `<option value="${Number(d.id)}">${esc(d.name)}</option>`).join("")
+      + (used.has("none") ? `<option value="none">No department</option>` : ""));
+
+    // Reports go to me by default when I'm someone a report can go to;
+    // planning my own, to my Account Manager, else the Director.
+    const me = options.me;
+    const director = options.reviewers.find(r => r.role === "owner");
+    const eligible = id => options.reviewers.some(r => Number(r.id) === Number(id) && Number(r.id) !== (selfMode ? Number(me.id) : -1));
+    let reviewerId = selfMode
+      ? (eligible(me.manager_id) ? me.manager_id : director && director.id)
+      : (eligible(DR.user.id) ? Number(DR.user.id) : director && director.id);
+
+    if (editId) {
+      const data = await DR.get("get", { id: editId });
+      if (!data.success) return setStatus(data.message, "error");
+      if (!data.can_plan) {
+        window.location.replace("daily-report-details.html?id=" + editId);
+        return;
+      }
+      const r = data.report;
+      ownEdit = !!r.self_made && Number(r.admin_id) === Number(me.id);
+      document.getElementById("planTitle").textContent = ownEdit ? "Change your own report" : "Change " + r.admin_name + "'s report";
+      document.getElementById("sendBtn").textContent = "Save changes";
+      document.getElementById("metaDate").textContent = DR.dayLabel(r.report_date, true);
+      document.getElementById("peopleLabel").textContent = "Report assigned to";
+      document.getElementById("people").hidden = true;
+      const locked = document.getElementById("whoLocked");
+      locked.hidden = false;
+      locked.textContent = r.admin_name + (r.admin_position ? " · " + r.admin_position : "");
+      picked = new Set([r.admin_id]);
+      document.getElementById("dept").value = r.department_id ? String(r.department_id) : "none";
+      reviewerId = r.reviewer_id || reviewerId;
+      if (ownEdit) useOwnLayout(me, r.department_id, r.department_name);
+      planner.set(r.activities.filter(a => a.origin !== "employee"));
+      loadedTemplate = r.template_name ? options.templates.find(t => t.name === r.template_name) || null : null;
+    } else if (selfMode) {
+      document.getElementById("planTitle").textContent = "Plan your own report";
+      document.getElementById("sendBtn").textContent = "Save and start";
+      document.getElementById("filesSection").hidden = false;
+      useOwnLayout(me, me.department_id, me.department_name);
+      planner.set([{ title: "", description: "" }]);
+    } else {
+      const preset = Number(params.get("admin_id"));
+      const person = options.people.find(p => p.id === preset);
+      if (person) {
+        document.getElementById("dept").value = person.department_id ? String(person.department_id) : "none";
+        picked.add(person.id);
+      }
+      planner.set([{ title: "", description: "" }]);
+    }
+
+    // picked holds the people this report is for (you, for your own).
+    if (isOwn()) picked.add(Number(me.id));
+    syncReviewers(reviewerId);
+    document.getElementById("reviewersError").textContent = "";
+    document.getElementById("reviewer").addEventListener("change", () => {
+      document.getElementById("reviewersError").textContent = "";
+      dirty = true;
+    });
+
+    if (!editId && !selfMode) renderPeople();
+    syncStartBar();
+    syncCount();
+    dirty = false;
+  } catch (err) {
+    setStatus("Connection error.", "error");
+  }
+}
+
+window.addEventListener("beforeunload", event => {
+  if (dirty && !sending) { event.preventDefault(); event.returnValue = ""; }
+});
+
+/* ── Send ───────────────────────────────────────────────────────────────── */
+
+/* ── Files (your own report) ─────────────────────────────────────────────── */
+
+let newFiles = [];
+
+function renderFiles() {
+  const icon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>';
+  document.getElementById("fileList").innerHTML = newFiles.map((file, i) => `
+    <li>${icon}<span class="file-name" dir="auto">${esc(file.name)}</span><span class="file-size">${esc(DR.fileSize(file.size))}</span>
+      <button type="button" class="icon-btn" onclick="removeFile(${i})" aria-label="Remove ${esc(file.name)}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </li>`).join("");
+  document.getElementById("fileCount").textContent = newFiles.length ? newFiles.length + " of " + DR.MAX_FILES : "";
+}
+
+function addFiles(files) {
+  const error = document.getElementById("filesError");
+  error.textContent = "";
+  for (const file of files) {
+    const ext = (file.name.split(".").pop() || "").toLowerCase();
+    if (newFiles.length >= DR.MAX_FILES) { error.textContent = `Up to ${DR.MAX_FILES} files can be attached.`; break; }
+    if (!DR.FILE_TYPES.includes(ext)) { error.textContent = `"${file.name}" can't be attached. Use PDF, Word, Excel, text or an image.`; continue; }
+    if (file.size > DR.MAX_FILE_BYTES) { error.textContent = `"${file.name}" is larger than 8 MB.`; continue; }
+    newFiles.push(file);
+  }
+  renderFiles();
+  dirty = true;
+}
+
+function removeFile(i) {
+  newFiles.splice(i, 1);
+  renderFiles();
+  document.getElementById("dropzone").focus();
+}
+
+document.getElementById("fileInput").addEventListener("change", e => {
+  addFiles(Array.from(e.target.files || []));
+  e.target.value = "";
+});
+const dropzone = document.getElementById("dropzone");
+["dragenter", "dragover"].forEach(t => dropzone.addEventListener(t, e => { e.preventDefault(); dropzone.classList.add("dragging"); }));
+["dragleave", "drop"].forEach(t => dropzone.addEventListener(t, e => { e.preventDefault(); dropzone.classList.remove("dragging"); }));
+dropzone.addEventListener("drop", e => addFiles(Array.from(e.dataTransfer.files || [])));
+
+/** After your own report is created: attach the files picked here. Returns an error message, or "". */
+async function uploadFiles(reportId) {
+  if (!newFiles.length) return "";
+  const body = new FormData();
+  body.append("action", "update_files");
+  body.append("report", JSON.stringify({ id: reportId, keep_file_ids: [] }));
+  newFiles.forEach(file => body.append("files[]", file));
+  try {
+    const data = await DR.post(body);
+    return data.success ? "" : (data.message || "The files couldn't be attached.");
+  } catch (err) {
+    return "The files couldn't be attached.";
+  }
+}
+
+async function sendPlan(event) {
+  event.preventDefault();
+  if (sending) return;
+  setStatus("");
+  ["deptError", "reviewersError", "peopleError", "activitiesError"].forEach(id => { document.getElementById(id).textContent = ""; });
+
+  const reviewerId = Number(document.getElementById("reviewer").value) || 0;
+  let ok = planner.validate();
+  if (!editId && !selfMode && !deptValue()) { document.getElementById("deptError").textContent = "Choose a department."; ok = false; }
+  else if (!picked.size) { document.getElementById("peopleError").textContent = "Pick who fills it in."; ok = false; }
+  if (!reviewerId) { document.getElementById("reviewersError").textContent = "Pick who the report goes to."; ok = false; }
+  if (!planner.count()) { document.getElementById("activitiesError").textContent = "Add at least one activity."; ok = false; }
+  if (!ok) return setStatus("Check the highlighted fields.", "error");
+
+  sending = true;
+  const button = document.getElementById("sendBtn");
+  button.disabled = true;
+  setStatus(editId ? "Saving..." : "Sending...");
+  try {
+    const dept = deptValue();
+    const data = await DR.post({
+      action: "plan",
+      id: editId,
+      admin_ids: [...picked],
+      self: isOwn(),
+      template_id: loadedTemplate ? loadedTemplate.id : null,
+      department_id: dept && dept !== "none" ? Number(dept) : null,
+      reviewer_id: reviewerId,
+      activities: planner.cleaned()
+    });
+    if (!data.success) {
+      setStatus(data.message || "Could not send it.", "error");
+      sending = false;
+      button.disabled = false;
+      return;
+    }
+    dirty = false;
+    // Your own report exists now: attach its files. A failure doesn't lose the report.
+    const fileError = selfMode ? await uploadFiles(Number(data.ids[0])) : "";
+    DR.flash(fileError
+      ? (data.message || "Saved.") + " " + fileError + " You can add them from the report's Files section."
+      : (data.message || "Sent."));
+    window.location.href = selfMode
+      ? "daily-report-details.html?id=" + Number(data.ids[0])
+      : data.ids && data.ids.length === 1
+        ? "daily-report-details.html?id=" + Number(data.ids[0])
+        : "daily-reports.html?tab=team";
+  } catch (err) {
+    setStatus("Connection error.", "error");
+    sending = false;
+    button.disabled = false;
+  }
+}
+
+load();
+</script>
+
+<script src="assets/alert-sound.js?v=2"></script>
+<script src="assets/notifications.js?v=2"></script>
+<script src="assets/messages-badge.js?v=2"></script>
+<script src="assets/shell.js?v=6"></script>
+<script src="assets/sources-lock.js?v=1"></script>
+<script src="assets/role-nav.js?v=7"></script>
+
+</body>
+</html>

@@ -3,7 +3,8 @@
 | Closing a popup from outside it
 |------------------------------------------------------------------------------
 |
-| One rule for every popup: a click on the backdrop or Escape closes it. Two
+| One rule for every popup: a click on the backdrop or Escape closes it, and
+| Tab keeps the focus inside it while it's open. Two
 | things make that safe for popups with a form in them:
 |
 |   - a popup busy saving cannot be closed - the answer would land in a
@@ -117,6 +118,32 @@
         if (!isOpen()) return;
         event.preventDefault();
         attempt();
+      });
+    }
+
+    /* Tab and Shift+Tab stay inside an open popup, so focus never wanders to
+       the page behind an aria-modal box. A question asked over the popup
+       (confirm.js) keeps its own focus: anything inside another open dialog
+       is left alone. trap: false opts out. */
+    if (options.trap !== false) {
+      document.addEventListener("keydown", function (event) {
+        if (event.key !== "Tab" || event.defaultPrevented || !isOpen()) return;
+        var active = document.activeElement;
+        var elsewhere = active && !backdrop.contains(active) && active.closest && active.closest("[role=dialog], [role=alertdialog], [aria-modal=true]");
+        if (elsewhere) return;
+
+        var items = Array.prototype.filter.call(
+          backdrop.querySelectorAll("a[href], button, input, select, textarea, [tabindex]:not([tabindex='-1'])"),
+          function (el) { return !el.disabled && !el.hidden && el.type !== "hidden" && el.getClientRects().length > 0; }
+        );
+        if (!items.length) return;
+
+        var first = items[0], last = items[items.length - 1];
+        var inside = backdrop.contains(active);
+        if (!inside || (event.shiftKey && active === first) || (!event.shiftKey && active === last)) {
+          event.preventDefault();
+          (event.shiftKey ? last : first).focus();
+        }
       });
     }
 
