@@ -96,11 +96,11 @@ const SCOPE_PERMISSIONS = [
     "settings:write"      => "settings.manage",
     "admins:write"        => "admins.manage",
     "events:read"         => "events.view",
-    // Your own daily report needs no key; reviewing is reports.review (the
+    // Your own activity report needs no key; reviewing is reports.review (the
     // Director passes every can()).
-    "daily_reports:read"  => null,
-    "daily_reports:write" => null,
-    "daily_reports:review" => "reports.review",
+    "activity_reports:read"  => null,
+    "activity_reports:write" => null,
+    "activity_reports:review" => "reports.review",
 ];
 
 /*
@@ -116,7 +116,7 @@ const SCOPE_PAGES = [
     "projects:"      => "pages.projects",
     "messages:"      => "pages.messages",
     "notifications:" => "pages.notifications",
-    "daily_reports:" => "pages.daily_reports",
+    "activity_reports:" => "pages.daily_reports",
 ];
 
 /** The "Open X" key a scope also needs, or null. */

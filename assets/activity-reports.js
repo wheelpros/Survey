@@ -1,18 +1,18 @@
 /*
 |------------------------------------------------------------------------------
-| Daily reports: what the three pages share
+| Activity reports: what the three pages share
 |------------------------------------------------------------------------------
 |
-| daily-reports.html (the lists), daily-report-plan.html (planning a day),
-| daily-report-template.html and daily-report-details.html (one report: the
+| activity-reports.html (the lists), activity-report-plan.html (planning a day),
+| activity-report-template.html and activity-report-details.html (one report: the
 | employee edits and closes it there, the reviewer reviews it) all talk to
 | the same two endpoints and draw the same pills, so those live here as
 | window.DR.
 |
-|   GET  api/daily-reports.php?action=…   mine, get, list, filters,
+|   GET  api/activity-reports.php?action=…   mine, get, list, filters,
 |                                         plan_options, templates, template,
 |                                         pending_count
-|   POST api/daily-report-writes.php      update_activities, close, plan,
+|   POST api/activity-report-writes.php      update_activities, close, plan,
 |                                         delete, review_activity, review,
 |                                         template_save/_delete (JSON);
 |                                         update_files (multipart: a "report"
@@ -180,7 +180,7 @@
           + '<input class="input" id="' + prefix + "T" + i + '" data-field="title" maxlength="200" dir="auto" placeholder="Answer and log phone calls" value="' + esc(a.title) + '">'
           + '<div class="field-error" id="' + prefix + "E" + i + '"></div>'
           + '<label class="field-label" for="' + prefix + "D" + i + '">Description</label>'
-          + '<textarea class="textarea" id="' + prefix + "D" + i + '" data-field="description" maxlength="2000" dir="auto" placeholder="What needs doing, and anything they should know">' + esc(a.description) + "</textarea>"
+          + '<textarea class="textarea" data-voice id="' + prefix + "D" + i + '" data-field="description" maxlength="2000" dir="auto" placeholder="What needs doing, and anything they should know">' + esc(a.description) + "</textarea>"
           + '<div class="count-row"><label class="check"><input type="checkbox" data-counted ' + (counted ? "checked" : "") + '> Count this</label>'
           + '<input class="input count-unit" data-field="count_unit" maxlength="30" placeholder="calls" aria-label="What to count" value="' + esc(a.count_unit || "") + '"' + (counted ? "" : " hidden") + ">"
           + '<span class="hint">' + (counted ? "They enter how many with the outcome." : "For routine work: calls, CVs, meetings.") + "</span></div>"
@@ -362,7 +362,7 @@
 
   function get(action, params) {
     var query = new URLSearchParams(Object.assign({ action: action }, params || {}));
-    return fetch("api/daily-reports.php?" + query, {
+    return fetch("api/activity-reports.php?" + query, {
       headers: { "Authorization": "Bearer " + token }
     }).then(reply);
   }
@@ -370,7 +370,7 @@
   /** JSON for review; FormData (the report and its files) for save. */
   function post(body) {
     var isForm = typeof FormData !== "undefined" && body instanceof FormData;
-    return fetch("api/daily-report-writes.php", {
+    return fetch("api/activity-report-writes.php", {
       method: "POST",
       headers: isForm
         ? { "Authorization": "Bearer " + token }
@@ -428,27 +428,6 @@
     } catch (e) { return ""; }
   }
 
-  /* "Reports go to": one person, the Director or an Account Manager.
-     me (optional) is shown as "Me"; blank (optional) adds a first, empty
-     choice with that label; exclude (an id or a list of ids) leaves out the
-     people the report is for - nobody reviews their own report. */
-  function reviewerOptions(select, reviewers, opts) {
-    opts = opts || {};
-    var me = Number(opts.me || 0);
-    var skip = [].concat(opts.exclude == null ? [] : opts.exclude).map(Number);
-    var list = reviewers.filter(function (r) { return skip.indexOf(Number(r.id)) === -1; })
-      .sort(function (x, y) { return (Number(y.id) === me) - (Number(x.id) === me) || (x.role === "owner" ? -1 : 0) - (y.role === "owner" ? -1 : 0); });
-    select.innerHTML = (opts.blank ? '<option value="">' + esc(opts.blank) + "</option>" : "")
-      + list.map(function (r) {
-        var role = r.role === "owner" ? "Director" : "Account Manager";
-        return '<option value="' + Number(r.id) + '">' + (Number(r.id) === me ? "Me" : esc(r.name)) + " - " + role + "</option>";
-      }).join("");
-    if (opts.value != null) select.value = String(opts.value);
-    // A value that's no longer on the list (now excluded) falls back to the first choice.
-    if (!select.value && !opts.blank && select.options.length) select.selectedIndex = 0;
-  }
-
-
   /* The ⋮ menu on a table row: assets/row-menu.js. */
   var rowMenu = window.RowMenu.open;
   function kebab(label, onclick) { return window.RowMenu.kebab(label, onclick); }
@@ -456,7 +435,6 @@
   window.DR = {
     rowMenu: rowMenu,
     kebab: kebab,
-    reviewerOptions: reviewerOptions,
     token: token,
     user: user,
     logout: logout,

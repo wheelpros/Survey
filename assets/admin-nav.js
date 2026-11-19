@@ -106,11 +106,11 @@
       icon: '<path d="M12 8v4l3 2"/><path d="M3.05 11a9 9 0 1 1 .5 4"/><path d="M3 4v5h5"/>'
     },
     {
-      // Daily reports: everyone with "Open Daily Reports" (Settings → Permissions →
+      // Activity reports: everyone with "Open Activity Reports" (Settings → Permissions →
       // Pages), which every role has by default. The badge counts reports planned
       // for them today and not closed yet (filled in below).
-      href: "daily-reports.html",
-      label: "Daily Reports",
+      href: "activity-reports.html",
+      label: "Activity Reports",
       page: "pages.daily_reports",
       badge: "reportRequestBadge",
       icon: '<path d="M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1z"/><path d="M16 5h2a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h2"/><path d="M9 12l2 2 4-4"/><path d="M9 17h6"/>'
@@ -139,9 +139,9 @@
     "user-details.html": "clients-management.html",
     "admin-announcement-form.html": "admin-notifications.html",
     "admin-team-form.html": "admin.html",
-    "daily-report-plan.html": "daily-reports.html",
-    "daily-report-template.html": "daily-reports.html",
-    "daily-report-details.html": "daily-reports.html"
+    "activity-report-plan.html": "activity-reports.html",
+    "activity-report-template.html": "activity-reports.html",
+    "activity-report-details.html": "activity-reports.html"
   };
 
   function currentRole() {
@@ -221,11 +221,11 @@
       .catch(function () {});
   }
 
-  // Daily reports waiting on this admin: today's still open, plus any with
+  // Activity reports waiting on this admin: today's still open, plus any with
   // work sent back to fix. A refusal (page switched off) shows nothing.
   var reportBadge = document.getElementById("reportRequestBadge");
   if (token && reportBadge && window.fetch) {
-    fetch("api/daily-reports.php?action=pending_count", { headers: { Authorization: "Bearer " + token } })
+    fetch("api/activity-reports.php?action=pending_count", { headers: { Authorization: "Bearer " + token } })
       .then(function (res) { return res.ok ? res.json() : null; })
       .then(function (data) {
         if (!data || !data.success || !(data.pending > 0)) return;

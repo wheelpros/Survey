@@ -2,14 +2,22 @@
 
 /*
 |--------------------------------------------------------------------------
-| Daily reports - writing (the pages' endpoint)
+| Activity reports - writing (the pages' endpoint)
 |--------------------------------------------------------------------------
 |
 | POST, JSON {action, ...}:
 |   update_activities {id, activities: [{id, status, outcome, count_value}]}
 |                       the author's in-place edits, only the changed ones
-|   close {id}          the author closes the day
-|   plan {...}          plan today's report(s); with id, change a plan
+|   add_activity {id, activity: {title, description, count_unit}}
+|   remove_activity {id, activity_id}
+|                       the author's own extra activities on a report someone
+|                       else planned (reports.self); removable until worked on
+|   end_of_day {id, outstanding, priorities, challenges, challenge_priority}
+|                       the author's end-of-day note, while it's open
+|   close {id, ...end_of_day fields?}
+|                       the author closes the day (saving the note with it)
+|   plan {...}          plan today's report(s); with id, change a plan. Your
+|                       own takes reviewer_ids; for others, you review it
 |   delete {id}         the planner, before anything happened
 |   review_activity {activity_id, state: approved|changes, feedback}
 |   review {id, feedback}
@@ -19,7 +27,7 @@
 | POST, multipart: action=update_files, report={"id", "keep_file_ids"} and
 | files[] - the author's files (up to 5, 8 MB each; documents and photos).
 |
-| The rules are in daily-report-lib.php, shared with the dashboard and api/v1.
+| The rules are in activity-report-lib.php, shared with the dashboard and api/v1.
 |
 */
 
@@ -33,7 +41,7 @@ if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") {
 require_once "db.php";
 require_once "auth.php";
 requirePage($pdo, "daily_reports"); // "Open X" in Settings > Permissions
-require_once "daily-report-lib.php";
+require_once "activity-report-lib.php";
 
 function reply($success, $message = "", $extra = [], $code = 200)
 {
@@ -71,8 +79,17 @@ try {
         case "update_activities":
             reply(true, drUpdateActivities($pdo, $p, (int) ($in["id"] ?? 0), $in["activities"] ?? []));
 
+        case "add_activity":
+            reply(true, drAddOwnActivity($pdo, $p, (int) ($in["id"] ?? 0), is_array($in["activity"] ?? null) ? $in["activity"] : []));
+
+        case "remove_activity":
+            reply(true, drRemoveOwnActivity($pdo, $p, (int) ($in["id"] ?? 0), (int) ($in["activity_id"] ?? 0)));
+
+        case "end_of_day":
+            reply(true, drSaveEndOfDay($pdo, $p, (int) ($in["id"] ?? 0), $in));
+
         case "close":
-            [, $message] = drClose($pdo, $p, (int) ($in["id"] ?? 0));
+            [, $message] = drClose($pdo, $p, (int) ($in["id"] ?? 0), $in);
             reply(true, $message);
 
         case "update_files":
@@ -108,6 +125,6 @@ try {
 } catch (PortalWriteError $e) {
     reply(false, $e->getMessage(), [], $e->status);
 } catch (PDOException $e) {
-    error_log("daily-report-writes.php: " . $e->getMessage());
+    error_log("activity-report-writes.php: " . $e->getMessage());
     reply(false, "The report couldn't be saved. Please try again.", [], 500);
 }

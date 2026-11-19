@@ -1,7 +1,8 @@
--- Daily reports: a day's activities planned for one person, filled in and
--- closed by them, reviewed activity by activity by one reviewer.
+-- Activity reports: a day's activities planned for one person, filled in and
+-- closed by them with an end-of-day note, reviewed activity by activity by
+-- any one of its reviewers (daily_report_reviewers).
 --
--- The rules are in api/daily-report-lib.php. Files are rows in `attachments`
+-- The rules are in api/activity-report-lib.php. Files are rows in `attachments`
 -- with owner_type = 'daily_report'. Needs sql/departments.sql first.
 --
 -- Added lazily by ensureDailyReportTables() in api/db.php; this file is the
@@ -11,7 +12,7 @@ CREATE TABLE IF NOT EXISTS daily_reports (
   id                INT AUTO_INCREMENT PRIMARY KEY,
   admin_id          INT          NOT NULL,              -- who fills it in
   created_by        INT          NOT NULL,              -- who planned it (themselves for their own)
-  reviewer_admin_id INT              NULL,              -- "Reports go to": the Director or an Account Manager
+  reviewer_admin_id INT              NULL,              -- before daily_report_reviewers; no longer read
   department_id     INT              NULL,
   template_id       INT              NULL,
   report_date       DATE         NOT NULL,              -- the portal's day it was planned for
@@ -21,6 +22,10 @@ CREATE TABLE IF NOT EXISTS daily_reports (
   reviewed_by       INT              NULL,
   reviewed_at       DATETIME         NULL,
   submitted_at      DATETIME         NULL,
+  outstanding       TEXT             NULL,              -- end of day: what's left
+  priorities        TEXT             NULL,              -- end of day: tomorrow's priorities
+  challenges        TEXT             NULL,              -- end of day: challenges or assistance required
+  challenge_priority VARCHAR(6)      NULL,              -- low | medium | high
   created_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at        DATETIME         NULL,
   UNIQUE KEY uq_person_day (admin_id, report_date),
@@ -35,7 +40,7 @@ CREATE TABLE IF NOT EXISTS daily_report_activities (
   sort_order      INT          NOT NULL DEFAULT 0,
   title           VARCHAR(200) NOT NULL,
   description     TEXT             NULL,
-  origin          VARCHAR(10)  NOT NULL DEFAULT 'planned',   -- planned | carried
+  origin          VARCHAR(10)  NOT NULL DEFAULT 'planned',   -- planned | carried | employee (added by the author)
   count_unit      VARCHAR(30)      NULL,                     -- "calls"; NULL when nothing is counted
   count_value     INT              NULL,
   status          VARCHAR(12)  NOT NULL DEFAULT 'todo',      -- todo | in_progress | follow_up | done
@@ -46,6 +51,15 @@ CREATE TABLE IF NOT EXISTS daily_report_activities (
   reviewed_by     INT              NULL,
   reviewed_at     DATETIME         NULL,
   KEY idx_report (report_id, sort_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Who sees and reviews a report: the planner, or the people picked for your
+-- own report. Any one of them completes the review.
+CREATE TABLE IF NOT EXISTS daily_report_reviewers (
+  report_id INT NOT NULL,
+  admin_id  INT NOT NULL,
+  PRIMARY KEY (report_id, admin_id),
+  KEY idx_admin (admin_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Earlier reviews of an activity, once a newer one replaced them.

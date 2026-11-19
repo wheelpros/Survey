@@ -1,7 +1,7 @@
 /*
 |------------------------------------------------------------------------------
-| Daily reports: daily-reports.html, daily-report-form.html and
-| daily-report-details.html
+| Activity reports: activity-reports.html, activity-report-plan.html,
+| activity-report-template.html and activity-report-details.html
 |------------------------------------------------------------------------------
 |
 | The admin shell (sidebar, header) is the same as every other admin page's;
@@ -242,6 +242,35 @@ button.stat:hover{border-color:var(--field)}
 .pill-follow_up{background:#e0f2fe;color:#075985}
 .pill-done{background:#e8faef;color:#17803d}
 .pill-carry{background:#f4ebff;color:#6941c6}
+/* An activity the author added to a plan someone else made (reports.self). */
+.pill-own{background:#eff8ff;color:#175cd3;margin-left:6px;vertical-align:2px;font-size:11px;padding:2px 8px}
+.act-head-side{display:inline-flex;align-items:center;gap:12px}
+.act-add{margin-top:14px;padding:16px;border:1px dashed var(--field);border-radius:12px;background:#fcfcfd}
+.act-add h3{font-size:14px;margin-bottom:4px}
+.act-add .opt{font-weight:500;color:var(--muted)}
+.act-add-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+/* End of day: outstanding work, tomorrow's priorities, challenges (+ how urgent). */
+.eod-fields{margin-top:6px}
+.eod-fields .textarea{min-height:70px}
+.eod-fields .field-label{margin-bottom:2px}
+.eod-hint{font-size:12px;color:var(--muted);margin:0 0 8px;line-height:1.4}
+/* Challenges: its own box, with the priority beside the title. */
+.eod-challenge{margin-top:18px;padding:14px 16px;border:1px solid var(--field);border-radius:12px}
+.eod-challenge-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:2px}
+.eod-challenge-head .field-label{margin:0}
+.eod-prio-select{flex:none;height:34px;min-width:120px;padding:0 30px 0 14px;border:1px solid var(--field);border-radius:999px;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 11px center/12px;-webkit-appearance:none;appearance:none;font:inherit;font-size:13px;color:var(--text);cursor:pointer}
+.eod-prio-select:focus{outline:none;border-color:var(--nav-active);box-shadow:0 0 0 3px rgba(27,30,58,.10)}
+/* Planning your own report: the same three, as numbered sections. */
+.eod-plan .section-head{margin-bottom:2px}
+.eod-plan .eod-next{margin-top:20px}
+.eod-plan .textarea{min-height:76px}
+.eod-challenge-head h2{font-size:16px}
+#eodPlan[hidden]{display:none}
+#closeModal .eod-fields{margin-top:14px;padding-top:4px;border-top:1px solid #eef1f5}
+.pill-prio-low{background:#f2f4f7;color:#344054}
+.pill-prio-medium{background:#fffaeb;color:#b54708}
+.pill-prio-high{background:#fef3f2;color:#b42318}
+.detail-label .pill{margin-left:6px;vertical-align:1px;font-size:11px;padding:2px 8px;text-transform:none;letter-spacing:0}
 .pill-planned{background:#eef0ff;color:#3745a4}
 .pill-count{background:#f2f4f7;color:#101828}
 

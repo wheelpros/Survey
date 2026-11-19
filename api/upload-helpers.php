@@ -39,7 +39,7 @@ const ATTACHMENT_TYPES = [
     "xlsx" => ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/zip", "application/octet-stream"],
 ];
 
-/* Daily report files may also be photos - a whiteboard, a receipt, a
+/* Activity report files may also be photos - a whiteboard, a receipt, a
    screenshot of the day's numbers. Only that owner type takes them
    (saveAttachments(..., DAILY_REPORT_FILES_OWNER) passes $allowImages). */
 const DAILY_REPORT_FILES_OWNER = "daily_report";

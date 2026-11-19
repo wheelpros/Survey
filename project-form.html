@@ -333,6 +333,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
 <script src="assets/permissions.js?v=2"></script>
 <script src="/assets/clarity.js" defer></script>
+<script src="/assets/auto-dir.js?v=1" defer></script>
+<script src="/assets/voice-input.js?v=1" defer></script>
 </head><body>
 <aside class="admin-sidebar">
   <div>
@@ -394,7 +396,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         <div class="field-row wide">
           <label for="description">Project description</label>
-          <textarea id="description" maxlength="5000" dir="auto" placeholder="What is this project about? What's the goal?"></textarea>
+          <textarea id="description" data-voice maxlength="5000" dir="auto" placeholder="What is this project about? What's the goal?"></textarea>
         </div>
 
         <div class="field-row">

@@ -2,7 +2,7 @@
 
 /*
 |--------------------------------------------------------------------------
-| Daily reports - reading (the pages' endpoint)
+| Activity reports - reading (the pages' endpoint)
 |--------------------------------------------------------------------------
 |
 | GET ?action=
@@ -20,8 +20,8 @@
 |                   one page at a time (limit, cursor -> next_cursor)
 |
 | Every reply carries `today`: the portal's day, which the pages use instead
-| of the browser's. The rules are in daily-report-lib.php; writes are
-| daily-report-writes.php.
+| of the browser's. The rules are in activity-report-lib.php; writes are
+| activity-report-writes.php.
 |
 */
 
@@ -35,7 +35,7 @@ if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") {
 require_once "db.php";
 require_once "auth.php";
 requirePage($pdo, "daily_reports"); // "Open X" in Settings > Permissions
-require_once "daily-report-lib.php";
+require_once "activity-report-lib.php";
 
 function reply($success, $message = "", $extra = [], $code = 200)
 {
@@ -68,7 +68,7 @@ try {
         reply(true, "", ["pending" => drPendingCount($pdo, $p)]);
     }
 
-    // The Dashboard's Daily reports cards: my report today, what waits for my
+    // The Dashboard's Activity reports cards: my report today, what waits for my
     // review, and - for whoever sees the team's reports - today's counted by
     // status (?department= an id, or "none").
     if ($action === "summary") {
@@ -241,6 +241,6 @@ try {
 } catch (PortalWriteError $e) {
     reply(false, $e->getMessage(), [], $e->status);
 } catch (PDOException $e) {
-    error_log("daily-reports.php: " . $e->getMessage());
-    reply(false, "Daily reports aren't set up yet, or the database refused the request.", [], 500);
+    error_log("activity-reports.php: " . $e->getMessage());
+    reply(false, "Activity reports aren't set up yet, or the database refused the request.", [], 500);
 }

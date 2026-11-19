@@ -393,6 +393,8 @@ document.addEventListener("DOMContentLoaded", function () {
 <script src="assets/permissions.js?v=2"></script>
 <script src="assets/file-list.js?v=1"></script>
 <script src="/assets/clarity.js" defer></script>
+<script src="/assets/auto-dir.js?v=1" defer></script>
+<script src="/assets/voice-input.js?v=1" defer></script>
 </head><body>
 <aside class="admin-sidebar">
   <div>
@@ -536,7 +538,7 @@ document.addEventListener("DOMContentLoaded", function () {
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.5-1.5"/></svg>
                 </button>
               </div>
-              <textarea id="notes" maxlength="5000" dir="auto" placeholder="Write meeting notes, task requirements, links or additional details here..."></textarea>
+              <textarea id="notes" data-voice maxlength="5000" dir="auto" placeholder="Write meeting notes, task requirements, links or additional details here..."></textarea>
             </div>
 
             <div class="field-row">
@@ -1211,7 +1213,7 @@ function paintAssigned(){
       +     esc(person.name) + ' from this phase" onclick="removeTeammate(' + id + ')">'
       +   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>'
       +   "</button></div>"
-      + '<textarea data-id="' + id + '" maxlength="2000" dir="auto" placeholder="What they do, and any details" aria-label="What '
+      + '<textarea data-voice data-id="' + id + '" maxlength="2000" dir="auto" placeholder="What they do, and any details" aria-label="What '
       +   esc(person.name) + ' does">' + esc(note) + "</textarea>"
       + "</div>";
   }).join("");

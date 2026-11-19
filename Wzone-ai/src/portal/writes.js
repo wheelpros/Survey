@@ -518,47 +518,54 @@ export const WRITE_TOOLS = [
     },
   },
   {
-    name: "update_daily_activity",
-    scope: "daily_reports:write",
-    title: "Update an activity on my daily report",
+    name: "update_report_activity",
+    scope: "activity_reports:write",
+    title: "Update an activity on my activity report",
     description:
-      "Sets one activity on your own daily report: its status, outcome and/or count - only what you give changes. " +
+      "Sets one activity on your own activity report: its status, outcome and/or count - only what you give changes. " +
       "While the report is open, any activity not reviewed yet; once it's closed (or its day has passed), only the " +
       "ones sent back to you. Saving it as done lets your reviewer review it." + TWO_STEP,
     input: {
-      report: recordId("The report's id - from list_my_daily_reports"),
-      activity: recordId("The activity's id - from get_daily_report"),
+      report: recordId("The report's id - from list_my_activity_reports"),
+      activity: recordId("The activity's id - from get_activity_report"),
       status: z.enum(["todo", "in_progress", "follow_up", "done"]).optional(),
       outcome: z.string().max(5000).optional().describe("What came of it, and what happens next"),
       count: z.number().int().min(0).optional().describe("How many, for an activity with a count_unit"),
     },
   },
   {
-    name: "close_daily_report",
-    scope: "daily_reports:write",
-    title: "Close my daily report",
+    name: "close_activity_report",
+    scope: "activity_reports:write",
+    title: "Close my activity report",
     description:
-      "Closes today's report and sends it to its reviewer. After that it's locked, except activities the reviewer " +
-      "sends back." + TWO_STEP,
-    input: { id: recordId("The report's id") },
+      "Closes today's report and sends it to its reviewers (any one of them reviews it). After that it's locked, " +
+      "except activities sent back. The end-of-day note goes with it: give only the parts you have; a parameter " +
+      "left out keeps what's saved. challenge_priority is required with challenges (high = they need help)." + TWO_STEP,
+    input: {
+      id: recordId("The report's id"),
+      outstanding: z.string().max(5000).optional().describe("Work left, and why"),
+      priorities: z.string().max(5000).optional().describe("Tomorrow's priorities"),
+      challenges: z.string().max(5000).optional().describe("Challenges or assistance required"),
+      challenge_priority: z.enum(["low", "medium", "high"]).optional(),
+    },
   },
   {
-    name: "review_daily_activity",
-    scope: "daily_reports:review",
-    title: "Review an activity on a daily report",
+    name: "review_report_activity",
+    scope: "activity_reports:review",
+    title: "Review an activity on an activity report",
     description:
       "For the report's reviewer: marks a Done activity as reviewed (feedback optional; it locks), or sends it back " +
       "with feedback saying what to change (it reopens for its author). Either way they're notified." + TWO_STEP,
     input: {
-      activity: recordId("The activity's id - from get_daily_report"),
+      activity: recordId("The activity's id - from get_activity_report"),
       decision: z.enum(["approved", "changes"]),
       feedback: z.string().max(2000).optional().describe("Required to send it back"),
     },
   },
   {
-    name: "review_daily_report",
-    scope: "daily_reports:review",
-    title: "Mark a daily report as reviewed",
+    name: "review_activity_report",
+    scope: "activity_reports:review",
+    title: "Mark an activity report as reviewed",
     description:
       "For the report's reviewer, once it's closed: marks the whole report reviewed, approving any Done activities " +
       "not reviewed yet, with an optional note. Refused while an activity waits on changes." + TWO_STEP,

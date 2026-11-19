@@ -14,7 +14,7 @@
 |   an Admin             nobody
 |
 | Used by api/client-team.php (who may be put on a client's team) and the
-| daily reports (who may be planned for and reviewed by whom).
+| activity reports (who may be planned for and reviewed by whom).
 |
 */
 

@@ -1017,7 +1017,7 @@ export const myProject = {
 
 export const myPosts = page(myPost);
 
-// ── Daily reports (api/v1/daily-reports.php) ────────────────────────────
+// ── Activity reports (api/v1/activity-reports.php) ────────────────────────────
 
 const count = z.number().int();
 const reportStatus = z
@@ -1040,7 +1040,9 @@ const dailyItem = z.object({
   activities_total: count,
   to_review: count.describe("Done activities not reviewed yet"),
   planned_by: person,
-  reviewer: person.nullable().describe("Who the report goes to"),
+  reviewers: z.array(person).describe("Who sees and reviews it - any one of them completes the review"),
+  reviewer: person.nullable().describe("The first of reviewers (older clients)"),
+  challenge_priority: z.enum(["low", "medium", "high"]).nullable().describe("How urgent the author's challenge is; high means they need help"),
 });
 
 export const myDailyReports = {
@@ -1080,5 +1082,10 @@ export const dailyReport = {
     })
   ),
   files: z.array(z.object({ id, size: count, untrusted_content: untrusted({ name: text }) })),
-  untrusted_content: untrusted({ reviewer_note: text }),
+  untrusted_content: untrusted({
+    reviewer_note: text,
+    outstanding: text.describe("End of day: work left"),
+    priorities: text.describe("End of day: tomorrow's priorities"),
+    challenges: text.describe("End of day: challenges or assistance required"),
+  }),
 };
