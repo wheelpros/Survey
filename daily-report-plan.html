@@ -37,7 +37,7 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 <link rel="stylesheet" href="assets/shell.css?v=8" />
-<link rel="stylesheet" href="assets/daily-reports.css?v=2" />
+<link rel="stylesheet" href="assets/daily-reports.css?v=5" />
 <script src="assets/permissions.js?v=2"></script>
 <script src="/assets/clarity.js" defer></script>
 </head>
@@ -173,7 +173,7 @@ document.addEventListener("DOMContentLoaded", function () {
       <div class="form-foot">
         <div class="form-status" id="formStatus" role="status"></div>
         <a class="btn" href="daily-reports.html?tab=team">Cancel</a>
-        <button class="btn primary" type="submit" id="sendBtn">Send to employee</button>
+        <button class="btn primary" type="submit" id="sendBtn">Send</button>
       </div>
     </form>
 
@@ -197,7 +197,9 @@ document.addEventListener("DOMContentLoaded", function () {
 </div>
 
 <script src="assets/confirm.js?v=5"></script>
-<script src="assets/daily-reports.js?v=2"></script>
+<script src="assets/ui-utils.js?v=1"></script>
+<script src="assets/row-menu.js?v=1"></script>
+<script src="assets/daily-reports.js?v=3"></script>
 <script>
 /* A planner (reports.create) plans today's report: a department, who in it
    fills it in (one report each), who it goes back to (the Director or an

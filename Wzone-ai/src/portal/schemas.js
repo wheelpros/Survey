@@ -1016,3 +1016,69 @@ export const myProject = {
 };
 
 export const myPosts = page(myPost);
+
+// ── Daily reports (api/v1/daily-reports.php) ────────────────────────────
+
+const count = z.number().int();
+const reportStatus = z
+  .enum(["awaiting", "changes", "reviewed", "sent", "missing", "in_progress", "planned"])
+  .describe(
+    "awaiting: Done work waiting for review; changes: work sent back to fix; reviewed: locked; " +
+      "sent: closed, nothing left to review but the report; missing: its day ended unclosed; " +
+      "in_progress: being filled in; planned: not started"
+  );
+const person = z.object({ id, name: text });
+
+const dailyItem = z.object({
+  id,
+  report_date: text.describe("YYYY-MM-DD, the portal's day"),
+  person: person.describe("Who fills it in"),
+  department: maybe,
+  status: reportStatus,
+  closed: z.boolean().describe("Closed by its author: only work sent back can change now"),
+  activities_done: count,
+  activities_total: count,
+  to_review: count.describe("Done activities not reviewed yet"),
+  planned_by: person,
+  reviewer: person.nullable().describe("Who the report goes to"),
+});
+
+export const myDailyReports = {
+  today: text.describe("The portal's date today"),
+  today_report: dailyItem.nullable(),
+  needs_me: count.describe("My reports that need me: today's still open, plus any with work sent back"),
+  can_plan_own: z.boolean().describe("Whether I may start my own report in the portal"),
+  items: z.array(dailyItem).describe("My last 30 reports, newest first"),
+};
+
+export const teamDailyReports = {
+  from: text,
+  to: text,
+  items: z.array(dailyItem),
+  next_cursor: maybe.describe("Pass as `cursor` for the next page; null when this is the last"),
+  waiting_for_me: count.describe("Reports sent to me with Done work to review, any day"),
+};
+
+export const dailyReport = {
+  ...dailyItem.shape,
+  can_edit: z.boolean().describe("I'm its author and it's open: any activity not reviewed can change"),
+  can_fix_sent_back: z.boolean().describe("I'm its author and only the activities sent back to me can change"),
+  can_review_activities: z.boolean(),
+  can_review_report: z.boolean(),
+  review_blocked: z.boolean().describe("The report can't be reviewed while an activity waits on changes"),
+  reviewed: z.object({ by: text, at: utcTime }).nullable(),
+  activities: z.array(
+    z.object({
+      id,
+      number: count.describe("Its place in the plan"),
+      status: z.enum(["todo", "in_progress", "follow_up", "done"]),
+      count_value: count.nullable(),
+      review: z.object({ state: z.enum(["approved", "changes"]), by: text, at: utcTime }).nullable(),
+      awaiting_review: z.boolean(),
+      sent_back: z.boolean(),
+      untrusted_content: untrusted({ title: text, description: text, outcome: text, count_unit: maybe, feedback: text }),
+    })
+  ),
+  files: z.array(z.object({ id, size: count, untrusted_content: untrusted({ name: text }) })),
+  untrusted_content: untrusted({ reviewer_note: text }),
+};

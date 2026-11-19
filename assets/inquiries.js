@@ -213,46 +213,11 @@ Object.assign(window.WZI, (function () {
     toastTimer = setTimeout(function () { el.classList.remove("show"); }, 3200);
   }
 
-  /* ── Row menus ───────────────────────────────────────────────────────────
-     Re-bound on every render because the rows are replaced wholesale, and
-     opening one closes any other - two menus open at once is never what was
-     meant. */
-
-  function closeKebabs() {
-    document.querySelectorAll(".kebab-wrap.open").forEach(function (wrap) {
-      wrap.classList.remove("open");
-      wrap.querySelector(".kebab").setAttribute("aria-expanded", "false");
-    });
-  }
-
-  function wireKebabs() {
-    document.querySelectorAll(".kebab-wrap").forEach(function (wrap) {
-      wrap.querySelector(".kebab").addEventListener("click", function (event) {
-        event.stopPropagation();
-
-        var open = wrap.classList.contains("open");
-        closeKebabs();
-
-        if (!open) {
-          wrap.classList.add("open");
-          this.setAttribute("aria-expanded", "true");
-        }
-      });
-    });
-  }
-
-  document.addEventListener("click", closeKebabs);
-  document.addEventListener("keydown", function (event) {
-    if (event.key === "Escape") closeKebabs();
-  });
-
   return {
     publicLink: publicLink,
     copy: copy,
     copyLink: copyLink,
     toast: toast,
-    wireKebabs: wireKebabs,
-    closeKebabs: closeKebabs
   };
 })());
 

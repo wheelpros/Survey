@@ -44,6 +44,11 @@ const NOTIFY_PROJECT_UPDATE       = "project_update";
 const NOTIFY_CLIENT_TEAM_CHANGED  = "client_team_changed";
 const NOTIFY_TEAM_FORM            = "team_form";
 const NOTIFY_TEAM_FORM_ANSWERED   = "team_form_answered";
+const NOTIFY_DAILY_PLANNED        = "daily_planned";            // the employee: a report planned or changed for them
+const NOTIFY_DAILY_REPORT         = "daily_report";             // the reviewer: closed, or sent-back work fixed
+const NOTIFY_DAILY_ACTIVITY_REVIEWED = "daily_activity_reviewed"; // the employee: activities reviewed (merged)
+const NOTIFY_DAILY_REPORT_REVIEWED = "daily_report_reviewed";   // the employee: the whole report reviewed
+const NOTIFY_DAILY_REPORT_DELETED = "daily_report_deleted";     // the employee: their report withdrawn
 
 /**
  * One row for one recipient. $kind is 'user' or 'admin', naming the table
@@ -93,6 +98,38 @@ function notify(
         // Read-only DB user, or the table was never created. The caller's own
         // work already succeeded, so say nothing.
     }
+}
+
+/**
+ * Like notify(), but replaces the recipient's unread row of the same type and
+ * link instead of adding another: reviewing eight activities one by one is one
+ * notification that keeps up to date, not eight. The new row takes the old
+ * one's place at the top. A row already read is left alone.
+ */
+function notifyReplacing(
+    PDO $pdo,
+    string $kind,
+    int $recipientId,
+    string $type,
+    string $title,
+    string $body = "",
+    string $link = "",
+    string $actorKind = "",
+    int $actorId = 0
+) {
+    if ($recipientId <= 0 || $pdo->inTransaction()) {
+        notify($pdo, $kind, $recipientId, $type, $title, $body, $link, $actorKind, $actorId);
+        return;
+    }
+    try {
+        $pdo->prepare("
+            DELETE FROM notifications
+            WHERE recipient_kind = ? AND recipient_id = ? AND event_type = ? AND link <=> ? AND read_at IS NULL
+        ")->execute([$kind, $recipientId, $type, $link !== "" ? mb_substr($link, 0, 255) : null]);
+    } catch (Throwable $e) {
+        // Then it's one more row, not a merged one: no harm done.
+    }
+    notify($pdo, $kind, $recipientId, $type, $title, $body, $link, $actorKind, $actorId);
 }
 
 /**

@@ -95,6 +95,7 @@ Each person gets only the tools their connection's scopes allow, so a client nev
 | `settings:read` | `get_settings` | the Director only: website address, logo, login slides and the admin team (roles, on/off, who manages whom). Never a password, token or the files password |
 | `events:read` | `get_tracking`, `get_ai_activity` | the Director and whoever they give it: the portal's Tracking page. `get_tracking` is its Changes tab: every change an admin made, in the portal or through an assistant, with who, when and a summary, kept 12 months. `get_ai_activity` is its AI activity tab: every call an assistant made, by staff and clients, with who, which app, which tool and the result, never what was sent or returned |
 | `team_forms:read` | `list_team_forms`, `get_team_form` | team forms, which admins send each other (the Forms page's Team Forms section): the ones sent to you, with your own answers, and the ones you sent. The sender, the Director and anyone with "See the answers to every team form" see everyone's answers and who is still waiting |
+| `daily_reports:read` | `list_my_daily_reports`, `get_daily_report`, `list_team_daily_reports` | daily reports: your own (today first), one report with its activities, reviews and files, and - for reviewers, planners and whoever sees every report - the team's by day and status. Titles, outcomes, feedback and notes come as `untrusted_content` |
 
 - **Tool names follow the portal's sidebar**: Dashboard is `get_dashboard`, Messages is `list_messages` / `read_chat` / `send_message`, Tracking is `get_tracking` and `get_ai_activity`, Forms is `list_forms` and its Team Forms section `list_team_forms` / `get_team_form`. A notification for a team form carries `team_form_id`, as an announcement carries `announcement_id`. Their times are ISO-8601 UTC (`2026-11-03T14:30:09Z`).
 - **`get_client_overview`** answers "tell me about client X" in one call: profile, team, open forms, recent responses, upcoming and recent content, upcoming meetings, active projects. A section the connection has no scope for is left out and named in `not_included`.
@@ -131,6 +132,10 @@ Each person gets only the tools their connection's scopes allow, so a client nev
 | `team_forms:write` | `send_team_form` | sends a form to other admins: the whole team, by role, specific people, or roles plus people, never yourself. Each gets a notification and answers once. Needs "Send forms to the team" (the Director by default) |
 | `team_forms:write` | `close_team_form` | closes a team form you sent so it takes no more answers, or reopens it. The Director can do this for any |
 | `team_forms:answer` | `answer_team_form` | sends your answers to a team form sent to you, once, while it is open. A form with a required file upload is answered on its page in the portal |
+| `daily_reports:write` | `update_daily_activity` | sets one activity on your own report (status, outcome, count). While it's open, anything not reviewed; once it's closed, only what was sent back |
+| `daily_reports:write` | `close_daily_report` | closes today's report and sends it to its reviewer |
+| `daily_reports:review` | `review_daily_activity` | approves a Done activity, or sends it back with feedback. Needs "Review daily reports" (the Director passes) |
+| `daily_reports:review` | `review_daily_report` | marks a closed report reviewed, approving the remaining Done activities; refused while work waits on changes |
 | `settings:write` | `update_website_address` | sets or clears the address the public logo links to |
 | `settings:write` | `set_logo` | replaces the logo from a public `https://` link (PNG or JPG), downloaded and checked on confirm like post images |
 | `settings:write` | `add_login_slide`, `update_login_slide`, `reorder_login_slides`, `remove_login_slide` | the sign-in page slideshow: add one from a link (at least 600 × 800 px, up to 5 slides), change its text, reorder them, or remove one and its image |
@@ -161,6 +166,7 @@ Elicitation would be the protocol's way to ask, but this server is stateless, so
 | [`api/task-writes.php`](../api/task-writes.php) | `project-tasks.php` | `post_project_update`, `update_task` |
 | [`api/announcement-writes.php`](../api/announcement-writes.php) | `announcements.php` | `send_announcement`, `get_announcement` |
 | [`api/team-form-writes.php`](../api/team-form-writes.php) | `team-forms.php` | `list_team_forms`, `get_team_form`, `send_team_form`, `answer_team_form`, `close_team_form` |
+| [`api/daily-report-lib.php`](../api/daily-report-lib.php) | `daily-reports.php` | `list_my_daily_reports`, `get_daily_report`, `list_team_daily_reports`, `update_daily_activity`, `close_daily_report`, `review_daily_activity`, `review_daily_report` |
 | [`api/inquiry-templates.php`](../api/inquiry-templates.php) | `admin-inquiries.php` | `create_inquiry_draft`, `update_inquiry` |
 | [`api/content-writes.php`](../api/content-writes.php) | `admin-content.php` | `update_content_draft` (who may edit a post) |
 | [`api/admin-settings-writes.php`](../api/admin-settings-writes.php) | `settings.php`, `admin-role.php`, `add-user.php`, `admin-manager-assignments.php`, `admin-login-slides.php`, `get-admins.php` | `get_settings` and every `settings:write` / `admins:write` tool |

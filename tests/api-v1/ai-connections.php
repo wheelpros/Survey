@@ -125,7 +125,7 @@ $id = requestAccess("short-list-app", "https://short.test/cb", ["clients:read", 
 [$status, $r] = getPath("api/oauth/consent.php?request=$id", $owner);
 // Whatever the app asks for, the page offers what the person may do - the
 // connection follows their permissions from then on.
-check("consent: everything the role allows, whatever was asked for", $status === 200 && count($r["scopes"] ?? []) === 25
+check("consent: everything the role allows, whatever was asked for", $status === 200 && count($r["scopes"] ?? []) === 28
     && !array_key_exists("not_requested", $r), json_encode($r));
 $byScope = array_column($r["scopes"] ?? [], null, "scope");
 check("consent: areas and access", ($byScope["clients:read"]["area"] ?? "") === "Clients" && ($byScope["clients:read"]["access"] ?? "") === "view"
@@ -147,7 +147,7 @@ $shortToken = connectApp("short-list-app", "https://short.test/cb", ["clients:re
 [, $r] = getPath("api/oauth/grants.php", $owner);
 $short = array_values(array_filter($r["grants"] ?? [], function ($g) { return $g["client_name"] === "Short List"; }))[0] ?? [];
 // Approved with two scopes, it can still do everything the Director may.
-check("grants: what it can do is what its person may do", count($short["scopes"] ?? []) === 25
+check("grants: what it can do is what its person may do", count($short["scopes"] ?? []) === 28
     && in_array("events:read", array_column($short["scopes"], "scope"), true) && !array_key_exists("missing", $short), json_encode($short));
 check("grants: described", ($short["scopes"][0]["description"] ?? "") !== "" && ($short["scopes"][0]["area"] ?? "") !== "", json_encode($short));
 

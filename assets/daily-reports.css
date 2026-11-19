@@ -74,6 +74,20 @@ body{background:#f6f7fb;color:var(--text);padding:0}
   .admin-content{padding:24px 18px}
   .side-head{display:none}
 }
+/* On a phone the sidebar is shell.css's drawer. This file loads after
+   shell.css, so its desktop rules here would win over the drawer's:
+     - z-index and width: the drawer sat under the backdrop (z-index 999), so
+       every tap on a link hit the backdrop and just closed it;
+     - .side-head{display:none} below 950px: the drawer lost its logo and
+       its close (x) button, which shell.js puts in that head;
+     - .side-toggle: the desktop collapse button showed inside the drawer.
+   Give the drawer back its own. (The collapsed rail rules don't reach a
+   phone: the page only sets sidebar-collapsed above the drawer width.) */
+@media (max-width:768px){
+  .admin-sidebar{z-index:1000;width:min(86vw,300px)}
+  .side-head{display:flex}
+  .side-toggle{display:none}
+}
 
 /* ── Page header and buttons ── */
 .page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:22px}
@@ -294,11 +308,6 @@ button.stat:hover{border-color:var(--field)}
 .kebab:hover,.kebab[aria-expanded="true"]{background:#f2f4f7;color:var(--text);border-color:var(--line)}
 .kebab:focus-visible{outline:2px solid var(--nav-active);outline-offset:1px}
 .kebab svg{width:18px;height:18px}
-.row-menu-pop{position:absolute;z-index:1000;min-width:160px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 16px 40px rgba(16,24,40,.14);padding:6px}
-.row-menu-pop a,.row-menu-pop button{display:block;width:100%;text-align:left;border:none;background:none;border-radius:8px;padding:9px 12px;font:inherit;font-size:14px;font-weight:600;color:var(--text);text-decoration:none;cursor:pointer}
-.row-menu-pop a:hover,.row-menu-pop button:hover,.row-menu-pop a:focus-visible,.row-menu-pop button:focus-visible{background:#f4f5f8;outline:none}
-.row-menu-pop .danger{color:#b42318}
-.row-menu-pop .danger:hover,.row-menu-pop .danger:focus-visible{background:#fef3f2}
 @media(max-width:768px){.table td.col-actions{position:absolute;top:10px;right:10px;width:auto;padding:0}.table tr{position:relative}}
 
 /* ── Plan page: department, people and reviewers in one section ── */
@@ -387,6 +396,16 @@ button.stat:hover{border-color:var(--field)}
 .activity-top{display:grid;grid-template-columns:minmax(0,1fr) 170px;gap:12px}
 .add-activity{width:100%;border-style:dashed}
 .load-more{display:flex;justify-content:center;margin-top:14px}
+/* Report page: the Done group and the activity pages. */
+.act-group{font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin:16px 0 6px}
+.act-pager{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:14px}
+.act-pager-info{font-size:12px;color:var(--muted)}
+.act-pages{display:flex;gap:4px}
+.act-page{min-width:32px;height:32px;padding:0 8px;border:1px solid var(--line);border-radius:8px;background:#fff;font:inherit;font-size:13px;font-weight:700;color:var(--text);cursor:pointer}
+.act-page:hover:not(:disabled){border-color:#cfd4dc}
+.act-page.is-current{background:var(--nav-active);border-color:var(--nav-active);color:#fff}
+.act-page:disabled{opacity:.4;cursor:default}
+.act-page:focus-visible{outline:2px solid var(--nav-active);outline-offset:2px}
 .load-more .btn[hidden]{display:none}
 /* DR.notice(): a short message at the bottom of the screen, instead of alert(). */
 .dr-notice{position:fixed;left:50%;bottom:24px;transform:translate(-50%,12px);z-index:100001;max-width:min(560px,calc(100vw - 32px));

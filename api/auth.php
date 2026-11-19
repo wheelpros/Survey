@@ -96,6 +96,11 @@ const SCOPE_PERMISSIONS = [
     "settings:write"      => "settings.manage",
     "admins:write"        => "admins.manage",
     "events:read"         => "events.view",
+    // Your own daily report needs no key; reviewing is reports.review (the
+    // Director passes every can()).
+    "daily_reports:read"  => null,
+    "daily_reports:write" => null,
+    "daily_reports:review" => "reports.review",
 ];
 
 /*

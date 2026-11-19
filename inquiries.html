@@ -274,7 +274,7 @@ body{padding:0}
 </style>
 
 <!-- Feature styles first, shell.css last: the phone drawer has to win. -->
-<link rel="stylesheet" href="assets/inquiries.css?v=3" />
+<link rel="stylesheet" href="assets/inquiries.css?v=4" />
 <link rel="stylesheet" href="assets/shell.css?v=8" />
 
 <script>
@@ -311,6 +311,7 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 <script src="assets/permissions.js?v=2"></script>
+<script src="assets/row-menu.js?v=1"></script>
 <script src="/assets/clarity.js" defer></script>
 </head>
 
@@ -439,7 +440,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script src="assets/inquiries.js?v=2"></script>
+<script src="assets/inquiries.js?v=3"></script>
 <script>
 /*
 |------------------------------------------------------------------------------
@@ -568,8 +569,28 @@ function render() {
 
   rows.innerHTML = slice.map(row).join("");
 
-  WZI.wireKebabs();
   renderPager(total, pages, start, slice.length);
+}
+
+/* The ⋮ menu: the shared one (assets/row-menu.js), floating above the table so
+   neither the panel nor the phone's scrolling table box can cut it off. */
+const INQ_ICONS = {
+  view: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+  link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>',
+  edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>'
+};
+
+function openInquiryMenu(button, id) {
+  const inq = filtered.find(x => Number(x.id) === Number(id));
+  if (!inq) return;
+  RowMenu.open(button, [
+    // On a phone the row's View button is hidden (inquiries.css), so View moves in here.
+    window.matchMedia("(max-width: 768px)").matches && { label: "View details", icon: INQ_ICONS.view, href: "inquiry-details.html?id=" + Number(inq.id) },
+    { label: "Copy link", icon: INQ_ICONS.link, onSelect: () => WZI.copyLink(inq.slug) },
+    canWrite && { label: "Edit", icon: INQ_ICONS.edit, href: "inquiry-form.html?id=" + Number(inq.id) },
+    canWrite && { label: "Delete", icon: INQ_ICONS.trash, danger: true, onSelect: () => removeInquiry(Number(inq.id)) }
+  ]);
 }
 
 function row(inq) {
@@ -612,29 +633,7 @@ function row(inq) {
       </td>
       <td class="menu-cell">
           <span class="kebab-wrap">
-            <button class="kebab" type="button" aria-haspopup="menu" aria-expanded="false"
-                    aria-label="More actions for ${title}">
-              <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
-            </button>
-            <div class="kebab-menu" role="menu">
-              <a class="menu-view" role="menuitem" href="inquiry-details.html?id=${inq.id}">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg>
-                View details
-              </a>
-              <button role="menuitem" type="button" onclick="WZI.copyLink('${inq.slug}')">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>
-                Copy link
-              </button>
-              ${canWrite ? `
-              <a role="menuitem" href="inquiry-form.html?id=${inq.id}">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
-                Edit
-              </a>
-              <button role="menuitem" type="button" class="danger" onclick="removeInquiry(${inq.id})">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-                Delete
-              </button>` : ``}
-            </div>
+            ${RowMenu.kebab("More actions for " + (inq.title || ""), "openInquiryMenu(this, " + Number(inq.id) + ")", "kebab")}
           </span>
       </td>
     </tr>

@@ -204,32 +204,9 @@ td.action { text-align: right; white-space: nowrap }
 }
 .kebab:hover { background: #f6f7f9; color: var(--text) }
 .kebab svg { width: 16px; height: 16px }
-
-.kebab-menu {
-  display: none; position: absolute; right: 0; top: calc(100% + 6px); z-index: 70;
-  min-width: 180px; background: #fff; border: 1px solid #dfe3ea; border-radius: 12px;
-  box-shadow: 0 16px 40px rgba(16, 24, 40, .16); padding: 6px;
-}
-.kebab-wrap.open .kebab-menu { display: block }
-.kebab-wrap.open .kebab { background: #f2f4f8; color: var(--text) }
-
-.kebab-menu a,
-.kebab-menu button {
-  display: flex; align-items: center; gap: 9px; width: 100%;
-  padding: 9px 10px; border: none; background: none; border-radius: 8px;
-  font: inherit; font-size: 13px; font-weight: 700; color: var(--text);
-  text-align: left; text-decoration: none; white-space: nowrap; cursor: pointer;
-}
-.kebab-menu a:hover,
-.kebab-menu button:hover { background: #f2f4f8 }
-/* View sits in the menu only once the button beside it has gone; above the
-   breakpoint it would be the same destination offered twice in one cell. */
-.kebab-menu .menu-view { display: none }
-.kebab-menu svg { width: 15px; height: 15px; flex: none; color: var(--muted) }
-.kebab-menu .danger,
-.kebab-menu .danger svg { color: var(--brand) }
-.kebab-menu .danger { margin-top: 5px; padding-top: 12px; border-top: 1px solid #eef1f5; border-radius: 0 }
-.kebab-menu .danger:hover { background: #fff5f5 }
+/* Open: the menu itself is the shared one (assets/row-menu.js), which also
+   adds View details on a phone, where the row's View button is hidden. */
+.kebab[aria-expanded="true"] { background: #f2f4f8; color: var(--text) }
 
 /* ── Pager ──────────────────────────────────────────────────────────────── */
 
@@ -616,7 +593,6 @@ select,
 
   /* The cell is the menu alone here, so View moves into it. */
   .actions { display: none }
-  .kebab-menu .menu-view { display: flex }
 
   .pager { padding: 16px 14px }
   .card { padding: 20px 18px }

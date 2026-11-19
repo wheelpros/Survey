@@ -8,6 +8,7 @@
 | GET ?action=
 |   pending_count   my reports that need me: today's still open, plus any
 |                   with work sent back (the sidebar badge)
+|   summary         the Dashboard's cards (drSummaryFor); department=
 |   mine            my reports, today's first
 |   get&id=         one report I may see, with the can_* flags
 |   plan_options    who I can plan for, reviewers, departments, templates
@@ -65,6 +66,14 @@ $isDate = function ($value) {
 try {
     if ($action === "pending_count") {
         reply(true, "", ["pending" => drPendingCount($pdo, $p)]);
+    }
+
+    // The Dashboard's Daily reports cards: my report today, what waits for my
+    // review, and - for whoever sees the team's reports - today's counted by
+    // status (?department= an id, or "none").
+    if ($action === "summary") {
+        $dept = (string) ($_GET["department"] ?? "");
+        reply(true, "", ["summary" => drSummaryFor($pdo, $p, $dept === "none" ? "none" : ((int) $dept ?: null))]);
     }
 
     if ($action === "mine") {

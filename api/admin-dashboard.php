@@ -11,10 +11,11 @@
 | its due date and their own status - plus the counts the donut and stat cards
 | show and how many projects they can see.
 |
-| The Director also gets `team`: the Team overview - their whole dashboard -
-| one row per phase and post, with everyone on it and their own status, and
-| what needs attention (teamDashboardItems() in
-| task-writes.php). Everyone else, account managers included, sees My tasks.
+| Whoever has a team also gets `team`, shown as a Team tasks tab beside My
+| tasks: one row per phase and post, with everyone on it and their own status
+| (teamDashboardItems() in task-writes.php). team.overview (the Director) sees
+| everyone's, with what needs attention; an Account Manager or Super Admin who
+| manages people sees the work those people are on (scope: "my_team").
 |
 | Read-only. Changing "My status" posts to the endpoint that owns the thing:
 | project-tasks.php (set_my_status, set_done) or admin-content.php (set_done).
@@ -28,6 +29,7 @@ require_once "db.php";
 require_once "auth.php";
 requirePage($pdo, "dashboard"); // "Open X" in Settings > Permissions
 require_once "task-writes.php";
+require_once "team-scope.php"; // teamPoolFor()
 
 header("Content-Type: application/json; charset=UTF-8");
 
@@ -87,9 +89,18 @@ ensureProjectTables($pdo);
 try {
     $mine = myDashboardItems($pdo, $admin);
 
-    // The Director also gets the Team overview - their whole dashboard: every
-    // person's tasks they can see. Other roles get no `team` key.
-    $team = can($admin, "team.overview", $pdo) ? teamDashboardItems($pdo, $admin) : null;
+    // Team tasks, beside My tasks: everyone's for team.overview (the
+    // Director), the people they manage for an Account Manager or Super Admin
+    // with a team. Everyone else gets no `team` key - one view, no tabs.
+    $team = null;
+    if (can($admin, "team.overview", $pdo)) {
+        $team = teamDashboardItems($pdo, $admin);
+    } elseif (in_array($admin["role"], ["account_manager", "super_admin"], true)) {
+        $pool = array_keys(teamPoolFor($pdo, $admin));
+        if ($pool) {
+            $team = teamDashboardItems($pdo, $admin, $pool);
+        }
+    }
 } catch (Throwable $e) {
     response(false, "Could not load your dashboard.", [], 500);
 }

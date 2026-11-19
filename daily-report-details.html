@@ -37,7 +37,7 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 <link rel="stylesheet" href="assets/shell.css?v=8" />
-<link rel="stylesheet" href="assets/daily-reports.css?v=2" />
+<link rel="stylesheet" href="assets/daily-reports.css?v=5" />
 <script src="assets/permissions.js?v=2"></script>
 <script src="/assets/clarity.js" defer></script>
 </head>
@@ -173,7 +173,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
 <script src="assets/confirm.js?v=5"></script>
 <script src="assets/dismiss.js?v=2"></script>
-<script src="assets/daily-reports.js?v=2"></script>
+<script src="assets/ui-utils.js?v=1"></script>
+<script src="assets/row-menu.js?v=1"></script>
+<script src="assets/daily-reports.js?v=3"></script>
 <script>
 /* One report. Its author edits activities in place (the pencils) while it can still change.
    Whoever may review it (can_review_activities) reviews each Done activity
@@ -301,6 +303,47 @@ function activityHTML(a, i, canReview, canEdit) {
 }
 
 let flash = DR.takeFlash();
+
+/* The activity list: work still to do first, in plan order, Done at the
+   bottom - by the saved status, so a row never jumps while it's being
+   edited. Five to a page. Each keeps its plan number (Activity 03 is the
+   third planned, wherever it sits). */
+const ACT_PAGE_SIZE = 5;
+let actPage = 1;
+
+function orderedActivities(list) {
+  return (list || []).map((a, i) => ({ a, n: i + 1 }))
+    .sort((x, y) => (x.a.status === "done") - (y.a.status === "done") || x.n - y.n);
+}
+
+/** Shows the page an activity is on (after a save, or a link to it). */
+function pageOfActivity(id) {
+  const at = orderedActivities(current && current.activities).findIndex(x => Number(x.a.id) === Number(id));
+  return at < 0 ? actPage : Math.floor(at / ACT_PAGE_SIZE) + 1;
+}
+
+function goActPage(n) {
+  actPage = n;
+  render(lastData);
+  const head = document.getElementById("actHead");
+  if (head) head.scrollIntoView({ block: "start", behavior: "smooth" });
+}
+
+function actPager(total) {
+  const pages = Math.ceil(total / ACT_PAGE_SIZE);
+  if (pages < 2) return "";
+  const from = (actPage - 1) * ACT_PAGE_SIZE + 1, to = Math.min(total, actPage * ACT_PAGE_SIZE);
+  const nums = Array.from({ length: pages }, (_, k) => k + 1).map(n =>
+    `<button type="button" class="act-page${n === actPage ? " is-current" : ""}" onclick="goActPage(${n})"${n === actPage ? ' aria-current="page"' : ""} aria-label="Page ${n}">${n}</button>`).join("");
+  return `<nav class="act-pager" aria-label="Activity pages">
+      <span class="act-pager-info">${from}–${to} of ${total}</span>
+      <span class="act-pages">
+        <button type="button" class="act-page" onclick="goActPage(${actPage - 1})" ${actPage === 1 ? "disabled" : ""} aria-label="Previous page">‹</button>
+        ${nums}
+        <button type="button" class="act-page" onclick="goActPage(${actPage + 1})" ${actPage === pages ? "disabled" : ""} aria-label="Next page">›</button>
+      </span>
+    </nav>`;
+}
 let headerActions = { edit: false, remove: false };
 
 /* Phones get the review actions from ⋮ menus instead of buttons (see .sm-only / .lg-only). */
@@ -331,7 +374,15 @@ function render(data) {
   // Open report: everything not reviewed. Closed: only what the reviewer sent back.
   const canEdit = !!data.can_fill;
   const canFix = !!data.can_fix;
-  const activities = (r.activities || []).map((a, i) => activityHTML(a, i, canReview, canEdit || (canFix && DR.reviewState(a) === "changes"))).join("");
+  const ordered = orderedActivities(r.activities);
+  actPage = Math.min(Math.max(1, actPage), Math.max(1, Math.ceil(ordered.length / ACT_PAGE_SIZE)));
+  const pageRows = ordered.slice((actPage - 1) * ACT_PAGE_SIZE, actPage * ACT_PAGE_SIZE);
+  const firstDone = pageRows.findIndex(x => x.a.status === "done");
+  const activities = pageRows.map((x, k) =>
+    (k === firstDone && (k > 0 || actPage > 1 || ordered[0].a.status !== "done")
+      ? `<p class="act-group">Done</p>` : "")
+    + activityHTML(x.a, x.n - 1, canReview, canEdit || (canFix && DR.reviewState(x.a) === "changes"))).join("")
+    + actPager(ordered.length);
   // Activities can be reviewed before the report is sent; the report itself only after.
   const earlyHint = canReview && r.status === "planned"
     ? `<p class="review-hint">${esc(r.admin_name)} hasn't sent this report yet. You can review the activities they've saved as Done now, and the whole report once it's sent.</p>` : "";
@@ -401,7 +452,7 @@ function render(data) {
     ${review}
 
     <section class="section">
-      <div class="section-head"><h2>Daily activities</h2><span class="count">${DR.progress(r.activities_done, r.activities_total)}</span></div>
+      <div class="section-head" id="actHead" tabindex="-1"><h2>Daily activities</h2><span class="count">${DR.progress(r.activities_done, r.activities_total)}</span></div>
       ${earlyHint}
       ${activities || `<div class="detail-text is-empty">No activities.</div>`}
     </section>
@@ -532,7 +583,10 @@ function endEditing() {
   editing = {};
   filesDraft = null;
   render(lastData);
-  const back = first ? document.getElementById("act-" + first) : wasFiles ? document.getElementById("filesSection") : null;
+  // A row saved as Done moves to the bottom, maybe to another page: then the
+  // list's heading takes the focus, where the next activity now is.
+  const back = first ? (document.getElementById("act-" + first) || document.getElementById("actHead"))
+    : wasFiles ? document.getElementById("filesSection") : null;
   if (back) back.focus({ preventScroll: true });
 }
 
