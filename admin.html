@@ -534,20 +534,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
 .row-kebab{display:none}
 
-.row-menu{
-  position:fixed;z-index:100000;min-width:190px;padding:6px;
-  background:#fff;border:1px solid var(--line);border-radius:12px;
-  box-shadow:0 18px 40px rgba(16,24,40,.18);
-}
-.row-menu[hidden]{display:none}
-.row-menu button,
-.row-menu a{
-  display:block;width:100%;padding:11px 12px;border:none;border-radius:9px;
-  background:transparent;text-align:left;text-decoration:none;
-  font:inherit;font-size:14px;font-weight:700;color:var(--text);cursor:pointer;
-}
-.row-menu button:hover,
-.row-menu a:hover{background:#f6f7f9}
 
 /* The two tables on this page carry the same columns, so they share widths
    too - left to size themselves, a long rejection note in one table pushed
@@ -642,6 +628,7 @@ document.addEventListener("DOMContentLoaded", function () {
 </style>
 <link rel="stylesheet" href="assets/team-forms.css?v=3" />
 <script src="assets/permissions.js?v=2"></script>
+<script src="assets/row-menu.js?v=1"></script>
 <script src="/assets/clarity.js" defer></script>
 </head>
 
@@ -914,120 +901,20 @@ const statusMeta = {
    View button is swapped for this and the actions move into a menu. The button
    is in the markup on every screen; shell.css's breakpoint decides which of the
    two is on show, so nothing has to re-render when the window is resized.
-
-   The menu is one element reused by every row, positioned under whichever
-   button was pressed - a menu per row would be hundreds of hidden nodes. */
+   The menu itself is the shared one (assets/row-menu.js). */
 
 function kebabButton(surveyId, kind){
-  return `
-    <button class="row-kebab" type="button" aria-haspopup="true" aria-expanded="false"
-            aria-label="Actions" onclick="openRowMenu(event, ${Number(surveyId)}, '${kind}')">
-      <svg viewBox="0 0 24 24" fill="currentColor">
-        <circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/>
-      </svg>
-    </button>
-  `;
+  return RowMenu.kebab("Actions", "openRowMenu(this, " + Number(surveyId) + ", '" + kind + "')", "row-kebab");
 }
 
-let rowMenuButton = null;
-
-function rowMenuEl(){
-  let menu = document.getElementById("rowMenu");
-
-  if(!menu){
-    menu = document.createElement("div");
-    menu.id = "rowMenu";
-    menu.className = "row-menu";
-    menu.hidden = true;
-    document.body.appendChild(menu);
-  }
-
-  return menu;
-}
-
-function openRowMenu(event, surveyId, kind){
-  event.stopPropagation();
-
-  const button = event.currentTarget;
-
-  // Second press on the same row closes it, the way the button's own toggle
-  // state suggests it should.
-  if(rowMenuButton === button){
-    closeRowMenu();
-    return;
-  }
-
-  closeRowMenu();
-
-  /* Exactly what the row offers on a desktop, which is one action. Send Again,
-     View Responses, Approve and Reject all live inside the modal this opens -
-     the phone is the same page in a narrower column, not a different set of
-     rules about where a form is acted on. */
+/* Exactly what the row offers on a desktop, which is one action. Send Again,
+   View Responses, Approve and Reject all live inside the modal this opens -
+   the phone is the same page in a narrower column, not a different set of
+   rules about where a form is acted on. */
+function openRowMenu(button, surveyId, kind){
   const label = kind === "review" && canReview ? "Review form" : "View form";
-
-  const items = [
-    `<button type="button" onclick="runRowAction(() => openReview(${Number(surveyId)}))">${label}</button>`
-  ];
-
-  const menu = rowMenuEl();
-  menu.innerHTML = items.join("");
-  menu.hidden = false;
-
-  placeRowMenu(menu, button);
-
-  button.setAttribute("aria-expanded", "true");
-  rowMenuButton = button;
-
-  // preventScroll: the menu is fixed and already on screen, and a scroll here
-  // would trip the listener below and close what was just opened.
-  const first = menu.querySelector("button, a");
-  if(first) first.focus({ preventScroll: true });
+  RowMenu.open(button, [{ label, onSelect: () => openReview(Number(surveyId)) }]);
 }
-
-/* position:fixed, so the box is measured against the viewport and never
-   clipped by the panel's own overflow:hidden. Right-aligned under the button,
-   and flipped above it when the row is near the bottom of the screen. */
-function placeRowMenu(menu, button){
-  const rect = button.getBoundingClientRect();
-  const box = menu.getBoundingClientRect();
-  const gap = 6;
-
-  let left = rect.right - box.width;
-  left = Math.min(Math.max(8, left), window.innerWidth - box.width - 8);
-
-  const below = rect.bottom + gap;
-  const top = below + box.height > window.innerHeight - 8
-    ? Math.max(8, rect.top - gap - box.height)
-    : below;
-
-  menu.style.left = left + "px";
-  menu.style.top = top + "px";
-}
-
-function closeRowMenu(){
-  const menu = document.getElementById("rowMenu");
-  if(menu) menu.hidden = true;
-
-  if(rowMenuButton) rowMenuButton.setAttribute("aria-expanded", "false");
-  rowMenuButton = null;
-}
-
-/* Every menu item closes the menu before it does anything, so the box is never
-   left floating over the modal it just opened. */
-function runRowAction(action){
-  closeRowMenu();
-  action();
-}
-
-document.addEventListener("click", closeRowMenu);
-document.addEventListener("keydown", function(event){
-  if(event.key === "Escape") closeRowMenu();
-});
-window.addEventListener("resize", closeRowMenu);
-
-// The menu is position:fixed and the page scrolls behind it, so it would
-// otherwise drift away from its row.
-window.addEventListener("scroll", closeRowMenu, true);
 
 /* ── The forms list ─────────────────────────────────────────────────────────
    Building and editing both live on admin-form-builder.html, the same split
@@ -1620,29 +1507,16 @@ loadSurveyData();
   }
 
   /* The button on a desktop; on a phone the kebab, opening the same link in the
-     page's shared row menu (rowMenuEl / placeRowMenu above). */
+     shared row menu (assets/row-menu.js). */
   function open(id, label){
     return `<div class="actions">
       <a class="btn action-btn" href="admin-team-form.html?id=${Number(id)}">${label}</a>
-      <button class="row-kebab" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Actions"
-              onclick="openTeamRowMenu(event, ${Number(id)}, '${label}')">
-        <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
-      </button>
+      ${RowMenu.kebab("Actions", "openTeamRowMenu(this, " + Number(id) + ", '" + label + "')", "row-kebab")}
     </div>`;
   }
 
-  window.openTeamRowMenu = function (event, id, label){
-    event.stopPropagation();
-    const button = event.currentTarget;
-    if(rowMenuButton === button){ closeRowMenu(); return; }
-    closeRowMenu();
-    const menu = rowMenuEl();
-    menu.innerHTML = `<a href="admin-team-form.html?id=${Number(id)}">${tfEsc(label === "View" ? "View form" : label)}</a>`;
-    menu.hidden = false;
-    placeRowMenu(menu, button);
-    button.setAttribute("aria-expanded", "true");
-    rowMenuButton = button;
-    menu.querySelector("a").focus({ preventScroll: true });
+  window.openTeamRowMenu = function (button, id, label){
+    RowMenu.open(button, [{ label: label === "View" ? "View form" : label, href: "admin-team-form.html?id=" + Number(id) }]);
   };
 
   function table(kind, head, rows, empty){

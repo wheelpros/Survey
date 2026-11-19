@@ -41,11 +41,8 @@
     window.location.href = "admin-login.html";
   }
 
-  function esc(value) {
-    return String(value == null ? "" : value)
-      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-  }
+  // Shared helpers (assets/ui-utils.js, assets/row-menu.js), loaded first.
+  var esc = window.UI.esc;
 
   function can(perm) {
     return window.adminCan ? window.adminCan(perm) : user.role === "owner";
@@ -92,11 +89,7 @@
       : "";
   }
 
-  function fileSize(bytes) {
-    bytes = Number(bytes) || 0;
-    if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + " MB";
-    return Math.max(1, Math.round(bytes / 1024)) + " KB";
-  }
+  var fileSize = window.UI.fileSize;
 
   var ROLE_LABELS = { owner: "Director", super_admin: "Super Admin", account_manager: "Account Manager", seo_admin: "Admin" };
 
@@ -392,20 +385,11 @@
    * where history, logs and the Referer would keep it.
    *   DR.download(id, name).catch(() => showError("Could not download it."));
    */
-  async function download(id, name) {
-    var res = await fetch("api/attachment.php?id=" + encodeURIComponent(id), {
-      headers: { "Authorization": "Bearer " + token }
+  function download(id, name) {
+    return window.UI.download("api/attachment.php?id=" + encodeURIComponent(id), name).catch(function (err) {
+      if (err && err.status === 401) logout();
+      throw err;
     });
-    if (res.status === 401) { logout(); throw new Error("signed out"); }
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    var url = URL.createObjectURL(await res.blob());
-    var save = document.createElement("a");
-    save.href = url;
-    save.download = name || "file";
-    document.body.appendChild(save);
-    save.click();
-    save.remove();
-    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
   }
 
   /*
@@ -465,89 +449,9 @@
   }
 
 
-  /*
-   * The ⋮ menu on a table row. One menu at a time, built from what the row
-   * allows - an item the person can't use isn't shown at all.
-   *
-   *   DR.rowMenu(button, [{ label: "View", href: "..." },
-   *                       { label: "Delete", danger: true, onSelect: fn }]);
-   *
-   * Closes on a click outside, Escape (focus back on the ⋮), scroll or resize.
-   */
-  var menuEl = null, menuAnchor = null;
-
-  function closeRowMenu(refocus) {
-    if (!menuEl) return;
-    menuEl.remove();
-    menuEl = null;
-    if (menuAnchor) {
-      menuAnchor.setAttribute("aria-expanded", "false");
-      if (refocus) menuAnchor.focus();
-    }
-    menuAnchor = null;
-  }
-
-  function rowMenu(anchor, items) {
-    if (menuAnchor === anchor) { closeRowMenu(true); return; }
-    closeRowMenu(false);
-    if (!items.length) return;
-
-    menuEl = document.createElement("div");
-    menuEl.className = "row-menu-pop";
-    menuEl.setAttribute("role", "menu");
-    items.forEach(function (item) {
-      var el = document.createElement(item.href ? "a" : "button");
-      el.setAttribute("role", "menuitem");
-      el.textContent = item.label;
-      if (item.danger) el.className = "danger";
-      if (item.href) el.href = item.href;
-      else el.type = "button";
-      el.addEventListener("click", function () {
-        closeRowMenu(false);
-        if (item.onSelect) item.onSelect();
-      });
-      menuEl.appendChild(el);
-    });
-    document.body.appendChild(menuEl);
-
-    var rect = anchor.getBoundingClientRect();
-    var left = rect.right + window.scrollX - menuEl.offsetWidth;
-    var top = rect.bottom + window.scrollY + 4;
-    // Open upwards when there's no room below.
-    if (rect.bottom + menuEl.offsetHeight + 8 > window.innerHeight) top = rect.top + window.scrollY - menuEl.offsetHeight - 4;
-    menuEl.style.left = Math.max(8, left) + "px";
-    menuEl.style.top = top + "px";
-
-    menuAnchor = anchor;
-    anchor.setAttribute("aria-expanded", "true");
-    var first = menuEl.querySelector("[role=menuitem]");
-    if (first) first.focus({ preventScroll: true });
-  }
-
-  document.addEventListener("click", function (e) {
-    if (menuEl && !menuEl.contains(e.target) && e.target.closest(".kebab") !== menuAnchor) closeRowMenu(false);
-  });
-  document.addEventListener("keydown", function (e) {
-    if (!menuEl) return;
-    if (e.key === "Escape") { e.preventDefault(); closeRowMenu(true); return; }
-    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-      e.preventDefault();
-      var all = Array.prototype.slice.call(menuEl.querySelectorAll("[role=menuitem]"));
-      var i = all.indexOf(document.activeElement);
-      all[(i + (e.key === "ArrowDown" ? 1 : all.length - 1)) % all.length].focus();
-    }
-  });
-  window.addEventListener("resize", function () { closeRowMenu(false); });
-  window.addEventListener("scroll", function (e) {
-    if (menuEl && !(e.target && e.target.nodeType === 1 && menuEl.contains(e.target))) closeRowMenu(false);
-  }, true);
-
-  var KEBAB = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>';
-
-  /** The ⋮ button for a row; `onclick` is the page's handler, given this button. */
-  function kebab(label, onclick) {
-    return '<button type="button" class="kebab" aria-haspopup="menu" aria-expanded="false" aria-label="' + esc(label) + '" onclick="event.stopPropagation(); ' + onclick + '">' + KEBAB + "</button>";
-  }
+  /* The ⋮ menu on a table row: assets/row-menu.js. */
+  var rowMenu = window.RowMenu.open;
+  function kebab(label, onclick) { return window.RowMenu.kebab(label, onclick); }
 
   window.DR = {
     rowMenu: rowMenu,

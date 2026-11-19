@@ -257,11 +257,20 @@ check("team: the counts are the tally, with overdue", $tally === ($d["team"]["co
     && ($sean601[0]["overdue"] ?? null) === ($sean601[0]["status"] !== "done" && $sean601[0]["due_date"] < date("Y-m-d")), json_encode($d["team"]["counts"] ?? null));
 check("team: what needs attention", isset($d["team"]["attention"]["unassigned_phases"], $d["team"]["attention"]["forms_to_review"]["count"],
     $d["team"]["attention"]["meetings_waiting"]["count"]), json_encode($d["team"]["attention"] ?? null));
-// The Team overview is the Director's alone: an account manager sees My tasks.
-foreach (["account manager" => $am, "super admin" => $sa, "admin" => $seo] as $who => $token) {
+// The whole Team overview is the Director's. Someone who manages people gets
+// Team tasks for those people only; someone with nobody to manage gets none.
+foreach (["account manager with no team" => $am, "admin" => $seo] as $who => $token) {
     [, $d] = pageGet("api/admin-dashboard.php", $token);
-    check("team: a $who has no Team overview", ($d["success"] ?? false) && !array_key_exists("team", $d), json_encode(array_keys($d)));
+    check("team: a $who has no Team tasks", ($d["success"] ?? false) && !array_key_exists("team", $d), json_encode(array_keys($d)));
 }
+[, $d] = pageGet("api/admin-dashboard.php", $sa);
+$samTeam = $d["team"] ?? [];
+$onlySean = array_reduce($samTeam["tasks"] ?? [], function ($ok, $t) {
+    return $ok && in_array(5, array_column($t["people"], "id"), true);
+}, true);
+check("team: a super admin who manages Sean sees the work Sean is on", ($samTeam["scope"] ?? "") === "my_team"
+    && array_key_exists("attention", $samTeam) && $samTeam["attention"] === null && $onlySean && count($samTeam["tasks"] ?? []) > 0,
+    json_encode($samTeam));
 [$status, $v1] = get("projects.php?tasks=1", $owner);
 check("team v1: get_dashboard carries the Team overview for the Director", $status === 200
     && count(array_filter($v1["data"]["team"]["items"] ?? [], function ($t) { return $t["id"] === 601 && $t["kind"] === "assignment"; })) === 1

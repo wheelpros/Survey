@@ -748,8 +748,10 @@ function myDashboardItems(PDO $pdo, array $actor)
  *
  * Read-only: each person moves only their own status, elsewhere.
  */
-function teamDashboardItems(PDO $pdo, array $actor)
+function teamDashboardItems(PDO $pdo, array $actor, ?array $onlyPeople = null)
 {
+    // $onlyPeople: a manager's Team tasks - only the phases and posts one of
+    // these admins is on (teamPoolFor). null: everything in scope (team.overview).
     ensureAdminColumns($pdo);
 
     [$scopeSql, $scopeParams] = projectScopeSql($actor);
@@ -861,6 +863,18 @@ function teamDashboardItems(PDO $pdo, array $actor)
         // A database without the content tables costs the overview its posts.
     }
 
+    if ($onlyPeople !== null) {
+        $onlyPeople = array_map("intval", $onlyPeople);
+        $items = array_filter($items, function ($item) use ($onlyPeople) {
+            foreach ($item["people"] as $person) {
+                if (in_array($person["id"], $onlyPeople, true)) {
+                    return true;
+                }
+            }
+            return false;
+        });
+    }
+
     $items = array_values($items);
 
     $counts = array_fill_keys(array_keys(TASK_ASSIGNMENT_STATUSES), 0) + ["overdue" => 0];
@@ -911,7 +925,9 @@ function teamDashboardItems(PDO $pdo, array $actor)
         "tasks" => $items,
         "counts" => $counts,
         "projects" => $projects,
-        "attention" => teamAttention($pdo, $actor, $scope, $scopeParams),
+        // Unassigned phases are the whole team's question, not one manager's.
+        "attention" => $onlyPeople === null ? teamAttention($pdo, $actor, $scope, $scopeParams) : null,
+        "scope" => $onlyPeople === null ? "all" : "my_team",
     ];
 }
 

@@ -334,7 +334,10 @@ td a{color:var(--nav-active);font-weight:700}
   /* Force-collapsed below this width, so the head has nothing left to show. */
   .side-head{display:none}
   .admin-content{padding:24px 18px 40px}
-  .page-head{flex-direction:column;gap:16px}
+  /* stretch: the title block takes the screen's width. Left to size itself
+     (flex-start), the one-line subtitle (shell.css) widened it to the whole
+     sentence and the page scrolled sideways; now the line ends in "…". */
+  .page-head{flex-direction:column;gap:16px;align-items:stretch}
   .fields{grid-template-columns:1fr}
   .panel{overflow-x:auto}
   table{min-width:640px}

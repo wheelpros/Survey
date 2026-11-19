@@ -35,11 +35,18 @@
 | Callers run ensureDailyReportTables() first: it is DDL, which can't happen
 | inside the transactions below.
 |
+| Notifications go out after each commit:
+|   planned, or the plan changed      -> the employee
+|   closed, or sent-back work fixed   -> the reviewer
+|   activities reviewed               -> the employee, one merged row per report
+|   report reviewed, or deleted       -> the employee
+|
 */
 
 require_once __DIR__ . "/db.php";
 require_once __DIR__ . "/auth.php";
 require_once __DIR__ . "/events.php";
+require_once __DIR__ . "/notify.php";
 require_once __DIR__ . "/team-scope.php";
 require_once __DIR__ . "/upload-helpers.php";
 require_once __DIR__ . "/availability.php"; // portalTimezone()
@@ -538,6 +545,9 @@ function drSummaryFor(PDO $pdo, array $p, $departmentId = null)
             $counts[drEffectiveStatus($r, $today)]++;
         }
         $out["team"] = $counts;
+        $out["departments"] = array_map(function ($d) {
+            return ["id" => (int) $d["id"], "name" => (string) $d["name"]];
+        }, $pdo->query("SELECT id, name FROM departments WHERE active = 1 ORDER BY name")->fetchAll(PDO::FETCH_ASSOC));
     }
 
     return $out;
@@ -581,6 +591,50 @@ function drTemplates(PDO $pdo, array $p, $id = null)
             "can_edit" => drCanEditTemplate($p, $t),
         ];
     }, $stmt->fetchAll(PDO::FETCH_ASSOC));
+}
+
+/*
+|--------------------------------------------------------------------------
+| Notifications (always after commit - notify() refuses inside one)
+|--------------------------------------------------------------------------
+*/
+
+function drLink($reportId)
+{
+    return "daily-report-details.html?id=" . (int) $reportId;
+}
+
+/** "3 of 5 done": the line the notifications use. */
+function drProgressText(array $r)
+{
+    $done = count(array_filter($r["activities"], function ($a) { return $a["status"] === "done"; }));
+    return $done . " of " . count($r["activities"]) . " done";
+}
+
+/** The employee's merged "your activities were reviewed" row, from where the report stands now. */
+function drNotifyActivityReviews(PDO $pdo, array $p, $reportId)
+{
+    $r = drFind($pdo, $reportId, false);
+    if (!$r) {
+        return;
+    }
+    $ok = 0;
+    $changes = 0;
+    foreach ($r["activities"] as $a) {
+        $ok += $a["review"] && $a["review"]["state"] === "approved" ? 1 : 0;
+        $changes += drSentBack($a) ? 1 : 0;
+    }
+    $parts = [];
+    if ($ok) {
+        $parts[] = $ok . " reviewed";
+    }
+    if ($changes) {
+        $parts[] = $changes . ($changes === 1 ? " needs" : " need") . " changes";
+    }
+    notifyReplacing($pdo, "admin", $r["admin_id"], NOTIFY_DAILY_ACTIVITY_REVIEWED,
+        $changes ? $p["name"] . " asked for changes on your daily report" : $p["name"] . " reviewed your activities",
+        "Your report for " . $r["report_date"] . ": " . implode(", ", $parts) . ".",
+        drLink($r["id"]), "admin", (int) $p["id"]);
 }
 
 /*
@@ -719,6 +773,15 @@ function drPlan(PDO $pdo, array $p, array $in)
         throw $e;
     }
 
+    if (!$self) {
+        $reviewerName = eventAdminName($pdo, $reviewerId);
+        foreach ($made as $i => $rid) {
+            notify($pdo, "admin", $ids[$i], NOTIFY_DAILY_PLANNED, $p["name"] . " planned your day",
+                count($acts) . " activit" . (count($acts) === 1 ? "y" : "ies") . " for today. Reports go to " . $reviewerName . ".",
+                drLink($rid), "admin", (int) $p["id"]);
+        }
+    }
+
     $message = $self ? "Your report for today is ready to fill in."
         : (count($ids) === 1 ? eventAdminName($pdo, $ids[0]) . " has" : count($ids) . " people have") . " been sent their report for today.";
     return [$made, $message];
@@ -795,6 +858,12 @@ function drReplan(PDO $pdo, array $p, $id, array $in)
         throw $e;
     }
 
+    if ($r["admin_id"] !== (int) $p["id"]) {
+        notifyReplacing($pdo, "admin", $r["admin_id"], NOTIFY_DAILY_PLANNED, $p["name"] . " changed your plan for today",
+            count($acts) . " activit" . (count($acts) === 1 ? "y" : "ies") . " now. Work you've done stays as it is.",
+            drLink($r["id"]), "admin", (int) $p["id"]);
+    }
+
     return [[$r["id"]], $r["admin_id"] === (int) $p["id"] ? "Your report is updated." : "Report updated. " . $r["admin_name"] . " sees the change."];
 }
 
@@ -814,6 +883,17 @@ function drOwn(PDO $pdo, array $p, $id)
  * closed or its day has passed, only activities sent back. Returns a message.
  */
 function drUpdateActivities(PDO $pdo, array $p, $id, $edits)
+{
+    [$r, $open, $clean] = drCheckActivityEdits($pdo, $p, $id, $edits);
+    return drSaveActivityEdits($pdo, $p, $r, $open, $clean);
+}
+
+/**
+ * The checks of drUpdateActivities(), nothing written - also what the MCP's
+ * update_daily_activity prepares with. Returns [report, open, clean edits],
+ * each clean edit [activity, status, outcome, count].
+ */
+function drCheckActivityEdits(PDO $pdo, array $p, $id, $edits)
 {
     $r = drOwn($pdo, $p, $id);
     $today = drToday($pdo);
@@ -855,6 +935,11 @@ function drUpdateActivities(PDO $pdo, array $p, $id, $edits)
         }
         $clean[] = [$a, $status, mb_substr(trim((string) ($e["outcome"] ?? "")), 0, 5000), $a["count_unit"] ? $count : null];
     }
+    return [$r, $open, $clean];
+}
+
+function drSaveActivityEdits(PDO $pdo, array $p, array $r, $open, array $clean)
+{
 
     $pdo->beginTransaction();
     try {
@@ -884,6 +969,15 @@ function drUpdateActivities(PDO $pdo, array $p, $id, $edits)
     foreach ($after["activities"] as $a) {
         $waiting += drAwaiting($a) ? 1 : 0;
     }
+
+    // Sent-back work done again on a locked report: the reviewer wouldn't
+    // otherwise know to look. (During the open day, Done work just appears.)
+    $fixed = array_filter($clean, function ($c) { return drSentBack($c[0]) && $c[1] === "done"; });
+    if (!$open && $fixed && $r["reviewer_id"]) {
+        notifyReplacing($pdo, "admin", $r["reviewer_id"], NOTIFY_DAILY_REPORT, $r["admin_name"] . " updated what you sent back",
+            "Their report for " . $r["report_date"] . ": " . count($fixed) . " activit" . (count($fixed) === 1 ? "y" : "ies") . " ready to review again.",
+            drLink($r["id"]), "admin", (int) $p["id"]);
+    }
     return (count($clean) === 1 ? "Activity saved." : count($clean) . " activities saved.")
         . ($waiting && $r["reviewer_name"] ? " " . $r["reviewer_name"] . " can review the done ones now." : "");
 }
@@ -904,6 +998,12 @@ function drClose(PDO $pdo, array $p, $id)
         throw new PortalWriteError("It's already closed.", 409);
     }
     logEvent($pdo, EVENT_REPORT_CLOSED, "daily_report", $r["id"], $r["admin_name"], "Sent the daily report for " . $r["report_date"]);
+    if ($r["reviewer_id"]) {
+        $waiting = count(array_filter($r["activities"], "drAwaiting"));
+        notifyReplacing($pdo, "admin", $r["reviewer_id"], NOTIFY_DAILY_REPORT, $r["admin_name"] . " closed their daily report",
+            drProgressText($r) . ($waiting ? ", " . $waiting . " waiting for your review." : "."),
+            drLink($r["id"]), "admin", (int) $p["id"]);
+    }
     return [$r, "Report closed and sent to " . ($r["reviewer_name"] ?: "your reviewer") . ". They've been told it's ready."];
 }
 
@@ -991,6 +1091,8 @@ function drReviewActivity(PDO $pdo, array $p, $activityId, $state, $feedback)
         throw $e;
     }
 
+    drNotifyActivityReviews($pdo, $p, $r["id"]);
+
     $message = $state === "changes"
         ? "Sent back to " . $r["admin_name"] . " with your feedback."
         : "Marked as reviewed." . ($feedback !== "" ? " " . $r["admin_name"] . " sees your feedback." : "");
@@ -1037,6 +1139,18 @@ function drReviewReport(PDO $pdo, array $p, $id, $note)
     }
 
     $n = count($bulk);
+    $note = trim((string) $note);
+    // The report's review says it all: the merged activity row goes.
+    try {
+        $pdo->prepare("DELETE FROM notifications WHERE recipient_kind = 'admin' AND recipient_id = ? AND event_type = ? AND link = ? AND read_at IS NULL")
+            ->execute([$r["admin_id"], NOTIFY_DAILY_ACTIVITY_REVIEWED, drLink($r["id"])]);
+    } catch (Throwable $e) {
+        // A leftover row is harmless.
+    }
+    notify($pdo, "admin", $r["admin_id"], NOTIFY_DAILY_REPORT_REVIEWED, $p["name"] . " reviewed your daily report",
+        $note !== "" ? mb_substr($note, 0, 400) : "Your report for " . $r["report_date"] . " is reviewed and locked.",
+        drLink($r["id"]), "admin", (int) $p["id"]);
+
     return [$r, "Report reviewed" . ($n ? ", with " . $n . " more activit" . ($n === 1 ? "y" : "ies") : "") . ". " . $r["admin_name"] . " has been told."];
 }
 
@@ -1069,6 +1183,16 @@ function drDelete(PDO $pdo, array $p, $id)
     }
 
     $mine = $r["admin_id"] === (int) $p["id"];
+    if (!$mine) {
+        // Earlier rows about it would link to a report that's gone.
+        try {
+            $pdo->prepare("DELETE FROM notifications WHERE recipient_kind = 'admin' AND link = ?")->execute([drLink($r["id"])]);
+        } catch (Throwable $e) {
+            // Leftovers open a "doesn't exist" page; harmless.
+        }
+        notify($pdo, "admin", $r["admin_id"], NOTIFY_DAILY_REPORT_DELETED, $p["name"] . " withdrew your report for today",
+            "You don't need to fill it in.", "daily-reports.html", "admin", (int) $p["id"]);
+    }
     return [$r, $mine ? "Your report for today is deleted." : $r["admin_name"] . "'s report is deleted. They've been told.", $paths];
 }
 

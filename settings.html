@@ -325,40 +325,6 @@ body{padding:0}
 .row-kebab:hover, .row-kebab[aria-expanded="true"] { background: #f6f7f9; }
 .row-kebab:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(27,30,58,.15); }
 .row-kebab svg { width: 16px; height: 16px; }
-.row-menu {
-    display: none;
-    position: absolute;
-    right: 0;
-    top: calc(100% + 6px);
-    z-index: 50;
-    min-width: 170px;
-    background: #fff;
-    border: 1px solid #eaecf0;
-    border-radius: 12px;
-    box-shadow: 0 16px 40px rgba(16,24,40,.14);
-    padding: 6px;
-}
-.row-menu.open { display: block; }
-.row-menu.up { top: auto; bottom: calc(100% + 6px); }
-.team-actions .row-menu button {
-    display: flex;
-    width: 100%;
-    align-items: center;
-    border: none;
-    background: none;
-    text-align: left;
-    padding: 9px 10px;
-    border-radius: 8px;
-    font-size: 13px;
-    font-weight: 600;
-    color: #101828;
-    cursor: pointer;
-}
-.row-menu button:hover, .row-menu button:focus-visible { background: #f2f4f7; outline: none; }
-.row-menu button.danger { color: #c9000b; }
-.row-menu button.positive { color: #1a9a53; }
-.row-menu hr { border: none; border-top: 1px solid #f2f4f7; margin: 4px 0; }
-
 /* Click-to-upload photo, at the top of the Add / Edit admin popup. */
 .avatar-field {
     display: flex;
@@ -1552,6 +1518,7 @@ document.addEventListener("DOMContentLoaded", function () {
 <link rel="stylesheet" href="assets/shell.css?v=8" />
 <link rel="stylesheet" href="assets/connected-apps.css?v=2" />
 <script src="assets/permissions.js?v=2"></script>
+<script src="assets/row-menu.js?v=1"></script>
 <script src="assets/dismiss.js?v=2"></script>
 <script src="/assets/clarity.js" defer></script>
 </head>
@@ -3786,58 +3753,19 @@ document.getElementById("adminAvatarFile").addEventListener("change", function (
     paintAdminAvatar(URL.createObjectURL(file));
 });
 
-/* ── Row menu: Edit and Activate / Deactivate behind one 3-dot button ── */
+/* ── Row menu: Edit and Activate / Deactivate behind one 3-dot button ──
+   The shared menu (assets/row-menu.js): it floats above the panel, so a row
+   near the bottom of the list is never clipped. */
 
-function closeRowMenus(except){
-    document.querySelectorAll(".row-menu.open").forEach(menu => {
-        if (menu === except) return;
-        menu.classList.remove("open", "up");
-        const button = menu.parentElement.querySelector(".row-kebab");
-        if (button) button.setAttribute("aria-expanded", "false");
-    });
+function openAdminMenu(button, adminId, isActive){
+    RowMenu.open(button, [
+        { label: "Edit", onSelect: () => openEditAdmin(adminId) },
+        { separator: true },
+        isActive
+            ? { label: "Deactivate", danger: true, onSelect: () => setAdminActive(adminId, false) }
+            : { label: "Activate", positive: true, onSelect: () => setAdminActive(adminId, true) }
+    ]);
 }
-
-function toggleRowMenu(button){
-    const menu = button.parentElement.querySelector(".row-menu");
-    const open = !menu.classList.contains("open");
-    closeRowMenus(menu);
-    menu.classList.toggle("open", open);
-    button.setAttribute("aria-expanded", String(open));
-
-    if (open) {
-        // Opens upward when there is no room below it.
-        menu.classList.remove("up");
-        if (menu.getBoundingClientRect().bottom > window.innerHeight - 8) menu.classList.add("up");
-        const first = menu.querySelector("button");
-        if (first) first.focus();
-    }
-}
-
-document.addEventListener("click", function (event) {
-    if (!event.target.closest(".row-menu-wrap")) closeRowMenus();
-});
-
-document.addEventListener("keydown", function (event) {
-    const menu = document.querySelector(".row-menu.open");
-    if (!menu) return;
-
-    const items = Array.from(menu.querySelectorAll("button"));
-    const at = items.indexOf(document.activeElement);
-
-    if (event.key === "Escape") {
-        const button = menu.parentElement.querySelector(".row-kebab");
-        closeRowMenus();
-        if (button) button.focus();
-    } else if (event.key === "ArrowDown") {
-        event.preventDefault();
-        items[(at + 1) % items.length].focus();
-    } else if (event.key === "ArrowUp") {
-        event.preventDefault();
-        items[(at - 1 + items.length) % items.length].focus();
-    } else if (event.key === "Tab") {
-        closeRowMenus();
-    }
-});
 
 function renderAdmins() {
     const list = document.getElementById("adminsList");
@@ -3899,19 +3827,7 @@ function renderAdmins() {
             </div>
 
             <div class="team-actions row-menu-wrap">
-                <button type="button" class="row-kebab" aria-haspopup="menu" aria-expanded="false"
-                        aria-label="Actions for ${escapeHtml(admin.name)}" onclick="toggleRowMenu(this)">
-                    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
-                </button>
-                <div class="row-menu" role="menu">
-                    <button type="button" role="menuitem" onclick="closeRowMenus(); openEditAdmin(${Number(admin.id)})">Edit</button>
-                    <hr>
-                    ${
-                        isActive
-                        ? `<button type="button" role="menuitem" class="danger" onclick="closeRowMenus(); setAdminActive(${Number(admin.id)}, false)">Deactivate</button>`
-                        : `<button type="button" role="menuitem" class="positive" onclick="closeRowMenus(); setAdminActive(${Number(admin.id)}, true)">Activate</button>`
-                    }
-                </div>
+                ${RowMenu.kebab("Actions for " + admin.name, "openAdminMenu(this, " + Number(admin.id) + ", " + (isActive ? "true" : "false") + ")", "row-kebab")}
             </div>
 
         </div>

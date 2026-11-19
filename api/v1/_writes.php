@@ -68,6 +68,7 @@ require_once __DIR__ . "/../message-writes.php";
 require_once __DIR__ . "/../announcement-writes.php";
 require_once __DIR__ . "/../client-team-writes.php";
 require_once __DIR__ . "/../team-form-writes.php";
+require_once __DIR__ . "/../daily-report-lib.php";
 require_once __DIR__ . "/../rate-limit.php";
 
 const V1_CONFIRM_TTL = 900; // 15 minutes to say yes
@@ -2145,6 +2146,177 @@ function v1WriteHandlers()
             "apply" => function (PDO $pdo, array $p, array $a) {
                 setTeamFormOpen($pdo, $p, $a["id"], $a["reopen"]);
                 return ["team_form_id" => $a["id"], "status" => $a["reopen"] ? "open" : "closed"];
+            },
+        ],
+
+        // ── Daily reports (daily-report-lib.php) ─────────────────────────
+        // Filling in and closing your own report, and reviewing the ones
+        // sent to you. Planning, templates and deleting stay in the portal.
+
+        "update_daily_activity" => [
+            "scope" => "daily_reports:write",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                ensureDailyReportTables($pdo);
+                $reportId = argInt($a, "report");
+                $activityId = argInt($a, "activity");
+                $r = drFind($pdo, $reportId);
+                if (!$r || $r["admin_id"] !== (int) $p["id"]) {
+                    throw new PortalWriteError("No daily report of yours with that id.", 404);
+                }
+                $act = null;
+                foreach ($r["activities"] as $x) {
+                    if ($x["id"] === $activityId) {
+                        $act = $x;
+                    }
+                }
+                if (!$act) {
+                    throw new PortalWriteError("That activity isn't on this report.", 404);
+                }
+                // Only what's given changes; the rest stays as saved.
+                $status = array_key_exists("status", $a) && $a["status"] !== null
+                    ? argEnum($a, "status", DR_ACTIVITY_STATUSES) : $act["status"];
+                $outcome = array_key_exists("outcome", $a) && $a["outcome"] !== null ? argText($a, "outcome", 5000, false) : $act["outcome"];
+                $count = $act["count_value"];
+                if (array_key_exists("count", $a) && $a["count"] !== null) {
+                    if (!is_int($a["count"]) || $a["count"] < 0) {
+                        throw new PortalWriteError("count must be a whole number, 0 or more.");
+                    }
+                    if (!$act["count_unit"]) {
+                        throw new PortalWriteError("Nothing is counted on this activity.");
+                    }
+                    $count = $a["count"];
+                }
+                if ($status === $act["status"] && $outcome === $act["outcome"] && $count === $act["count_value"]) {
+                    throw new PortalWriteError("That's how it is already.", 409);
+                }
+                // The page's own checks: an open report, or work sent back; never a reviewed activity.
+                drCheckActivityEdits($pdo, $p, $reportId, [["id" => $activityId, "status" => $status, "outcome" => $outcome, "count_value" => $count]]);
+
+                $labels = ["todo" => "To do", "in_progress" => "In progress", "follow_up" => "Follow up", "done" => "Done"];
+                $parts = [];
+                if ($status !== $act["status"]) {
+                    $parts[] = "status to " . $labels[$status];
+                }
+                if ($outcome !== $act["outcome"]) {
+                    $parts[] = $outcome === "" ? "clear the outcome" : "outcome " . quoteFor($outcome, 200);
+                }
+                if ($count !== $act["count_value"]) {
+                    $parts[] = "count to " . $count . " " . $act["count_unit"];
+                }
+                return [
+                    "args" => ["report" => $reportId, "activity" => $activityId, "status" => $status, "outcome" => $outcome,
+                        "count" => $act["count_unit"] ? $count : null],
+                    "summary" => "On your daily report for " . $r["report_date"] . ", set " . quoteFor($act["title"]) . ": " . implode(", ", $parts) . "."
+                        . ($status === "done" && $r["reviewer_name"] ? " " . $r["reviewer_name"] . " can review it once it's Done." : ""),
+                    "preview" => ["report_id" => $reportId, "activity_id" => $activityId, "status" => $status],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                drUpdateActivities($pdo, $p, $a["report"], [["id" => $a["activity"], "status" => $a["status"],
+                    "outcome" => $a["outcome"], "count_value" => $a["count"]]]);
+                return ["report_id" => $a["report"], "activity_id" => $a["activity"], "status" => $a["status"]];
+            },
+        ],
+
+        "close_daily_report" => [
+            "scope" => "daily_reports:write",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                ensureDailyReportTables($pdo);
+                $id = argInt($a, "id");
+                $r = drFind($pdo, $id, false);
+                if (!$r || $r["admin_id"] !== (int) $p["id"]) {
+                    throw new PortalWriteError("No daily report of yours with that id.", 404);
+                }
+                if ($r["status"] !== "planned") {
+                    throw new PortalWriteError("It's already closed.", 409);
+                }
+                if (!drCanFill($p, $r, drToday($pdo))) {
+                    throw new PortalWriteError("This day has passed, so the report can't change.");
+                }
+                $open = count(array_filter($r["activities"], function ($x) { return $x["status"] !== "done"; }));
+                return [
+                    "args" => ["id" => $id],
+                    "summary" => "Close your daily report for " . $r["report_date"] . " (" . drProgressText($r) . ") and send it to "
+                        . ($r["reviewer_name"] ?: "your reviewer") . ". After that only activities sent back to you can change."
+                        . ($open ? " " . $open . " activit" . ($open === 1 ? "y isn't" : "ies aren't") . " Done." : ""),
+                    "preview" => ["report_id" => $id, "status" => "sent"],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                drClose($pdo, $p, $a["id"]);
+                return ["report_id" => $a["id"], "status" => "sent"];
+            },
+        ],
+
+        "review_daily_activity" => [
+            "scope" => "daily_reports:review",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                ensureDailyReportTables($pdo);
+                $activityId = argInt($a, "activity");
+                $state = argEnum($a, "decision", ["approved", "changes"]);
+                $feedback = argText($a, "feedback", 2000, $state === "changes");
+                $stmt = $pdo->prepare("SELECT report_id FROM daily_report_activities WHERE id = ?");
+                $stmt->execute([$activityId]);
+                $r = drFind($pdo, (int) $stmt->fetchColumn(), false);
+                if (!$r || !drCanSee($pdo, $p, $r)) {
+                    throw new PortalWriteError("No activity with that id that you may see.", 404);
+                }
+                if (!drCanReviewActivities($pdo, $p, $r)) {
+                    throw new PortalWriteError("You can't review this report.", 403);
+                }
+                $act = null;
+                foreach ($r["activities"] as $x) {
+                    if ($x["id"] === $activityId) {
+                        $act = $x;
+                    }
+                }
+                if (!$act || !drAwaiting($act)) {
+                    throw new PortalWriteError("Only activities saved as Done and not reviewed yet can be reviewed.", 409);
+                }
+                return [
+                    "args" => ["activity" => $activityId, "decision" => $state, "feedback" => $feedback],
+                    "summary" => ($state === "changes"
+                        ? "Send " . quoteFor($act["title"]) . " back to " . $r["admin_name"] . " with: " . quoteFor($feedback, 300) . ". It reopens for them."
+                        : "Mark " . quoteFor($act["title"]) . " on " . $r["admin_name"] . "'s report for " . $r["report_date"] . " as reviewed"
+                            . ($feedback !== "" ? ", with: " . quoteFor($feedback, 300) : "") . ". It locks for them.")
+                        . " They're notified.",
+                    "preview" => ["report_id" => $r["id"], "activity_id" => $activityId, "decision" => $state],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                [$r] = drReviewActivity($pdo, $p, $a["activity"], $a["decision"], $a["feedback"]);
+                return ["report_id" => $r["id"], "activity_id" => $a["activity"], "decision" => $a["decision"]];
+            },
+        ],
+
+        "review_daily_report" => [
+            "scope" => "daily_reports:review",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                ensureDailyReportTables($pdo);
+                $id = argInt($a, "id");
+                $note = argText($a, "note", 2000, false);
+                $r = drFind($pdo, $id, false);
+                if (!$r || !drCanSee($pdo, $p, $r)) {
+                    throw new PortalWriteError("No daily report with that id that you may see.", 404);
+                }
+                if (drAnySentBack($r)) {
+                    throw new PortalWriteError("An activity is waiting on changes. Review the report once it's done again.", 409);
+                }
+                if (!drCanReviewReport($pdo, $p, $r)) {
+                    throw new PortalWriteError($r["status"] === "planned" ? "It isn't closed yet." : "You can't review this report.", 403);
+                }
+                $more = count(array_filter($r["activities"], "drAwaiting"));
+                return [
+                    "args" => ["id" => $id, "note" => $note],
+                    "summary" => "Mark " . $r["admin_name"] . "'s daily report for " . $r["report_date"] . " as reviewed"
+                        . ($more ? ", approving the " . $more . " Done activit" . ($more === 1 ? "y" : "ies") . " not reviewed yet" : "")
+                        . ($note !== "" ? ", with the note " . quoteFor($note, 300) : "") . ". It locks, and they're notified.",
+                    "preview" => ["report_id" => $id, "status" => "reviewed", "also_approves" => $more],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                drReviewReport($pdo, $p, $a["id"], $a["note"]);
+                return ["report_id" => $a["id"], "status" => "reviewed"];
             },
         ],
 
