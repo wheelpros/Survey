@@ -441,6 +441,8 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
 <link rel="stylesheet" href="assets/shell.css?v=8" />
 <script src="assets/permissions.js?v=2"></script>
 <script src="/assets/clarity.js" defer></script>
+<script src="/assets/auto-dir.js?v=1" defer></script>
+<script src="/assets/voice-input.js?v=1" defer></script>
 </head>
 
 <body>
@@ -962,7 +964,7 @@ function notesField(user, canManage){
         <h5>Internal note</h5>
         <span class="note-why">Private to you &middot; no other admin sees this, and the client never does</span>
       </div>
-      <textarea id="clientNote" maxlength="5000" rows="4"
+      <textarea id="clientNote" data-voice maxlength="5000" rows="4"
                 placeholder="Anything you want to remember about this client next time..."
                 aria-label="Internal note about this client">${esc(note)}</textarea>
       <div class="note-bar">
@@ -1310,7 +1312,7 @@ function detailsPanel(data){
         </div>
         <div class="field wide">
           <h5><label for="edAbout">About</label></h5>
-          <textarea id="edAbout" dir="auto" placeholder="What this company does, in a couple of sentences.">${esc(u.description || "")}</textarea>
+          <textarea id="edAbout" data-voice dir="auto" placeholder="What this company does, in a couple of sentences.">${esc(u.description || "")}</textarea>
         </div>
 
         <div class="details-bar">

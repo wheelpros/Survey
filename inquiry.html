@@ -125,6 +125,8 @@ h1{font-size:clamp(30px,4vw,44px);line-height:1.15;letter-spacing:-.5px;margin-b
 }
 </style>
 <script src="/assets/clarity.js" defer></script>
+<script src="/assets/auto-dir.js?v=1" defer></script>
+<script src="/assets/voice-input.js?v=1" defer></script>
 </head>
 <body>
 
@@ -326,7 +328,7 @@ function control(field){
   }
 
   if(field.field_type === "textarea"){
-    return `<textarea data-field-id="${field.id}" maxlength="${cap}" dir="auto"
+    return `<textarea data-voice data-field-id="${field.id}" maxlength="${cap}" dir="auto"
                       ${required ? "required" : ""}></textarea>`;
   }
 

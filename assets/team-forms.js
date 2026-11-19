@@ -91,7 +91,7 @@
       var req = q.required ? '<span class="req" aria-hidden="true">*</span>' : "";
       var field;
       if (q.type === "textarea") {
-        field = '<textarea class="tf-textarea" id="' + id + '" ' + (q.required ? "required" : "") + ' maxlength="10000"></textarea>';
+        field = '<textarea class="tf-textarea" data-voice id="' + id + '" ' + (q.required ? "required" : "") + ' maxlength="10000"></textarea>';
       } else if (q.type === "checkbox") {
         field = '<div class="q-opts" role="group" aria-labelledby="' + id + '-l">' + q.options.map(function (o) {
           return '<label class="q-opt"><input type="checkbox" value="' + tfEsc(o) + '"> ' + tfEsc(o) + '</label>';

@@ -239,37 +239,6 @@ input:focus,textarea:focus{
   font-weight:800;
   margin-bottom:20px;
 }
-.input-area{
-  position:relative;
-}
-
-input,textarea{
-  padding-left:50px;
-}
-
-.mic-btn{
-  position:absolute;
-  left:14px;
-  top:14px;
-  border:none;
-  background:transparent;
-  width:22px;
-  height:22px;
-  cursor:pointer;
-  font-size:18px;
-  color:#111;
-}
-
-.mic-btn.recording{
-  color:#c9000b;
-  animation:pulse 1s infinite;
-}
-
-@keyframes pulse{
-  0%{transform:scale(1);}
-  50%{transform:scale(1.18);}
-  100%{transform:scale(1);}
-}
 .question-chips{
   display:flex;
   flex-wrap:wrap;
@@ -430,6 +399,8 @@ input,textarea{
 }
 </style>
 <script src="/assets/clarity.js" defer></script>
+<script src="/assets/auto-dir.js?v=1" defer></script>
+<script src="/assets/voice-input.js?v=1" defer></script>
 </head>
 
 <body>
@@ -479,9 +450,6 @@ if(!surveyId){
 }
 
 let loadedQuestions = [];
-let recognition;
-let isRecording = false;
-let currentButton = null;
 const STORAGE_KEY = "survey_answers_" + surveyId;
 
 /* A checklist puts several boxes under one question id, so each box is keyed
@@ -768,13 +736,13 @@ function renderQuestions(){
           <textarea
             rows="4"
             dir="auto"
+            data-voice
             data-question-id="${q.id}"
             data-question-label="${esc(q.question_text)}"
             data-required="${required ? "1" : "0"}"
             placeholder="Type your answer here..."
             required
           ></textarea>
-          <button class="mic-btn" type="button" onclick="toggleVoice('${q.id}', this)">🎙</button>
         </div>
       `;
     }else{
@@ -783,13 +751,13 @@ function renderQuestions(){
           <input
             type="text"
             dir="auto"
+            data-voice
             data-question-id="${q.id}"
             data-question-label="${esc(q.question_text)}"
             data-required="${required ? "1" : "0"}"
             placeholder="Type your answer here..."
             required
           >
-          <button class="mic-btn" type="button" onclick="toggleVoice('${q.id}', this)">🎙</button>
         </div>
       `;
     }
@@ -829,97 +797,6 @@ function renderQuestions(){
       });
     });
 }
-function toggleVoice(fieldId, button){
-
-  if(isRecording){
-    stopVoice();
-    return;
-  }
-
-  const SpeechRecognition =
-    window.SpeechRecognition || window.webkitSpeechRecognition;
-
-  if(!SpeechRecognition){
-    alert("Use Google Chrome");
-    return;
-  }
-
-  const field = document.querySelector(`[data-question-id="${fieldId}"]`);
-
-  if(!field){
-    alert("Field not found");
-    return;
-  }
-
-  recognition = new SpeechRecognition();
-
-  recognition.lang = "en-US";
-  recognition.continuous = true;
-  recognition.interimResults = true;
-  recognition.maxAlternatives = 1;
-
-  let finalTranscript = field.value || "";
-
-  recognition.start();
-
-  isRecording = true;
-  currentButton = button;
-
-  button.innerHTML = "⏹";
-  button.classList.add("recording");
-
-  document.getElementById("status").classList.remove("error");
-  document.getElementById("status").innerText = "🎤 Listening...";
-
-  recognition.onresult = function(event){
-
-    let interimTranscript = "";
-
-    for(let i = event.resultIndex; i < event.results.length; i++){
-
-      let transcript = event.results[i][0].transcript;
-
-      if(event.results[i].isFinal){
-        finalTranscript += transcript + " ";
-      }else{
-        interimTranscript += transcript;
-      }
-    }
-
-    field.value = finalTranscript + interimTranscript;
-    field.classList.remove("field-error");
-    saveToLocalStorage();
-  };
-
-  recognition.onend = function(){
-    resetButton();
-  };
-
-  recognition.onerror = function(event){
-    console.log("Speech error:", event.error);
-    resetButton();
-  };
-}
-
-function stopVoice(){
-  if(recognition){
-    recognition.stop();
-  }
-
-  resetButton();
-}
-
-function resetButton(){
-  isRecording = false;
-
-  if(currentButton){
-    currentButton.innerHTML = "🎙";
-    currentButton.classList.remove("recording");
-  }
-
-  document.getElementById("status").innerText = "Ready";
-}
-
 function validateSurvey(){
 
   const fields = document.querySelectorAll("#questionsWrap input:not([type='checkbox']), #questionsWrap textarea");

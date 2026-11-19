@@ -15,7 +15,7 @@ require_once $root . "/api/permissions.php";
 /* What each role could do before - written out by hand, not read from
    PERMISSIONS, so changing a default is a deliberate edit in two places. */
 /* The pages everyone could open before Pages existed (they had no key), and
-   the daily-report keys each role starts with. */
+   the activity-report keys each role starts with. */
 $everyone = ["pages.dashboard", "pages.forms", "pages.content", "pages.projects", "pages.files",
     "pages.messages", "pages.notifications", "pages.daily_reports"];
 $before = [

@@ -42,7 +42,7 @@ const PERMISSION_AREAS = [
     "projects"  => "Projects",
     "inquiries" => "Inquiries",
     "team"      => "Team",
-    "reports"   => "Daily reports",
+    "reports"   => "Activity reports",
     "director"  => "Director only",
 ];
 
@@ -66,7 +66,7 @@ const PERMISSIONS = [
     "pages.messages"     => ["area" => "pages", "label" => "Open Messages", "roles" => ALL_ADMIN_ROLES],
     "pages.notifications" => ["area" => "pages", "label" => "Open Notifications", "roles" => ALL_ADMIN_ROLES],
     "events.view"        => ["area" => "pages", "label" => "Open Tracking - every admin's changes and all AI activity", "roles" => []],
-    "pages.daily_reports" => ["area" => "pages", "label" => "Open Daily Reports", "roles" => ALL_ADMIN_ROLES],
+    "pages.daily_reports" => ["area" => "pages", "label" => "Open Activity Reports", "roles" => ALL_ADMIN_ROLES],
 
     // Clients
     "clients.view_all"   => ["area" => "clients", "label" => "See every client, not only their own", "roles" => []],
@@ -102,11 +102,11 @@ const PERMISSIONS = [
     "team_forms.send"    => ["area" => "team", "label" => "Send forms to the team", "roles" => []],
     "team_forms.responses" => ["area" => "team", "label" => "See the answers to every team form, not only the ones they sent", "roles" => []],
 
-    // Daily reports (filling in your own report needs none of these)
-    "reports.create"     => ["area" => "reports", "label" => "Plan daily reports and templates for their team", "roles" => []],
-    "reports.self"       => ["area" => "reports", "label" => "Plan their own daily report when nobody planned one", "roles" => ["super_admin", "account_manager"]],
-    "reports.review"     => ["area" => "reports", "label" => "Review their team's daily reports", "roles" => ["super_admin", "account_manager"]],
-    "reports.view_all"   => ["area" => "reports", "label" => "See every daily report in every department", "roles" => []],
+    // Activity reports (filling in your own report needs none of these)
+    "reports.create"     => ["area" => "reports", "label" => "Plan and review activity reports, and templates, for their team", "roles" => []],
+    "reports.self"       => ["area" => "reports", "label" => "Plan their own activity report", "roles" => ["super_admin", "account_manager"]],
+    "reports.review"     => ["area" => "reports", "label" => "Review their team's activity reports", "roles" => ["super_admin", "account_manager"]],
+    "reports.view_all"   => ["area" => "reports", "label" => "See every activity report in every department", "roles" => []],
 
     // The Director's alone
     "settings.manage"    => ["area" => "director", "label" => "Change portal settings", "roles" => [], "owner_only" => true],

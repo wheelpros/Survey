@@ -1017,7 +1017,7 @@ export const myProject = {
 
 export const myPosts = page(myPost);
 
-// ── Daily reports (api/v1/daily-reports.php) ────────────────────────────
+// ── Activity reports (api/v1/activity-reports.php) ────────────────────────────
 
 const count = z.number().int();
 const reportStatus = z
@@ -1040,7 +1040,9 @@ const dailyItem = z.object({
   activities_total: count,
   to_review: count.describe("Done activities not reviewed yet"),
   planned_by: person,
-  reviewer: person.nullable().describe("Who the report goes to"),
+  reviewers: z.array(person).describe("Who sees and reviews it - any one of them completes the review"),
+  reviewer: person.nullable().describe("The first of reviewers (older clients)"),
+  challenge_priority: z.enum(["low", "medium", "high"]).nullable().describe("How urgent the author's challenge is; high means they need help"),
 });
 
 export const myDailyReports = {
@@ -1059,12 +1061,21 @@ export const teamDailyReports = {
   waiting_for_me: count.describe("Reports sent to me with Done work to review, any day"),
 };
 
+export const activityReportReviewers = {
+  can_plan_own: z.boolean().describe("Whether I may start my own report (plan_my_activity_report)"),
+  reviewers: z.array(
+    z.object({ id, name: text, is_director: z.boolean(), position: maybe, department: maybe })
+  ),
+  default_ids: z.array(id).describe("The portal's starting pick: my Account Manager, else the Director"),
+};
+
 export const dailyReport = {
   ...dailyItem.shape,
   can_edit: z.boolean().describe("I'm its author and it's open: any activity not reviewed can change"),
   can_fix_sent_back: z.boolean().describe("I'm its author and only the activities sent back to me can change"),
   can_review_activities: z.boolean(),
   can_review_report: z.boolean(),
+  can_add_own_activities: z.boolean().describe("I'm its author, someone else planned it, and I may add my own activities (add_report_activity)"),
   review_blocked: z.boolean().describe("The report can't be reviewed while an activity waits on changes"),
   reviewed: z.object({ by: text, at: utcTime }).nullable(),
   activities: z.array(
@@ -1074,11 +1085,17 @@ export const dailyReport = {
       status: z.enum(["todo", "in_progress", "follow_up", "done"]),
       count_value: count.nullable(),
       review: z.object({ state: z.enum(["approved", "changes"]), by: text, at: utcTime }).nullable(),
+      added_by_author: z.boolean().describe("Its author added it to a plan someone else made"),
       awaiting_review: z.boolean(),
       sent_back: z.boolean(),
       untrusted_content: untrusted({ title: text, description: text, outcome: text, count_unit: maybe, feedback: text }),
     })
   ),
   files: z.array(z.object({ id, size: count, untrusted_content: untrusted({ name: text }) })),
-  untrusted_content: untrusted({ reviewer_note: text }),
+  untrusted_content: untrusted({
+    reviewer_note: text,
+    outstanding: text.describe("End of day: work left"),
+    priorities: text.describe("End of day: tomorrow's priorities"),
+    challenges: text.describe("End of day: challenges or assistance required"),
+  }),
 };

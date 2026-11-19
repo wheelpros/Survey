@@ -448,37 +448,41 @@ export const READ_TOOLS = [
     path: "team-forms.php",
   },
 
-  // ── Daily reports (planned days, filled in and reviewed activity by activity) ──
+  // ── Activity reports (planned days, filled in and reviewed activity by activity) ──
   {
-    name: "list_my_daily_reports",
-    scope: "daily_reports:read",
-    title: "My daily reports",
+    name: "list_my_activity_reports",
+    scope: "activity_reports:read",
+    title: "My activity reports",
     description:
-      "Your own daily reports: today's first (today_report), then your last 30, newest first, each with how many " +
-      "activities are done and where it stands. Open one with get_daily_report; fill it in with " +
-      "update_daily_activity and close the day with close_daily_report.",
+      "Your own activity reports: today's first (today_report), then your last 30, newest first, each with how many " +
+      "activities are done, where it stands and who reviews it. Open one with get_activity_report; fill it in with " +
+      "update_report_activity (and add_report_activity on a report someone else planned), write the end of the day " +
+      "with save_end_of_day, and close the day with close_activity_report. No report today and can_plan_own: " +
+      "start one with plan_my_activity_report.",
     input: {},
     output: S.myDailyReports,
-    path: "daily-reports.php",
+    path: "activity-reports.php",
   },
   {
-    name: "get_daily_report",
-    scope: "daily_reports:read",
-    title: "One daily report",
+    name: "get_activity_report",
+    scope: "activity_reports:read",
+    title: "One activity report",
     description:
-      "A daily report's activities - status, outcome, count, and each one's review - plus its files and what you " +
-      "may do with it (can_edit, can_fix_sent_back, can_review_activities, can_review_report). Only reports you " +
-      "may see: your own, the ones you planned or review, your team's if you review it.",
-    input: { id: recordId("The report's id - from list_my_daily_reports, list_team_daily_reports or a notification") },
+      "An activity report's activities - status, outcome, count, each one's review, and whether its author added it " +
+      "(added_by_author) - plus its reviewers, the author's end-of-day note (outstanding work, tomorrow's priorities, " +
+      "challenges with challenge_priority; high means they need help), its files and what you may do with it " +
+      "(can_edit, can_fix_sent_back, can_add_own_activities, can_review_activities, can_review_report). Only reports " +
+      "you may see: your own, the ones you planned or review, your team's if you review it.",
+    input: { id: recordId("The report's id - from list_my_activity_reports, list_team_activity_reports or a notification") },
     output: S.dailyReport,
-    path: "daily-reports.php",
+    path: "activity-reports.php",
   },
   {
-    name: "list_team_daily_reports",
-    scope: "daily_reports:read",
-    title: "Team daily reports",
+    name: "list_team_activity_reports",
+    scope: "activity_reports:read",
+    title: "Team activity reports",
     description:
-      "The daily reports you review, plan or may see, for a day or a range (today by default), the ones needing " +
+      "The activity reports you review, plan or may see, for a day or a range (today by default), the ones needing " +
       "someone first. status awaiting lists those with Done work to review; waiting_for_me counts the ones sent " +
       "to you. For reviewers, planners and whoever sees every report.",
     input: {
@@ -489,8 +493,21 @@ export const READ_TOOLS = [
       ...paging,
     },
     output: S.teamDailyReports,
-    path: "daily-reports.php",
+    path: "activity-reports.php",
     query: (args) => ({ ...args, team: 1 }),
+  },
+  {
+    name: "list_activity_report_reviewers",
+    scope: "activity_reports:read",
+    title: "Who can review my activity report",
+    description:
+      "The people you can pick to review your own activity report: the Director and whoever reviews team reports, " +
+      "never you. default_ids is the portal's starting pick (your Account Manager, else the Director). Use it before " +
+      "plan_my_activity_report; can_plan_own says whether you may start your own report at all.",
+    input: {},
+    output: S.activityReportReviewers,
+    path: "activity-reports.php",
+    query: () => ({ reviewers: 1 }),
   },
 
   // ── Messages (the portal's Messages page: direct chats with other admins) ──

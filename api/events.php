@@ -128,7 +128,7 @@ const EVENT_AREAS = [
     "source"       => "Source files",
     "announcement" => "Announcements",
     "team_form"    => "Team forms",
-    "report"       => "Daily reports",
+    "report"       => "Activity reports",
     "admin"        => "Team",
     "settings"     => "Settings",
 ];

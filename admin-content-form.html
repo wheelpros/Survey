@@ -1381,6 +1381,8 @@
     <link rel="stylesheet" href="assets/shell.css?v=8" />
   <script src="assets/permissions.js?v=2"></script>
   <script src="/assets/clarity.js" defer></script>
+  <script src="/assets/auto-dir.js?v=1" defer></script>
+  <script src="/assets/voice-input.js?v=1" defer></script>
 </head>
 
   <body>
@@ -1946,6 +1948,7 @@
                   <label for="notes">Notes</label>
                   <textarea
                     id="notes"
+                    data-voice
                     maxlength="5000"
                     placeholder="e.g. Use the July product shots, keep the caption short"
                   ></textarea>
@@ -3421,7 +3424,7 @@
               : '<span class="status-pill ' + esc(status) + '">' + esc(statuses[status] || status) + "</span>";
 
             const noteHtml = writesNotes
-              ? '<textarea data-id="' + esc(person.id) + '" maxlength="2000" dir="auto" placeholder="What they do, and any details" aria-label="What ' +
+              ? '<textarea data-voice data-id="' + esc(person.id) + '" maxlength="2000" dir="auto" placeholder="What they do, and any details" aria-label="What ' +
                 esc(person.name) + ' does">' + esc(note) + "</textarea>"
               : '<div class="note' + (note ? "" : " empty") + '" dir="auto">' + (note ? esc(note) : "Nothing noted yet.") + "</div>";
 

@@ -1,11 +1,12 @@
 <?php
 
 /*
-| Daily reports and departments - required by run.php near the end, with its
+| Activity reports and departments - required by run.php near the end, with its
 | own admins so what earlier files changed doesn't matter.
 |
-|   1. Planning: reports.create for the team, one report per person per day,
-|      nobody reviews their own report (audit F8).
+|   1. Planning: reports.create for the team, one report per person per day;
+|      the planner reviews it. Your own report goes to the reviewers you pick
+|      (the Director, or reports.review), never yourself (audit F8).
 |   2. The day: the author edits in place, the reviewer reviews Done work as
 |      it lands; Needs changes reopens the activity.
 |   3. Edit plan keeps work (F3), delete only before anything happened (F4).
@@ -13,7 +14,7 @@
 |   5. A send-back on an earlier day can still be fixed (F1), and counts in
 |      the badge (F11).
 |   6. reports.view_all is viewing only (F6).
-|   7. "Open Daily Reports" switched off refuses the endpoints (F2).
+|   7. "Open Activity Reports" switched off refuses the endpoints (F2).
 |   8. Templates belong to their maker and the Director (F13).
 |   9. Departments: the Director's to change.
 |  10. Notifications: who hears what, and reviews merge into one row.
@@ -34,12 +35,12 @@ $drToday = (new DateTime("now", new DateTimeZone("UTC")))->format("Y-m-d");
 
 function drPost($token, array $body)
 {
-    return post("api/daily-report-writes.php", $token, $body);
+    return post("api/activity-report-writes.php", $token, $body);
 }
 
 function drGet($token, $query)
 {
-    return pageGet("api/daily-reports.php?" . $query, $token);
+    return pageGet("api/activity-reports.php?" . $query, $token);
 }
 
 /** Unread notifications of one type for one admin: [[title, body, link], ...]. */
@@ -64,21 +65,27 @@ $acts = [
     ["title" => "Book rooms", "description" => ""],
 ];
 
-[$status, $r] = drPost($hana, ["action" => "plan", "admin_ids" => [43], "reviewer_id" => 1, "activities" => $acts]);
+[$status, $r] = drPost($hana, ["action" => "plan", "admin_ids" => [43], "activities" => $acts]);
 check("daily: an Admin can't plan for others", $status === 403 && !$r["success"], "HTTP $status " . json_encode($r));
 
-[$status, $r] = drPost($owner, ["action" => "plan", "admin_ids" => [41], "reviewer_id" => 41, "activities" => $acts]);
-check("daily: nobody reviews their own report", $status === 422 && strpos($r["message"] ?? "", "can't review their own") !== false, json_encode($r));
+[$status, $r] = drPost($mark, ["action" => "plan", "self" => true, "reviewer_ids" => [], "activities" => $acts]);
+check("daily: your own report needs a reviewer", $status === 422 && strpos($r["message"] ?? "", "Pick who reviews it") !== false, json_encode($r));
+[$status, $r] = drPost($mark, ["action" => "plan", "self" => true, "reviewer_ids" => [41], "activities" => $acts]);
+check("daily: nobody reviews their own report", $status === 422 && strpos($r["message"] ?? "", "can't review your own") !== false, json_encode($r));
+[$status, $r] = drPost($mark, ["action" => "plan", "self" => true, "reviewer_ids" => [43], "activities" => $acts]);
+check("daily: reviewers must review team reports", $status === 422 && strpos($r["message"] ?? "", "can't review activity reports") !== false, json_encode($r));
 
-[$status, $r] = drPost($owner, ["action" => "plan", "admin_ids" => [42], "reviewer_id" => 41, "activities" => $acts]);
+[$status, $r] = drPost($owner, ["action" => "plan", "admin_ids" => [42], "activities" => $acts]);
 check("daily: the Director plans Hana's day", $status === 200 && $r["success"] && count($r["ids"] ?? []) === 1, json_encode($r));
 $hanaReport = (int) ($r["ids"][0] ?? 0);
+check("daily: ...and reviews it herself", array_column(drReport($owner, $hanaReport)["report"]["reviewers"] ?? [], "id") === [1],
+    json_encode(drReport($owner, $hanaReport)["report"]["reviewers"] ?? null));
 
 $n = drNotes($pdo, 42, "daily_planned");
 check("notify: Hana hears her day was planned", count($n) === 1 && strpos($n[0][0], "Olivia planned your day") === 0
-    && $n[0][2] === "daily-report-details.html?id=$hanaReport", json_encode($n));
+    && $n[0][2] === "activity-report-details.html?id=$hanaReport", json_encode($n));
 
-[$status, $r] = drPost($owner, ["action" => "plan", "admin_ids" => [42], "reviewer_id" => 41, "activities" => $acts]);
+[$status, $r] = drPost($owner, ["action" => "plan", "admin_ids" => [42], "activities" => $acts]);
 check("daily: one report per person per day", $status === 409, "HTTP $status " . json_encode($r));
 
 [$status, $r] = drGet($hana, "action=pending_count");
@@ -142,16 +149,16 @@ check("daily: worked-on activities are locked in the plan", $byId[$a[0]]["plan_l
 
 $renamed = $plan;
 $renamed[0]["title"] = "Calls (renamed)";
-[$status, $r] = drPost($owner, ["action" => "plan", "id" => $hanaReport, "reviewer_id" => 41, "activities" => $renamed]);
+[$status, $r] = drPost($owner, ["action" => "plan", "id" => $hanaReport, "activities" => $renamed]);
 check("daily: Edit plan can't retitle worked-on work (F3)", $status === 422 && strpos($r["message"] ?? "", "its title can't change") !== false, json_encode($r));
 
-[$status, $r] = drPost($owner, ["action" => "plan", "id" => $hanaReport, "reviewer_id" => 41, "activities" => array_slice($plan, 1)]);
+[$status, $r] = drPost($owner, ["action" => "plan", "id" => $hanaReport, "activities" => array_slice($plan, 1)]);
 check("daily: nor remove it", $status === 422 && strpos($r["message"] ?? "", "can't be removed") !== false, json_encode($r));
 
 $edited = $plan;
 $edited[2]["title"] = "Book meeting rooms";
 $edited[] = ["id" => 0, "title" => "Order supplies", "description" => "", "count_unit" => null];
-[$status, $r] = drPost($owner, ["action" => "plan", "id" => $hanaReport, "reviewer_id" => 41, "activities" => $edited]);
+[$status, $r] = drPost($owner, ["action" => "plan", "id" => $hanaReport, "activities" => $edited]);
 check("daily: untouched ones change and new ones are added", $status === 200 && $r["success"], json_encode($r));
 $rep = drReport($hana, $hanaReport);
 $titles = array_column($rep["report"]["activities"], "title");
@@ -167,8 +174,8 @@ check("daily: a started report can't be deleted (F4)", $status === 422, json_enc
 [$status, $r] = drPost($hana, ["action" => "close", "id" => $hanaReport]);
 check("daily: Hana closes the day", $status === 200 && $r["success"], json_encode($r));
 
-$n = drNotes($pdo, 41, "daily_report");
-check("notify: Mark hears she closed it", count($n) === 1 && strpos($n[0][0], "Hana closed their daily report") === 0, json_encode($n));
+$n = drNotes($pdo, 1, "daily_report");
+check("notify: her reviewer (the Director, who planned it) hears she closed it", count($n) === 1 && strpos($n[0][0], "Hana closed their activity report") === 0, json_encode($n));
 
 $rep = drReport($hana, $hanaReport);
 check("daily: closed, she may only fix what was sent back", $rep["can_fill"] === false && $rep["can_fix"] === true, json_encode($rep));
@@ -188,7 +195,7 @@ check("daily: the report can't be reviewed while work waits on changes", $rep["r
 ]]);
 check("daily: Hana fixes the sent-back one", $status === 200 && $r["success"], json_encode($r));
 
-$n = drNotes($pdo, 41, "daily_report");
+$n = drNotes($pdo, 1, "daily_report");
 check("notify: ...and, in its place, that she fixed what he sent back", count($n) === 1 && strpos($n[0][0], "Hana updated what you sent back") === 0, json_encode($n));
 
 [$status, $r] = drPost($mark, ["action" => "review", "id" => $hanaReport, "feedback" => "Thanks"]);
@@ -202,7 +209,7 @@ check("notify: the report's review replaces the activity row", drNotes($pdo, 42,
 
 // ── 5. A send-back on an earlier day (F1, F11) ───────────────────────────
 
-[$status, $r] = drPost($owner, ["action" => "plan", "admin_ids" => [43], "reviewer_id" => 1, "activities" => [["title" => "Screen CVs", "count_unit" => "CVs"]]]);
+[$status, $r] = drPost($owner, ["action" => "plan", "admin_ids" => [43], "activities" => [["title" => "Screen CVs", "count_unit" => "CVs"]]]);
 $dinaReport = (int) ($r["ids"][0] ?? 0);
 $da = array_column(drReport($dina, $dinaReport)["report"]["activities"], "id");
 drPost($dina, ["action" => "update_activities", "id" => $dinaReport, "activities" => [["id" => $da[0], "status" => "done", "outcome" => "12", "count_value" => 12]]]);
@@ -230,7 +237,7 @@ check("daily: Team reports pages by cursor", $status === 200 && count($r["items"
 [$status, $r] = drGet($owner, "action=list&from=" . day(-1) . "&to=$drToday&status=reviewed");
 check("daily: and filters by status", array_column($r["items"] ?? [], "id") === [$hanaReport], json_encode($r));
 
-// ── 7. "Open Daily Reports" off (F2) ─────────────────────────────────────
+// ── 7. "Open Activity Reports" off (F2) ─────────────────────────────────────
 
 seed($pdo, "role_permissions", [["role" => "seo_admin", "permission" => "pages.daily_reports", "allowed" => 0]]);
 [$status, $r] = drGet($dina, "action=pending_count");
@@ -256,7 +263,7 @@ check("daily: ...but Mark can still use it", $status === 200 && ($r["templates"]
 
 // ── 10. Withdrawn ────────────────────────────────────────────────────────
 
-[, $r] = drPost($owner, ["action" => "plan", "admin_ids" => [44], "reviewer_id" => 41, "activities" => $acts]);
+[, $r] = drPost($owner, ["action" => "plan", "admin_ids" => [44], "activities" => $acts]);
 $veraReport = (int) ($r["ids"][0] ?? 0);
 [$status, $r] = drPost($owner, ["action" => "delete", "id" => $veraReport]);
 $n = drNotes($pdo, 44, "daily_report_deleted");
@@ -289,57 +296,115 @@ check("dashboard: no team, no Team tasks", $status === 200 && !array_key_exists(
 
 // ── 13. Through the AI connection (api/v1) ───────────────────────────────
 
-[, $r] = drPost($mark, ["action" => "plan", "self" => true, "reviewer_id" => 1, "activities" => [
+[$status, $r] = get("activity-reports.php?reviewers=1", $mark);
+$fixtures["list_activity_report_reviewers"] = $r["data"] ?? null;
+$revIds = array_column($r["data"]["reviewers"] ?? [], "id");
+check("v1 daily: list_activity_report_reviewers - the Director and team reviewers, never me", $status === 200
+    && in_array(1, $revIds, true) && in_array(44, $revIds, true) && !in_array(41, $revIds, true) && !in_array(43, $revIds, true)
+    && ($r["data"]["can_plan_own"] ?? null) === true && ($r["data"]["default_ids"] ?? null) === [1], json_encode($r));
+
+refusedChange("v1 daily: plan_my_activity_report needs an eligible reviewer", $mark, "plan_my_activity_report",
+    ["reviewers" => [43], "activities" => [["title" => "x"]]], 422);
+refusedChange("v1 daily: ...and needs Plan their own activity report", $hana, "plan_my_activity_report",
+    ["reviewers" => [1], "activities" => [["title" => "x"]]], 403);
+[, $done] = change("v1 daily: Mark starts his own day", $mark, "plan_my_activity_report", ["reviewers" => [1, 44], "activities" => [
     ["title" => "Northwind proposal", "description" => "Scope and pricing"],
     ["title" => "Client calls", "count_unit" => "calls"],
 ]]);
-$markReport = (int) ($r["ids"][0] ?? 0);
+$markReport = (int) ($done["data"]["result"]["report_id"] ?? 0);
+refusedChange("v1 daily: one report a day", $mark, "plan_my_activity_report", ["reviewers" => [1], "activities" => [["title" => "x"]]], 409);
 check("v1 daily: Mark plans his own day", $markReport > 0, json_encode($r));
+check("daily: his own report goes to both his picks", array_column(drReport($mark, $markReport)["report"]["reviewers"] ?? [], "id") === [1, 44],
+    json_encode(drReport($mark, $markReport)["report"]["reviewers"] ?? null));
+$rep = drReport($vera, $markReport);
+check("daily: a picked reviewer sees it and may review it", ($rep["report"]["id"] ?? 0) === $markReport && $rep["can_review_activities"] === true, json_encode($rep));
 
-[$status, $r] = get("daily-reports.php", $mark);
-$fixtures["list_my_daily_reports"] = $r["data"] ?? null;
-check("v1 daily: list_my_daily_reports has today's", $status === 200 && ($r["data"]["today_report"]["id"] ?? 0) === $markReport, "HTTP $status " . json_encode($r));
+[$status, $r] = drPost($mark, ["action" => "end_of_day", "id" => $markReport, "outstanding" => "", "priorities" => "Northwind call", "challenges" => "No pricing yet"]);
+check("daily: a challenge needs how urgent it is", $status === 422 && strpos($r["message"] ?? "", "how urgent") !== false, json_encode($r));
+[$status, $r] = drPost($mark, ["action" => "end_of_day", "id" => $markReport, "outstanding" => "Half the proposal", "priorities" => "Northwind call",
+    "challenges" => "No pricing yet", "challenge_priority" => "high"]);
+$rep = drReport($mark, $markReport)["report"] ?? [];
+check("daily: the end-of-day note is saved", $status === 200 && $rep["outstanding"] === "Half the proposal" && $rep["priorities"] === "Northwind call"
+    && $rep["challenges"] === "No pricing yet" && $rep["challenge_priority"] === "high", json_encode($rep));
+[$status, $r] = drPost($vera, ["action" => "end_of_day", "id" => $markReport, "outstanding" => "x"]);
+check("daily: only the author writes it", $status === 403, "HTTP $status " . json_encode($r));
 
-[$status, $r] = get("daily-reports.php?id=$markReport", $mark);
+[$status, $r] = get("activity-reports.php", $mark);
+$fixtures["list_my_activity_reports"] = $r["data"] ?? null;
+check("v1 daily: list_my_activity_reports has today's", $status === 200 && ($r["data"]["today_report"]["id"] ?? 0) === $markReport, "HTTP $status " . json_encode($r));
+
+[$status, $r] = get("activity-reports.php?id=$markReport", $mark);
 $ma = array_column($r["data"]["activities"] ?? [], "id");
-check("v1 daily: get_daily_report, typed text under untrusted_content", $status === 200 && count($ma) === 2
+check("v1 daily: get_activity_report, typed text under untrusted_content", $status === 200 && count($ma) === 2
     && ($r["data"]["activities"][0]["untrusted_content"]["title"] ?? "") === "Northwind proposal" && $r["data"]["can_edit"] === true, json_encode($r));
 
-[$status] = get("daily-reports.php?id=$markReport", $dina);
+[$status] = get("activity-reports.php?id=$markReport", $dina);
 check("v1 daily: someone else's report is a 404", $status === 404, "HTTP $status");
 
-change("v1 daily: Mark saves the calls as Done", $mark, "update_daily_activity",
+change("v1 daily: Mark saves the calls as Done", $mark, "update_report_activity",
     ["report" => $markReport, "activity" => $ma[1], "status" => "done", "outcome" => "Called 6 leads", "count" => 6]);
-refusedChange("v1 daily: nothing changes, nothing to prepare", $mark, "update_daily_activity",
+refusedChange("v1 daily: nothing changes, nothing to prepare", $mark, "update_report_activity",
     ["report" => $markReport, "activity" => $ma[1], "status" => "done"], 409);
-refusedChange("v1 daily: nor on someone else's report", $dina, "update_daily_activity",
+refusedChange("v1 daily: nor on someone else's report", $dina, "update_report_activity",
     ["report" => $markReport, "activity" => $ma[0], "status" => "done"], 404);
-refusedChange("v1 daily: a count needs a counted activity", $mark, "update_daily_activity",
+refusedChange("v1 daily: a count needs a counted activity", $mark, "update_report_activity",
     ["report" => $markReport, "activity" => $ma[0], "count" => 3], 422);
-change("v1 daily: Mark closes the day", $mark, "close_daily_report", ["id" => $markReport]);
+change("v1 daily: Mark closes the day", $mark, "close_activity_report", ["id" => $markReport, "outstanding" => "Proposal pricing"]);
+$n1 = drNotes($pdo, 1, "daily_report"); $n44 = drNotes($pdo, 44, "daily_report");
+$mine = function ($n) use ($markReport) { return array_values(array_filter($n, function ($x) use ($markReport) { return $x[2] === "activity-report-details.html?id=$markReport"; })); };
+check("notify: both reviewers hear he closed it, and that he needs help", count($mine($n1)) === 1 && count($mine($n44)) === 1
+    && strpos($mine($n44)[0][1] ?? "", "Needs help") !== false, json_encode([$n1, $n44]));
+check("daily: closing kept the rest of the note", (drReport($mark, $markReport)["report"]["priorities"] ?? "") === "Northwind call"
+    && drReport($mark, $markReport)["report"]["outstanding"] === "Proposal pricing", json_encode(drReport($mark, $markReport)["report"] ?? null));
 
-refusedChange("v1 daily: an Admin has no review scope", $dina, "review_daily_activity",
+[, $r] = drPost($owner, ["action" => "plan", "admin_ids" => [44], "activities" => [["title" => "Quarterly figures", "description" => ""]]]);
+$veraDay = (int) ($r["ids"][0] ?? 0);
+check("daily: the Director plans Vera's day", $veraDay > 0, json_encode($r));
+[$status, $r] = get("activity-reports.php?id=$veraDay", $vera);
+check("v1 daily: Vera may add her own activities", ($r["data"]["can_add_own_activities"] ?? null) === true, json_encode($r));
+refusedChange("v1 daily: not on Mark's own plan", $mark, "add_report_activity", ["report" => $markReport, "title" => "Extra"], 403);
+change("v1 daily: Vera adds one", $vera, "add_report_activity", ["report" => $veraDay, "title" => "Budget call", "count_unit" => "calls"]);
+[$status, $r] = get("activity-reports.php?id=$veraDay", $vera);
+$own = array_values(array_filter($r["data"]["activities"] ?? [], function ($x) { return $x["added_by_author"]; }));
+check("v1 daily: it's marked as added by her", count($own) === 1 && $own[0]["untrusted_content"]["title"] === "Budget call", json_encode($r["data"]["activities"] ?? null));
+$planned = array_values(array_filter($r["data"]["activities"] ?? [], function ($x) { return !$x["added_by_author"]; }));
+refusedChange("v1 daily: a planned activity can't be removed", $vera, "remove_report_activity", ["report" => $veraDay, "activity" => $planned[0]["id"] ?? 0], 403);
+change("v1 daily: Vera takes hers back", $vera, "remove_report_activity", ["report" => $veraDay, "activity" => $own[0]["id"] ?? 0]);
+refusedChange("v1 daily: a challenge needs a priority", $vera, "save_end_of_day", ["report" => $veraDay, "challenges" => "Late figures"], 422);
+change("v1 daily: Vera writes the end of day", $vera, "save_end_of_day",
+    ["report" => $veraDay, "priorities" => "Board pack", "challenges" => "Late figures", "challenge_priority" => "medium"]);
+change("v1 daily: ...then only the outstanding work", $vera, "save_end_of_day", ["report" => $veraDay, "outstanding" => "Two sheets left"]);
+[$status, $r] = get("activity-reports.php?id=$veraDay", $vera);
+check("v1 daily: what's given changes, the rest stays", ($r["data"]["untrusted_content"]["outstanding"] ?? "") === "Two sheets left"
+    && $r["data"]["untrusted_content"]["priorities"] === "Board pack" && $r["data"]["challenge_priority"] === "medium", json_encode($r));
+refusedChange("v1 daily: nothing changed, nothing to prepare", $vera, "save_end_of_day", ["report" => $veraDay, "outstanding" => "Two sheets left"], 409);
+
+refusedChange("v1 daily: an Admin has no review scope", $dina, "review_report_activity",
     ["activity" => $ma[1], "decision" => "approved"], 403);
-refusedChange("v1 daily: sending back needs feedback", $owner, "review_daily_activity",
+refusedChange("v1 daily: sending back needs feedback", $owner, "review_report_activity",
     ["activity" => $ma[1], "decision" => "changes"], 422);
-change("v1 daily: the Director sends it back", $owner, "review_daily_activity",
+change("v1 daily: the Director sends it back", $owner, "review_report_activity",
     ["activity" => $ma[1], "decision" => "changes", "feedback" => "Which leads?"]);
-refusedChange("v1 daily: the report can't be reviewed while work waits", $owner, "review_daily_report", ["id" => $markReport], 409);
-refusedChange("v1 daily: closed, only sent-back work changes", $mark, "update_daily_activity",
+refusedChange("v1 daily: the report can't be reviewed while work waits", $owner, "review_activity_report", ["id" => $markReport], 409);
+refusedChange("v1 daily: closed, only sent-back work changes", $mark, "update_report_activity",
     ["report" => $markReport, "activity" => $ma[0], "status" => "done"], 422);
-change("v1 daily: Mark fixes it", $mark, "update_daily_activity",
+change("v1 daily: Mark fixes it", $mark, "update_report_activity",
     ["report" => $markReport, "activity" => $ma[1], "status" => "done", "outcome" => "Called 6 leads from the Acme list"]);
 
-[$status, $r] = get("daily-reports.php?team=1&from=" . day(-1) . "&to=$drToday", $owner);
-$fixtures["list_team_daily_reports"] = $r["data"] ?? null;
-check("v1 daily: list_team_daily_reports, awaiting first", $status === 200 && ($r["data"]["items"][0]["id"] ?? 0) === $markReport
+[$status, $r] = get("activity-reports.php?team=1&from=" . day(-1) . "&to=$drToday", $owner);
+$fixtures["list_team_activity_reports"] = $r["data"] ?? null;
+check("v1 daily: list_team_activity_reports, awaiting first", $status === 200 && ($r["data"]["items"][0]["id"] ?? 0) === $markReport
     && ($r["data"]["items"][0]["status"] ?? "") === "awaiting", json_encode($r));
-[$status] = get("daily-reports.php?team=1", $dina);
+[$status] = get("activity-reports.php?team=1", $dina);
 check("v1 daily: an Admin has no Team reports", $status === 403, "HTTP $status");
 
-change("v1 daily: the Director reviews the report", $owner, "review_daily_report", ["id" => $markReport, "note" => "Good day"]);
-[$status, $r] = get("daily-reports.php?id=$markReport", $mark);
-$fixtures["get_daily_report"] = $r["data"] ?? null;
+change("v1 daily: the Director reviews the report", $owner, "review_activity_report", ["id" => $markReport, "note" => "Good day"]);
+check("notify: one reviewer completes it, and the other's \"ready\" row goes", count($mine(drNotes($pdo, 44, "daily_report"))) === 0,
+    json_encode(drNotes($pdo, 44, "daily_report")));
+[$status, $r] = drPost($vera, ["action" => "review", "id" => $markReport, "feedback" => ""]);
+check("daily: ...and can't be reviewed twice", $status !== 200, "HTTP $status " . json_encode($r));
+[$status, $r] = get("activity-reports.php?id=$markReport", $mark);
+$fixtures["get_activity_report"] = $r["data"] ?? null;
 check("v1 daily: reviewed, with the history of the send-back", ($r["data"]["status"] ?? "") === "reviewed"
     && ($r["data"]["untrusted_content"]["reviewer_note"] ?? "") === "Good day"
     && ($r["data"]["activities"][1]["review"]["state"] ?? "") === "approved", json_encode($r));

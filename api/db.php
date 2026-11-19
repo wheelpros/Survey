@@ -105,7 +105,7 @@ const ADMIN_EXTRA_COLUMNS = [
     "avatar_path" => "VARCHAR(255) NULL",
 
     /* The department they work in (departments.id), set on the Add / Edit
-       admin popup. Daily reports are planned by department, and Tracking
+       admin popup. Activity reports are planned by department, and Tracking
        filters by it. NULL: no department yet. */
     "department_id" => "INT NULL",
 ];
@@ -1695,17 +1695,19 @@ function ensureDepartmentsTable(PDO $pdo)
 }
 
 /**
- * Daily reports (api/daily-report-lib.php has the rules):
+ * Activity reports (api/activity-report-lib.php has the rules):
  *
  *   daily_reports                    one per person per day, planned by
- *                                    someone (or themselves), closed by them,
- *                                    reviewed by one reviewer
+ *                                    someone (or themselves), closed by them
+ *                                    with an end-of-day note
+ *   daily_report_reviewers           who reviews each one: the planner, or the
+ *                                    people picked for your own report
  *   daily_report_activities          the day's activities; the latest review
  *                                    of each sits on its row
  *   daily_report_activity_reviews    earlier reviews of an activity (history)
  *   daily_report_templates           reusable activity lists (JSON)
  *
- * Files are attachments with owner_type 'daily_report'. sql/daily_reports.sql
+ * Files are attachments with owner_type 'daily_report'. sql/activity_reports.sql
  * is the same to run by hand.
  */
 function ensureDailyReportTables(PDO $pdo)
@@ -1788,11 +1790,51 @@ function ensureDailyReportTables(PDO $pdo)
               KEY idx_active (active, name)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
+
+        // Who sees and reviews a report: the planner, or - for your own -
+        // the people you picked. Any one of them completes the review.
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS daily_report_reviewers (
+              report_id INT NOT NULL,
+              admin_id  INT NOT NULL,
+              PRIMARY KEY (report_id, admin_id),
+              KEY idx_admin (admin_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+
+        $stmt = $pdo->query("
+            SELECT COLUMN_NAME FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'daily_reports'
+        ");
+        $existing = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        foreach (DAILY_REPORT_EXTRA_COLUMNS as $column => $type) {
+            if (!in_array($column, $existing, true)) {
+                $pdo->exec("ALTER TABLE daily_reports ADD COLUMN `$column` $type");
+            }
+        }
+
+        // Reports from before the reviewers table: their one reviewer. Runs
+        // until every report has a row, then finds nothing to copy.
+        $pdo->exec("
+            INSERT IGNORE INTO daily_report_reviewers (report_id, admin_id)
+            SELECT r.id, r.reviewer_admin_id FROM daily_reports r
+            WHERE r.reviewer_admin_id IS NOT NULL
+              AND NOT EXISTS (SELECT 1 FROM daily_report_reviewers x WHERE x.report_id = r.id)
+        ");
     } catch (PDOException $e) {
-        // Read-only DB user: run sql/daily_reports.sql by hand. The endpoints
-        // answer "Daily reports aren't set up yet" until then.
+        // Read-only DB user: run sql/activity_reports.sql by hand. The endpoints
+        // answer "Activity reports aren't set up yet" until then.
     }
 }
+
+/* The end of the day, filled in by the author: what's left, what's next, and
+   anything they need help with (with how urgent it is). */
+const DAILY_REPORT_EXTRA_COLUMNS = [
+    "outstanding"        => "TEXT NULL",
+    "priorities"         => "TEXT NULL",
+    "challenges"         => "TEXT NULL",
+    "challenge_priority" => "VARCHAR(6) NULL",
+];
 
 /**
  * Project Management: projects, the task updates published against them, and

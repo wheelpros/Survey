@@ -241,6 +241,7 @@ select.client-filter{
 /* ── Team overview (the Director) ── */
 #teamSection[hidden]{display:none}
 .team-tools{align-items:center}
+.person-filter[hidden]{display:none}
 .person-filter{display:flex;align-items:center;gap:8px;margin:0}
 .person-filter span{font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
 .person-filter select{-webkit-appearance:none;appearance:none;background:#fff url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%23667085%27 stroke-width=%272.5%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3E%3Cpolyline points=%276 9 12 15 18 9%27/%3E%3C/svg%3E") no-repeat right 12px center/12px;height:32px;min-width:170px;border:1px solid #dfe3ea;border-radius:20px;padding:0 34px 0 12px;font:inherit;font-size:12px;font-weight:700;color:var(--text);cursor:pointer}
@@ -273,30 +274,6 @@ select.client-filter{
 .dash-tabs button[aria-selected="true"]{color:var(--text);border-bottom-color:var(--text)}
 .dash-tabs button:focus-visible{outline:2px solid var(--nav-active,#1b1e3a);outline-offset:2px;border-radius:6px}
 
-/* ── Daily reports at a glance ── */
-:root{--dr-planned:#98a2b3;--dr-progress:var(--c-doing);--dr-awaiting:var(--c-new);--dr-changes:#dc6803;--dr-sent:#7a5af8;--dr-reviewed:var(--c-done)}
-.dr-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}
-.dr-head h2{font-size:16px;font-weight:800;margin-right:auto}
-.dr-all{font-size:13px;font-weight:700;color:var(--text);text-decoration:none;border-bottom:1px solid var(--line)}
-.dr-all:hover{border-bottom-color:var(--text)}
-.dr-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
-.dr-card{display:flex;align-items:center;gap:16px;padding:16px 18px;text-decoration:none;color:inherit}
-.dr-card .dr-text{flex:1;min-width:0}
-.dr-card h3{font-size:14px;font-weight:800;margin-bottom:4px}
-.dr-card p{font-size:12px;color:var(--muted);line-height:1.45}
-.dr-card .dr-num{font-size:26px;font-weight:800;line-height:1}
-.dr-card.is-alert{border-color:#fdb022;background:#fffcf5}
-.dr-bar{display:block;height:6px;border-radius:99px;background:#eef0f4;overflow:hidden;margin-top:8px;max-width:220px}
-.dr-bar i{display:block;height:100%;background:var(--c-done);border-radius:inherit}
-.dr-go{flex:none;font-size:13px;font-weight:700;padding:8px 14px;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--text);text-decoration:none}
-a.dr-card:hover,.dr-go:hover{border-color:#cfd4dc}
-a.dr-card:focus-visible,.dr-go:focus-visible,.dr-all:focus-visible,a.dr-tile:focus-visible{outline:2px solid var(--nav-active,#1b1e3a);outline-offset:2px}
-.dr-tiles{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin-top:12px}
-.dr-tiles[hidden],.dr-section[hidden],.person-filter[hidden]{display:none}
-a.dr-tile{text-decoration:none;color:inherit;display:block}
-a.dr-tile:hover{border-color:#cfd4dc}
-@media(max-width:1100px){.dr-tiles{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:560px){.dr-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.dr-card{flex-wrap:wrap}}
 /* .cell span is the small label over each value; the photo and the pill are
    spans too, so they take their own shape back here. */
 .cell .mini-av{display:flex;margin:0;font-size:9px;letter-spacing:0;text-transform:none;color:#3745a4}
@@ -359,6 +336,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 <script src="assets/permissions.js?v=2"></script>
 <script src="/assets/clarity.js" defer></script>
+<script src="/assets/auto-dir.js?v=1" defer></script>
 </head><body>
 <aside class="admin-sidebar">
   <div>
@@ -405,23 +383,6 @@ document.addEventListener("DOMContentLoaded", function () {
         <button type="button" role="tab" id="tab-team" aria-controls="teamSection" data-view="team">Team tasks</button>
       </div>
 
-      <!-- Daily reports at a glance (api/daily-reports.php?action=summary):
-           my report today, what waits for my review, and today's team reports
-           by status for whoever sees them. Hidden when there's nothing to show,
-           or when Daily Reports is switched off for this admin. -->
-      <section class="dr-section" id="drSection" aria-labelledby="drTitle" hidden>
-        <div class="dr-head">
-          <h2 id="drTitle">Daily reports</h2>
-          <label class="person-filter" id="drDeptWrap" hidden>
-            <span>Department</span>
-            <select id="drDept" aria-label="Today's team reports for one department"></select>
-          </label>
-          <a class="dr-all" href="daily-reports.html">Open Daily Reports</a>
-        </div>
-        <div class="dr-cards" id="drCards"></div>
-        <div class="dr-tiles" id="drTiles" hidden></div>
-        <div class="section-break"></div>
-      </section>
 
       <!-- The Team overview: one row per phase and post, with everyone on
            it - the Director's whole dashboard. Read-only - each person moves
@@ -666,7 +627,6 @@ async function load(){
   paintTeam();
   paint();
   setView(startView());
-  loadDailyReports();
 }
 
 /* ── My tasks | Team tasks ─────────────────────────────────────────────────
@@ -727,125 +687,6 @@ document.getElementById("dashTabs").addEventListener("keydown", e => {
   setView(next, true);
   document.getElementById("tab-" + next).focus();
 });
-
-/* ── Daily reports at a glance ─────────────────────────────────────────────
-   Its own request, so a failure (or Daily Reports switched off for this
-   admin) only leaves this section hidden. Numbers link to the lists. */
-
-const DR_TILES = [
-  ["planned", "To fill in", "--dr-planned", "Not started yet"],
-  ["in_progress", "In progress", "--dr-progress", "Being filled in"],
-  ["awaiting", "Awaiting review", "--dr-awaiting", "Done work to review"],
-  ["changes", "Needs changes", "--dr-changes", "Sent back"],
-  ["sent", "Sent", "--dr-sent", "Closed, report to review"],
-  ["reviewed", "Reviewed", "--dr-reviewed", "Locked"]
-];
-
-function drDaysBefore(iso, days){
-  const d = new Date(iso + "T00:00");
-  d.setDate(d.getDate() - days);
-  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-}
-
-async function loadDailyReports(){
-  const section = document.getElementById("drSection");
-  const select = document.getElementById("drDept");
-  const dept = select.value;
-  let data;
-  try {
-    data = await api("api/daily-reports.php?action=summary" + (dept ? "&department=" + encodeURIComponent(dept) : ""));
-  } catch (e) {
-    data = null;
-  }
-  if (!data || !data.success || !data.summary) {
-    drSummary = null;
-    section.hidden = true;
-    return;
-  }
-  drSummary = data.summary;
-  paintDailyReports();
-}
-
-let drSummary = null;
-
-/* My tasks shows my own report (and work sent back to me); Team tasks shows
-   what waits for my review and today's team reports. With no Team tab,
-   everything is on the one view. */
-function paintDailyReports(){
-  const section = document.getElementById("drSection");
-  const select = document.getElementById("drDept");
-  const s = drSummary;
-  if (!s) {
-    section.hidden = true;
-    return;
-  }
-  const showMine = !team || view === "mine";
-  const showTeam = !team || view === "team";
-  const cards = [];
-
-  const mine = showMine ? s.my_report : null;
-  if (mine) {
-    const pct = mine.activities_total ? Math.round(mine.activities_done / mine.activities_total * 100) : 0;
-    const state = {
-      planned: "Not started yet", in_progress: "In progress", awaiting: "In progress, some done work waiting for review",
-      changes: (mine.reviewer_name || "Your reviewer") + " asked for changes", sent: "Closed, waiting for review", reviewed: "Reviewed"
-    }[mine.effective_status] || "";
-    cards.push(`<div class="box dr-card${mine.effective_status === "changes" ? " is-alert" : ""}">
-      <div class="dr-text">
-        <h3>Your report for today</h3>
-        <p>${esc(mine.activities_done)} of ${esc(mine.activities_total)} done · ${esc(state)}</p>
-        <span class="dr-bar" aria-hidden="true"><i style="width:${pct}%"></i></span>
-      </div>
-      <a class="dr-go" href="daily-report-details.html?id=${Number(mine.id)}">Open report</a>
-    </div>`);
-  }
-
-  // Sent-back work on earlier reports (today's open one is the card above).
-  const own = s.my_report;
-  const openToday = own && own.status === "planned" ? 1 : 0;
-  const fixes = Math.max(0, Number(s.pending || 0) - openToday - (own && own.effective_status === "changes" && !openToday ? 1 : 0));
-  if (showMine && fixes > 0) {
-    cards.push(`<a class="box dr-card is-alert" href="daily-reports.html">
-      <span class="dr-num">${fixes}</span>
-      <span class="dr-text"><h3>${fixes === 1 ? "Report" : "Reports"} with work sent back to you</h3>
-      <p>Fix what your reviewer asked for, on the report page.</p></span>
-    </a>`);
-  }
-
-  if (showTeam && Number(s.waiting_for_me) > 0) {
-    const href = "daily-reports.html?tab=team&status=awaiting&from=" + drDaysBefore(s.today, 29) + "&to=" + s.today;
-    cards.push(`<a class="box dr-card" href="${href}">
-      <span class="dr-num">${Number(s.waiting_for_me)}</span>
-      <span class="dr-text"><h3>Waiting for your review</h3>
-      <p>${Number(s.waiting_for_me) === 1 ? "A report sent to you has" : "Reports sent to you have"} done work to review.</p></span>
-    </a>`);
-  }
-  document.getElementById("drCards").innerHTML = cards.join("");
-
-  const tiles = document.getElementById("drTiles");
-  document.getElementById("drDeptWrap").hidden = true;
-  if (s.team && showTeam) {
-    // The department picker, filled once; the current choice is kept.
-    if (!select.options.length) {
-      select.innerHTML = `<option value="">All departments</option>`
-        + (s.departments || []).map(d => `<option value="${Number(d.id)}">${esc(d.name)}</option>`).join("")
-        + `<option value="none">No department</option>`;
-      select.addEventListener("change", loadDailyReports);
-    }
-    document.getElementById("drDeptWrap").hidden = false;
-    const base = "daily-reports.html?tab=team&from=" + s.today + "&to=" + s.today + (select.value ? "&department=" + encodeURIComponent(select.value) : "");
-    tiles.innerHTML = DR_TILES.map(([key, label, color, hint]) => `
-      <a class="box stat dr-tile" href="${base}&status=${key}" aria-label="${esc(label)}: ${Number(s.team[key] || 0)} of today's team reports">
-        <span class="stat-label"><i class="key" style="background:var(${color})"></i>${esc(label)}</span>
-        <strong>${Number(s.team[key] || 0)}</strong><small>${esc(hint)}</small>
-      </a>`).join("");
-    tiles.hidden = false;
-  } else {
-    tiles.hidden = true;
-  }
-
-  section.hidden = !cards.length && !(s.team && showTeam);
-}
 
 function count(status){
   return tasks.filter(t => t.status === status).length;
