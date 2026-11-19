@@ -7,17 +7,21 @@
 |   GET activity-reports.php?id=N         get_activity_report         one report I may see
 |   GET activity-reports.php?team=1       list_team_activity_reports  the reports I review,
 |                                      plan or see: from, to, status, department, paged
+|   GET activity-reports.php?reviewers=1  list_activity_report_reviewers  who I can pick
+|                                      to review my own report
 |
 | Scope activity_reports:read, and "Open Activity Reports" (SCOPE_PAGES). The same
-| rules as the pages: the author, the planner, the reviewer, reports.review
+| rules as the pages: the author, the planner, the reviewers, reports.review
 | for their own team, and reports.view_all see a report; anyone else a 404.
 |
 | What people typed - titles, descriptions, outcomes, feedback, notes, count
-| units, file names - is under untrusted_content.
+| units, file names, the end-of-day note - is under untrusted_content.
 |
-| Filling in, closing and reviewing go through prepare/confirm
-| (update_report_activity, close_activity_report, review_report_activity,
-| review_activity_report in _writes.php). Planning stays in the portal.
+| Writes go through prepare/confirm in _writes.php: planning your own report
+| (plan_my_activity_report), filling it in (update_report_activity,
+| add_report_activity, remove_report_activity, save_end_of_day), closing
+| (close_activity_report) and reviewing (review_report_activity,
+| review_activity_report). Planning for others stays in the portal.
 */
 
 require_once __DIR__ . "/_bootstrap.php";
@@ -65,6 +69,7 @@ if ($id !== null) {
         "can_fix_sent_back" => $flags["can_fix"],
         "can_review_activities" => $flags["can_review_activities"],
         "can_review_report" => $flags["can_review"],
+        "can_add_own_activities" => $flags["can_add_own"],
         "review_blocked" => $flags["review_blocked"],
         "reviewed" => $r["status"] === "reviewed" ? [
             "by" => (string) $r["reviewed_by_name"],
@@ -81,6 +86,7 @@ if ($id !== null) {
                     "by" => $a["review"]["by_name"],
                     "at" => v1Time($a["review"]["at"]),
                 ] : null,
+                "added_by_author" => $a["origin"] === "employee",
                 "awaiting_review" => drAwaiting($a),
                 "sent_back" => drSentBack($a),
                 "untrusted_content" => [
@@ -104,6 +110,28 @@ if ($id !== null) {
         ],
     ];
     v1Reply(200, $out);
+}
+
+// Who can review your own report (list_activity_report_reviewers): the
+// Director and whoever reviews team reports, never you. default_ids is the
+// page's starting pick: your Account Manager, else the Director.
+if (v1IntParam("reviewers") === 1) {
+    $me = (int) $p["id"];
+    $list = array_values(array_filter(drReviewers($pdo), function ($x) use ($me) { return $x["id"] !== $me; }));
+    $stmt = $pdo->prepare("SELECT managed_by_admin_id FROM admins WHERE id = ?");
+    $stmt->execute([$me]);
+    $manager = (int) $stmt->fetchColumn();
+    $ids = array_column($list, "id");
+    $director = array_values(array_filter($list, function ($x) { return $x["role"] === "owner"; }));
+    $default = in_array($manager, $ids, true) ? [$manager] : ($director ? [$director[0]["id"]] : []);
+    v1Reply(200, [
+        "can_plan_own" => can($p, "reports.self", $pdo),
+        "reviewers" => array_map(function ($x) {
+            return ["id" => $x["id"], "name" => $x["name"], "is_director" => $x["role"] === "owner",
+                "position" => v1NullableString($x["position"]), "department" => v1NullableString($x["department_name"])];
+        }, $list),
+        "default_ids" => $default,
+    ]);
 }
 
 if (v1IntParam("team") === 1) {

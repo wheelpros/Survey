@@ -296,11 +296,23 @@ check("dashboard: no team, no Team tasks", $status === 200 && !array_key_exists(
 
 // ── 13. Through the AI connection (api/v1) ───────────────────────────────
 
-[, $r] = drPost($mark, ["action" => "plan", "self" => true, "reviewer_ids" => [1, 44], "activities" => [
+[$status, $r] = get("activity-reports.php?reviewers=1", $mark);
+$fixtures["list_activity_report_reviewers"] = $r["data"] ?? null;
+$revIds = array_column($r["data"]["reviewers"] ?? [], "id");
+check("v1 daily: list_activity_report_reviewers - the Director and team reviewers, never me", $status === 200
+    && in_array(1, $revIds, true) && in_array(44, $revIds, true) && !in_array(41, $revIds, true) && !in_array(43, $revIds, true)
+    && ($r["data"]["can_plan_own"] ?? null) === true && ($r["data"]["default_ids"] ?? null) === [1], json_encode($r));
+
+refusedChange("v1 daily: plan_my_activity_report needs an eligible reviewer", $mark, "plan_my_activity_report",
+    ["reviewers" => [43], "activities" => [["title" => "x"]]], 422);
+refusedChange("v1 daily: ...and needs Plan their own activity report", $hana, "plan_my_activity_report",
+    ["reviewers" => [1], "activities" => [["title" => "x"]]], 403);
+[, $done] = change("v1 daily: Mark starts his own day", $mark, "plan_my_activity_report", ["reviewers" => [1, 44], "activities" => [
     ["title" => "Northwind proposal", "description" => "Scope and pricing"],
     ["title" => "Client calls", "count_unit" => "calls"],
 ]]);
-$markReport = (int) ($r["ids"][0] ?? 0);
+$markReport = (int) ($done["data"]["result"]["report_id"] ?? 0);
+refusedChange("v1 daily: one report a day", $mark, "plan_my_activity_report", ["reviewers" => [1], "activities" => [["title" => "x"]]], 409);
 check("v1 daily: Mark plans his own day", $markReport > 0, json_encode($r));
 check("daily: his own report goes to both his picks", array_column(drReport($mark, $markReport)["report"]["reviewers"] ?? [], "id") === [1, 44],
     json_encode(drReport($mark, $markReport)["report"]["reviewers"] ?? null));
@@ -344,6 +356,28 @@ check("notify: both reviewers hear he closed it, and that he needs help", count(
     && strpos($mine($n44)[0][1] ?? "", "Needs help") !== false, json_encode([$n1, $n44]));
 check("daily: closing kept the rest of the note", (drReport($mark, $markReport)["report"]["priorities"] ?? "") === "Northwind call"
     && drReport($mark, $markReport)["report"]["outstanding"] === "Proposal pricing", json_encode(drReport($mark, $markReport)["report"] ?? null));
+
+[, $r] = drPost($owner, ["action" => "plan", "admin_ids" => [44], "activities" => [["title" => "Quarterly figures", "description" => ""]]]);
+$veraDay = (int) ($r["ids"][0] ?? 0);
+check("daily: the Director plans Vera's day", $veraDay > 0, json_encode($r));
+[$status, $r] = get("activity-reports.php?id=$veraDay", $vera);
+check("v1 daily: Vera may add her own activities", ($r["data"]["can_add_own_activities"] ?? null) === true, json_encode($r));
+refusedChange("v1 daily: not on Mark's own plan", $mark, "add_report_activity", ["report" => $markReport, "title" => "Extra"], 403);
+change("v1 daily: Vera adds one", $vera, "add_report_activity", ["report" => $veraDay, "title" => "Budget call", "count_unit" => "calls"]);
+[$status, $r] = get("activity-reports.php?id=$veraDay", $vera);
+$own = array_values(array_filter($r["data"]["activities"] ?? [], function ($x) { return $x["added_by_author"]; }));
+check("v1 daily: it's marked as added by her", count($own) === 1 && $own[0]["untrusted_content"]["title"] === "Budget call", json_encode($r["data"]["activities"] ?? null));
+$planned = array_values(array_filter($r["data"]["activities"] ?? [], function ($x) { return !$x["added_by_author"]; }));
+refusedChange("v1 daily: a planned activity can't be removed", $vera, "remove_report_activity", ["report" => $veraDay, "activity" => $planned[0]["id"] ?? 0], 403);
+change("v1 daily: Vera takes hers back", $vera, "remove_report_activity", ["report" => $veraDay, "activity" => $own[0]["id"] ?? 0]);
+refusedChange("v1 daily: a challenge needs a priority", $vera, "save_end_of_day", ["report" => $veraDay, "challenges" => "Late figures"], 422);
+change("v1 daily: Vera writes the end of day", $vera, "save_end_of_day",
+    ["report" => $veraDay, "priorities" => "Board pack", "challenges" => "Late figures", "challenge_priority" => "medium"]);
+change("v1 daily: ...then only the outstanding work", $vera, "save_end_of_day", ["report" => $veraDay, "outstanding" => "Two sheets left"]);
+[$status, $r] = get("activity-reports.php?id=$veraDay", $vera);
+check("v1 daily: what's given changes, the rest stays", ($r["data"]["untrusted_content"]["outstanding"] ?? "") === "Two sheets left"
+    && $r["data"]["untrusted_content"]["priorities"] === "Board pack" && $r["data"]["challenge_priority"] === "medium", json_encode($r));
+refusedChange("v1 daily: nothing changed, nothing to prepare", $vera, "save_end_of_day", ["report" => $veraDay, "outstanding" => "Two sheets left"], 409);
 
 refusedChange("v1 daily: an Admin has no review scope", $dina, "review_report_activity",
     ["activity" => $ma[1], "decision" => "approved"], 403);

@@ -2150,8 +2150,164 @@ function v1WriteHandlers()
         ],
 
         // ── Activity reports (activity-report-lib.php) ─────────────────────────
-        // Filling in and closing your own report, and reviewing the ones
-        // sent to you. Planning, templates and deleting stay in the portal.
+        // Planning, filling in and closing your own report, and reviewing the
+        // ones sent to you. Planning for others, templates and deleting stay
+        // in the portal.
+
+        "plan_my_activity_report" => [
+            "scope" => "activity_reports:write",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                ensureDailyReportTables($pdo);
+                if (!can($p, "reports.self", $pdo)) {
+                    throw new PortalWriteError("Planning your own report needs \"Plan their own activity report\" (Settings > Permissions).", 403);
+                }
+                $reviewers = drCheckReviewers($pdo, array_map(function ($x) {
+                    if (!is_int($x) || $x <= 0) {
+                        throw new PortalWriteError("reviewers must be a list of admin ids.");
+                    }
+                    return $x;
+                }, argList($a, "reviewers", 1, 20)), (int) $p["id"]);
+                $acts = [];
+                foreach (argList($a, "activities", 1, DR_MAX_ACTIVITIES) as $i => $x) {
+                    if (!is_array($x)) {
+                        throw new PortalWriteError("activities[$i] must be an object.");
+                    }
+                    $acts[] = ["title" => argText($x, "title", 200), "description" => argText($x, "description", 2000, false),
+                        "count_unit" => argText($x, "count_unit", 30, false) ?: null];
+                }
+                $stmt = $pdo->prepare("SELECT 1 FROM daily_reports WHERE admin_id = ? AND report_date = ?");
+                $stmt->execute([(int) $p["id"], drToday($pdo)]);
+                if ($stmt->fetchColumn()) {
+                    throw new PortalWriteError("You already have a report for today. Use add_report_activity to add to it.", 409);
+                }
+                $names = array_map(function ($id) use ($pdo) { return eventAdminName($pdo, $id); }, $reviewers);
+                return [
+                    "args" => ["reviewers" => $reviewers, "activities" => $acts],
+                    "summary" => "Start your own activity report for today with " . count($acts) . " activit" . (count($acts) === 1 ? "y" : "ies")
+                        . " (" . implode(", ", array_map(function ($x) { return quoteFor($x["title"], 60); }, $acts)) . "), reviewed by "
+                        . implode(", ", $names) . (count($names) > 1 ? " - any one of them can review it." : "."),
+                    "preview" => ["reviewers" => $reviewers, "activities" => count($acts)],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                [$ids] = drPlan($pdo, $p, ["self" => true, "reviewer_ids" => $a["reviewers"], "activities" => $a["activities"]]);
+                return ["report_id" => $ids[0], "status" => "planned"];
+            },
+        ],
+
+        "add_report_activity" => [
+            "scope" => "activity_reports:write",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                ensureDailyReportTables($pdo);
+                $reportId = argInt($a, "report");
+                $r = drFind($pdo, $reportId, false);
+                if (!$r || $r["admin_id"] !== (int) $p["id"]) {
+                    throw new PortalWriteError("No activity report of yours with that id.", 404);
+                }
+                if (!drCanAddOwn($pdo, $p, $r, drToday($pdo))) {
+                    throw new PortalWriteError($r["created_by"] === (int) $p["id"]
+                        ? "This is your own plan: change it on the plan page."
+                        : "You can't add activities to this report: it needs to be today's, still open, and you need \"Plan their own activity report\".", 403);
+                }
+                $act = ["title" => argText($a, "title", 200), "description" => argText($a, "description", 2000, false),
+                    "count_unit" => argText($a, "count_unit", 30, false)];
+                return [
+                    "args" => ["report" => $reportId] + $act,
+                    "summary" => "Add " . quoteFor($act["title"]) . " to your activity report for " . $r["report_date"]
+                        . ", marked as added by you. " . $r["created_by_name"] . "'s plan stays as it is.",
+                    "preview" => ["report_id" => $reportId, "title" => $act["title"]],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                drAddOwnActivity($pdo, $p, $a["report"], $a);
+                return ["report_id" => $a["report"], "added" => $a["title"]];
+            },
+        ],
+
+        "remove_report_activity" => [
+            "scope" => "activity_reports:write",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                ensureDailyReportTables($pdo);
+                $reportId = argInt($a, "report");
+                $activityId = argInt($a, "activity");
+                $r = drFind($pdo, $reportId, false);
+                if (!$r || $r["admin_id"] !== (int) $p["id"]) {
+                    throw new PortalWriteError("No activity report of yours with that id.", 404);
+                }
+                $act = null;
+                foreach ($r["activities"] as $x) {
+                    if ($x["id"] === $activityId) {
+                        $act = $x;
+                    }
+                }
+                if (!$act) {
+                    throw new PortalWriteError("That activity isn't on this report.", 404);
+                }
+                if ($act["origin"] !== "employee") {
+                    throw new PortalWriteError("Only activities you added can be removed.", 403);
+                }
+                if (!drCanAddOwn($pdo, $p, $r, drToday($pdo))) {
+                    throw new PortalWriteError("This report can't be changed any more.", 403);
+                }
+                if (drTouched($act)) {
+                    throw new PortalWriteError(quoteFor($act["title"]) . " has been worked on, so it can't be removed.");
+                }
+                return [
+                    "args" => ["report" => $reportId, "activity" => $activityId],
+                    "summary" => "Remove " . quoteFor($act["title"]) . " from your activity report for " . $r["report_date"] . ".",
+                    "preview" => ["report_id" => $reportId, "activity_id" => $activityId],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                drRemoveOwnActivity($pdo, $p, $a["report"], $a["activity"]);
+                return ["report_id" => $a["report"], "removed" => $a["activity"]];
+            },
+        ],
+
+        "save_end_of_day" => [
+            "scope" => "activity_reports:write",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                ensureDailyReportTables($pdo);
+                $reportId = argInt($a, "report");
+                $r = drFind($pdo, $reportId, false);
+                if (!$r || $r["admin_id"] !== (int) $p["id"]) {
+                    throw new PortalWriteError("No activity report of yours with that id.", 404);
+                }
+                if (!drCanFill($p, $r, drToday($pdo))) {
+                    throw new PortalWriteError($r["status"] === "planned" ? "This day has passed, so the report can't change." : "It's closed, so this can't change.");
+                }
+                // What's given replaces what's saved; the rest stays.
+                $eod = drCleanEndOfDay([
+                    "outstanding" => array_key_exists("outstanding", $a) ? argText($a, "outstanding", 5000, false) : $r["outstanding"],
+                    "priorities" => array_key_exists("priorities", $a) ? argText($a, "priorities", 5000, false) : $r["priorities"],
+                    "challenges" => array_key_exists("challenges", $a) ? argText($a, "challenges", 5000, false) : $r["challenges"],
+                    "challenge_priority" => array_key_exists("challenge_priority", $a)
+                        ? argEnum($a, "challenge_priority", DR_CHALLENGE_PRIORITIES) : $r["challenge_priority"],
+                ]);
+                if ($eod["outstanding"] === $r["outstanding"] && $eod["priorities"] === $r["priorities"]
+                    && $eod["challenges"] === $r["challenges"] && $eod["challenge_priority"] === $r["challenge_priority"]) {
+                    throw new PortalWriteError("That's how it is already.", 409);
+                }
+                $parts = [];
+                foreach (["outstanding" => "outstanding work", "priorities" => "tomorrow's priorities", "challenges" => "challenges"] as $k => $label) {
+                    if ($eod[$k] !== $r[$k]) {
+                        $parts[] = $eod[$k] === "" ? "clear " . $label : $label . " " . quoteFor($eod[$k], 120);
+                    }
+                }
+                if ($eod["challenge_priority"] !== $r["challenge_priority"] && $eod["challenge_priority"]) {
+                    $parts[] = "priority " . $eod["challenge_priority"];
+                }
+                return [
+                    "args" => ["report" => $reportId] + $eod,
+                    "summary" => "On your activity report for " . $r["report_date"] . ", set the end of day: " . implode("; ", $parts) . ".",
+                    "preview" => ["report_id" => $reportId, "challenge_priority" => $eod["challenge_priority"]],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                drSaveEndOfDay($pdo, $p, $a["report"], $a);
+                return ["report_id" => $a["report"], "saved" => true];
+            },
+        ],
 
         "update_report_activity" => [
             "scope" => "activity_reports:write",
