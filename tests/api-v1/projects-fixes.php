@@ -301,3 +301,24 @@ check("W-09: a demoted manager loses the project", monaReach($mona, $owner) === 
 ], [], true);
 check("W-09: someone without the permission can't be made a project's manager", $status === 400
     && ($r["success"] ?? true) === false, "HTTP $status " . json_encode($r));
+
+// ── W-09 on the client details page: drafts follow the same rule ────────
+
+seed($pdo, "projects", [["id" => 5809, "client_id" => 11, "title" => "Beta podcast", "start_date" => day("-1"), "end_date" => day("+9"),
+    "status" => "active", "account_manager_admin_id" => 4, "created_by_admin_id" => 1]]);
+seed($pdo, "project_tasks", [["id" => 58090, "project_id" => 5809, "title" => "Sean's episode draft", "status" => "draft",
+    "scheduled_date" => day("+2"), "created_by_admin_id" => 5]]);
+
+/** Whether Andy's client details page for Beta lists the draft. */
+function andySeesBetaDraft($am2)
+{
+    [, $r] = pageGet("api/admin-user-details.php?id=11", $am2);
+    return in_array(58090, array_map("intval", array_column($r["phases"] ?? [], "id")), true);
+}
+
+storeAdminPermission($pdo, 4, "tasks.see_drafts", false, 1);
+check("W-09: the client page shows the manager their project's drafts", andySeesBetaDraft($am2) === true);
+storeAdminPermission($pdo, 4, "projects.be_manager", false, 1);
+check("W-09: not once they may no longer manage projects", andySeesBetaDraft($am2) === false);
+storeAdminPermission($pdo, 4, "projects.be_manager", null, 1);
+storeAdminPermission($pdo, 4, "tasks.see_drafts", null, 1);

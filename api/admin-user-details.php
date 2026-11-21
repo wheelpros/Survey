@@ -461,9 +461,14 @@ $phaseSql = "
 $phaseParams = [$userId];
 
 if (!can($admin, "tasks.see_drafts", $pdo)) {
-    $phaseSql .= " AND (t.status <> 'draft' OR t.created_by_admin_id = ? OR p.account_manager_admin_id = ?)";
+    // Managing the project counts only while they may (db.php isProjectManager).
+    $asManager = can($admin, PROJECT_MANAGER_PERMISSION, $pdo);
+    $phaseSql .= " AND (t.status <> 'draft' OR t.created_by_admin_id = ?"
+        . ($asManager ? " OR p.account_manager_admin_id = ?" : "") . ")";
     $phaseParams[] = (int) $admin["id"];
-    $phaseParams[] = (int) $admin["id"];
+    if ($asManager) {
+        $phaseParams[] = (int) $admin["id"];
+    }
 }
 
 $phases = fetchList($pdo, $phaseSql . " ORDER BY t.scheduled_date ASC, t.scheduled_time ASC, t.id ASC", $phaseParams);
