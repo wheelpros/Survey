@@ -662,8 +662,9 @@ function phaseColumnsFrom(array $a)
 
 /**
  * Saves prepared team and assignments - the team first, since assignments
- * are drawn from it - then tells each newcomer once. An assignment keeps its
- * row, and the status its person set, when the same person is listed again.
+ * are drawn from it - and returns the newcomers, for notifyAddedToPhase()
+ * once the transaction has committed. An assignment keeps its row, and the
+ * status its person set, when the same person is listed again.
  */
 function savePhasePeople(PDO $pdo, array $p, array $project, $taskId, $title, array $a)
 {
@@ -674,7 +675,7 @@ function savePhasePeople(PDO $pdo, array $p, array $project, $taskId, $title, ar
     if (array_key_exists("assignments", $a)) {
         $newcomers = array_merge($newcomers, saveTaskAssignments($pdo, $project, $taskId, $a["assignments"]));
     }
-    notifyAddedToPhase($pdo, $p, $project, $taskId, $title, $newcomers);
+    return $newcomers;
 }
 
 /**
@@ -2545,15 +2546,19 @@ function v1WriteHandlers()
                 ensureProjectTables($pdo);
                 ensureNotificationsTable($pdo);
                 $project = loadScopedProject($pdo, $p, $a["project"]);
-                $id = saveProjectTask($pdo, $p, $project, null, [
-                    "title" => $a["title"],
-                    "link" => $a["link"],
-                    "description" => $a["body"] !== "" ? textToHtml($a["body"]) : "",
-                    "scheduled_date" => $a["date"],
-                    "scheduled_time" => $a["time"] !== null ? $a["time"] . ":00" : null,
-                    "status" => $a["publish"] ? "published" : "draft",
-                ] + phaseColumnsFrom($a));
-                savePhasePeople($pdo, $p, $project, $id, $a["title"], $a);
+                // The phase and its people in one transaction (audit D-04).
+                [$id, $newcomers] = inPhaseTransaction($pdo, function () use ($pdo, $p, $project, $a) {
+                    $id = saveProjectTask($pdo, $p, $project, null, [
+                        "title" => $a["title"],
+                        "link" => $a["link"],
+                        "description" => $a["body"] !== "" ? textToHtml($a["body"]) : "",
+                        "scheduled_date" => $a["date"],
+                        "scheduled_time" => $a["time"] !== null ? $a["time"] . ":00" : null,
+                        "status" => $a["publish"] ? "published" : "draft",
+                    ] + phaseColumnsFrom($a));
+                    return [$id, savePhasePeople($pdo, $p, $project, $id, $a["title"], $a)];
+                });
+                notifyAddedToPhase($pdo, $p, $project, $id, $a["title"], $newcomers);
                 $gallery = !empty($a["images"]) ? savePhaseGallery($pdo, ["id" => $id], $a["images"]) : 0;
                 return [
                     "task_id" => $id,
@@ -2624,21 +2629,25 @@ function v1WriteHandlers()
                 ensureNotificationsTable($pdo);
                 [$task, $project] = loadEditableTask($pdo, $p, $a["id"]);
                 $title = $a["title"] ?? $task["title"];
-                saveProjectTask($pdo, $p, $project, $task, [
-                    "title" => $title,
-                    "link" => array_key_exists("link", $a) ? $a["link"] : $task["link"],
-                    "description" => array_key_exists("body", $a)
-                        ? ($a["body"] !== "" ? textToHtml($a["body"]) : "")
-                        : (string) ($task["description"] ?? ""),
-                    "orientation" => $task["orientation"],
-                    "image_path" => $task["image_path"],
-                    "scheduled_date" => array_key_exists("date", $a) ? $a["date"] : $task["scheduled_date"],
-                    "scheduled_time" => array_key_exists("time", $a)
-                        ? ($a["time"] !== null ? $a["time"] . ":00" : null)
-                        : $task["scheduled_time"],
-                    "status" => $a["status"] ?? $task["status"],
-                ] + phaseColumnsFrom($a));
-                savePhasePeople($pdo, $p, $project, $a["id"], $title, $a);
+                // The phase and its people in one transaction (audit D-04).
+                $newcomers = inPhaseTransaction($pdo, function () use ($pdo, $p, $project, $task, $title, $a) {
+                    saveProjectTask($pdo, $p, $project, $task, [
+                        "title" => $title,
+                        "link" => array_key_exists("link", $a) ? $a["link"] : $task["link"],
+                        "description" => array_key_exists("body", $a)
+                            ? ($a["body"] !== "" ? textToHtml($a["body"]) : "")
+                            : (string) ($task["description"] ?? ""),
+                        "orientation" => $task["orientation"],
+                        "image_path" => $task["image_path"],
+                        "scheduled_date" => array_key_exists("date", $a) ? $a["date"] : $task["scheduled_date"],
+                        "scheduled_time" => array_key_exists("time", $a)
+                            ? ($a["time"] !== null ? $a["time"] . ":00" : null)
+                            : $task["scheduled_time"],
+                        "status" => $a["status"] ?? $task["status"],
+                    ] + phaseColumnsFrom($a));
+                    return savePhasePeople($pdo, $p, $project, $a["id"], $title, $a);
+                });
+                notifyAddedToPhase($pdo, $p, $project, $a["id"], $title, $newcomers);
                 $result = [
                     "task_id" => (int) $a["id"],
                     "client_notified" => announceTaskIfLive($pdo, $p, $project, $a["id"], $title),

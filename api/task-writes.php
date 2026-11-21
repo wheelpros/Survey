@@ -560,21 +560,56 @@ function setOwnPhaseStatus(PDO $pdo, $taskId, $adminId, $status)
         throw new PortalWriteError("Only someone assigned to this phase can change their status.", 403);
     }
 
-    $stmt = $pdo->prepare("UPDATE project_task_assignments SET status = ? WHERE task_id = ? AND admin_id = ?");
-    $stmt->execute([$status, (int) $taskId, (int) $adminId]);
+    // The row and the phase's completion move together.
+    inPhaseTransaction($pdo, function () use ($pdo, $taskId, $adminId, $status) {
+        $stmt = $pdo->prepare("UPDATE project_task_assignments SET status = ? WHERE task_id = ? AND admin_id = ?");
+        $stmt->execute([$status, (int) $taskId, (int) $adminId]);
 
-    recomputeTaskComplete($pdo, $taskId);
+        recomputeTaskComplete($pdo, $taskId);
 
-    [$title, $projectTitle, $clientId] = eventPhase($pdo, $taskId);
-    logEvent($pdo, EVENT_PHASE_STATUS, "phase", $taskId, $title,
-        "Set their status on \"" . $title . "\" to " . TASK_ASSIGNMENT_STATUSES[$status], $clientId);
+        [$title, $projectTitle, $clientId] = eventPhase($pdo, $taskId);
+        logEvent($pdo, EVENT_PHASE_STATUS, "phase", $taskId, $title,
+            "Set their status on \"" . $title . "\" to " . TASK_ASSIGNMENT_STATUSES[$status], $clientId);
+    });
 
     return $status;
 }
 
 /**
+ * Runs $work in one transaction and returns what it returns: a phase write
+ * touches the phase row, its people, its files and the log, and a failure
+ * part-way must leave none of it (audit D-04). Tables that could be created
+ * or altered on first use are ensured first, since DDL would commit the
+ * transaction early. Inside an open transaction it just runs $work. Never
+ * notify from $work (notify.php rule 2).
+ */
+function inPhaseTransaction(PDO $pdo, callable $work)
+{
+    require_once __DIR__ . "/upload-helpers.php";
+    ensureAttachmentsTable($pdo);
+    ensureAdminColumns($pdo);
+
+    if ($pdo->inTransaction()) {
+        return $work();
+    }
+
+    $pdo->beginTransaction();
+    try {
+        $result = $work();
+        $pdo->commit();
+        return $result;
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $e;
+    }
+}
+
+/**
  * Deletes a phase with its people, attachments and files. The caller has
  * checked canEditTask(). Shared by project-tasks.php's DELETE and api/v1.
+ * The rows go in one transaction; the files only once it has committed.
  */
 function deleteProjectTask(PDO $pdo, array $task)
 {
@@ -582,16 +617,19 @@ function deleteProjectTask(PDO $pdo, array $task)
 
     $id = (int) $task["id"];
 
-    [$title, $projectTitle, $clientId] = eventPhase($pdo, $id);
-    $pdo->prepare("DELETE FROM project_tasks WHERE id = ?")->execute([$id]);
-    logEvent($pdo, EVENT_PHASE_DELETED, "phase", $id, $title,
-        "Deleted phase \"" . $title . "\"" . ($projectTitle !== "" ? " from " . $projectTitle : ""), $clientId);
-    $pdo->prepare("DELETE FROM project_task_teammates WHERE task_id = ?")->execute([$id]);
-    $pdo->prepare("DELETE FROM project_task_assignments WHERE task_id = ?")->execute([$id]);
-    $files = array_merge(
-        deleteAttachmentRows($pdo, "task", $id),
-        deleteAttachmentRows($pdo, CLIENT_PHASE_FILES_OWNER, $id)
-    );
+    $files = inPhaseTransaction($pdo, function () use ($pdo, $id) {
+        [$title, $projectTitle, $clientId] = eventPhase($pdo, $id);
+        $pdo->prepare("DELETE FROM project_task_teammates WHERE task_id = ?")->execute([$id]);
+        $pdo->prepare("DELETE FROM project_task_assignments WHERE task_id = ?")->execute([$id]);
+        $files = array_merge(
+            deleteAttachmentRows($pdo, "task", $id),
+            deleteAttachmentRows($pdo, CLIENT_PHASE_FILES_OWNER, $id)
+        );
+        $pdo->prepare("DELETE FROM project_tasks WHERE id = ?")->execute([$id]);
+        logEvent($pdo, EVENT_PHASE_DELETED, "phase", $id, $title,
+            "Deleted phase \"" . $title . "\"" . ($projectTitle !== "" ? " from " . $projectTitle : ""), $clientId);
+        return $files;
+    });
 
     deleteUploadedFiles(array_merge(
         $files,

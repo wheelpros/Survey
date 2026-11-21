@@ -140,3 +140,40 @@ check("W-16: a new manager is told", notes($pdo, "admin", 4, "project_assigned")
 
 saveAcmeAds($owner, 3, []);
 check("W-16: back as manager counts as newly put on", notes($pdo, "admin", 3, "project_assigned") === $amyBefore + 1);
+
+// ── D-04: a phase save is all or nothing ────────────────────────────────
+
+[$status, $r] = post("api/project-tasks.php", $owner, [
+    "project_id" => 5803, "title" => "Half phase", "status" => "draft",
+    "teammates" => json_encode([]), "assignments" => json_encode([["admin_id" => 3]]),
+], [], true);
+check("D-04: a refused new phase leaves no row behind", ($r["success"] ?? true) === false
+    && !one($pdo, "SELECT id FROM project_tasks WHERE title = 'Half phase'"), "HTTP $status " . json_encode($r));
+
+seed($pdo, "project_tasks", [["id" => 58030, "project_id" => 5803, "title" => "Whole phase", "status" => "draft", "created_by_admin_id" => 1]]);
+[$status, $r] = post("api/project-tasks.php", $owner, [
+    "id" => 58030, "title" => "Renamed phase", "status" => "draft",
+    "teammates" => json_encode([2]), "assignments" => json_encode([["admin_id" => 3]]),
+], [], true);
+check("D-04: a refused edit changes nothing on the phase", ($r["success"] ?? true) === false
+    && one($pdo, "SELECT title FROM project_tasks WHERE id = 58030")["title"] === "Whole phase"
+    && pfPeople($pdo, "project_task_teammates", 58030) === [], "HTTP $status " . json_encode($r));
+
+[$status, $r] = post("api/project-tasks.php", $owner, [
+    "id" => 58030, "title" => "Renamed phase", "status" => "draft",
+    "teammates" => json_encode([2, 3]), "assignments" => json_encode([["admin_id" => 3, "work_note" => "Copy"]]),
+], [], true);
+check("D-04: a good edit saves the phase and its people", ($r["success"] ?? false)
+    && one($pdo, "SELECT title FROM project_tasks WHERE id = 58030")["title"] === "Renamed phase"
+    && pfPeople($pdo, "project_task_teammates", 58030) === [2, 3]
+    && pfPeople($pdo, "project_task_assignments", 58030) === [3], "HTTP $status " . json_encode($r));
+
+[$status, $r] = post("api/project-tasks.php", $am, ["action" => "set_my_status", "task_id" => 58030, "status" => "done"], [], true);
+check("D-04: setting your own status still completes the phase", ($r["success"] ?? false) && ($r["is_complete"] ?? false) === true,
+    "HTTP $status " . json_encode($r));
+
+change("D-04: api/v1 still saves a phase with its people", $owner, "post_project_update",
+    ["project" => 5803, "title" => "AI whole phase", "publish" => false, "team" => [2], "assignments" => [["admin_id" => 2]]]);
+$aiPhase = one($pdo, "SELECT id FROM project_tasks WHERE title = 'AI whole phase'");
+check("D-04: api/v1 phase and people saved together", $aiPhase
+    && pfPeople($pdo, "project_task_assignments", $aiPhase["id"]) === [2]);
