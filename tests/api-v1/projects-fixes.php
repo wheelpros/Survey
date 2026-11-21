@@ -177,3 +177,40 @@ change("D-04: api/v1 still saves a phase with its people", $owner, "post_project
 $aiPhase = one($pdo, "SELECT id FROM project_tasks WHERE title = 'AI whole phase'");
 check("D-04: api/v1 phase and people saved together", $aiPhase
     && pfPeople($pdo, "project_task_assignments", $aiPhase["id"]) === [2]);
+
+// ── D-03 / F-04: deleting a project removes its phases' files ───────────
+
+$root = dirname(__DIR__, 2);
+@mkdir("$root/uploads/attachments", 0775, true);
+$d03Files = [
+    "uploads/attachments/d03-staff.txt",
+    "uploads/attachments/d03-client.txt",
+    "uploads/attachments/d03-gallery.jpg",
+    "uploads/attachments/d03-cover.jpg",
+];
+foreach ($d03Files as $file) {
+    file_put_contents("$root/$file", "x");
+}
+seed($pdo, "project_tasks", [["id" => 58040, "project_id" => 5804, "title" => "Print proofs", "status" => "published",
+    "created_by_admin_id" => 1, "image_path" => "uploads/attachments/d03-cover.jpg",
+    "gallery_paths" => json_encode(["uploads/attachments/d03-gallery.jpg"])]]);
+seed($pdo, "project_task_teammates", [["task_id" => 58040, "admin_id" => 3]]);
+seed($pdo, "attachments", [
+    ["owner_type" => "task", "owner_id" => 58040, "path" => $d03Files[0], "original_name" => "staff.txt", "ext" => "txt", "size" => 1],
+    ["owner_type" => CLIENT_PHASE_FILES_OWNER, "owner_id" => 58040, "path" => $d03Files[1], "original_name" => "client.txt", "ext" => "txt", "size" => 1],
+]);
+
+[$status, $r] = pageDelete("api/projects.php?id=5804", $owner);
+check("D-03: the project is deleted", $status === 200 && ($r["success"] ?? false)
+    && !one($pdo, "SELECT id FROM projects WHERE id = 5804") && !one($pdo, "SELECT id FROM project_tasks WHERE id = 58040"),
+    "HTTP $status " . json_encode($r));
+check("D-03: its phases' attachment rows go with it",
+    (int) one($pdo, "SELECT COUNT(*) AS n FROM attachments WHERE owner_id = 58040 AND owner_type IN ('task', ?)", [CLIENT_PHASE_FILES_OWNER])["n"] === 0);
+check("F-04: and their files, gallery and cover leave the disk", array_values(array_filter($d03Files, function ($f) use ($root) {
+    return is_file("$root/$f");
+})) === [], json_encode(array_values(array_filter($d03Files, function ($f) use ($root) {
+    return is_file("$root/$f");
+}))));
+foreach ($d03Files as $file) {
+    @unlink("$root/$file");
+}

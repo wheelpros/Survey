@@ -1057,20 +1057,34 @@ if ($_SERVER["REQUEST_METHOD"] === "DELETE") {
         response(false, "You do not have permission to delete this project.", [], 403);
     }
 
-    $stmt = $pdo->prepare("
-        SELECT image_path FROM project_tasks WHERE project_id = ? AND image_path IS NOT NULL
-    ");
-    $stmt->execute([$id]);
+    /* Every phase's cover, gallery and attachments (staff and client files)
+       go with it, as when a client is deleted (delete-client.php) - before
+       this only the covers did (audit D-03 / F-04). */
+    require_once __DIR__ . "/upload-helpers.php";
+    ensureAttachmentsTable($pdo); // DDL, so before the transaction
 
-    $files = $stmt->fetchAll(PDO::FETCH_COLUMN);
-
-    if (!empty($project["image_path"])) {
-        $files[] = $project["image_path"];
-    }
+    $files = [];
 
     try {
 
         $pdo->beginTransaction();
+
+        $stmt = $pdo->prepare("SELECT * FROM project_tasks WHERE project_id = ?");
+        $stmt->execute([$id]);
+
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $task) {
+            $files = array_merge(
+                $files,
+                array_filter([$task["image_path"] ?? null]),
+                taskGallery($task),
+                deleteAttachmentRows($pdo, "task", $task["id"]),
+                deleteAttachmentRows($pdo, CLIENT_PHASE_FILES_OWNER, $task["id"])
+            );
+        }
+
+        if (!empty($project["image_path"])) {
+            $files[] = $project["image_path"];
+        }
 
         $stmt = $pdo->prepare("DELETE FROM project_members WHERE project_id = ?");
         $stmt->execute([$id]);
