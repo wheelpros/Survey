@@ -1034,7 +1034,10 @@ function teamAttention(PDO $pdo, array $actor, $scope, array $scopeParams)
             "id" => (int) $r["id"],
             "title" => (string) $r["title"],
             "project" => (string) $r["project_title"],
+            "project_id" => (int) $r["project_id"],
             "href" => "project-task-details.html?project=" . (int) $r["project_id"] . "&id=" . (int) $r["id"],
+            // The phase form, where people are assigned.
+            "edit_href" => "project-task-form.html?project=" . (int) $r["project_id"] . "&id=" . (int) $r["id"],
         ];
     }, $stmt->fetchAll(PDO::FETCH_ASSOC));
 
