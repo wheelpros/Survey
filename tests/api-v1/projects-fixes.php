@@ -214,3 +214,49 @@ check("F-04: and their files, gallery and cover leave the disk", array_values(ar
 foreach ($d03Files as $file) {
     @unlink("$root/$file");
 }
+
+// ── W-08: a project with published work stays with its client ───────────
+
+function moveProject($token, $id, $title, $clientId)
+{
+    return post("api/projects.php", $token, [
+        "id" => $id, "title" => $title, "client_id" => $clientId, "status" => "active",
+        "start_date" => day("-1"), "end_date" => day("+9"), "account_manager_admin_id" => 0, "member_ids" => "",
+    ], [], true);
+}
+
+seed($pdo, "projects", [
+    ["id" => 5805, "client_id" => 10, "title" => "Acme drafts", "start_date" => day("-1"), "end_date" => day("+9"), "created_by_admin_id" => 1],
+    ["id" => 5806, "client_id" => 10, "title" => "Acme live", "start_date" => day("-1"), "end_date" => day("+9"), "created_by_admin_id" => 1],
+    ["id" => 5807, "client_id" => 10, "title" => "Acme files", "start_date" => day("-1"), "end_date" => day("+9"), "created_by_admin_id" => 1],
+]);
+seed($pdo, "project_tasks", [
+    ["id" => 58050, "project_id" => 5805, "title" => "Only a draft", "status" => "draft", "created_by_admin_id" => 1],
+    ["id" => 58060, "project_id" => 5806, "title" => "Published", "status" => "published", "scheduled_date" => day("+5"), "created_by_admin_id" => 1],
+    ["id" => 58070, "project_id" => 5807, "title" => "Draft with the client's file", "status" => "draft", "created_by_admin_id" => 1],
+]);
+seed($pdo, "attachments", [
+    ["owner_type" => CLIENT_PHASE_FILES_OWNER, "owner_id" => 58070, "path" => "uploads/attachments/w08-none.txt",
+     "original_name" => "brief.txt", "ext" => "txt", "size" => 1],
+]);
+
+[$status, $r] = moveProject($owner, 5806, "Acme live", 11);
+check("W-08: a project with a published phase can't move to another client", $status === 409 && ($r["success"] ?? true) === false
+    && (int) one($pdo, "SELECT client_id FROM projects WHERE id = 5806")["client_id"] === 10, "HTTP $status " . json_encode($r));
+
+[$status, $r] = moveProject($owner, 5807, "Acme files", 11);
+check("W-08: nor one holding a file the client uploaded", $status === 409
+    && (int) one($pdo, "SELECT client_id FROM projects WHERE id = 5807")["client_id"] === 10, "HTTP $status " . json_encode($r));
+
+[$status, $r] = moveProject($owner, 5806, "Acme live, renamed", 10);
+check("W-08: the same project still saves for its own client", $status === 200
+    && one($pdo, "SELECT title FROM projects WHERE id = 5806")["title"] === "Acme live, renamed", "HTTP $status " . json_encode($r));
+
+[$status, $r] = moveProject($owner, 5805, "Acme drafts", 11);
+check("W-08: a project with drafts only can still move", $status === 200
+    && (int) one($pdo, "SELECT client_id FROM projects WHERE id = 5805")["client_id"] === 11, "HTTP $status " . json_encode($r));
+
+[$status, $r] = pageGet("api/projects.php?id=5806", $owner);
+check("W-08: the form is told the client is fixed", $status === 200 && ($r["project"]["client_locked"] ?? null) === true
+    && ($r2 = pageGet("api/projects.php?id=5805", $owner)[1]) && ($r2["project"]["client_locked"] ?? null) === false,
+    "HTTP $status " . json_encode($r["project"]["client_locked"] ?? "missing"));

@@ -145,6 +145,30 @@ function canManageProject(array $admin, array $project)
         || (int) $project["account_manager_admin_id"] === $adminId;
 }
 
+/*
+| Whether a project is tied to its client for good (audit W-08): once a
+| phase is published, or the client has uploaded a file to one, its phases
+| and files were made for that client, and moving the project would hand
+| them to another client unannounced. Staff create a new project instead.
+| A project with drafts only can still move.
+*/
+function projectClientLocked(PDO $pdo, $projectId)
+{
+    require_once __DIR__ . "/upload-helpers.php";
+    ensureAttachmentsTable($pdo); // DDL: never call this inside a transaction
+
+    $stmt = $pdo->prepare("
+        SELECT 1 FROM project_tasks t
+        WHERE t.project_id = ?
+          AND (t.status = 'published'
+               OR EXISTS (SELECT 1 FROM attachments a WHERE a.owner_type = ? AND a.owner_id = t.id))
+        LIMIT 1
+    ");
+    $stmt->execute([(int) $projectId, CLIENT_PHASE_FILES_OWNER]);
+
+    return (bool) $stmt->fetchColumn();
+}
+
 function canDeleteProject(array $admin, array $project)
 {
     if (can($admin, "projects.delete_any")) {
@@ -526,6 +550,8 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
                 }
             }
 
+            $project["client_locked"] = projectClientLocked($pdo, $project["id"]);
+
             response(true, "Project loaded.", array_merge([
                 "project"    => $project,
                 "tasks"      => $tasks,
@@ -755,6 +781,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     if (!$clientOk) {
         response(false, "That client is not available to you.", [], 403);
+    }
+
+    if ($existing && (int) $existing["client_id"] !== $clientId && projectClientLocked($pdo, $existing["id"])) {
+        response(false, "This project already has published phases or files from its client, so it can't move to another client. Create a new project for the other client instead.", [], 409);
     }
 
     /* The forms no longer ask for a type. The column stays because rows and
