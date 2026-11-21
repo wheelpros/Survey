@@ -303,14 +303,15 @@ function scopedFixtureIds(array $who, $resource, array $among)
     return array_map("intval", $stmt->fetchAll(PDO::FETCH_COLUMN));
 }
 
-$fixtures = [
+// Not $fixtures: run.php collects the MCP contract fixtures under that name.
+$scopeCases = [
     "client" => [[9701, 9702], [9701], [9702]],
     "response" => [[9721, 9722], [9721], [9722]],
     "form" => [[9711, 9712], [9711], [9712]],
     "content" => [[9731, 9732, 9733], [9731, 9733], [9732, 9733]],
     "project" => [[9741, 9742, 9743], [9741, 9743], [9742, 9743]],
 ];
-foreach ($fixtures as $res => [$all, $adaSees, $benSees]) {
+foreach ($scopeCases as $res => [$all, $adaSees, $benSees]) {
     check("scope $res: Ada's list (own / assigned)", scopedFixtureIds($ada, $res, $all) === $adaSees, json_encode(scopedFixtureIds($ada, $res, $all)));
     check("scope $res: Ben, in Ada's department, sees his own and not hers", scopedFixtureIds($ben, $res, $all) === $benSees, json_encode(scopedFixtureIds($ben, $res, $all)));
     check("scope $res: all records for the view-all holder", scopedFixtureIds($viv, $res, $all) === $all, json_encode(scopedFixtureIds($viv, $res, $all)));
