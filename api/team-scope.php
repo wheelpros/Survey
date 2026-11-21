@@ -20,6 +20,18 @@
 
 require_once __DIR__ . "/db.php";
 
+/*
+| Who may sit under whom: a manager's role => the roles they can be given.
+| A Super Admin manages Admins; an Account Manager, Admins and Super Admins.
+| Links only run down this list, so a chain can't loop back on itself. A
+| system rule of the hierarchy, not a permission: checkManagerAssignment()
+| (admin-settings-writes.php) and client-team.php read it.
+*/
+const MANAGER_CAN_MANAGE = [
+    "super_admin" => ["seo_admin"],
+    "account_manager" => ["seo_admin", "super_admin"],
+];
+
 /**
  * Everyone the actor manages, keyed by id: [id => [id, name, role, active]].
  */
@@ -27,7 +39,7 @@ function teamPoolFor(PDO $pdo, array $actor)
 {
     $actorId = (int) $actor["id"];
 
-    if ($actor["role"] === "owner") {
+    if (isDirector($actor)) {
         $stmt = $pdo->query("
             SELECT id, name, role, active
             FROM admins

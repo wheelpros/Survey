@@ -42,6 +42,7 @@ if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") {
 }
 
 require_once "db.php";
+require_once "auth.php";
 require_once "announcement-writes.php";
 
 function reply($success, $message = "", $extra = [], $code = 200)
@@ -83,9 +84,8 @@ $user = clientFromSessionToken($pdo, $token);
 $admin = null;
 
 if (!$user) {
-    $stmt = $pdo->prepare("SELECT id, name, role FROM admins WHERE session_token = ? LIMIT 1");
-    $stmt->execute([$token]);
-    $admin = $stmt->fetch(PDO::FETCH_ASSOC);
+    // An active admin only: a deactivated one is signed out.
+    $admin = adminFromSessionToken($pdo, $token);
 
     if (!$admin) {
         reply(false, "Unauthorized token", [], 401);
@@ -94,7 +94,9 @@ if (!$user) {
 
 $kind    = $user ? "user" : "admin";
 $me      = (int) ($user ? $user["id"] : $admin["id"]);
-$isOwner = !$user && can($admin, "announcements.send", $pdo);
+// Sending is done from the Notifications page, so it needs that page as well
+// (Settings → Permissions → Notifications). Reading needs neither.
+$isOwner = !$user && can($admin, "announcements.send", $pdo) && can($admin, "pages.notifications", $pdo);
 
 $action = $_GET["action"] ?? $_POST["action"] ?? "";
 

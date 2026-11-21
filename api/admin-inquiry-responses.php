@@ -1,29 +1,13 @@
 <?php
 
 require_once "db.php";
+require_once "auth.php";
 
 header("Content-Type: application/json; charset=UTF-8");
 
 ensureInquiryTables($pdo);
 
-$headers = getallheaders();
-$token = str_replace("Bearer ", "", $headers["Authorization"] ?? "");
-
-$stmt = $pdo->prepare("SELECT id, role FROM admins WHERE session_token = ? LIMIT 1");
-$stmt->execute([$token]);
-$currentAdmin = $stmt->fetch();
-
-if (!$currentAdmin) {
-    echo json_encode(["success" => false, "message" => "Unauthorized"]);
-    exit;
-}
-
-$hasAccess = can($currentAdmin, "inquiries.read", $pdo);
-
-if (!$hasAccess) {
-    echo json_encode(["success" => false, "message" => "Unauthorized"]);
-    exit;
-}
+$currentAdmin = requireAdmin($pdo, "inquiries.read", "Unauthorized");
 
 /*
 | One response on its own, for inquiry-response.html - the page a phone opens

@@ -2963,10 +2963,7 @@ function v1WriteHandlers()
             "scope" => "admins:write",
             "prepare" => function (PDO $pdo, array $p, array $a) {
                 $adminId = argInt($a, "admin");
-                $target = findAdminRow($pdo, $adminId);
-                if ($target["role"] === "owner") {
-                    throw new PortalWriteError("The Director's account cannot be edited here.", 403);
-                }
+                $target = checkAdminTarget($pdo, $p, findAdminRow($pdo, $adminId), "edit");
                 // An https image link, checked now and downloaded on confirm; "" removes the photo.
                 $url = trim((string) ($a["image"] ?? ""));
                 if ($url !== "") {
@@ -3013,8 +3010,8 @@ function v1WriteHandlers()
             "scope" => "admins:write",
             "prepare" => function (PDO $pdo, array $p, array $a) {
                 $role = argEnum($a, "role", PERMISSION_ROLES);
-                $changes = v1PermissionChanges($pdo, $p, $a, function ($changes) use ($role) {
-                    return checkRolePermissionChange($role, $changes);
+                $changes = v1PermissionChanges($pdo, $p, $a, function ($changes) use ($p, $role) {
+                    return checkRolePermissionChange($p, $role, $changes);
                 });
                 return [
                     "args" => ["role" => $role, "changes" => $changes],
@@ -3024,8 +3021,8 @@ function v1WriteHandlers()
                 ];
             },
             "apply" => function (PDO $pdo, array $p, array $a) {
-                $changes = v1PermissionChanges($pdo, $p, $a, function ($changes) use ($a) {
-                    return checkRolePermissionChange($a["role"], $changes);
+                $changes = v1PermissionChanges($pdo, $p, $a, function ($changes) use ($p, $a) {
+                    return checkRolePermissionChange($p, $a["role"], $changes);
                 });
                 $pdo->beginTransaction();
                 setRolePermissions($pdo, $p, $a["role"], $changes);
@@ -3039,8 +3036,8 @@ function v1WriteHandlers()
             "prepare" => function (PDO $pdo, array $p, array $a) {
                 $adminId = argInt($a, "admin");
                 $target = null;
-                $changes = v1PermissionChanges($pdo, $p, $a, function ($changes) use ($pdo, $adminId, &$target) {
-                    [$target, $clean] = checkAdminPermissionChange($pdo, $adminId, $changes);
+                $changes = v1PermissionChanges($pdo, $p, $a, function ($changes) use ($pdo, $p, $adminId, &$target) {
+                    [$target, $clean] = checkAdminPermissionChange($pdo, $p, $adminId, $changes);
                     return $clean;
                 });
                 return [
@@ -3057,8 +3054,8 @@ function v1WriteHandlers()
             },
             "apply" => function (PDO $pdo, array $p, array $a) {
                 $target = null;
-                $changes = v1PermissionChanges($pdo, $p, $a, function ($changes) use ($pdo, $a, &$target) {
-                    [$target, $clean] = checkAdminPermissionChange($pdo, $a["admin"], $changes);
+                $changes = v1PermissionChanges($pdo, $p, $a, function ($changes) use ($pdo, $p, $a, &$target) {
+                    [$target, $clean] = checkAdminPermissionChange($pdo, $p, $a["admin"], $changes);
                     return $clean;
                 });
                 $pdo->beginTransaction();
@@ -3072,7 +3069,8 @@ function v1WriteHandlers()
         "update_my_profile" => [
             "scope" => "settings:write",
             "prepare" => function (PDO $pdo, array $p, array $a) {
-                if (($p["role"] ?? "") !== "owner") {
+                // The Director's own card - a system rule, not a permission.
+                if (!isDirector($p)) {
                     throw new PortalWriteError("Only the Director has this card.", 403);
                 }
                 $now = adminProfile($pdo, $p["id"]);
@@ -3105,6 +3103,11 @@ function v1WriteHandlers()
                 $adminId = argInt($a, "admin");
                 $position = checkAdminPosition($a["position"] ?? "");
                 $target = findAdminRow($pdo, $adminId);
+                // Their own position is a label anyone may set; someone else's
+                // follows the target rules.
+                if ((int) $target["id"] !== (int) $p["id"]) {
+                    checkAdminTarget($pdo, $p, $target, "edit");
+                }
                 if (trim((string) ($target["position"] ?? "")) === $position) {
                     throw new PortalWriteError(adminLabel($target) . " already has that position.", 409);
                 }
@@ -3195,7 +3198,7 @@ function v1WriteHandlers()
                         throw new PortalWriteError("admins must be a list of admin ids.");
                     }
                 }
-                [$manager, $adminIds] = checkManagerAssignment($pdo, $managerId, $given);
+                [$manager, $adminIds] = checkManagerAssignment($pdo, $p, $managerId, $given);
                 $dropped = array_values(array_diff(array_unique($given), $adminIds));
                 if ($dropped) {
                     throw new PortalWriteError(adminRoleName($manager["role"]) . "s can't manage admin "
@@ -3221,7 +3224,7 @@ function v1WriteHandlers()
                 ];
             },
             "apply" => function (PDO $pdo, array $p, array $a) {
-                [, $adminIds, $allowedRoles] = checkManagerAssignment($pdo, $a["manager"], $a["admins"]);
+                [, $adminIds, $allowedRoles] = checkManagerAssignment($pdo, $p, $a["manager"], $a["admins"]);
                 assignAdminsToManager($pdo, $a["manager"], $adminIds, $allowedRoles);
                 return ["manager_id" => $a["manager"], "admins" => $adminIds];
             },

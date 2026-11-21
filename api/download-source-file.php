@@ -1,15 +1,22 @@
 <?php
 require_once "db.php";
+require_once "auth.php";
 
 $token = $_GET["token"] ?? "";
 $fileId = (int)($_GET["id"] ?? 0);
 
-$stmt = $pdo->prepare("SELECT id FROM admins WHERE session_token=? LIMIT 1");
-$stmt->execute([$token]);
-$admin = $stmt->fetch();
+// A link the browser opens, so the session comes in ?token=. An active admin
+// with the Files page, and only their own files (below).
+$admin = adminFromSessionToken($pdo, $token);
 
 if(!$admin){
+  http_response_code(401);
   die("Unauthorized");
+}
+
+if(!can($admin, "pages.files", $pdo)){
+  http_response_code(403);
+  die("The Director has turned this page off for you.");
 }
 
 $stmt = $pdo->prepare("
@@ -21,6 +28,7 @@ $stmt->execute([$fileId, $admin["id"]]);
 $file = $stmt->fetch();
 
 if(!$file || !file_exists($file["file_path"])){
+  http_response_code(404);
   die("File not found");
 }
 

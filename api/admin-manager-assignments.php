@@ -1,25 +1,14 @@
 <?php
 
 require_once "db.php";
+require_once "auth.php";
 require_once "admin-settings-writes.php";
 
 header("Content-Type: application/json");
 
-$headers = getallheaders();
-$token = str_replace("Bearer ", "", $headers["Authorization"] ?? "");
-
-$stmt = $pdo->prepare("SELECT id, role FROM admins WHERE session_token = ? LIMIT 1");
-$stmt->execute([$token]);
-$currentAdmin = $stmt->fetch();
-
-// Only the owner distributes Admin accounts to a Super Admin / Account Manager.
-if (!$currentAdmin || !can($currentAdmin, "admins.manage", $pdo)) {
-    echo json_encode([
-        "success" => false,
-        "message" => "Unauthorized"
-    ]);
-    exit;
-}
+// Only admins.manage (the Director) distributes Admin accounts to a Super
+// Admin / Account Manager.
+$currentAdmin = requireAdmin($pdo, "admins.manage", "Unauthorized");
 
 $method = $_SERVER["REQUEST_METHOD"];
 
@@ -90,7 +79,7 @@ if ($method === "POST") {
     // with api/v1 (admin-settings-writes.php). Ids from outside the pool
     // settings.html offers are quietly dropped.
     try {
-        [, $adminIds, $allowedRoles] = checkManagerAssignment($pdo, $managerId, $adminIds);
+        [, $adminIds, $allowedRoles] = checkManagerAssignment($pdo, $currentAdmin, $managerId, $adminIds);
         assignAdminsToManager($pdo, $managerId, $adminIds, $allowedRoles);
     } catch (PortalWriteError $e) {
         echo json_encode([

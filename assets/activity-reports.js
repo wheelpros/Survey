@@ -44,8 +44,9 @@
   // Shared helpers (assets/ui-utils.js, assets/row-menu.js), loaded first.
   var esc = window.UI.esc;
 
+  // assets/permissions.js, the one place a page asks.
   function can(perm) {
-    return window.adminCan ? window.adminCan(perm) : user.role === "owner";
+    return !!window.adminCan && window.adminCan(perm);
   }
 
   function pad(n) { return String(n).padStart(2, "0"); }

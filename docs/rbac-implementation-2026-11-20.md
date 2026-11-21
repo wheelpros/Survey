@@ -239,7 +239,7 @@ Verified on a database copy: dry run, apply, rollback. A dump after the rollback
 5. `php sql/rbac-2026-11.php --apply --database=<prod DB name>`. Note the run number.
 6. If it must be undone: `--rollback=<run> --database=<name>`.
 7. **Expect sign-outs.** Deactivated admins and anyone whose role was mapped lose their session.
-8. **Check `uploads/`.** It must not run PHP (see risk R1; this is not fixed in code).
+8. **Check `uploads/`.** The code no longer stores runnable names (R1, fixed), and the Docker image installs `docker/uploads.conf`, which stops PHP under `uploads/`. On any other host, add the same `<Directory>` block to the virtual host. Then confirm: put `x.php` in `uploads/` and request it. It must answer 403. Also list `uploads/` for any `.php`, `.phtml` or `.phar` file saved before the fix, and delete them.
 9. Spot-check as a Super Admin and an Admin: sidebar, Settings > Permissions (Director only), one direct URL to a page switched off.
 
 ---
@@ -255,13 +255,17 @@ Verified on a database copy: dry run, apply, rollback. A dump after the rollback
 | Nobody changes **their own permissions**, and nobody but the Director gives a Director-only key or edits their own role's row. | A delegate holding `permissions.manage`. | Closes S2. |
 | The bulk manager save drops people the caller can't manage. | Callers who relied on it keeping them. | Found by the tests. |
 | Download endpoints, `v1/content` and `v1/projects` fixes. | Download links to out-of-scope records now 404. | Found by the tests. |
+| Reject only removes a sign-up that is still waiting. For an approved client it answers 409. | Nobody in the portal: the button only shows for waiting sign-ups. | S10: Reject used to delete approved clients and skip `delete-client.php`. |
+| Older calendar actions (`get_admin_calendar_data`, `create_appointment`) and a Files upload with `user_id` answer 404 for a client outside the caller's scope. | Direct callers only. No page uses the calendar actions. | S9, S12. |
+| A form upload opens inline only when its bytes are a JPG, PNG, WebP or GIF. Anything else downloads as `application/octet-stream`. | Nobody: the page only previews images. | S7. |
+| Profile images are checked by their bytes, saved as `.jpg`, `.png` or `.webp`, and capped at 5 MB. Source, survey and team-form files are stored without dots in the name, and their extension is kept only when it is inert (`.bin` otherwise). Downloads still use the original name. | Nobody. | S1, S13. |
 | `GET api/permissions-admin.php` has a new shape (adds `sources`, `locked`, `me`, `risky`). `POST` still accepts the old body. | Anything outside the portal that reads it. | Needed for the panel. |
 
 ---
 
 ## 6. Tests
 
-Run on 2026-11-20 against a throwaway MySQL 8.4 container (database `cpsdesk3_test`, since dropped), after all changes: **2,060 checks, 0 failed** (about 3 minutes). Baseline before the RBAC work: 1,380 checks at task 3, 1,501 at the start of task 6.
+Run on 2026-11-20 against a throwaway MySQL 8.4 container, after all changes, including the upload and audit-gap fixes: **2,078 checks, 0 failed** (about 2.5 minutes). The earlier run, before those fixes, had 2,060. Baseline before the RBAC work: 1,380 checks at task 3, 1,501 at the start of task 6.
 
 | Suite file | Covers |
 |---|---|
@@ -270,6 +274,8 @@ Run on 2026-11-20 against a throwaway MySQL 8.4 container (database `cpsdesk3_te
 | `permissions-panel.php` | the Settings API: sources, locks, batch, dry run |
 | `rbac-matrix.php` | every role against the matrix; inherit, Allow, Deny, Allow over role Deny, Deny over role Allow; Director tier; data scope; AI ceiling |
 | `rbac-security.php` | HTTP sweep of the endpoints, direct ids, files, AI, escalation, bulk, hierarchy |
+| `upload-safety.php` | S1 and S13: a disguised PHP profile image is refused, a real image is saved under its true extension, stored names for other uploads |
+| `audit-gaps.php` | S7, S9, S10, S12 over HTTP, and a `.php` Files upload stored as `.bin` |
 | the rest of `run.php` | regression for existing features |
 
 **How to run (Windows).** Setup is in the memory note `cpsdesk-dev-gotchas`: a throwaway MySQL with a name ending `_test` (the runner drops every table in it), PHP extensions through `PHP_INI_SCAN_DIR`, and a runner copy where `/dev/null` and `__DIR__` are replaced (`D:/OrbsAI/.rbac-scratch/make-run-copy.php`). Linux: `DB_HOST=… DB_NAME=…_test DB_USER=… DB_PASS=… php tests/api-v1/run.php`. Afterwards delete what the suite leaves in `uploads/attachments/`.
@@ -282,7 +288,7 @@ Not covered by an automated test: the Settings page in a browser (checked by han
 
 **Not fixed**
 
-- **R1. Upload code execution (audit S1, Critical) is still open.** `api/update-profile.php` trusts the browser's MIME type and keeps the file's own extension in the web root `uploads/`. This work did not touch it. Until fixed, deny PHP execution under `uploads/` at the web server, or fix the upload. Source, survey and team-form uploads (S13) have the same latent problem.
+- **R1. Upload code execution (audit S1, Critical): fixed, with one deploy step.** `api/update-profile.php` now takes the type from the bytes (`finfo` and `getimagesize`) and picks the extension itself. Source, survey and team-form uploads (S13) go through `storedUploadName()` in `api/upload-helpers.php`. `docker/uploads.conf` stops PHP and adds `nosniff` and a sandbox CSP under `uploads/`. It was checked in the `php:8.2-apache` image: `.php` and `.phtml` answer 403, and images still load. **Still to do on a non-Docker host:** add the same rule to the virtual host, and remove any runnable file already in `uploads/` (section 4, step 8).
 - **R2.** `permissions.manage` can still be handed to one person by an individual Allow (Q1). The self and Director-key rules limit the damage but it is not Director-locked.
 - **R3.** `api/remove-admin.php` still hard-deletes, so orphan rows come back. The migration cleans them but cannot stop them (Q9 of the audit).
 - **R4.** Session tokens are plaintext, never expire, and download links carry `?token=` (S17).
@@ -313,7 +319,9 @@ Run `git status` for the full list. All uncommitted except this file.
 
 **Frontend:** `assets/permissions.js`, `assets/admin-nav.js`, `assets/activity-reports.js`, `settings.html`, `admin-dashboard.html`, `admin-content.html`, `clients-management.html`.
 
-**Tests:** `tests/api-v1/{authorization,migration,permissions-panel,rbac-matrix,rbac-security}.php` (new), `run.php`, `client-account-tools.php`.
+**Tests:** `tests/api-v1/{authorization,migration,permissions-panel,rbac-matrix,rbac-security,upload-safety,audit-gaps}.php` (new), `run.php`, `client-account-tools.php`.
+
+**Audit-gap pass (same day):** `api/update-profile.php`, `api/upload-helpers.php`, `api/source-files.php`, `api/survey-submit.php`, `api/team-form-writes.php`, `api/download-survey-file.php`, `api/calendar.php`, `api/admin-users.php`, `docker/uploads.conf` (new), `Dockerfile`.
 
 ---
 
@@ -323,4 +331,35 @@ Run `git status` for the full list. All uncommitted except this file.
 - `checkAdminTarget()` in the design is `adminTargetRefusal()`, which returns a reason or null. `afterRoleChange()` is inside `changeAdminRole()`.
 - `canAccessRecord()` takes a record id, not a row, and `scope.php` covers five resources, not the full table in the design. Activity reports, team forms and messages keep their own rules.
 - Page switches per area (`PERMISSION_AREA_PAGES`) and the batch save were added for the Settings panel and aren't in the design.
-- The design's section 10 (reconciliation with the audit) was never filled in. The task notes say the gaps in S2, S3, S5, S6, S7, S8, S9, S10, S11, S12, S18, S19 and S21 were closed in task 3 and tested in task 6; this file did not re-verify each one line by line. S1 is confirmed still open (R1). S4 is partly open: AI can run the permission tools, but only for someone holding `permissions.manage`. S13 to S17, S20, S22 and S23 were not part of this work.
+- The design's section 10 (reconciliation with the audit) was never filled in. Section 10 below takes its place.
+
+---
+
+## 10. Audit findings, checked line by line (2026-11-20)
+
+The task notes said S7, S9, S10 and S12 were closed. They weren't: the code still had the hole. They are fixed now, and `audit-gaps.php` tests each one.
+
+| Finding | State | Where it is enforced |
+|---|---|---|
+| S1 profile upload runs code | **Fixed** this pass | `update-profile.php`, `docker/uploads.conf`; `upload-safety.php` |
+| S2 delegate makes themself Director | Closed | `adminTargetRefusal(…,"permissions")` (no self), `permissionChangeRefusal()` (no Director-only keys, no own role row). Q1 still open (R2) |
+| S3 Director can be deactivated | Closed | `adminTargetRefusal()` refuses every action on `owner` |
+| S4 permission tools over AI | Partly open, by design | `v1PermissionChanges()` needs `permissions.manage` and the same refusals as Settings. Q5 decides more |
+| S5 deactivated admins keep access | Closed | `setAdminActive()` clears the token; `requireAdmin()` / `adminFromSessionToken()` refuse inactive admins |
+| S6 client-details IDOR | Closed | `admin-user-details.php` calls `requireRecord(…,"client",…)` on every id |
+| S7 survey upload XSS / IDOR | **IDOR closed; XSS fixed** this pass | `scopeSql("response")`; inline only for real images, `nosniff`, sandbox CSP |
+| S8 response export | Closed | `download-response-excel.php`: `pages.forms` + `canAccessRecord("response")` |
+| S9 legacy calendar actions | **Fixed** this pass | `calendar.php`: `requireRecord(…,"client",…)` |
+| S10 Reject deletes approved clients | **Fixed** this pass | `admin-users.php`: only `approved = 0`, else 409 |
+| S11 admins.manage escalates | Bounded | `admins.manage` is Director-only. A delegate who holds it by individual Allow can still create an Account Manager (Q1) |
+| S12 Files to out-of-scope client | **Fixed** this pass | `source-files.php`: `requireRecord(…,"client",…)` before anything is saved |
+| S13 executable upload names | **Fixed** this pass | `storedUploadName()`; `docker/uploads.conf` |
+| S14 slides / content types | Closed | slides need `settings.manage`; content-type writes need `content.create` or `content.publish` |
+| S15 company-name claim at sign-up | Open, not in scope | `register.php` |
+| S16 consent grants all scopes | Open (R7, Q5) | |
+| S17 weak session tokens | Open (R4) | |
+| S18 page switch gaps | Closed | `team-forms.php`, `response-details.php` call `requirePage("forms")` |
+| S19 password conversion script | Closed | `convert_admin_passwords.php` runs from the command line only |
+| S20 hygiene and rate limits | Open (R8) | |
+| S21 Director's position | Closed | `admin-position.php` and `set_admin_position` call `checkAdminTarget(…,"edit")` |
+| S22, S23 | Open, low; not in scope | |

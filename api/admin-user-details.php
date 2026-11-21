@@ -37,33 +37,9 @@ function respond($success, $message = "", $extra = [], $code = 200)
 |
 */
 
-$headers = function_exists("getallheaders") ? getallheaders() : [];
+require_once "scope.php";
 
-$authorization =
-    $headers["Authorization"]
-    ?? $headers["authorization"]
-    ?? $_SERVER["HTTP_AUTHORIZATION"]
-    ?? "";
-
-if (!preg_match('/Bearer\s+(.+)/i', $authorization, $matches)) {
-    respond(false, "Unauthorized.", [], 401);
-}
-
-try {
-    $stmt = $pdo->prepare("SELECT id, role FROM admins WHERE session_token = ? LIMIT 1");
-    $stmt->execute([trim($matches[1])]);
-    $admin = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$admin) {
-        respond(false, "Unauthorized.", [], 401);
-    }
-} catch (Throwable $e) {
-    respond(false, "Authentication database error.", [], 500);
-}
-
-if (!can($admin, "clients.details", $pdo)) {
-    respond(false, "Clients Management is not available to your role.", [], 403);
-}
+$admin = requireAdmin($pdo, "clients.details", "Clients Management is not available to your role.");
 
 /* Who may change what is on this page: the internal note, and the client's own
    details. Every other admin reads both and no more.
@@ -109,6 +85,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         respond(false, "A numeric user id is required.", [], 400);
     }
 
+    // Only a client this admin may see (scope.php "client"): clients.view_all,
+    // or assigned to them. Anything else is not found, the same as a missing id.
+    requireRecord($pdo, $admin, "client", $targetId, "User not found.");
+
     /*
     |--------------------------------------------------------------------------
     | The client's own details
@@ -131,6 +111,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         require_once "client-account-writes.php";
 
         $sourceId = (int) ($input["source_id"] ?? 0);
+
+        // The account merged in has to be one they may see too.
+        if ($action !== "change_owner") {
+            requireRecord($pdo, $admin, "client", $sourceId, "User not found.");
+        }
 
         try {
             if ($action === "change_owner") {
@@ -155,15 +140,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     | a line in the event log. Only for a client this admin works on.
     */
     if ($action === "remove_teammate") {
-
-        if (!can($admin, "clients.view_all", $pdo)) {
-            $assigned = $pdo->prepare("SELECT 1 FROM admin_user_assignments WHERE admin_id = ? AND user_id = ? LIMIT 1");
-            $assigned->execute([(int) $admin["id"], $targetId]);
-
-            if (!$assigned->fetchColumn()) {
-                respond(false, "User not found.", [], 404);
-            }
-        }
 
         require_once "client-team-writes.php";
 
@@ -327,6 +303,9 @@ if (!isset($_GET["id"]) || !ctype_digit((string) $_GET["id"])) {
 }
 
 $userId = (int) $_GET["id"];
+
+// The same rule as the writes above, and as the list this page is opened from.
+requireRecord($pdo, $admin, "client", $userId, "User not found.");
 
 // company_name, website, description and phone are added lazily by db.php.
 ensureUserProfileColumns($pdo);

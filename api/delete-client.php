@@ -24,6 +24,7 @@
 */
 
 require_once "db.php";
+require_once "scope.php";
 require_once "events.php";
 require_once "upload-helpers.php";
 
@@ -38,25 +39,7 @@ function deleteReply($success, $message = "", $extra = [])
     exit;
 }
 
-$headers = function_exists("getallheaders") ? getallheaders() : [];
-$authHeader = $headers["Authorization"] ?? $headers["authorization"] ?? ($_SERVER["HTTP_AUTHORIZATION"] ?? "");
-$token = trim(str_replace("Bearer", "", $authHeader));
-
-if ($token === "") {
-    deleteReply(false, "Unauthorized");
-}
-
-$stmt = $pdo->prepare("SELECT id, role FROM admins WHERE session_token = ? LIMIT 1");
-$stmt->execute([$token]);
-$admin = $stmt->fetch(PDO::FETCH_ASSOC);
-
-if (!$admin) {
-    deleteReply(false, "Unauthorized");
-}
-
-if (!can($admin, "clients.delete", $pdo)) {
-    deleteReply(false, "Only the Director can delete a client account.");
-}
+$admin = requireAdmin($pdo, "clients.delete", "Only the Director can delete a client account.");
 
 $input = json_decode(file_get_contents("php://input"), true) ?? [];
 
@@ -65,6 +48,11 @@ $confirmEmail = strtolower(trim((string) ($input["confirm_email"] ?? "")));
 
 if (!$userId) {
     deleteReply(false, "User ID required.");
+}
+
+// Only a client this admin may see (scope.php "client").
+if (!canAccessRecord($pdo, $admin, "client", $userId)) {
+    deleteReply(false, "Client not found.");
 }
 
 $stmt = $pdo->prepare("SELECT id, name, email, approved, account_owner_id FROM users WHERE id = ? LIMIT 1");

@@ -1,44 +1,14 @@
 <?php
 
 require_once "db.php";
+require_once "auth.php";
+require_once "admin-settings-writes.php";
 require_once "events.php";
 
 header("Content-Type: application/json");
 
-$headers = getallheaders();
-
-$token = str_replace(
-    "Bearer ",
-    "",
-    $headers["Authorization"] ?? ""
-);
-
-
-// Check logged-in admin
-$stmt = $pdo->prepare("
-    SELECT id, role
-    FROM admins
-    WHERE session_token = ?
-    LIMIT 1
-");
-
-$stmt->execute([$token]);
-
-$admin = $stmt->fetch(PDO::FETCH_ASSOC);
-
-
-// Only owner can remove admins
-if (!$admin || !can($admin, "admins.manage", $pdo)) {
-
-    http_response_code(403);
-
-    echo json_encode([
-        "success" => false,
-        "message" => "Unauthorized"
-    ]);
-
-    exit;
-}
+// Only admins.manage (the Director) removes admins
+$admin = requireAdmin($pdo, "admins.manage", "Unauthorized");
 
 
 // Get ID
@@ -83,11 +53,16 @@ if (!$target) {
 }
 
 
-if ($target["role"] === "owner") {
+// Never the Director, never yourself (admin-settings-writes.php checkAdminTarget()).
+$refusal = adminTargetRefusal($admin, $target, "remove", $pdo);
+
+if ($refusal !== null) {
+
+    http_response_code(403);
 
     echo json_encode([
         "success" => false,
-        "message" => "You cannot remove the Director"
+        "message" => $refusal
     ]);
 
     exit;

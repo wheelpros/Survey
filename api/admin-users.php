@@ -1,46 +1,18 @@
 <?php
 
 require_once "db.php";
+require_once "auth.php";
 require_once "events.php";
 
 header("Content-Type: application/json");
 
-$headers = getallheaders();
-$authHeader = $headers["Authorization"] ?? "";
-$token = str_replace("Bearer ", "", $authHeader);
-
-if (!$token) {
-    echo json_encode([
-        "success" => false,
-        "message" => "Unauthorized"
-    ]);
-    exit;
-}
-
-// The token has to resolve to a real admin. Every admin role reaches this
-// page; what differs is the scope of the list, decided further down.
-$adminStmt = $pdo->prepare("SELECT id, role FROM admins WHERE session_token = ? LIMIT 1");
-$adminStmt->execute([$token]);
-$currentAdmin = $adminStmt->fetch();
-
-if (!$currentAdmin) {
-    echo json_encode([
-        "success" => false,
-        "message" => "Unauthorized"
-    ]);
-    exit;
-}
+// Every admin reaches this list (Clients Management, and the client pickers
+// on the post form and Files); what differs is the scope of the list, decided
+// further down.
+$currentAdmin = requireAdmin($pdo);
 
 $role = $currentAdmin["role"];
 $myId = (int)$currentAdmin["id"];
-
-if (!in_array($role, ["owner", "super_admin", "seo_admin", "account_manager"], true)) {
-    echo json_encode([
-        "success" => false,
-        "message" => "Unauthorized"
-    ]);
-    exit;
-}
 
 $method = $_SERVER["REQUEST_METHOD"];
 
@@ -93,8 +65,20 @@ if ($method === "POST") {
     if ($action === "reject") {
         $who = eventClientName($pdo, $userId);
 
-        $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
+        /* Rejecting is for a sign-up still waiting. An approved client has
+           posts, files and a team; removing one is clients.delete, through
+           delete-client.php and its safeguards (audit S10). */
+        $stmt = $pdo->prepare("DELETE FROM users WHERE id = ? AND approved = 0 AND account_owner_id IS NULL");
         $stmt->execute([$userId]);
+
+        if ($stmt->rowCount() === 0) {
+            http_response_code(409);
+            echo json_encode([
+                "success" => false,
+                "message" => "Only a sign-up that is still waiting can be rejected. To remove an approved client, delete them."
+            ]);
+            exit;
+        }
 
         logEvent($pdo, EVENT_CLIENT_REJECTED, "user", $userId, $who, "Rejected " . $who . "'s sign-up", $userId);
 

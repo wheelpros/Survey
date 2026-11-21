@@ -32,6 +32,7 @@
 require_once __DIR__ . "/db.php";
 require_once __DIR__ . "/notify.php";
 require_once __DIR__ . "/events.php";
+require_once __DIR__ . "/upload-helpers.php"; // storedUploadName()
 require_once __DIR__ . "/survey-writes.php"; // SURVEY_QUESTION_TYPES, prepareChips()
 
 const TEAM_FORM_SCOPES = ["all", "roles", "specific"];
@@ -353,7 +354,7 @@ function teamFormFor(PDO $pdo, array $admin, $formId)
         "sent_at"     => $form["created_at"],
         "sender"      => ["id" => (int) $form["created_by_admin_id"], "name" => $form["sender_name"] ?? ""],
         "is_sender"   => (int) $form["created_by_admin_id"] === (int) $admin["id"],
-        "can_close"   => (int) $form["created_by_admin_id"] === (int) $admin["id"] || $admin["role"] === "owner",
+        "can_close"   => (int) $form["created_by_admin_id"] === (int) $admin["id"] || isDirector($admin),
         "sees_answers" => $seesAll,
         "target_roles" => $form["target_roles"] ? array_map(function ($r) {
             return ["role" => $r, "name" => teamFormRoleName($r)];
@@ -563,8 +564,7 @@ function submitTeamFormResponse(PDO $pdo, array $admin, $formId, array $answers,
                 if (!is_dir($dir)) {
                     mkdir($dir, 0775, true);
                 }
-                $safe = preg_replace("/[^a-zA-Z0-9._-]/", "_", $uploads[$qid]["name"]);
-                $path = $dir . "/" . bin2hex(random_bytes(8)) . "_" . $safe;
+                $path = $dir . "/" . storedUploadName($uploads[$qid]["name"]);
                 if (!move_uploaded_file($uploads[$qid]["tmp"], $path)) {
                     throw new PortalWriteError("Could not save the file " . $uploads[$qid]["name"] . ".", 500);
                 }
@@ -613,7 +613,7 @@ function setTeamFormOpen(PDO $pdo, array $admin, $formId, $open)
     if (!$form || (!teamFormRecipientRow($pdo, $formId, $admin["id"]) && !teamFormSeesAnswers($pdo, $admin, $form))) {
         throw new PortalWriteError("Form not found.", 404);
     }
-    if ((int) $form["created_by_admin_id"] !== (int) $admin["id"] && $admin["role"] !== "owner") {
+    if ((int) $form["created_by_admin_id"] !== (int) $admin["id"] && !isDirector($admin)) {
         throw new PortalWriteError("Only whoever sent this form can close or reopen it.", 403);
     }
 

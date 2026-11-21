@@ -28,6 +28,7 @@
 require_once __DIR__ . "/_bootstrap.php";
 require_once __DIR__ . "/../task-writes.php";
 require_once __DIR__ . "/../upload-helpers.php";
+require_once __DIR__ . "/../mailer.php"; // APP_URL, for page and image links
 
 $p = v1Principal($pdo);
 v1RequireMethod("GET");
@@ -174,8 +175,9 @@ if (!empty($_GET["tasks"])) {
     /* The dashboard's Team overview, for the Director:
        one row per phase and post they can see, with its people, overdue and what needs
        attention. Posts, forms and meetings only for a connection that may
-       read them. */
-    if (can($p, "team.overview", $pdo)) {
+       read them. It sits on the Dashboard page, so it needs that page too,
+       as api/admin-dashboard.php does in the browser. */
+    if (can($p, "team.overview", $pdo) && can($p, "pages.dashboard", $pdo)) {
         $team = teamDashboardItems($pdo, $p);
         $teamItems = array_values(array_filter($team["tasks"], function ($t) use ($withPosts) {
             return $t["kind"] !== "content" || $withPosts;

@@ -60,7 +60,8 @@ ensureDailyReportTables($pdo);
 ensureAttachmentsTable($pdo);
 
 $p = currentPrincipal($pdo);
-if (!$p || $p["kind"] !== "admin") {
+// A browser session only: an AI connection comes in through api/v1.
+if (!$p || $p["kind"] !== "admin" || $p["via"] !== "session") {
     reply(false, "Unauthorized token", [], 401);
 }
 $p["id"] = (int) $p["id"];

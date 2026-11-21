@@ -1434,6 +1434,14 @@ select.client-filter{
 .perm-area th{background:#fafbfc;padding:0}
 .perm-fold{display:flex;align-items:center;gap:10px;width:100%;padding:13px 14px;border:none;background:none;font:inherit;font-size:12px;font-weight:800;color:var(--nav-active);text-transform:uppercase;letter-spacing:.04em;text-align:left;cursor:pointer}
 .perm-fold:hover{background:#f2f4f7}
+/* A page with nothing under it: the same heading, without the fold. Its
+   label lines up with the folding ones (14px chevron + 10px gap). */
+.perm-fold.perm-fold-none{cursor:default;padding-left:38px}
+.perm-fold.perm-fold-none:hover{background:none}
+.perm-foldall{display:flex;justify-content:flex-end;gap:14px;margin:0 0 8px}
+.perm-foldall button{border:none;background:none;padding:6px 2px;font:inherit;font-size:13px;font-weight:700;color:var(--nav-active);cursor:pointer}
+.perm-foldall button:hover{text-decoration:underline}
+.perm-foldall button:focus-visible{outline:2px solid var(--nav-active);outline-offset:2px;border-radius:4px}
 .perm-fold:focus-visible{outline:2px solid var(--nav-active);outline-offset:-2px}
 .perm-fold svg{width:14px;height:14px;flex:none;transition:transform .15s ease}
 .perm-fold[aria-expanded="true"] svg{transform:rotate(90deg)}
@@ -1448,7 +1456,82 @@ select.client-filter{
 .perm-check input{width:18px;height:18px;margin:0;accent-color:var(--nav-active);cursor:pointer}
 .perm-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--brand)}
 .perm-check .perm-dot{position:absolute;top:-4px;right:-10px}
-.perm-legend{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;color:var(--muted)}
+.perm-legend{display:flex;flex-wrap:wrap;gap:8px 20px;margin:12px 0 0;padding:0;list-style:none;font-size:13px;color:var(--muted)}
+.perm-legend li{display:flex;align-items:center;gap:8px}
+/* Not saved yet: the amber the role note uses for "this will change something". */
+.perm-swatch{display:inline-block;width:14px;height:14px;border-radius:50%;background:#fff7e6;box-shadow:0 0 0 2px #e8a33d}
+/* The switch (permSwitch()): navy when on, the portal's one accent. */
+.perm-switch{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:0;border:none;background:none;cursor:pointer;border-radius:999px}
+.perm-track{position:relative;width:40px;height:24px;border-radius:999px;background:#c9ced8;transition:background .12s ease}
+.perm-track::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(16,24,40,.25);transition:transform .12s ease,width .12s ease}
+.perm-switch[aria-checked="true"] .perm-track{background:var(--nav-active)}
+.perm-switch[aria-checked="true"] .perm-track::after{transform:translateX(16px)}
+.perm-switch:hover .perm-track{background:#b3b9c5}
+.perm-switch[aria-checked="true"]:hover .perm-track{background:#282c52}
+.perm-switch:active .perm-track::after{width:22px}
+.perm-switch[aria-checked="true"]:active .perm-track::after{transform:translateX(12px)}
+.perm-switch:focus-visible{outline:none}
+.perm-switch:focus-visible .perm-track{box-shadow:0 0 0 3px rgba(27,30,58,.25)}
+.perm-switch:disabled{cursor:not-allowed;opacity:.45}
+/* Not saved yet: an amber ring until Save. */
+.perm-switch.is-pending .perm-track{box-shadow:0 0 0 2px #fff,0 0 0 4px #e8a33d}
+.perm-switch.is-pending:focus-visible .perm-track{box-shadow:0 0 0 2px #fff,0 0 0 4px #e8a33d,0 0 0 7px rgba(27,30,58,.25)}
+@media (prefers-reduced-motion: reduce){.perm-track,.perm-track::after{transition:none}}
+.perm-switch-wrap{position:relative;display:inline-flex}
+.perm-switch-wrap .perm-dot{position:absolute;top:6px;right:-6px}
+.perm-switch-cell{display:inline-flex;flex-direction:column;align-items:center}
+.perm-switch-cell .perm-src{margin-top:0}
+/* An own setting, with the button that puts them back on the role. */
+.perm-own-chip{display:inline-flex;align-items:center;gap:2px;padding:2px 2px 2px 9px;border-radius:999px;background:#eef0f6;color:var(--nav-active);font-size:11px;font-weight:700}
+.perm-own-chip.is-deny{background:#fef3f2;color:#b42318}
+.perm-own-chip button{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;padding:0;border:none;border-radius:50%;background:none;color:inherit;cursor:pointer}
+.perm-own-chip button svg{width:14px;height:14px}
+.perm-own-chip button:hover{background:#dde1ec}
+.perm-own-chip.is-deny button:hover{background:#fbd9d4}
+.perm-own-chip button:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(27,30,58,.25)}
+.perm-area.has-page th[scope="rowgroup"]{width:auto}
+.perm-own,.perm-own-key{display:block;margin-top:4px;font-size:11px;font-weight:700;color:var(--muted)}
+.perm-own-key{display:inline;margin:0}
+.perm-badge{display:inline-block;margin-left:6px;padding:2px 8px;border-radius:999px;background:#eef0f6;color:var(--nav-active);font-size:11px;font-weight:700;vertical-align:1px;white-space:nowrap}
+.perm-table td.perm-director{font-size:13px;color:var(--muted);text-align:center}
+.perm-eff{display:block;font-weight:700}
+.perm-eff.is-yes{color:#17803d}
+.perm-eff.is-no{color:var(--muted)}
+.perm-src{display:block;margin-top:2px;font-size:11px;color:var(--muted)}
+.panel-body .perm-select:disabled{background:#f6f7f9;color:var(--muted);cursor:not-allowed}
+.perm-check input:disabled{cursor:not-allowed}
+.perm-person-bar{display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.perm-person-bar .perm-combo{flex:0 1 440px;min-width:0}
+.perm-person-bar .perm-reset-person{margin:15px 0 0;font-size:13px}
+.perm-reset-person:disabled{color:var(--muted);opacity:.6;cursor:not-allowed;text-decoration:none}
+.perm-lock-note,.perm-pending{margin:0 0 14px;padding:10px 12px;border-radius:10px;background:#fff7e6;color:#93560c;font-size:13px;line-height:1.5}
+.perm-pending{margin:16px 0 0}
+.perm-lock-note[hidden],.perm-pending[hidden]{display:none}
+/* An area headed by its page's switch (permGroups(), g.page). */
+.perm-area-row{display:flex;align-items:center;gap:12px;padding-right:14px}
+.perm-area-row .perm-fold{flex:1 1 auto;width:auto}
+.perm-page-switch{display:inline-flex;align-items:center;gap:8px;flex:none}
+.perm-page-label{font-size:12px;font-weight:700;color:var(--text);text-transform:none;letter-spacing:0}
+.perm-check .perm-page-label{margin-left:6px}
+.perm-area.has-page td.perm-col{background:#fafbfc}
+.perm-page-state{display:block;font-size:11px;font-weight:700;text-transform:none;letter-spacing:0}
+.perm-page-switch .perm-page-state{display:inline;min-width:32px}
+.perm-page-state.is-open{color:#17803d}
+.perm-page-state.is-off{color:#93560c}
+.panel-body .perm-select.is-pending{background:#fff7e6}
+/* Greyed out while its page is off: still editable, but it does nothing. */
+.perm-table td.is-blocked .perm-switch-wrap,.perm-table td.is-blocked .perm-own{opacity:.45}
+.perm-table tr.is-blocked th[scope="row"],.perm-table tr.is-blocked td:nth-child(2),.perm-table tr.is-blocked .perm-switch-cell{opacity:.55}
+.perm-eff.is-blocked{color:#93560c}
+.perm-explain td{background:#fff7e6;color:#93560c;font-size:13px;padding:10px 14px}
+.perm-review-list .perm-review-sub{list-style:none;margin:10px 0 4px -20px;font-weight:700}
+.perm-review-list .is-blocked{color:#93560c}
+.perm-review-box{max-width:520px}
+.perm-review-box .admin-form-foot{justify-content:flex-end}
+.perm-review-body{padding:20px 24px 4px;font-size:14px;line-height:1.6;color:#344054}
+.perm-review-body p{margin:0 0 12px}
+.perm-review-list{margin:0;padding-left:20px}
+.perm-review-list li{margin-bottom:6px}
 .perm-reset{display:block;margin:4px auto 0;border:none;background:none;padding:0;font:inherit;font-size:11px;font-weight:700;color:var(--brand);text-transform:none;letter-spacing:0;cursor:pointer}
 .perm-reset:hover{text-decoration:underline}
 .panel-body .perm-select{width:auto;min-width:150px;margin:0;padding:8px 10px;font-size:13px}
@@ -1951,7 +2034,8 @@ document.addEventListener("DOMContentLoaded", function () {
     </div>
 </div>
 <!-- What each role may do, and one person's exceptions (api/permissions-admin.php).
-     The Director's alone; the endpoints check every one of these again. -->
+     Shown to whoever holds permissions.manage; the endpoints check every one
+     of these again. -->
 <div id="permissionsSection" style="display:none;">
 <div class="panel">
   <div class="panel-head">
@@ -1966,33 +2050,72 @@ document.addEventListener("DOMContentLoaded", function () {
     </div>
 
     <div id="permRoles" role="tabpanel" aria-labelledby="permTabRoles">
+      <div class="perm-foldall">
+        <button type="button" onclick="foldAllPerm('roles', true)">Expand all</button>
+        <button type="button" onclick="foldAllPerm('roles', false)">Collapse all</button>
+      </div>
       <div class="perm-scroll">
         <table class="perm-table" id="permRoleTable">
           <tbody><tr><td class="perm-empty">Loading permissions...</td></tr></tbody>
         </table>
       </div>
-      <p class="perm-legend"><span class="perm-dot" aria-hidden="true"></span> Changed from the portal's default</p>
+      <ul class="perm-legend">
+        <li><span class="perm-dot" aria-hidden="true"></span> Differs from the portal's default</li>
+        <li><span class="perm-swatch" aria-hidden="true"></span> Not saved yet</li>
+        <li><span class="perm-own-key" aria-hidden="true">2 own</span> People in the role with their own setting - a role change doesn't reach them</li>
+        <li>Faded: no effect while that area's page is off for the role</li>
+      </ul>
     </div>
 
     <div id="permPeople" role="tabpanel" aria-labelledby="permTabPeople" hidden>
       <label for="permAdminSearch">Person</label>
-      <div class="perm-combo">
-        <input type="text" id="permAdminSearch" role="combobox" aria-expanded="false" aria-controls="permAdminList"
-               aria-autocomplete="list" autocomplete="off" placeholder="Search by name or role"
-               onfocus="openPermPeople()" oninput="openPermPeople()" onkeydown="permComboKey(event)" onblur="closePermPeople()">
-        <svg class="perm-combo-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <input type="hidden" id="permAdminSelect">
-        <ul id="permAdminList" class="perm-combo-list" role="listbox" aria-label="People" hidden onmousedown="event.preventDefault()"></ul>
+      <div class="perm-person-bar">
+        <div class="perm-combo">
+          <input type="text" id="permAdminSearch" role="combobox" aria-expanded="false" aria-controls="permAdminList"
+                 aria-autocomplete="list" autocomplete="off" placeholder="Search by name or role"
+                 onfocus="openPermPeople()" oninput="openPermPeople()" onkeydown="permComboKey(event)" onblur="closePermPeople()">
+          <svg class="perm-combo-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <input type="hidden" id="permAdminSelect">
+          <ul id="permAdminList" class="perm-combo-list" role="listbox" aria-label="People" hidden onmousedown="event.preventDefault()"></ul>
+        </div>
+        <button type="button" class="perm-reset perm-reset-person" id="permPersonReset" onclick="resetPermPerson()" disabled>Reset to role</button>
+      </div>
+      <p class="perm-lock-note" id="permPersonLock" hidden></p>
+      <div class="perm-foldall">
+        <button type="button" onclick="foldAllPerm('people', true)">Expand all</button>
+        <button type="button" onclick="foldAllPerm('people', false)">Collapse all</button>
       </div>
       <div class="perm-scroll">
         <table class="perm-table" id="permPersonTable"><tbody></tbody></table>
       </div>
     </div>
 
+    <p class="perm-pending" id="permPending" hidden></p>
+
     <div class="perm-foot">
       <div id="permStatus" class="status" role="status"></div>
+      <button type="button" class="ghost-btn" id="permDiscardBtn" onclick="discardPermChanges()" disabled>Discard all</button>
       <button type="button" class="ghost-btn" id="permUndoBtn" onclick="undoPermChanges()" disabled>Undo</button>
       <button type="button" class="action-btn btn perm-save" id="permSaveBtn" onclick="savePermChanges()" disabled>Save changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Asked before a save that widens what someone sees or can erase, or takes
+     a page away from a whole role. Lists each such change and who it reaches. -->
+<div class="acct-modal" id="permReviewModal">
+  <div class="acct-box perm-review-box" role="dialog" aria-modal="true" aria-labelledby="permReviewTitle" aria-describedby="permReviewText">
+    <div class="acct-head">
+      <h2 id="permReviewTitle">Check these changes</h2>
+      <button type="button" onclick="closePermReview()" aria-label="Close">&times;</button>
+    </div>
+    <div class="perm-review-body">
+      <p id="permReviewText"></p>
+      <ul class="perm-review-list" id="permReviewList"></ul>
+    </div>
+    <div class="admin-form-foot">
+      <button type="button" class="ghost-btn" onclick="closePermReview()">Keep editing</button>
+      <button type="button" class="save-btn" id="permReviewGo" onclick="confirmPermSave()">Save changes</button>
     </div>
   </div>
 </div>
@@ -2021,35 +2144,85 @@ document.addEventListener("DOMContentLoaded", function () {
 |
 | Two views over one GET of api/permissions-admin.php: a grid of every
 | permission against the three roles, and one person's exceptions to their
-| role. Edits stay on the page until Save; a value that matches the default
-| (or, for a person, their role) is sent as "default" so nothing is stored
+| role. Whatever is saved is drawn from the server's answer - each person's
+| effective permissions and where each one comes from (permissionDecision():
+| their own setting, or their role) - and only what is still unsaved is
+| worked out here, as a preview.
+|
+| Edits stay on the page until Save, which sends them all in one request:
+| stored together or not at all, after the server has checked them (a dry
+| run) and the Director has confirmed any that widen access. Undo steps back
+| one edit, Discard all drops them (and can itself be undone), and leaving
+| the page with edits unsaved asks first. A value that matches the default
+| (or, for a person, their role) is sent as "default", so nothing is stored
 | that would stop a later change from reaching them.
+|
+| What the caller may not change - their own role's column, their own row, a
+| Director-only key unless they are the Director - comes greyed out with the
+| server's reason (permissionsPanel()), the same refusal a save would get.
 |
 */
 let permData = null;
 let permRoleEdits = {};    // role -> { perm: bool }
 let permPersonEdits = {};  // admin id -> { perm: true | false | null }
+let permHistory = [];      // the two above before each edit, newest last, for Undo
+let permSaving = false;
+
+const PERM_SOURCE = { override: "Own setting", role: "From role", default: "From role", director: "Director", system: "Not available" };
 
 function permEsc(s){
   return String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[c]);
 }
 
+function permResetState(){
+  permRoleEdits = {};
+  permPersonEdits = {};
+  permHistory = [];
+}
+
 async function loadPermissions(){
   try {
     const res = await fetch("api/permissions-admin.php", { headers: { Authorization: "Bearer " + localStorage.getItem("admin_token") } });
-    const data = await res.json();
-    if (!data.success) throw new Error(data.message || "Could not load permissions.");
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.success) throw new Error(data.message || "Could not load permissions.");
     permData = data.data;
-    permRoleEdits = {};
-    permPersonEdits = {};
+    permResetState();
     renderPermRoles();
     renderPermAdminSelect();
     renderPermPerson();
     syncPermButtons();
   } catch (error) {
-    document.querySelector("#permRoleTable tbody").innerHTML =
-      `<tr><td class="perm-empty">${permEsc(error.message || "Could not load permissions.")}</td></tr>`;
+    const row = `<tr><td class="perm-empty">${permEsc(error.message || "Could not load permissions.")}</td></tr>`;
+    document.getElementById("permRoleTable").innerHTML = `<tbody>${row}</tbody>`;
+    document.getElementById("permPersonTable").innerHTML = `<tbody>${row}</tbody>`;
   }
+}
+
+function permRedraw(){
+  // The tables are redrawn whole; keep the keyboard where it was. A reset
+  // button goes away with its chip, so its switch takes the focus.
+  const was = document.activeElement && document.activeElement.id;
+  renderPermRoles();
+  renderPermPerson();
+  syncPermButtons();
+  if (was && was.startsWith("permsw-")) {
+    const el = document.getElementById(was) || document.getElementById(was.replace("permsw-x-", "permsw-p-"));
+    if (el) el.focus({ preventScroll: true });
+  }
+}
+
+/* Before each edit (or each reset, as one step), so Undo can step back to it. */
+function permRemember(){
+  permHistory.push(JSON.stringify([permRoleEdits, permPersonEdits]));
+  if (permHistory.length > 200) permHistory.shift();
+}
+
+function permIsDirector(){
+  return !!(permData && permData.me && permData.me.director);
+}
+
+function permLabel(p){
+  return permEsc(p.label) + (p.owner_only ? ' <span class="perm-badge">Director only</span>' : "");
 }
 
 function showPermView(view){
@@ -2059,15 +2232,31 @@ function showPermView(view){
   document.getElementById("permTabPeople").setAttribute("aria-selected", view === "people");
 }
 
-/* The catalog in its areas, in the order api/permissions.php lists them. */
+/* The catalog in its areas, in the order api/permissions.php lists them:
+   one per sidebar page, in sidebar order, then "Across all pages" and the
+   Director's. A page area carries its "Open X" key as g.page (catalog
+   heads_area, from PERMISSION_AREA_PAGES): its switch heads the area, and an
+   area can be that switch alone (Files, Messages). What is under a page is
+   greyed out while it is off only where the server refuses it then (catalog
+   p.page) - Clients Management's keys still work through the AI. */
 function permGroups(){
   const groups = [];
   permData.catalog.forEach(p => {
     let g = groups.find(x => x.area === p.area);
-    if (!g) groups.push(g = { area: p.area, label: p.area_label, items: [] });
-    g.items.push(p);
+    if (!g) groups.push(g = { area: p.area, label: p.area_label, items: [], page: null });
+    if (p.heads_area) g.page = p;
+    else g.items.push(p);
   });
   return groups;
+}
+
+/* Whether p can't work for this column because its page is off. */
+function permPageOff(p, pageOn){
+  return !!p.page && !pageOn;
+}
+
+function permPageName(page){
+  return page.label.replace(/^Open /, "");
 }
 
 function roleValue(role, key){
@@ -2075,34 +2264,72 @@ function roleValue(role, key){
   return edit !== undefined ? edit : permData.matrix[role][key];
 }
 
+/* People in this role with their own setting for key, unsaved ones included:
+   a change to the role's column doesn't reach them. */
+function permOwnCount(role, key){
+  return permData.admins.filter(a => a.role === role && personValue(a, key) !== null).length;
+}
+
+/* "3 changed, 1 not saved" for a folded heading. */
+function permAreaNote(parts){
+  return parts.filter(Boolean).join(", ");
+}
+
 function renderPermRoles(){
   const roles = permData.roles;
   let html = `<thead><tr><th scope="col">Permission</th>${roles.map(r =>
     `<th scope="col" class="perm-col">${permEsc(r.name)}
-       <button type="button" class="perm-reset" onclick="resetPermRole('${r.key}')">Reset to default</button></th>`).join("")}</tr></thead>`;
+       ${r.locked
+         ? `<span class="perm-lock" title="${permEsc(r.locked)}">Your role</span>`
+         : `<button type="button" class="perm-reset" onclick="resetPermRole('${r.key}')">Reset to default</button>`}</th>`).join("")}</tr></thead>`;
 
-  // The Director-only keys never go to a role: they are handed to one person at a time.
-  permGroups().map(g => ({ ...g, items: g.items.filter(p => !p.owner_only) })).forEach(g => {
-    if (!g.items.length) return;
-    const changed = g.items
+  permGroups().forEach(g => {
+    const keys = (g.page ? [g.page] : []).concat(g.items.filter(p => !p.owner_only));
+    const changed = keys
       .reduce((n, p) => n + roles.filter(r => roleValue(r.key, p.key) !== p.defaults.includes(r.key)).length, 0);
-    html += permAreaHead("roles", g, roles.length + 1, changed ? `${changed} changed` : "");
+    const unsaved = keys
+      .reduce((n, p) => n + roles.filter(r => p.key in (permRoleEdits[r.key] || {})).length, 0);
+    // The area's page, one switch per role, in the heading row ("... page").
+    const side = g.page ? { cells: roles.map(r => permRoleCell(r, g.page)).join("") } : null;
+    html += permAreaHead("roles", g, roles.length + 1,
+      permAreaNote([changed && `${changed} changed`, unsaved && `${unsaved} not saved`]), side);
     g.items.forEach(p => {
-      html += `<tr><th scope="row">${permEsc(p.label)}</th>`;
-      roles.forEach(r => {
-        const on = roleValue(r.key, p.key);
-        const changed = on !== p.defaults.includes(r.key);
-        html += `<td class="perm-col"><label class="perm-check">
-          <input type="checkbox" ${on ? "checked" : ""} onchange="editPermRole('${r.key}','${p.key}',this.checked)"
-                 aria-label="${permEsc(r.name)}: ${permEsc(p.label)}">
-          ${changed ? '<span class="perm-dot" title="Changed from the default"></span>' : ""}</label></td>`;
-      });
+      html += `<tr><th scope="row">${permLabel(p)}</th>`;
+      // The Director-only keys never go to a role: they are handed to one person at a time.
+      if (p.owner_only) {
+        html += `<td class="perm-director" colspan="${roles.length}">Never given to a role - only to one person, on the One person tab</td></tr>`;
+        return;
+      }
+      roles.forEach(r => { html += permRoleCell(r, p); });
       html += "</tr>";
     });
     html += "</tbody>";
   });
 
   document.getElementById("permRoleTable").innerHTML = html;
+}
+
+/* A switch: role="switch" on a button, so Space and Enter work and screen
+   readers say "on" or "off". pending rings it until Save. */
+function permSwitch(on, attrs, pending){
+  return `<button type="button" role="switch" class="perm-switch${pending ? " is-pending" : ""}" aria-checked="${on}" ${attrs}>`
+    + `<span class="perm-track" aria-hidden="true"></span></button>`;
+}
+
+/* One role's switch for p. With p's page off for that role it is faded -
+   still editable, so it can be set up before the page is turned on. */
+function permRoleCell(r, p){
+  const on = roleValue(r.key, p.key);
+  const changed = on !== p.defaults.includes(r.key);
+  const pending = p.key in (permRoleEdits[r.key] || {});
+  const own = permOwnCount(r.key, p.key);
+  const blocked = p.page && !roleValue(r.key, p.page);
+  const pageName = p.page && permPageName(permData.catalog.find(x => x.key === p.page));
+  const label = `${r.name}: ${p.label}${blocked ? " (no effect while its page is off)" : ""}${pending ? " (not saved)" : ""}`;
+  return `<td class="perm-col${blocked ? " is-blocked" : ""}"${blocked ? ` title="No effect while ${permEsc(pageName)} is off for this role"` : ""}>
+    <span class="perm-switch-wrap">${permSwitch(on, `id="permsw-r-${r.key}-${p.key}" onclick="editPermRole('${r.key}','${p.key}',${!on})" aria-label="${permEsc(label)}"${r.locked ? ` disabled title="${permEsc(r.locked)}"` : ""}`, pending)}
+      ${changed ? '<span class="perm-dot" title="Differs from the portal&#39;s default"></span>' : ""}</span>
+    ${own ? `<small class="perm-own" title="${own} ${own > 1 ? "people" : "person"} in this role ${own > 1 ? "have" : "has"} their own setting">${own} own</small>` : ""}</td>`;
 }
 
 /*
@@ -2112,15 +2339,26 @@ function renderPermRoles(){
 */
 const permOpen = { roles: new Set(), people: new Set() };
 
-function permAreaHead(view, g, cols, note){
+/* side: for an area headed by its page, { cells } - the page's own cells
+   after the heading (a switch per role, or one person's three columns). */
+function permAreaHead(view, g, cols, note, side){
   const open = permOpen[view].has(g.area);
-  return `<tbody class="perm-group${open ? "" : " is-collapsed"}"><tr class="perm-area"><th scope="rowgroup" colspan="${cols}">
-    <button type="button" class="perm-fold" aria-expanded="${open}" onclick="togglePermArea('${view}','${g.area}')">
+  // A page with nothing under it (Files, Messages) is just its switch: no fold.
+  const fold = g.items.length
+    ? `<button type="button" class="perm-fold" aria-expanded="${open}" onclick="togglePermArea('${view}','${g.area}')">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <span>${permEsc(g.label)}</span>
+      <span>${permEsc(g.label)}${g.page ? " page" : ""}</span>
       <span class="perm-count">${g.items.length}</span>
       ${note ? `<span class="perm-note">${permEsc(note)}</span>` : ""}
-    </button></th></tr>`;
+    </button>`
+    : `<span class="perm-fold perm-fold-none">
+      <span>${permEsc(g.label)} page</span>
+      ${note ? `<span class="perm-note">${permEsc(note)}</span>` : ""}
+    </span>`;
+  const head = side && side.cells
+    ? `<th scope="rowgroup">${fold}</th>${side.cells}`
+    : `<th scope="rowgroup" colspan="${cols}">${fold}</th>`;
+  return `<tbody class="perm-group${open ? "" : " is-collapsed"}"><tr class="perm-area${g.page ? " has-page" : ""}">${head}</tr>`;
 }
 
 function togglePermArea(view, area){
@@ -2130,20 +2368,42 @@ function togglePermArea(view, area){
   else renderPermPerson();
 }
 
-function editPermRole(role, key, on){
+/* "Expand all" / "Collapse all" above each table. */
+function foldAllPerm(view, open){
+  permOpen[view] = new Set(open ? permGroups().filter(g => g.items.length).map(g => g.area) : []);
+  if (view === "roles") renderPermRoles();
+  else renderPermPerson();
+}
+
+function permRoleLocked(role){
+  const r = permData.roles.find(x => x.key === role);
+  return !r || !!r.locked;
+}
+
+function setPermRole(role, key, on){
   permRoleEdits[role] = permRoleEdits[role] || {};
   if (on === permData.matrix[role][key]) delete permRoleEdits[role][key];
   else permRoleEdits[role][key] = on;
-  renderPermRoles();
-  renderPermPerson();
-  syncPermButtons();
+  if (!Object.keys(permRoleEdits[role]).length) delete permRoleEdits[role];
 }
 
-/* Every box in the column back to the portal's default - saved with the rest. */
+function editPermRole(role, key, on){
+  if (permRoleLocked(role)) return;
+  permRemember();
+  setPermRole(role, key, on);
+  permRedraw();
+}
+
+/* Every box in the column back to the portal's default - one step for Undo,
+   saved with the rest. */
 function resetPermRole(role){
+  if (permRoleLocked(role)) return;
+  permRemember();
   permData.catalog.forEach(p => {
-    if (!p.owner_only) editPermRole(role, p.key, p.defaults.includes(role));
+    if (!p.owner_only) setPermRole(role, p.key, p.defaults.includes(role));
   });
+  permRedraw();
+  setPermStatus(`${permData.roles.find(r => r.key === role).name}: back to the default, not saved yet.`);
 }
 
 /*
@@ -2242,47 +2502,144 @@ function personValue(admin, key){
   return key in edits ? edits[key] : (key in admin.overrides ? admin.overrides[key] : null);
 }
 
+/* Whether the caller may change this person's setting for p: not when the
+   server locked the whole person (permissionsPanel()), and a Director-only
+   key only by the Director (permissionChangeRefusal()). */
+function permPersonEditable(admin, p){
+  return !admin.locked && (!p.owner_only || permIsDirector());
+}
+
+/* One row of the person view. Saved and untouched, the answer is the
+   server's (admin.permissions, admin.sources). With an unsaved edit - theirs,
+   or their role's on a key they inherit - it is the preview of what Save
+   will make it: their own setting if they have one, else their role's. */
+function permPersonRow(admin, p){
+  const fromRole = p.owner_only ? false : roleValue(admin.role, p.key);
+  const v = personValue(admin, p.key);
+  const pending = p.key in (permPersonEdits[admin.id] || {})
+    || (v === null && p.key in (permRoleEdits[admin.role] || {}));
+  return {
+    fromRole, v, pending,
+    allowed: pending ? (v !== null ? v : fromRole) : admin.permissions.includes(p.key),
+    source: pending ? (v !== null ? "override" : "role") : ((admin.sources || {})[p.key] || "default")
+  };
+}
+
+function permChosenAdmin(){
+  return permData && permData.admins.find(a => String(a.id) === document.getElementById("permAdminSelect").value);
+}
+
 function renderPermPerson(){
   const table = document.getElementById("permPersonTable");
-  const admin = permData && permData.admins.find(a => String(a.id) === document.getElementById("permAdminSelect").value);
-  if (!admin) { table.innerHTML = ""; return; }
+  const lock = document.getElementById("permPersonLock");
+  const reset = document.getElementById("permPersonReset");
+  const admin = permChosenAdmin();
+  if (!admin) { table.innerHTML = ""; lock.hidden = true; reset.disabled = true; return; }
 
-  let html = `<thead><tr><th scope="col">Permission</th><th scope="col" class="perm-col">${permEsc(admin.role_name)} gets</th><th scope="col" class="perm-col">${permEsc(admin.name)}</th></tr></thead>`;
+  lock.hidden = !admin.locked;
+  lock.textContent = admin.locked || "";
+  reset.disabled = !permData.catalog.some(p => permPersonEditable(admin, p) && personValue(admin, p.key) !== null);
+
+  let html = `<thead><tr><th scope="col">Permission</th><th scope="col" class="perm-col">${permEsc(admin.role_name)} gets</th>`
+    + `<th scope="col" class="perm-col">${permEsc(admin.name)}</th><th scope="col" class="perm-col">Result</th></tr></thead>`;
   permGroups().forEach(g => {
-    const set = g.items.filter(p => p.owner_only ? personValue(admin, p.key) === true : personValue(admin, p.key) !== null).length;
-    html += permAreaHead("people", g, 3, set ? `${set} exception${set > 1 ? "s" : ""}` : "");
+    const keys = (g.page ? [g.page] : []).concat(g.items);
+    const set = keys.filter(p => p.owner_only ? personValue(admin, p.key) === true : personValue(admin, p.key) !== null).length;
+    const unsaved = keys.filter(p => p.key in (permPersonEdits[admin.id] || {})).length;
+    // The area's page heads it, as an ordinary row in the heading ("... page").
+    // Off, what is under it can't work - the server refuses those keys while
+    // the page is off - so it says so.
+    const pageOn = !g.page || permPersonRow(admin, g.page).allowed;
+    const side = g.page ? { cells: permPersonCells(admin, g.page, true) } : null;
+    html += permAreaHead("people", g, 4,
+      permAreaNote([set && `${set} exception${set > 1 ? "s" : ""}`, unsaved && `${unsaved} not saved`]), side);
+    // Only worth saying when something under the closed page is switched on.
+    if (g.items.some(p => permPageOff(p, pageOn) && permPersonRow(admin, p).allowed)) {
+      html += `<tr class="perm-explain"><td colspan="4">${permEsc(permPageName(g.page))} is off for ${permEsc(admin.name)}, so nothing below has any effect until it is turned on. You can still set it up now.</td></tr>`;
+    }
     g.items.forEach(p => {
-      // A Director-only key: no role has it, so the only choice is to allow it for this person.
-      const fromRole = p.owner_only ? false : roleValue(admin.role, p.key);
-      const v = personValue(admin, p.key);
-      const allowed = v === true;
-      const options = p.owner_only
-        ? `<option value="default"${allowed ? "" : " selected"}>As role (no)</option>
-          <option value="allow"${allowed ? " selected" : ""}>Allow</option>`
-        : `<option value="default"${v === null ? " selected" : ""}>As role (${fromRole ? "yes" : "no"})</option>
-          <option value="allow"${v === true ? " selected" : ""}>Allow</option>
-          <option value="deny"${v === false ? " selected" : ""}>Deny</option>`;
-      html += `<tr><th scope="row">${permEsc(p.label)}</th>
-        <td class="perm-col">${p.owner_only ? "No - Director only" : fromRole ? "Yes" : "No"}</td>
-        <td class="perm-col"><select class="perm-select${(p.owner_only ? allowed : v !== null) ? " is-set" : ""}" onchange="editPermPerson(${admin.id},'${p.key}',this.value)"
-              aria-label="${permEsc(admin.name)}: ${permEsc(p.label)}">
-          ${options}
-        </select></td></tr>`;
+      const off = permPageOff(p, pageOn);
+      html += `<tr${off ? ' class="is-blocked"' : ""}><th scope="row">${permLabel(p)}</th>${permPersonCells(admin, p, !off)}</tr>`;
     });
     html += "</tbody>";
   });
   table.innerHTML = html;
 }
 
+/* The role's answer, this person's switch, and the result, for one key. */
+function permPersonCells(admin, p, pageOn){
+  const row = permPersonRow(admin, p);
+  const result = !pageOn
+    ? `<span class="perm-eff is-blocked">No effect</span>
+      <small class="perm-src">${permEsc(PERM_SOURCE[row.source] || "")}, page off${row.pending ? " - not saved" : ""}</small>`
+    : `<span class="perm-eff ${row.allowed ? "is-yes" : "is-no"}">${row.allowed ? "Yes" : "No"}</span>
+      <small class="perm-src">${permEsc(PERM_SOURCE[row.source] || "")}${row.pending ? " - not saved" : ""}</small>`;
+  return `<td class="perm-col">${row.fromRole ? "Yes" : "No"}</td>
+    <td class="perm-col">${permPersonSwitch(admin, p, row)}</td>
+    <td class="perm-col">${result}</td>`;
+}
+
+/*
+| One person's switch for a key. It shows what they will get; flipping it
+| gives them their own setting, unless that lands back on what their role
+| gets, which is Inherit. An own setting shows as a chip whose button puts
+| them back on the role - so Allow, Deny and Inherit are all one click.
+*/
+function permPersonSwitch(admin, p, row){
+  const editable = permPersonEditable(admin, p);
+  const why = admin.locked || (editable ? "" : "Only the Director gives or takes this.");
+  const on = row.v !== null ? row.v : row.fromRole;
+  const pending = p.key in (permPersonEdits[admin.id] || {});
+  const label = `${admin.name}: ${p.label}${row.v !== null ? " (own setting)" : ""}${pending ? " (not saved)" : ""}`;
+  const own = row.v === null
+    ? `<small class="perm-src">From role</small>`
+    : `<span class="perm-own-chip${row.v ? "" : " is-deny"}">Own setting
+        ${editable ? `<button type="button" id="permsw-x-${p.key}" onclick="editPermPerson(${admin.id},'${p.key}','default')" aria-label="Reset ${permEsc(admin.name)}: ${permEsc(p.label)} to what the role gets" title="Back to what the role gets">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7v6h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>` : ""}</span>`;
+  return `<span class="perm-switch-cell">
+    ${permSwitch(on, `id="permsw-p-${p.key}" onclick="flipPermPerson(${admin.id},'${p.key}')" aria-label="${permEsc(label)}"${editable ? "" : ` disabled title="${permEsc(why)}"`}`, pending)}
+    ${own}</span>`;
+}
+
+/* Flipping a person's switch: the new answer is their own setting, unless
+   it is what their role gives, which is Inherit. */
+function flipPermPerson(adminId, key){
+  const admin = permData.admins.find(a => a.id === adminId);
+  const p = permData.catalog.find(x => x.key === key);
+  if (!admin || !p) return;
+  const row = permPersonRow(admin, p);
+  const next = !(row.v !== null ? row.v : row.fromRole);
+  editPermPerson(adminId, key, next === row.fromRole ? "default" : next ? "allow" : "deny");
+}
+
+function setPermPerson(admin, key, value){
+  const saved = key in admin.overrides ? admin.overrides[key] : null;
+  permPersonEdits[admin.id] = permPersonEdits[admin.id] || {};
+  if (value === saved) delete permPersonEdits[admin.id][key];
+  else permPersonEdits[admin.id][key] = value;
+  if (!Object.keys(permPersonEdits[admin.id]).length) delete permPersonEdits[admin.id];
+}
+
 function editPermPerson(adminId, key, choice){
   const admin = permData.admins.find(a => a.id === adminId);
-  const value = choice === "allow" ? true : choice === "deny" ? false : null;
-  const saved = key in admin.overrides ? admin.overrides[key] : null;
-  permPersonEdits[adminId] = permPersonEdits[adminId] || {};
-  if (value === saved) delete permPersonEdits[adminId][key];
-  else permPersonEdits[adminId][key] = value;
-  renderPermPerson();
-  syncPermButtons();
+  const p = permData.catalog.find(x => x.key === key);
+  if (!admin || !p || !permPersonEditable(admin, p)) return;
+  permRemember();
+  setPermPerson(admin, key, choice === "allow" ? true : choice === "deny" ? false : null);
+  permRedraw();
+}
+
+/* Every one of this person's own settings dropped, so they get exactly what
+   their role gets - one step for Undo, saved with the rest. */
+function resetPermPerson(){
+  const admin = permChosenAdmin();
+  if (!admin || admin.locked) return;
+  permRemember();
+  permData.catalog.forEach(p => {
+    if (permPersonEditable(admin, p)) setPermPerson(admin, p.key, null);
+  });
+  permRedraw();
+  setPermStatus(`${admin.name}: back to what their role gets, not saved yet.`);
 }
 
 function pendingPermCount(){
@@ -2290,20 +2647,44 @@ function pendingPermCount(){
     .reduce((n, edits) => n + Object.keys(edits).length, 0);
 }
 
+/* "Not saved: Super Admin (2), Sara (1)" - so an edit made for someone no
+   longer on screen is never a surprise at Save. */
+function renderPermPending(){
+  const parts = [
+    ...Object.entries(permRoleEdits).map(([role, e]) =>
+      `${permData.roles.find(r => r.key === role).name} (${Object.keys(e).length})`),
+    ...Object.entries(permPersonEdits).map(([id, e]) =>
+      `${permData.admins.find(a => String(a.id) === id).name} (${Object.keys(e).length})`)
+  ];
+  const el = document.getElementById("permPending");
+  el.hidden = !parts.length;
+  el.textContent = parts.length ? "Not saved: " + parts.join(", ") : "";
+}
+
 function syncPermButtons(){
   const n = pendingPermCount();
-  document.getElementById("permSaveBtn").disabled = n === 0;
-  document.getElementById("permUndoBtn").disabled = n === 0;
+  document.getElementById("permSaveBtn").disabled = n === 0 || permSaving;
+  document.getElementById("permDiscardBtn").disabled = n === 0 || permSaving;
+  document.getElementById("permUndoBtn").disabled = !permHistory.length || permSaving;
   document.getElementById("permSaveBtn").textContent = n ? `Save ${n} change${n > 1 ? "s" : ""}` : "Save changes";
+  if (permData) renderPermPending();
 }
 
 function undoPermChanges(){
+  if (!permHistory.length || permSaving) return;
+  [permRoleEdits, permPersonEdits] = JSON.parse(permHistory.pop());
+  permRedraw();
+  setPermStatus("");
+}
+
+/* Drops every unsaved edit - itself a step Undo can take back. */
+function discardPermChanges(){
+  if (!pendingPermCount() || permSaving) return;
+  permRemember();
   permRoleEdits = {};
   permPersonEdits = {};
-  renderPermRoles();
-  renderPermPerson();
-  syncPermButtons();
-  setPermStatus("");
+  permRedraw();
+  setPermStatus("Unsaved changes dropped. Undo brings them back.");
 }
 
 function setPermStatus(text, isError){
@@ -2312,47 +2693,214 @@ function setPermStatus(text, isError){
   el.classList.toggle("error", !!isError);
 }
 
-async function savePermChanges(){
-  const requests = [];
+/* Every unsaved edit as the one request api/permissions-admin.php takes. */
+function permBatch(){
+  const batch = [];
   Object.entries(permRoleEdits).forEach(([role, edits]) => {
     const changes = {};
     Object.entries(edits).forEach(([key, on]) => {
       const def = permData.catalog.find(p => p.key === key).defaults.includes(role);
       changes[key] = on === def ? "default" : on;
     });
-    if (Object.keys(changes).length) requests.push({ role, changes });
+    if (Object.keys(changes).length) batch.push({ role, changes });
   });
   Object.entries(permPersonEdits).forEach(([id, edits]) => {
     const changes = {};
     Object.entries(edits).forEach(([key, v]) => { changes[key] = v === null ? "default" : v; });
-    if (Object.keys(changes).length) requests.push({ admin_id: Number(id), changes });
+    if (Object.keys(changes).length) batch.push({ admin_id: Number(id), changes });
   });
+  return batch;
+}
 
-  document.getElementById("permSaveBtn").disabled = true;
-  setPermStatus("Saving...");
-
-  try {
-    for (const body of requests) {
-      const res = await fetch("api/permissions-admin.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: "Bearer " + localStorage.getItem("admin_token") },
-        body: JSON.stringify(body)
-      });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.message || "Could not save.");
-      if (body.role) delete permRoleEdits[body.role];
-      else delete permPersonEdits[body.admin_id];
-      permData = data.data;
+/* The refusals the page already knows about, so the obvious ones never
+   reach the server. The server checks all of them again. */
+function permBatchProblem(batch){
+  for (const item of batch) {
+    if (item.role) {
+      const r = permData.roles.find(x => x.key === item.role);
+      if (!r || r.locked) return (r && r.locked) || "Unknown role.";
+      continue;
     }
-    setPermStatus("Saved. It applies on their next click - nobody is signed out.");
-  } catch (error) {
-    setPermStatus(error.message || "Could not save.", true);
+    const admin = permData.admins.find(a => a.id === item.admin_id);
+    if (!admin) return "One of these people is no longer on the team. Reload the page.";
+    if (admin.locked) return admin.locked;
+    for (const key of Object.keys(item.changes)) {
+      const p = permData.catalog.find(x => x.key === key);
+      if (!p || !permPersonEditable(admin, p)) return `${admin.name}: only the Director gives or takes “${p ? p.label : key}”.`;
+    }
   }
+  return "";
+}
+
+/* The edits worth a second look: a grant that widens what someone sees or
+   can erase (catalog "risky", which includes every Director-only key), and
+   a page taken away from a whole role. Each names who it reaches. */
+function permRiskyChanges(){
+  const out = [];
+  Object.entries(permRoleEdits).forEach(([role, edits]) => {
+    const roleName = permData.roles.find(r => r.key === role).name;
+    Object.entries(edits).forEach(([key, on]) => {
+      const p = permData.catalog.find(x => x.key === key);
+      const reach = permData.admins.filter(a => a.role === role && a.active && personValue(a, key) === null).length;
+      const who = `Every ${roleName} (${reach} ${reach === 1 ? "person" : "people"})`;
+      if (on && p.risky) out.push(`${who} gets “${p.label}”`);
+      else if (!on && p.heads_area) out.push(`${who} loses “${p.label}”`);
+    });
+  });
+  Object.entries(permPersonEdits).forEach(([id, edits]) => {
+    const admin = permData.admins.find(a => String(a.id) === id);
+    Object.keys(edits).forEach(key => {
+      const p = permData.catalog.find(x => x.key === key);
+      if (p.risky && permPersonRow(admin, p).allowed && !admin.permissions.includes(key)) {
+        out.push(`${admin.name} gets “${p.label}”${p.owner_only ? " - a Director-only permission" : ""}`);
+      }
+    });
+  });
+  return out;
+}
+
+/* Edits that leave a key allowed in an area whose page is off - it would be
+   saved, but do nothing until the page is turned on. Looks at every area an
+   edit touched, through its key or through the page itself. */
+function permBlockedChanges(){
+  const out = new Set();
+  const areaPage = area => permData.catalog.find(x => x.heads_area === area);
+  const touched = keys => [...new Set(keys.map(key => {
+    const p = permData.catalog.find(x => x.key === key);
+    return p.heads_area || (p.page ? p.area : null);
+  }).filter(Boolean))];
+  const inArea = area => permData.catalog.filter(x => x.area === area && x.page);
+
+  Object.entries(permRoleEdits).forEach(([role, edits]) => {
+    const roleName = permData.roles.find(r => r.key === role).name;
+    touched(Object.keys(edits)).forEach(area => {
+      const page = areaPage(area);
+      if (roleValue(role, page.key)) return;
+      inArea(area).filter(p => roleValue(role, p.key)).forEach(p =>
+        out.add(`Every ${roleName}: “${p.label}” won't work while “${page.label}” is off`));
+    });
+  });
+  Object.entries(permPersonEdits).forEach(([id, edits]) => {
+    const admin = permData.admins.find(a => String(a.id) === id);
+    touched(Object.keys(edits)).forEach(area => {
+      const page = areaPage(area);
+      if (permPersonRow(admin, page).allowed) return;
+      inArea(area).filter(p => permPersonRow(admin, p).allowed).forEach(p =>
+        out.add(`${admin.name}: “${p.label}” won't work while “${page.label}” is off`));
+    });
+  });
+  return [...out];
+}
+
+/* POST to api/permissions-admin.php. A refusal throws with the server's
+   reason; `refused` says the server answered, so nothing was stored. */
+async function permPost(body){
+  const res = await fetch("api/permissions-admin.php", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + localStorage.getItem("admin_token") },
+    body: JSON.stringify(body)
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data || !data.success) {
+    const error = new Error((data && data.message) || `Could not save (HTTP ${res.status}).`);
+    error.refused = !!data;
+    throw error;
+  }
+  return data;
+}
+
+/* Save: the page's own checks, then the server's (a dry run that stores
+   nothing), then - for anything risky - the Director's confirmation, then
+   the one request that stores it all. */
+async function savePermChanges(){
+  const batch = permBatch();
+  if (!batch.length || permSaving) return;
+
+  const problem = permBatchProblem(batch);
+  if (problem) { setPermStatus(problem, true); return; }
+
+  permSaving = true;
+  syncPermButtons();
+  setPermStatus("Checking...");
+  try {
+    await permPost({ batch, dry_run: true });
+  } catch (error) {
+    permSaving = false;
+    syncPermButtons();
+    setPermStatus((error.message || "Could not save.") + (error.refused ? " Nothing was saved." : ""), true);
+    return;
+  }
+  permSaving = false;
+  syncPermButtons();
+
+  const risky = permRiskyChanges();
+  const blocked = permBlockedChanges();
+  if (risky.length || blocked.length) {
+    setPermStatus("");
+    openPermReview(risky, blocked);
+    return;
+  }
+  await permCommit();
+}
+
+async function permCommit(){
+  permSaving = true;
+  syncPermButtons();
+  setPermStatus("Saving...");
+  try {
+    const data = await permPost({ batch: permBatch() });
+    permData = data.data;
+    permResetState();
+    setPermStatus(data.message || "Saved.");
+  } catch (error) {
+    setPermStatus((error.message || "Could not save.") + (error.refused ? " Nothing was saved." : ""), true);
+  }
+  permSaving = false;
   renderPermRoles();
   renderPermAdminSelect();
   renderPermPerson();
   syncPermButtons();
 }
+
+function permReviewModal(){
+  return document.getElementById("permReviewModal");
+}
+
+function openPermReview(risky, blocked){
+  blocked = blocked || [];
+  document.getElementById("permReviewText").textContent = !risky.length
+    ? "Some of what you are saving won't take effect, because its page is off."
+    : risky.length === 1
+      ? "This change widens what someone can see or do, or takes a page away from a whole role. It applies on their next click."
+      : `These ${risky.length} changes widen what people can see or do, or take a page away from a whole role. They apply on everyone's next click.`;
+  document.getElementById("permReviewList").innerHTML = risky.map(t => `<li>${permEsc(t)}</li>`).join("")
+    + (risky.length && blocked.length ? `<li class="perm-review-sub">Won't take effect yet:</li>` : "")
+    + blocked.map(t => `<li class="is-blocked">${permEsc(t)}</li>`).join("");
+  permReviewModal().classList.add("show");
+  // Enter should mean "no" here: the safe answer has the focus.
+  permReviewModal().querySelector(".ghost-btn").focus({ preventScroll: true });
+}
+
+function closePermReview(){
+  permReviewModal().classList.remove("show");
+  document.getElementById("permSaveBtn").focus({ preventScroll: true });
+}
+
+function confirmPermSave(){
+  if (permSaving) return;
+  permReviewModal().classList.remove("show");
+  permCommit();
+}
+
+if (window.wzDismiss) wzDismiss(permReviewModal(), closePermReview, { isBusy: () => permSaving });
+
+/* Leaving with edits unsaved - a link, a reload, closing the tab - asks first.
+   Switching between By role and One person, or between people, keeps them. */
+window.addEventListener("beforeunload", function(event){
+  if (!permData || !pendingPermCount()) return;
+  event.preventDefault();
+  event.returnValue = "";
+});
 
 if (adminCan("permissions.manage")) {
   document.getElementById("permissionsSection").style.display = "block";
@@ -2369,8 +2917,9 @@ if (!adminToken || !adminUser.role) {
   window.location.href = "admin-login.html";
 }
 
-// Clients Management is open to every admin, so the sidebar no longer hides it.
-// Distribute Admins and Available Admins (which holds the Add / Edit admin popup) need admins.manage.
+// Each section below shows for whoever holds its key (assets/permissions.js);
+// its endpoints check the key again. Distribute Admins and Available Admins
+// (which holds the Add / Edit admin popup) need admins.manage.
 if (adminCan("admins.manage")) {
 
     const distributeAdmins = document.getElementById("distributeAdminsSection");

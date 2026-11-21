@@ -106,6 +106,41 @@ function ensureAttachmentsTable(PDO $pdo)
     }
 }
 
+/* Extensions a stored file may keep. Source, survey and team-form uploads
+   accept any file, and they are saved under uploads/ in the web root, so the
+   name they are stored under must be one no web server runs or renders as a
+   page. Anything else is stored as .bin; the download endpoints send the
+   original name and type, so nobody sees the difference (audit S1, S13). */
+const INERT_UPLOAD_EXTENSIONS = [
+    "pdf", "txt", "md", "csv", "rtf", "odt", "ods", "odp",
+    "doc", "docx", "xls", "xlsx", "ppt", "pptx",
+    "jpg", "jpeg", "png", "webp", "gif", "bmp", "tif", "tiff", "heic",
+    "mp3", "wav", "m4a", "ogg", "mp4", "mov", "webm", "avi",
+    "zip", "rar", "7z", "gz",
+    "psd", "ai", "eps", "indd", "fig", "sketch", "xd",
+    "ttf", "otf", "woff", "woff2",
+];
+
+/**
+ * The name to store an upload under: a random prefix, the original name with
+ * every dot taken out (so "x.php.png" can't be read as .php by a server that
+ * looks at every extension), and its extension only when that is inert.
+ */
+function storedUploadName($originalName)
+{
+    $originalName = basename((string) $originalName);
+    $ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+    $base = pathinfo($originalName, PATHINFO_FILENAME);
+    $base = preg_replace("/[^a-zA-Z0-9_-]/", "_", $base);
+    $base = substr($base, 0, 80);
+
+    if (!in_array($ext, INERT_UPLOAD_EXTENSIONS, true)) {
+        $ext = "bin";
+    }
+
+    return time() . "_" . bin2hex(random_bytes(5)) . "_" . ($base === "" ? "file" : $base) . "." . $ext;
+}
+
 /** The directory files are saved in, created with its .htaccess on first use. */
 function attachmentsDir()
 {

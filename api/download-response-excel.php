@@ -1,19 +1,22 @@
 <?php
 require_once "db.php";
+require_once "scope.php";
 
 $token = $_GET["token"] ?? "";
 $responseId = (int)($_GET["id"] ?? 0);
 
-if(!$token || !$responseId){
+// A link the browser opens, so the session comes in ?token=. The same
+// admins, and the same responses, as response-details.php (scope.php).
+$admin = adminFromSessionToken($pdo, $token);
+
+if(!$admin){
+    http_response_code(401);
     die("Unauthorized");
 }
 
-$stmt = $pdo->prepare("SELECT id FROM admins WHERE session_token=? LIMIT 1");
-$stmt->execute([$token]);
-$admin = $stmt->fetch();
-
-if(!$admin){
-    die("Unauthorized");
+if(!$responseId || !can($admin, "pages.forms", $pdo) || !canAccessRecord($pdo, $admin, "response", $responseId)){
+    http_response_code(404);
+    die("Response not found");
 }
 
 $stmt = $pdo->prepare("

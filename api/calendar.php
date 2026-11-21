@@ -27,9 +27,11 @@ if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") {
 }
 
 require_once "db.php";
+require_once "auth.php";
 require_once "meeting-writes.php";
 require_once "booking-writes.php";
 require_once "events.php";
+require_once "scope.php"; // requireRecord() for the older admin actions
 
 function reply($success, $message = "", $extra = [])
 {
@@ -72,16 +74,11 @@ $user = clientFromSessionToken($pdo, $token);
 $admin = null;
 
 if (!$user) {
-    $stmt = $pdo->prepare("
-        SELECT id, name, email, role
-        FROM admins
-        WHERE session_token = ?
-        LIMIT 1
-    ");
-    $stmt->execute([$token]);
-    $admin = $stmt->fetch(PDO::FETCH_ASSOC);
+    // An active admin only: a deactivated one is signed out.
+    $admin = adminFromSessionToken($pdo, $token);
 
     if (!$admin) {
+        http_response_code(401);
         reply(false, "Unauthorized token");
     }
 
@@ -443,6 +440,9 @@ if ($action === "create_appointment" && $admin) {
         reply(false, "Missing required appointment fields");
     }
 
+    // Only a client the admin may see (audit S9); anyone else looks missing.
+    requireRecord($pdo, $admin, "client", $targetUserId, "Client not found");
+
     $stmt = $pdo->prepare("
         INSERT INTO appointments
             (user_id, title, date, time, status, topic, requested_by, admin_id)
@@ -460,6 +460,9 @@ if ($action === "create_appointment" && $admin) {
 if ($action === "get_admin_calendar_data" && $admin) {
 
     $targetUserId = (int) ($_GET["user_id"] ?? $input["user_id"] ?? 0);
+
+    // Only a client the admin may see (audit S9); anyone else looks missing.
+    requireRecord($pdo, $admin, "client", $targetUserId, "Client not found");
 
     $stmt = $pdo->prepare("SELECT * FROM appointments WHERE user_id = ?");
     $stmt->execute([$targetUserId]);

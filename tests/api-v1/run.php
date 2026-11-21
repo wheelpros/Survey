@@ -652,6 +652,7 @@ require __DIR__ . "/messages.php";
 require __DIR__ . "/positions.php";
 require __DIR__ . "/clients.php";
 require __DIR__ . "/client-safety.php";
+require __DIR__ . "/upload-safety.php";
 require __DIR__ . "/branding.php";
 require __DIR__ . "/settings.php";
 require __DIR__ . "/events.php";
@@ -666,6 +667,12 @@ require __DIR__ . "/appointments.php";
 require __DIR__ . "/booking.php";
 require __DIR__ . "/booking-ai.php";
 require __DIR__ . "/activity-reports.php";
+require __DIR__ . "/authorization.php";
+require __DIR__ . "/permissions-panel.php";
+require __DIR__ . "/migration.php";
+require __DIR__ . "/rbac-matrix.php";
+require __DIR__ . "/rbac-security.php";
+require __DIR__ . "/audit-gaps.php";
 // Keep this last: it fills the login attempt limit for this run's one address.
 require __DIR__ . "/login-limits.php";
 

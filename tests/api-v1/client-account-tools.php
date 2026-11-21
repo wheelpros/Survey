@@ -59,7 +59,8 @@ check("owner: an account manager can't change it", $status === 403 && (int) scal
 [$status] = accountAction($am, 50, ["action" => "merge", "source_id" => 40]);
 check("merge: an account manager can't either", $status === 403 && one($pdo, "SELECT id FROM projects WHERE id = 541 AND client_id = 40"), "HTTP $status");
 [$status] = accountAction("tok-odin", 50, ["action" => "change_owner", "person_id" => 51]);
-check("owner: a client can't", $status === 401, "HTTP $status");
+// A client's session is a real one, just not staff: 403 (api/auth.php requireAdmin()).
+check("owner: a client can't", $status === 403, "HTTP $status");
 
 [$status] = accountAction($owner, 50, ["action" => "change_owner", "person_id" => 11]);
 check("owner: only someone on this team", $status === 404, "HTTP $status");

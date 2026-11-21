@@ -1,23 +1,13 @@
 <?php
 require_once "db.php";
+require_once "auth.php";
 require_once "admin-settings-writes.php";
 
 header("Content-Type: application/json");
 
-$headers = getallheaders();
-$token = str_replace("Bearer ","",$headers["Authorization"] ?? "");
-
-$stmt = $pdo->prepare("SELECT id, role FROM admins WHERE session_token=? LIMIT 1");
-$stmt->execute([$token]);
-$admin = $stmt->fetch();
-
-// Adding admins is an owner-only action - this now matches the gate
-// settings.php / settings.html already use for this panel. (It previously
-// required role === "super_admin", which silently blocked the owner.)
-if(!$admin || !can($admin, "admins.manage", $pdo)){
-    echo json_encode(["success"=>false,"message"=>"Not allowed"]);
-    exit;
-}
+// Adding admins is admins.manage - the gate settings.php / settings.html
+// already use for this panel.
+$admin = requireAdmin($pdo, "admins.manage", "Not allowed");
 
 // Multipart when the form carries a photo; JSON from older callers.
 $input = !empty($_POST) ? $_POST : (json_decode(file_get_contents("php://input"), true) ?: []);

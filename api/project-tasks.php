@@ -69,63 +69,11 @@ const TASK_IMAGE_MAX_BYTES = 3 * 1024 * 1024;
 
 /*
 |--------------------------------------------------------------------------
-| Get Admin Token
+| Who is calling (api/auth.php requireAdmin())
 |--------------------------------------------------------------------------
 */
 
-$headers = function_exists("getallheaders")
-    ? getallheaders()
-    : [];
-
-$authorization =
-    $headers["Authorization"]
-    ?? $headers["authorization"]
-    ?? "";
-
-if (!$authorization && isset($_SERVER["HTTP_AUTHORIZATION"])) {
-    $authorization = $_SERVER["HTTP_AUTHORIZATION"];
-}
-
-if (!preg_match('/Bearer\s+(.+)/i', $authorization, $matches)) {
-    response(false, "Unauthorized.", [], 401);
-}
-
-$token = trim($matches[1]);
-
-if (!$token) {
-    response(false, "Unauthorized.", [], 401);
-}
-
-/*
-|--------------------------------------------------------------------------
-| Validate Admin Token
-|--------------------------------------------------------------------------
-*/
-
-try {
-
-    $stmt = $pdo->prepare("
-        SELECT
-            id,
-            name,
-            email,
-            role
-        FROM admins
-        WHERE session_token = ?
-        LIMIT 1
-    ");
-
-    $stmt->execute([$token]);
-
-    $admin = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$admin) {
-        response(false, "Invalid or expired admin session.", [], 401);
-    }
-
-} catch (Throwable $e) {
-    response(false, "Authentication database error.", [], 500);
-}
+$admin = requireAdmin($pdo);
 
 ensureProjectTables($pdo);
 

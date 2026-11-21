@@ -17,6 +17,7 @@
 */
 
 require_once "db.php";
+require_once "auth.php";
 require_once "admin-settings-writes.php";
 
 header("Content-Type: application/json; charset=UTF-8");
@@ -30,25 +31,7 @@ function positionReply($success, $message = "", $extra = [])
     exit;
 }
 
-$headers = function_exists("getallheaders") ? getallheaders() : [];
-$authHeader = $headers["Authorization"] ?? $headers["authorization"] ?? ($_SERVER["HTTP_AUTHORIZATION"] ?? "");
-$token = trim(str_replace("Bearer", "", $authHeader));
-
-if ($token === "") {
-    positionReply(false, "Unauthorized");
-}
-
-$stmt = $pdo->prepare("SELECT id, role FROM admins WHERE session_token = ? LIMIT 1");
-$stmt->execute([$token]);
-$caller = $stmt->fetch(PDO::FETCH_ASSOC);
-
-if (!$caller) {
-    positionReply(false, "Unauthorized");
-}
-
-if (!can($caller, "admins.manage", $pdo)) {
-    positionReply(false, "Only the Director can change positions.");
-}
+$caller = requireAdmin($pdo, "admins.manage", "Only the Director can change positions.");
 
 $input = json_decode(file_get_contents("php://input"), true) ?? [];
 $targetId = (int) ($input["admin_id"] ?? 0);
@@ -59,6 +42,9 @@ if (!$targetId) {
 
 try {
     $target = findAdminRow($pdo, $targetId);
+    if ((int) $target["id"] !== (int) $caller["id"]) {
+        checkAdminTarget($pdo, $caller, $target, "edit");
+    }
     $position = checkAdminPosition($input["position"] ?? "");
     setAdminPosition($pdo, $targetId, $position);
 } catch (PortalWriteError $e) {

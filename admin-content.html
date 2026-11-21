@@ -418,8 +418,8 @@ if(!adminToken || !adminUser.role){
   window.location.href = "admin-login.html";
 }
 
-// Content is open to both `admin` and `super_admin`; only these two links narrow.
-// Clients Management is open to every admin, so the sidebar no longer hides it.
+// Which pages open, and which sidebar links show, is assets/admin-nav.js's
+// job (pages.content and the rest, Settings → Permissions → Pages).
 
 (function(){
   const name = adminUser.name || "Admin";

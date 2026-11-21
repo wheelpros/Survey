@@ -153,28 +153,27 @@
     }
   }
 
+  /* Every answer comes from adminCan() (assets/permissions.js) - the Director
+     included - so this file never reads the role to decide. Without
+     permissions.js nothing is shown that needs a permission. */
+  function can(perm) {
+    return !!window.adminCan && window.adminCan(perm);
+  }
+
   /* page: the permission that opens the page at all (Settings → Permissions → Pages).
-     Without it the link is gone and the page sends you elsewhere (below). */
+     Without it the link is gone and the page sends you elsewhere (below).
+     Not signed in as an admin: the page's own auth check is already
+     redirecting, so draw everything rather than an empty sidebar. */
   function opens(link, role) {
-    if (!link || !link.page || !role || role === "owner") return true;
-    if (!window.adminCan) return true;
-    return window.adminCan(link.page);
+    if (!link || !link.page || !role) return true;
+    return can(link.page);
   }
 
   /* perm: what else the link needs - any one of a list. */
   function allowed(link, role) {
     if (!opens(link, role)) return false;
-    if (!link.perm) return true;
-
-    // Not signed in as an admin: the page's own auth check is already
-    // redirecting, so draw everything rather than an empty sidebar.
-    if (!role) return true;
-
-    // A list of permissions means any one of them is enough.
-    var perms = [].concat(link.perm);
-    if (!window.adminCan) return role === "owner";
-
-    return perms.some(function (perm) { return window.adminCan(perm); });
+    if (!link.perm || !role) return true;
+    return [].concat(link.perm).some(can);
   }
 
   var nav = document.currentScript && document.currentScript.previousElementSibling;
@@ -185,8 +184,11 @@
   var role = currentRole();
 
   // A page this admin can't open: go to the first one they can, before anything loads.
+  // Hidden first, so the rest of the page - which keeps parsing until the
+  // browser leaves - never shows. Its endpoints refuse it anyway.
   var here = LINKS.filter(function (link) { return link.href === active; })[0];
   if (here && !opens(here, role)) {
+    document.documentElement.style.visibility = "hidden";
     var first = LINKS.filter(function (link) { return opens(link, role) && allowed(link, role); })[0];
     location.replace(first ? first.href : "settings.html");
     return;

@@ -7,17 +7,8 @@ require_once "survey-writes.php";
 
 header("Content-Type: application/json; charset=UTF-8");
 
-$headers = getallheaders();
-$authHeader = $headers["Authorization"] ?? "";
-$token = str_replace("Bearer ", "", $authHeader);
+$currentAdmin = requireAdmin($pdo);
 
-if (!$token) {
-    echo json_encode([
-        "success" => false,
-        "message" => "Unauthorized"
-    ]);
-    exit;
-}
 ensureSurveyColumns($pdo);
 // The lists below read users.company_name.
 ensureUserProfileColumns($pdo);
@@ -26,22 +17,6 @@ ensureUserProfileColumns($pdo);
 // implicitly, which would strand the rollBack() in the catch.
 ensureNotificationsTable($pdo);
 
-$adminStmt = $pdo->prepare("
-    SELECT id, role
-    FROM admins
-    WHERE session_token = ?
-    LIMIT 1
-");
-$adminStmt->execute([$token]);
-$currentAdmin = $adminStmt->fetch();
-
-if (!$currentAdmin) {
-    echo json_encode([
-        "success" => false,
-        "message" => "Unauthorized"
-    ]);
-    exit;
-}
 /*
 | The review gate exists so an account manager (or the owner) checks a form
 | before a client ever sees it. When one of them is the author, that check has

@@ -644,7 +644,8 @@ function startView(){
   let saved = "";
   try { saved = localStorage.getItem(VIEW_KEY) || ""; } catch (e) {}
   if (saved === "team" || saved === "mine") return saved;
-  return adminUser.role === "owner" ? "team" : "mine";
+  // Whoever sees the whole team (team.overview) starts on it.
+  return adminCan("team.overview") ? "team" : "mine";
 }
 
 const VIEW_TEXT = {

@@ -8,6 +8,7 @@
 */
 
 require_once "db.php";
+require_once "auth.php";
 require_once "events.php";
 
 header("Content-Type: application/json; charset=UTF-8");
@@ -15,17 +16,7 @@ header("Content-Type: application/json; charset=UTF-8");
 ensureInquiryTables($pdo);
 ensurePermissionTables($pdo);
 
-$headers = getallheaders();
-$token = str_replace("Bearer ", "", $headers["Authorization"] ?? "");
-
-$stmt = $pdo->prepare("SELECT id, role FROM admins WHERE session_token = ? LIMIT 1");
-$stmt->execute([$token]);
-$currentAdmin = $stmt->fetch();
-
-if (!$currentAdmin || !can($currentAdmin, "permissions.manage", $pdo)) {
-    echo json_encode(["success" => false, "message" => "Unauthorized"]);
-    exit;
-}
+$currentAdmin = requireAdmin($pdo, "permissions.manage", "Unauthorized");
 
 $method = $_SERVER["REQUEST_METHOD"];
 
@@ -63,6 +54,11 @@ if ($method === "POST") {
     // gets access, everyone else with this role loses it.
     $roleGets = rolePermissionMatrix($pdo)["account_manager"]["inquiries.read"];
     foreach ($managers as $m) {
+        // The Permissions panel's rules: never your own row, and only the
+        // Director changes someone holding a Director-only key.
+        if (adminTargetRefusal($currentAdmin, $m, "permissions", $pdo) !== null) {
+            continue;
+        }
         $granted = in_array((int) $m["id"], $grantedIds, true);
         storeAdminPermission($pdo, $m["id"], "inquiries.read", $granted === $roleGets ? null : $granted, $currentAdmin["id"]);
     }

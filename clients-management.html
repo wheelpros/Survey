@@ -348,9 +348,10 @@ if(!adminToken || !adminUser.role){
   window.location.href = "admin-login.html";
 }
 
-// Not for seo_admin: they work on content, not on client accounts. The link is
-// gone from their sidebar (assets/role-nav.js) and api/admin-user-details.php
-// refuses them; this only stops a typed-in URL landing on an empty page.
+// Needs clients.details (Settings → Permissions → Pages). The link is gone
+// from the sidebar without it (assets/admin-nav.js, which also redirects) and
+// api/admin-user-details.php refuses; this only stops a typed-in URL landing
+// on an empty page.
 if(!adminCan("clients.details")){
   window.location.replace("admin-dashboard.html");
 }
@@ -363,24 +364,21 @@ function logoutAdmin(){
 
 // Whoever holds clients.details reaches this page - what changes between them is the
 // data scope and which actions render.
-const myRole = adminUser.role;
 const canApprove = adminCan("clients.approve");
 
-// Wording for the clients table changes with role: the owner sees every signup
-// and decides on it from the client's own page, everyone below is just looking
-// at the slice handed down to them.
-const USERS_COPY = {
-  owner:       { title: "Clients Management", sub: "Approve or reject new clients." },
-  super_admin: { title: "Clients Management", sub: "Clients whose team you are on." },
-  account_manager: { title: "Clients Management", sub: "Clients whose team you are on." }
-};
+// Wording for the clients table follows what they may do: whoever approves
+// signups decides on them from the client's own page; whoever sees every
+// client (clients.view_all) is looking at all of them; everyone else at the
+// clients whose team they are on.
+const USERS_SUB = canApprove ? "Approve or reject new clients."
+  : adminCan("clients.view_all") ? "Every client."
+  : "Clients whose team you are on.";
 
 // Who works on each client is set on the client's own page now, in its Team
 // section - see user-details.html and api/client-team.php.
 document.addEventListener("DOMContentLoaded", function(){
-  const copy = USERS_COPY[myRole] || USERS_COPY.super_admin;
-  document.getElementById("usersPanelTitle").textContent = copy.title;
-  document.getElementById("usersPanelSub").textContent = copy.sub;
+  document.getElementById("usersPanelTitle").textContent = "Clients Management";
+  document.getElementById("usersPanelSub").textContent = USERS_SUB;
 });
 
 let allUsers = [];

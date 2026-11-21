@@ -50,35 +50,7 @@ function response($success, $message = "", $extra = [], $code = 200)
     exit;
 }
 
-/*
-|--------------------------------------------------------------------------
-| Admin token - the same check as api/project-tasks.php
-|--------------------------------------------------------------------------
-*/
-
-$headers = function_exists("getallheaders") ? getallheaders() : [];
-
-$authorization = $headers["Authorization"] ?? $headers["authorization"] ?? "";
-
-if (!$authorization && isset($_SERVER["HTTP_AUTHORIZATION"])) {
-    $authorization = $_SERVER["HTTP_AUTHORIZATION"];
-}
-
-if (!preg_match('/Bearer\s+(.+)/i', $authorization, $matches) || !trim($matches[1])) {
-    response(false, "Unauthorized.", [], 401);
-}
-
-try {
-    $stmt = $pdo->prepare("SELECT id, name, email, role FROM admins WHERE session_token = ? LIMIT 1");
-    $stmt->execute([trim($matches[1])]);
-    $admin = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$admin) {
-        response(false, "Invalid or expired admin session.", [], 401);
-    }
-} catch (Throwable $e) {
-    response(false, "Authentication database error.", [], 500);
-}
+$admin = requireAdmin($pdo);
 
 if ($_SERVER["REQUEST_METHOD"] !== "GET") {
     response(false, "Unsupported request method.", [], 405);
@@ -95,8 +67,8 @@ try {
     $team = null;
     if (can($admin, "team.overview", $pdo)) {
         $team = teamDashboardItems($pdo, $admin);
-    } elseif (in_array($admin["role"], ["account_manager", "super_admin"], true)) {
-        $pool = array_keys(teamPoolFor($pdo, $admin));
+    } else {
+        $pool = array_keys(teamPoolFor($pdo, $admin)); // nobody, for someone who manages no one
         if ($pool) {
             $team = teamDashboardItems($pdo, $admin, $pool);
         }

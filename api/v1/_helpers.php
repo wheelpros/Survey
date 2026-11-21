@@ -236,10 +236,7 @@ function v1NullableString($value)
  */
 function v1ClientScopeSql(array $p, $column)
 {
-    if (can($p, "clients.view_all")) {
-        return ["", []];
-    }
-    return ["$column IN (SELECT user_id FROM admin_user_assignments WHERE admin_id = ?)", [$p["id"]]];
+    return scopeSql($GLOBALS["pdo"], $p, "client", $column);
 }
 
 /**
@@ -285,7 +282,7 @@ function v1ClientRef($id, $name, $company, $email = null)
 */
 function v1SeesAllForms(array $p)
 {
-    return can($p, "forms.review");
+    return dataScope($GLOBALS["pdo"], $p, "form") === "all";
 }
 
 /*
@@ -295,7 +292,7 @@ function v1SeesAllForms(array $p)
 */
 function v1SeesAllContent(array $p)
 {
-    return contentSeesAll($p);
+    return dataScope($GLOBALS["pdo"], $p, "content") === "all";
 }
 
 /*

@@ -6,9 +6,9 @@
 |   GET responses.php?form=&client=&cursor=&limit=   list_form_responses
 |   GET responses.php?id=N                           get_form_response
 |
-| Scope forms:read. Same rule as admin-responses.php and response-details.php:
-| the owner sees every response, everyone else only those from clients
-| assigned to them. The answers come back structured, which is what the Excel
+| Scope forms:read. Same rule as admin-responses.php and response-details.php
+| (scope.php "response"): forms.responses sees every response, everyone else
+| those from clients assigned to them or to forms they built. The answers come back structured, which is what the Excel
 | export was for. Uploaded files are listed by name only - the files
 | themselves stay behind the portal.
 */
@@ -22,7 +22,7 @@ v1RequireScope($p, "forms:read");
 
 ensureUserProfileColumns($pdo);
 
-$scope = v1ClientScopeSql($p, "sr.user_id");
+$scope = scopeSql($pdo, $p, "response", "sr");
 
 const RESPONSE_SQL = "
     SELECT sr.id, sr.survey_id, sr.survey_title, sr.user_id, sr.submitted_at,
