@@ -260,3 +260,44 @@ check("W-08: a project with drafts only can still move", $status === 200
 check("W-08: the form is told the client is fixed", $status === 200 && ($r["project"]["client_locked"] ?? null) === true
     && ($r2 = pageGet("api/projects.php?id=5805", $owner)[1]) && ($r2["project"]["client_locked"] ?? null) === false,
     "HTTP $status " . json_encode($r["project"]["client_locked"] ?? "missing"));
+
+// ── W-09: managing a project counts only while you hold the permission ──
+
+seed($pdo, "admins", [["id" => 5890, "name" => "Mona", "email" => "mona@w.test", "role" => "account_manager", "session_token" => "tok-mona"]]);
+seed($pdo, "projects", [["id" => 5808, "client_id" => 11, "title" => "Beta video", "start_date" => day("-1"), "end_date" => day("+9"),
+    "status" => "active", "account_manager_admin_id" => 5890, "created_by_admin_id" => 4]]);
+seed($pdo, "project_tasks", [["id" => 58080, "project_id" => 5808, "title" => "Andy's storyboard", "status" => "draft", "created_by_admin_id" => 4]]);
+$mona = "tok-mona";
+
+/** What Mona reaches on 5808: [browser project, browser phases, v1 project, Andy's draft, in the pool, offered as manager]. */
+function monaReach($mona, $owner)
+{
+    [$a] = pageGet("api/projects.php?id=5808", $mona);
+    [$b] = pageGet("api/project-tasks.php?project_id=5808", $mona);
+    [$c] = get("projects.php?id=5808", $mona);
+    [$d] = pageGet("api/project-tasks.php?id=58080", $mona);
+    [, $pool] = pageGet("api/project-tasks.php?project_id=5808", $owner);
+    [, $form] = pageGet("api/projects.php?id=5808", $owner);
+    return [$a, $b, $c, $d, in_array(5890, candidateIds($pool ?? []), true),
+        in_array(5890, array_map("intval", array_column($form["managers"] ?? [], "id")), true)];
+}
+
+check("W-09: a manager who holds the permission reaches their project", monaReach($mona, $owner) === [200, 200, 200, 200, true, true],
+    json_encode(monaReach($mona, $owner)));
+
+storeAdminPermission($pdo, 5890, "projects.be_manager", false, 1);
+check("W-09: with the permission switched off, the manager link counts for nothing", monaReach($mona, $owner) === [404, 404, 404, 404, false, false],
+    json_encode(monaReach($mona, $owner)));
+storeAdminPermission($pdo, 5890, "projects.be_manager", null, 1);
+
+$pdo->exec("UPDATE admins SET role = 'seo_admin' WHERE id = 5890");
+forgetPermissions();
+check("W-09: a demoted manager loses the project", monaReach($mona, $owner) === [404, 404, 404, 404, false, false],
+    json_encode(monaReach($mona, $owner)));
+
+[$status, $r] = post("api/projects.php", $owner, [
+    "id" => 5808, "title" => "Beta video", "client_id" => 11, "status" => "active",
+    "start_date" => day("-1"), "end_date" => day("+9"), "account_manager_admin_id" => 5890, "member_ids" => "",
+], [], true);
+check("W-09: someone without the permission can't be made a project's manager", $status === 400
+    && ($r["success"] ?? true) === false, "HTTP $status " . json_encode($r));

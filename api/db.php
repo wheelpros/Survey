@@ -2336,17 +2336,37 @@ function projectScopeSql(array $actor)
 
     $actorId = (int) $actor["id"];
 
+    // Being named manager counts only while they may be one (audit W-09).
+    $asManager = can($actor, PROJECT_MANAGER_PERMISSION);
+
     $sql = "(
             p.client_id IN (
                 SELECT user_id FROM admin_user_assignments WHERE admin_id = ?
-            )
-         OR p.account_manager_admin_id = ?
+            )"
+        . ($asManager ? "
+         OR p.account_manager_admin_id = ?" : "") . "
          OR p.id IN (
                 SELECT project_id FROM project_members WHERE admin_id = ?
             )
     )";
 
-    return [$sql, [$actorId, $actorId, $actorId]];
+    return [$sql, $asManager ? [$actorId, $actorId, $actorId] : [$actorId, $actorId]];
+}
+
+/*
+ * A project's manager (projects.account_manager_admin_id) gets its access,
+ * its edit rights and its drafts only while they hold this key. A role
+ * change or the Director switching it off ends that at once, whatever the
+ * row still says (audit W-09).
+ */
+const PROJECT_MANAGER_PERMISSION = "projects.be_manager";
+
+/** Whether $actor is $project's manager, and still allowed to be. */
+function isProjectManager(array $actor, array $project)
+{
+    return (int) ($project["account_manager_admin_id"] ?? 0) === (int) $actor["id"]
+        && (int) $actor["id"] > 0
+        && can($actor, PROJECT_MANAGER_PERMISSION);
 }
 
 /**
@@ -2357,8 +2377,7 @@ function projectScopeSql(array $actor)
  */
 function seesEveryPhaseDraft(array $actor, array $project)
 {
-    return can($actor, "tasks.see_drafts")
-        || (int) ($project["account_manager_admin_id"] ?? 0) === (int) $actor["id"];
+    return can($actor, "tasks.see_drafts") || isProjectManager($actor, $project);
 }
 
 /** Whether $actor may read $task, a phase of $project, under that draft rule. */

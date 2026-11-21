@@ -290,9 +290,20 @@ function taskTeamCandidates(PDO $pdo, array $project)
           )
         ORDER BY a.name ASC
     ");
+    // The manager is in scope only while they may manage (audit W-09).
+    $managerId = (int) ($project["account_manager_admin_id"] ?? 0);
+    if ($managerId > 0) {
+        $m = $pdo->prepare("SELECT id, role FROM admins WHERE id = ?");
+        $m->execute([$managerId]);
+        $manager = $m->fetch(PDO::FETCH_ASSOC);
+        if (!$manager || !isProjectManager($manager, $project)) {
+            $managerId = 0;
+        }
+    }
+
     $stmt->execute(array_merge(CONTENT_ASSIGNEE_ROLES, [
         (int) ($project["client_id"] ?? 0),
-        (int) ($project["account_manager_admin_id"] ?? 0),
+        $managerId,
         (int) ($project["id"] ?? 0),
     ]));
 
@@ -588,6 +599,7 @@ function inPhaseTransaction(PDO $pdo, callable $work)
     require_once __DIR__ . "/upload-helpers.php";
     ensureAttachmentsTable($pdo);
     ensureAdminColumns($pdo);
+    ensurePermissionTables($pdo); // can() on another admin would create them mid-way
 
     if ($pdo->inTransaction()) {
         return $work();

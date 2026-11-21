@@ -139,10 +139,8 @@ function canManageProject(array $admin, array $project)
         return true;
     }
 
-    $adminId = (int) $admin["id"];
-
-    return (int) $project["created_by_admin_id"] === $adminId
-        || (int) $project["account_manager_admin_id"] === $adminId;
+    return (int) $project["created_by_admin_id"] === (int) $admin["id"]
+        || isProjectManager($admin, $project);
 }
 
 /*
@@ -233,6 +231,21 @@ function scopedClients(PDO $pdo, array $admin)
 |
 */
 
+/** Active admins who may be a project's manager (PROJECT_MANAGER_PERMISSION), by name. */
+function projectManagerChoices(PDO $pdo)
+{
+    $rows = $pdo->query("
+        SELECT id, name, email, role
+        FROM admins
+        WHERE active = 1
+        ORDER BY name ASC
+    ")->fetchAll(PDO::FETCH_ASSOC);
+
+    return array_values(array_filter($rows, function ($row) use ($pdo) {
+        return can($row, PROJECT_MANAGER_PERMISSION, $pdo);
+    }));
+}
+
 function formOptions(PDO $pdo, array $admin)
 {
     $types = [];
@@ -245,12 +258,7 @@ function formOptions(PDO $pdo, array $admin)
         $statuses[] = ["id" => $id, "label" => $label];
     }
 
-    $managers = $pdo->query("
-        SELECT id, name, email, role
-        FROM admins
-        WHERE active = 1 AND role IN ('owner', 'account_manager')
-        ORDER BY name ASC
-    ")->fetchAll(PDO::FETCH_ASSOC);
+    $managers = projectManagerChoices($pdo);
 
     /* Anybody with an account can be put on a team - that is what membership
        is for. Who may then create or publish is decided at write time. */
@@ -819,21 +827,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     $managerId = (int) ($_POST["account_manager_admin_id"] ?? 0);
 
-    if ($managerId > 0) {
-
-        $stmt = $pdo->prepare("
-            SELECT id
-            FROM admins
-            WHERE id = ?
-              AND active = 1
-              AND role IN ('owner', 'account_manager')
-            LIMIT 1
-        ");
-        $stmt->execute([$managerId]);
-
-        if (!$stmt->fetch()) {
-            response(false, "The account manager must be an active account manager.", [], 400);
-        }
+    if ($managerId > 0 && !in_array($managerId, array_map("intval", array_column(projectManagerChoices($pdo), "id")), true)) {
+        response(false, "The manager must be an active admin allowed to manage projects.", [], 400);
     }
 
     /*

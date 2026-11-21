@@ -83,6 +83,8 @@ const PERMISSIONS = [
     "projects.create"    => ["area" => "projects", "label" => "Create projects", "roles" => ["super_admin", "account_manager"]],
     "projects.manage_any" => ["area" => "projects", "label" => "Edit any project", "roles" => []],
     "projects.delete_any" => ["area" => "projects", "label" => "Delete any project", "roles" => []],
+    // Being named a project's manager opens and edits it only while this holds.
+    "projects.be_manager" => ["area" => "projects", "label" => "Be a project's manager", "roles" => ["account_manager"]],
     "tasks.write"        => ["area" => "projects", "label" => "Post updates on any project they can see", "roles" => ["super_admin", "account_manager"]],
     "tasks.edit_any"     => ["area" => "projects", "label" => "Edit or delete a teammate's update", "roles" => ["account_manager"]],
     "tasks.see_drafts"   => ["area" => "projects", "label" => "See teammates' draft updates", "roles" => ["account_manager"]],
