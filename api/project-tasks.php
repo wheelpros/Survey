@@ -300,7 +300,8 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
 
             $project = loadScopedProject($pdo, $admin, $task["project_id"]);
 
-            if (!$project) {
+            // The list's draft rule, so a teammate's draft is not one id away.
+            if (!$project || !canSeePhase($admin, $project, $task)) {
                 response(false, "Task not found.", [], 404);
             }
 
@@ -353,9 +354,7 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
            project's manager see every draft, everyone else sees the published
            tasks plus their own. */
 
-        $seesEveryDraft =
-            can($admin, "tasks.see_drafts")
-            || (int) $project["account_manager_admin_id"] === (int) $admin["id"];
+        $seesEveryDraft = seesEveryPhaseDraft($admin, $project);
 
         $sql = "
             SELECT t.*, a.name AS created_by_name, " . TASK_IS_LIVE_SQL . " AS is_live

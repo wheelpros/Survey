@@ -2350,6 +2350,26 @@ function projectScopeSql(array $actor)
 }
 
 /**
+ * Whether $actor sees every draft phase of $project (one projectScopeSql()
+ * already lets them open): tasks.see_drafts, or managing the project.
+ * Everyone else sees the published phases plus their own drafts. The one
+ * rule for the phase list and a single phase, in the browser and api/v1.
+ */
+function seesEveryPhaseDraft(array $actor, array $project)
+{
+    return can($actor, "tasks.see_drafts")
+        || (int) ($project["account_manager_admin_id"] ?? 0) === (int) $actor["id"];
+}
+
+/** Whether $actor may read $task, a phase of $project, under that draft rule. */
+function canSeePhase(array $actor, array $project, array $task)
+{
+    return ($task["status"] ?? "") !== "draft"
+        || (int) ($task["created_by_admin_id"] ?? 0) === (int) $actor["id"]
+        || seesEveryPhaseDraft($actor, $project);
+}
+
+/**
  * A link that is printed as an href (content posts, project tasks): http(s)
  * only, so javascript: and data: never reach a page. A bare domain gets
  * https:// in front. Returns the link, null for none, or throws.

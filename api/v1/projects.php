@@ -290,8 +290,7 @@ if ($id !== null) {
         v1Error(404, "not_found", "No project with that id among the projects you can see.");
     }
 
-    $seesEveryDraft = can($p, "tasks.see_drafts", $pdo)
-        || (int) $project["account_manager_admin_id"] === (int) $p["id"];
+    $seesEveryDraft = seesEveryPhaseDraft($p, $project);
 
     $taskSql = "
         SELECT t.id, t.title, t.description, t.link, t.status, t.scheduled_date, t.scheduled_time,

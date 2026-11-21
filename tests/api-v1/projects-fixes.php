@@ -90,3 +90,21 @@ check("W-02: the browser leaves someone outside the scope off the phase",
 
 refusedChange("W-02: api/v1 refuses someone outside the scope", $owner, "post_project_update",
     ["project" => 5801, "title" => "AI out of scope", "team" => [5]], 422);
+
+// ── R-04 / W-13: one phase by id follows the draft rule ─────────────────
+
+seed($pdo, "project_tasks", [
+    ["id" => 58010, "project_id" => 501, "title" => "Andy's new draft", "status" => "draft", "created_by_admin_id" => 4],
+    ["id" => 58011, "project_id" => 501, "title" => "Sean's new draft", "status" => "draft", "created_by_admin_id" => 5],
+]);
+
+[$status] = pageGet("api/project-tasks.php?id=58010", $seo);
+check("R-04: a member can't open a teammate's draft by id", $status === 404, "HTTP $status");
+[$status] = pageGet("api/project-tasks.php?id=58011", $seo);
+check("R-04: a member opens their own draft", $status === 200, "HTTP $status");
+[$status] = pageGet("api/project-tasks.php?id=601", $seo);
+check("R-04: a member opens a published phase", $status === 200, "HTTP $status");
+[$status] = pageGet("api/project-tasks.php?id=58011", $am2);
+check("R-04: the project's manager opens any draft", $status === 200, "HTTP $status");
+[$status] = pageGet("api/project-tasks.php?id=58010", $owner);
+check("R-04: someone who sees every draft opens it", $status === 200, "HTTP $status");

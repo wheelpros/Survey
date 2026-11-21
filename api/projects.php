@@ -482,9 +482,7 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
             | not a teammate's business.
             */
 
-            $seesEveryDraft =
-                can($admin, "tasks.see_drafts")
-                || (int) $project["account_manager_admin_id"] === (int) $admin["id"];
+            $seesEveryDraft = seesEveryPhaseDraft($admin, $project);
 
             $taskSql = "
                 SELECT
