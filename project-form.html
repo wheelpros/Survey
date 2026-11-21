@@ -431,6 +431,7 @@ document.addEventListener("DOMContentLoaded", function () {
           <select id="managerId">
             <option value="">Select a manager...</option>
           </select>
+          <p class="hint" id="managerGoneHint" hidden></p>
         </div>
 
         <div class="field-row">
@@ -793,6 +794,17 @@ function fill(project, members){
   document.getElementById("startDate").value   = project.start_date || "";
   document.getElementById("endDate").value     = project.end_date || "";
   document.getElementById("managerId").value   = project.account_manager_admin_id || "";
+
+  /* A manager who may no longer manage projects is not among the choices,
+     so the select shows blank and Save would clear them - say so first. */
+  const managerSelect = document.getElementById("managerId");
+  const managerHint = document.getElementById("managerGoneHint");
+  const managerGone = !!project.account_manager_admin_id && managerSelect.value === "";
+  managerHint.hidden = !managerGone;
+  managerHint.textContent = managerGone
+    ? (project.account_manager_name || "The current manager")
+      + " can no longer manage projects, so saving removes them as manager. Pick a new manager."
+    : "";
 
   slider.value = Number(project.progress || 0);
   output.textContent = slider.value + "%";
