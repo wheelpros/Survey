@@ -673,6 +673,7 @@ require __DIR__ . "/migration.php";
 require __DIR__ . "/rbac-matrix.php";
 require __DIR__ . "/rbac-security.php";
 require __DIR__ . "/audit-gaps.php";
+require __DIR__ . "/projects-fixes.php";
 // Keep this last: it fills the login attempt limit for this run's one address.
 require __DIR__ . "/login-limits.php";
 

@@ -514,7 +514,8 @@ function loadEditableTask(PDO $pdo, array $p, $id)
 | the same as project-task-form.html: phase, role, priority, notes (staff
 | only), team (teammate ids), assignments ([{admin_id, work_note}], one row
 | per person, each one a teammate) and gallery images. Only the ones given.
-| People come from the client's team plus anyone already on the phase
+| People come from the project's scope (its client's team, its manager and
+| its members) plus anyone already on the phase
 | (task-writes.php allowedTaskPeople()), and someone else is refused at
 | prepare rather than dropped at apply. Nobody's status is set here: each
 | person moves their own (set_my_phase_status), and the phase completes once

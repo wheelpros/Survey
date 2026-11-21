@@ -248,8 +248,8 @@ function checkedDueDate($value)
 | The people on a phase
 |--------------------------------------------------------------------------
 |
-| Two lists, both drawn from the client's team - the same pool a content
-| post picks from (contentAssigneeCandidates):
+| Two lists, both drawn from the people who can see the project - its
+| client's team, its manager and its members (taskTeamCandidates):
 |
 |   teammates     who is on the phase
 |   assignments   which teammates worked on it, what they did, and how far
@@ -264,10 +264,43 @@ function checkedDueDate($value)
 
 require_once __DIR__ . "/content-writes.php";
 
-/** Who can go on a phase of $project: [{id, name, email, role}], by name. */
+/**
+ * Who can go on a phase of $project: [{id, name, email, role}], by name.
+ *
+ * The project's own scope (projectScopeSql), not the client's company name:
+ * the staff assigned to its client, its manager and its members. Anyone
+ * outside it could not open the phase or set their status, so the phase
+ * would never complete (audit W-02). Roles as for a post
+ * (CONTENT_ASSIGNEE_ROLES). $project needs id, client_id and
+ * account_manager_admin_id, as loadScopedProject() returns it.
+ */
 function taskTeamCandidates(PDO $pdo, array $project)
 {
-    return contentAssigneeCandidates($pdo, $project["company_name"] ?? "");
+    ensureAdminColumns($pdo);
+    $roles = implode(",", array_fill(0, count(CONTENT_ASSIGNEE_ROLES), "?"));
+
+    $stmt = $pdo->prepare("
+        SELECT a.id, a.name, a.email, a.role, a.avatar_path
+        FROM admins a
+        WHERE a.active = 1 AND a.role IN ($roles)
+          AND (
+                a.id IN (SELECT admin_id FROM admin_user_assignments WHERE user_id = ?)
+             OR a.id = ?
+             OR a.id IN (SELECT admin_id FROM project_members WHERE project_id = ?)
+          )
+        ORDER BY a.name ASC
+    ");
+    $stmt->execute(array_merge(CONTENT_ASSIGNEE_ROLES, [
+        (int) ($project["client_id"] ?? 0),
+        (int) ($project["account_manager_admin_id"] ?? 0),
+        (int) ($project["id"] ?? 0),
+    ]));
+
+    return array_map(function ($r) {
+        return ["id" => (int) $r["id"], "name" => (string) $r["name"],
+                "email" => (string) $r["email"], "role" => (string) $r["role"],
+                "avatar_path" => $r["avatar_path"] ?: null];
+    }, $stmt->fetchAll(PDO::FETCH_ASSOC));
 }
 
 /** The ids from $ids that may go on a phase: candidates, plus anyone already on it. */

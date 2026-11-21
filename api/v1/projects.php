@@ -11,8 +11,9 @@
 |
 | A project's tasks are its phases. Each carries the people on it: teammates
 | (each ticks their own box done) and assignments (who worked on it, what
-| they did, todo / in_progress / done). Teammates for a project are its
-| client's team (task-writes.php taskTeamCandidates()); they are for changing
+| they did, todo / in_progress / done). Teammates for a project are the people
+| who can see it: its client's team, its manager and its members
+| (task-writes.php taskTeamCandidates()); they are for changing
 | a phase, so they need projects:write as well.
 |
 | Scope projects:read. Same rule as projects.php projectScope(): the owner
