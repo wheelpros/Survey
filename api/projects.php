@@ -991,9 +991,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     | did it, who does not need telling.
     */
 
-    $recipients = $memberIds;
+    // Only the people new to it: a save that keeps someone on tells them
+    // nothing (audit W-16).
+    $recipients = $joined;
 
-    if ($managerId > 0) {
+    if ($managerId > 0 && $managerId !== (int) ($existing["account_manager_admin_id"] ?? 0)) {
         $recipients[] = $managerId;
     }
 

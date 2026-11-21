@@ -108,3 +108,35 @@ check("R-04: a member opens a published phase", $status === 200, "HTTP $status")
 check("R-04: the project's manager opens any draft", $status === 200, "HTTP $status");
 [$status] = pageGet("api/project-tasks.php?id=58010", $owner);
 check("R-04: someone who sees every draft opens it", $status === 200, "HTTP $status");
+
+// ── W-16: only the people newly put on a project are told ───────────────
+
+function saveAcmeAds($token, $managerId, array $members)
+{
+    return post("api/projects.php", $token, [
+        "id" => 5803, "title" => "Acme ads", "client_id" => 10, "status" => "active", "progress" => 10,
+        "start_date" => day("-1"), "end_date" => day("+9"),
+        "account_manager_admin_id" => $managerId, "member_ids" => implode(",", $members),
+    ], [], true);
+}
+
+$amyBefore = notes($pdo, "admin", 3, "project_assigned");
+$seanBefore = notes($pdo, "admin", 5, "project_assigned");
+$andyBefore = notes($pdo, "admin", 4, "project_assigned");
+
+[$status, $r] = saveAcmeAds($owner, 3, [5]);
+check("W-16: a project save", $status === 200 && ($r["success"] ?? false), "HTTP $status " . json_encode($r));
+check("W-16: the new member is told, the manager who was already there is not",
+    notes($pdo, "admin", 5, "project_assigned") === $seanBefore + 1 && notes($pdo, "admin", 3, "project_assigned") === $amyBefore,
+    json_encode([notes($pdo, "admin", 5, "project_assigned") - $seanBefore, notes($pdo, "admin", 3, "project_assigned") - $amyBefore]));
+
+saveAcmeAds($owner, 3, [5]);
+check("W-16: saving again tells nobody",
+    notes($pdo, "admin", 5, "project_assigned") === $seanBefore + 1 && notes($pdo, "admin", 3, "project_assigned") === $amyBefore);
+
+saveAcmeAds($owner, 4, [5]);
+check("W-16: a new manager is told", notes($pdo, "admin", 4, "project_assigned") === $andyBefore + 1
+    && notes($pdo, "admin", 5, "project_assigned") === $seanBefore + 1);
+
+saveAcmeAds($owner, 3, []);
+check("W-16: back as manager counts as newly put on", notes($pdo, "admin", 3, "project_assigned") === $amyBefore + 1);
