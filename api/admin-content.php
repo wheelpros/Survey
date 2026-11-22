@@ -692,6 +692,27 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         }
     }
 
+    /*
+    | Whose feed the post lands in (audit W-01). content.client is a company
+    | name, and the server used to take any string, so a post could be put
+    | in - or moved to - any client's feed. Now a new client must be one the
+    | caller can see, as api/v1 resolves it (v1VisibleClient), and only a
+    | publisher moves a post to another client: a teammate filling it in
+    | keeps the client it has, like its status and dates.
+    */
+    $existingClient = $existing ? trim((string) ($existing["client"] ?? "")) : "";
+    if ($existing && !array_key_exists("client", $_POST)) {
+        $client = $existingClient;
+    }
+    $clientChanges = !$existing || strcasecmp($client, $existingClient) !== 0;
+
+    if ($clientChanges && $existing && !canPublishContent($admin)) {
+        response(false, "Only someone who can publish may move a post to another client.", [], 403);
+    }
+
+    if ($clientChanges && !contentClientVisible($pdo, $admin, $client)) {
+        response(false, "Pick one of your clients for this post.", [], 403);
+    }
 
     /*
     | The teammates. member_ids_sent marks that the form sent the list at all,
