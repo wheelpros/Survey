@@ -18,6 +18,7 @@
 require_once __DIR__ . "/db.php";
 require_once __DIR__ . "/notify.php";
 require_once __DIR__ . "/events.php";
+require_once __DIR__ . "/rich-text.php";
 
 /* The rich-text counter under the editor says 0 / 2000, and it counts text,
    not the markup the editor wraps around it. */
@@ -130,7 +131,8 @@ function saveProjectTask(PDO $pdo, array $actor, array $project, $existing, arra
 
     /* The editor stores HTML but the counter under it counts text, so the cap
        is checked against the text the same way the page measures it. */
-    $description = trim((string) ($f["description"] ?? ""));
+    // Scrubbed as it is written, so no reader has to trust it (audit U-03).
+    $description = cleanRichText(trim((string) ($f["description"] ?? "")));
     $plain = trim(html_entity_decode(strip_tags($description), ENT_QUOTES, "UTF-8"));
     if (mb_strlen($plain) > TASK_DESCRIPTION_MAX_CHARS) {
         throw new PortalWriteError("Description must be " . TASK_DESCRIPTION_MAX_CHARS . " characters or fewer.");

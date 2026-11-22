@@ -446,6 +446,7 @@ foreach ($argv as $arg) {
 foreach ([
     "writes",
     "content-tenant",
+    "rich-text",
     "phases",
     "messages",
     "positions",

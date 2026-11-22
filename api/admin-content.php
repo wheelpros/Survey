@@ -9,6 +9,7 @@ require_once "notify.php";
 require_once "content-writes.php";
 require_once "events.php";
 require_once "upload-helpers.php";
+require_once "rich-text.php";
 
 header("Content-Type: application/json; charset=UTF-8");
 
@@ -578,7 +579,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $client = trim($_POST["client"] ?? "");
     $link = trim($_POST["link"] ?? "");
 
-    $caption = $_POST["caption"] ?? "";
+    // Scrubbed as it is written, so no reader has to trust it (audit U-02).
+    $caption = cleanRichText($_POST["caption"] ?? "");
 
     $contentType = trim($_POST["content_type"] ?? "");
     $typeLabel = trim($_POST["type_label"] ?? "");
@@ -689,6 +691,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             );
         }
     }
+
 
     /*
     | The teammates. member_ids_sent marks that the form sent the list at all,
