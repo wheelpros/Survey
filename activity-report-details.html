@@ -37,7 +37,7 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 <link rel="stylesheet" href="assets/shell.css?v=8" />
-<link rel="stylesheet" href="assets/activity-reports.css?v=5" />
+<link rel="stylesheet" href="assets/activity-reports.css?v=7" />
 <script src="assets/permissions.js?v=2"></script>
 <script src="/assets/clarity.js" defer></script>
 <script src="/assets/auto-dir.js?v=1" defer></script>
@@ -98,11 +98,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
 <input type="file" id="fileInput" multiple hidden accept=".pdf,.txt,.md,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp">
 
-<!-- CLOSE POPUP: the author sends the day's report from here -->
+<!-- SEND POPUP: the author sends the report from here, whenever it's ready -->
 <div class="acct-modal" id="closeModal">
   <div class="acct-box rv-box" role="dialog" aria-modal="true" aria-labelledby="closeTitle" aria-describedby="closeText">
     <div class="acct-head">
-      <h2 id="closeTitle">Close today's report?</h2>
+      <h2 id="closeTitle">Send this report?</h2>
       <button type="button" onclick="closeCloseDialog()" aria-label="Close">&times;</button>
     </div>
     <div class="rv-body">
@@ -139,7 +139,7 @@ document.addEventListener("DOMContentLoaded", function () {
     <div class="rv-foot">
       <div class="form-status" id="closeStatus" role="status"></div>
       <button class="btn" type="button" id="closeCancel" onclick="closeCloseDialog()">Cancel</button>
-      <button class="btn primary" type="button" id="closeConfirm" onclick="confirmClose()">Close report</button>
+      <button class="btn primary" type="button" id="closeConfirm" onclick="confirmClose()">Send report</button>
     </div>
   </div>
 </div>
@@ -200,7 +200,7 @@ document.addEventListener("DOMContentLoaded", function () {
 <script src="assets/dismiss.js?v=2"></script>
 <script src="assets/ui-utils.js?v=1"></script>
 <script src="assets/row-menu.js?v=1"></script>
-<script src="assets/activity-reports.js?v=3"></script>
+<script src="assets/activity-reports.js?v=6"></script>
 <script>
 /* One report. Its author edits activities in place (the pencils) while it can still change.
    Whoever may review it (can_review_activities) reviews each Done activity
@@ -441,17 +441,17 @@ function render(data) {
   const edited = r.submitted_ts && r.updated_ts > r.submitted_ts ? ` · edited ${esc(DR.timeLabel(r.updated_ts))}` : "";
   const sentLine = r.submitted_ts
     ? `Sent <strong>${esc(DR.timeLabel(r.submitted_ts))}</strong>${edited}`
-    : r.report_date < (data.today || DR.todayIso()) ? "<strong>Not sent</strong>" : "<strong>Not sent yet</strong>";
+    : "<strong>Not sent yet</strong>";
   // The author closes the day here; the badge comes back once it's closed.
   const closeBtn = canEdit && r.status === "planned"
-    ? `<button class="btn primary lg-only" type="button" onclick="openClose(this)">${ICON_CHECK} Close report</button><span class="sm-only">${DR.sheetPill(r)}</span>` : "";
+    ? `<button class="btn primary lg-only" type="button" onclick="openClose(this)">${ICON_CHECK} Send report</button><span class="sm-only">${DR.sheetPill(r)}</span>` : "";
   // Edit plan and Delete live in a ⋮ menu, like the lists: only for whoever planned it, before it's sent.
   // On a phone, Edit plan moves to the buttons at the bottom of the header; the ⋮ keeps Delete.
   headerActions = { edit: !!data.can_plan, remove: !!data.can_delete };
   const moreMenu = data.can_plan || data.can_delete ? `<div class="report-more">${DR.kebab("More actions for this report", "headerMenu(this)")}</div>` : "";
   // Phones: the header's actions as full-width buttons at its bottom.
   const phoneActions = [
-    closeBtn ? `<button class="btn primary" type="button" onclick="openClose(this)">${ICON_CHECK} Close report</button>` : "",
+    closeBtn ? `<button class="btn primary" type="button" onclick="openClose(this)">${ICON_CHECK} Send report</button>` : "",
     reviewReportBtn ? `<button class="btn primary" type="button" onclick="openReportReview(this)">${ICON_CHECK} Mark report as reviewed</button>` : "",
     data.can_plan ? `<a class="btn" href="activity-report-plan.html?id=${Number(r.id)}">Edit plan</a>` : ""
   ].join("");
@@ -746,7 +746,7 @@ function openClose(opener) {
   document.getElementById("closeWarnList").innerHTML = open.map(({ a, i }) =>
     `<li><span dir="auto">${String(i + 1).padStart(2, "0")}. ${esc(a.title)}</span>${DR.activityPill(a.status)}</li>`).join("");
   document.getElementById("closeStatus").textContent = "";
-  document.getElementById("closeConfirm").textContent = open.length ? "Close anyway" : "Close report";
+  document.getElementById("closeConfirm").textContent = open.length ? "Send anyway" : "Send report";
   closeModal.classList.add("show");
   // With work still open, the safe choice gets the focus.
   document.getElementById(open.length ? "closeCancel" : "closeConfirm").focus();
@@ -780,7 +780,7 @@ async function confirmClose() {
       challenges, challenge_priority: challenges ? priority : "" });
     if (!data.success) {
       status.className = "form-status error";
-      status.textContent = data.message || "Could not close it. Try again.";
+      status.textContent = data.message || "Could not send it. Try again.";
       return;
     }
     closing = false;
@@ -1023,7 +1023,7 @@ async function saveOwn(event) {
 async function removeOwn(id) {
   const a = (current.activities || []).find(x => Number(x.id) === id);
   if (!a) return;
-  const ok = await askConfirm({ title: `Remove “${a.title}”?`, text: "It comes off your report for today.", action: "Remove", focusCancel: true });
+  const ok = await askConfirm({ title: `Remove “${a.title}”?`, text: "It comes off this report.", action: "Remove", focusCancel: true });
   if (!ok) return;
   try {
     const data = await DR.post({ action: "remove_activity", id: reportId, activity_id: id });
@@ -1053,7 +1053,7 @@ async function deleteReport() {
   if (!current) return;
   const mine = Number(current.admin_id) === Number(DR.user.id);
   const ok = await askConfirm({
-    title: mine ? "Delete your report for today?" : `Delete ${current.admin_name}'s report for ${DR.dayLabel(current.report_date, true)}?`,
+    title: mine ? "Delete this report?" : `Delete ${current.admin_name}'s report for ${DR.dayLabel(current.report_date, true)}?`,
     text: mine ? "Anything you've filled in so far is lost." : "They won't see it any more, and anything they've filled in so far is lost.",
     action: "Delete report",
     focusCancel: true

@@ -103,11 +103,11 @@
 
   /* A report's status is worked out from its activities (effective_status
      from the endpoint): awaiting while a Done activity isn't reviewed yet,
-     changes while one was sent back, then reviewed / sent / not sent /
-     in progress / to fill in. */
+     changes while one was sent back, then reviewed / sent / in progress /
+     to fill in. A report stays open until it's sent, whatever its day. */
   var REPORT_STATUS = {
     awaiting: "Awaiting review", changes: "Needs changes", reviewed: "Reviewed", sent: "Sent",
-    missing: "Not sent", in_progress: "In progress", planned: "To fill in"
+    in_progress: "In progress", planned: "To fill in"
   };
 
   function labelOf(pairs, key) {
@@ -148,6 +148,28 @@
 
     function changed() { if (opts.onChange) opts.onChange(items); }
 
+    /* Your own report: each activity can be saved with where it stands and
+       what came of it, not only planned. opts.progress says when (a function,
+       since the page knows it's your own only once it has loaded). */
+    function withProgress() { return typeof opts.progress === "function" ? !!opts.progress() : !!opts.progress; }
+
+    function progressFields(a, i, counted) {
+      return '<div class="progress-fields">'
+        + '<div><label class="field-label" for="' + prefix + "S" + i + '">Status</label>'
+        + '<select class="select" id="' + prefix + "S" + i + '" data-field="status">'
+        + ACTIVITY_STATUS.map(function (s) {
+            return '<option value="' + s[0] + '"' + ((a.status || "todo") === s[0] ? " selected" : "") + ">" + s[1] + "</option>";
+          }).join("")
+        + "</select></div>"
+        + (counted
+          ? '<div><label class="field-label" for="' + prefix + "N" + i + '">How many' + (a.count_unit ? " " + esc(a.count_unit) : "") + '</label>'
+            + '<input class="input" type="number" min="0" step="1" inputmode="numeric" id="' + prefix + "N" + i + '" data-field="count_value" value="' + (a.count_value == null ? "" : esc(a.count_value)) + '"></div>'
+          : "")
+        + "</div>"
+        + '<label class="field-label" for="' + prefix + "O" + i + '">Outcome <span class="optional">(optional)</span></label>'
+        + '<textarea class="textarea" data-voice id="' + prefix + "O" + i + '" data-field="outcome" maxlength="5000" dir="auto" placeholder="What came of it so far">' + esc(a.outcome || "") + "</textarea>";
+    }
+
     /* An activity the employee has worked on (or that was reviewed) is kept
        as it is: shown with its status, not editable, not removable. It can
        still move up or down. */
@@ -184,7 +206,8 @@
           + '<textarea class="textarea" data-voice id="' + prefix + "D" + i + '" data-field="description" maxlength="2000" dir="auto" placeholder="What needs doing, and anything they should know">' + esc(a.description) + "</textarea>"
           + '<div class="count-row"><label class="check"><input type="checkbox" data-counted ' + (counted ? "checked" : "") + '> Count this</label>'
           + '<input class="input count-unit" data-field="count_unit" maxlength="30" placeholder="calls" aria-label="What to count" value="' + esc(a.count_unit || "") + '"' + (counted ? "" : " hidden") + ">"
-          + '<span class="hint">' + (counted ? "They enter how many with the outcome." : "For routine work: calls, CVs, meetings.") + "</span></div>"
+          + '<span class="hint">' + (counted ? (withProgress() ? "Say how many below." : "They enter how many with the outcome.") : "For routine work: calls, CVs, meetings.") + "</span></div>"
+          + (withProgress() ? progressFields(a, i, counted) : "")
           + "</div>";
       }).join("");
       if (focusIndex != null) {
@@ -237,12 +260,15 @@
         items = (list || []).map(function (a) {
           return { id: Number(a.id) || 0, title: a.title || "", description: a.description || "",
             count_unit: a.count_unit == null ? null : a.count_unit, origin: a.origin || "planned",
-            locked: !!(a.plan_locked || a.locked), status: a.status || "todo", review: a.review || null };
+            locked: !!(a.plan_locked || a.locked), status: a.status || "todo", review: a.review || null,
+            outcome: a.outcome || "", count_value: a.count_value == null ? "" : a.count_value };
         });
         render();
       },
+      /** Draws the cards again, after the page learns it's your own report. */
+      refresh: function () { render(); },
       add: function (focus) {
-        items.push({ title: "", description: "", count_unit: null, origin: "planned" });
+        items.push({ title: "", description: "", count_unit: null, origin: "planned", status: "todo", outcome: "", count_value: "" });
         render(focus ? items.length - 1 : null);
         changed();
       },
@@ -273,9 +299,17 @@
         return !first;
       },
       cleaned: function () {
+        var progress = withProgress();
         return items.filter(function (a) { return a.title.trim(); }).map(function (a) {
-          return { id: a.id || 0, title: a.title.trim(), description: a.description.trim(), origin: a.origin,
+          var out = { id: a.id || 0, title: a.title.trim(), description: a.description.trim(), origin: a.origin,
             count_unit: a.count_unit != null && String(a.count_unit).trim() ? String(a.count_unit).trim() : null };
+          // Worked-on activities aren't the plan's to change, so only open ones carry progress.
+          if (progress && !a.locked) {
+            out.status = a.status || "todo";
+            out.outcome = String(a.outcome || "").trim();
+            out.count_value = out.count_unit && String(a.count_value).trim() !== "" ? Number(a.count_value) : null;
+          }
+          return out;
         });
       }
     };
@@ -347,6 +381,76 @@
     var pct = total ? Math.round(done / total * 100) : 0;
     return '<span class="progress"><span class="progress-bar" aria-hidden="true"><i style="width:' + pct + '%"></i></span>'
       + done + " of " + total + " done</span>";
+  }
+
+  /*
+   * The overview the Dashboard has (admin-dashboard.html): a donut with its
+   * legend, and four tiles, here counting activities by status.
+   * c = {todo, in_progress, follow_up, done}; reports = how many reports
+   * they're on. The ring's circumference is 100, so a share is its percentage.
+   */
+  var OVERVIEW = [
+    ["done", "Done", "var(--c-done)", "Finished"],
+    ["follow_up", "Follow up", "var(--c-follow)", "Waiting on someone else"],
+    ["in_progress", "In progress", "var(--c-doing)", "Being worked on now"],
+    ["todo", "To do", "var(--c-todo)", "Not started yet"]
+  ];
+  // The tiles read in the order the work moves.
+  var TILE_ORDER = ["todo", "in_progress", "follow_up", "done"];
+
+  function donutSvg(c) {
+    var R = 15.9155;
+    var parts = OVERVIEW.filter(function (o) { return Number(c[o[0]]) > 0; });
+    var total = parts.reduce(function (n, o) { return n + Number(c[o[0]]); }, 0);
+    var gap = parts.length > 1 ? 1.5 : 0;
+    var offset = 0;
+    var svg = '<circle cx="21" cy="21" r="' + R + '" fill="none" stroke="#eef1f5" stroke-width="5"></circle>';
+    parts.forEach(function (o) {
+      var share = Number(c[o[0]]) / total * 100;
+      var len = Math.max(share - gap, 0.1);
+      svg += '<circle cx="21" cy="21" r="' + R + '" fill="none" stroke="' + o[2] + '" stroke-width="5"'
+        + ' stroke-dasharray="' + len + " " + (100 - len) + '" stroke-dashoffset="' + (-offset) + '"></circle>';
+      offset += share;
+    });
+    return svg;
+  }
+
+  function overview(box, c, reports, title) {
+    c = c || {};
+    var total = OVERVIEW.reduce(function (n, o) { return n + (Number(c[o[0]]) || 0); }, 0);
+    var byKey = {};
+    OVERVIEW.forEach(function (o) { byKey[o[0]] = o; });
+    var aria = total + " activities: " + OVERVIEW.map(function (o) { return (Number(c[o[0]]) || 0) + " " + o[1].toLowerCase(); }).join(", ");
+    reports = Number(reports) || 0;
+    box.innerHTML =
+        '<div class="ov-box donut-card">'
+      +   '<div class="donut" role="img" aria-label="' + esc(aria) + '"><svg viewBox="0 0 42 42" aria-hidden="true">' + donutSvg(c) + "</svg>"
+      +     '<div class="donut-mid"><strong>' + total + "</strong><span>Activities</span></div></div>"
+      +   '<div class="legend"><h3>' + esc(title || "Activities by status") + "</h3>"
+      +     "<p>On " + reports + " report" + (reports === 1 ? "" : "s") + "</p><ul>"
+      +     OVERVIEW.map(function (o) {
+              return '<li><i class="key" style="background:' + o[2] + '"></i>' + o[1] + "<b>" + (Number(c[o[0]]) || 0) + "</b></li>";
+            }).join("")
+      +   "</ul></div>"
+      + "</div>"
+      + '<div class="stat-grid">'
+      +   TILE_ORDER.map(function (k) {
+            var o = byKey[k];
+            return '<div class="ov-box ov-stat"><span class="stat-label"><i class="key" style="background:' + o[2] + '"></i>' + o[1]
+              + "</span><strong>" + (Number(c[k]) || 0) + "</strong><small>" + o[3] + "</small></div>";
+          }).join("")
+      + "</div>";
+    box.hidden = false;
+  }
+
+  /** Activities counted by status over a list of reports that carry activity_counts. */
+  function activityCounts(reports) {
+    var c = { todo: 0, in_progress: 0, follow_up: 0, done: 0 };
+    (reports || []).forEach(function (r) {
+      var a = r.activity_counts || {};
+      Object.keys(c).forEach(function (k) { c[k] += Number(a[k]) || 0; });
+    });
+    return c;
   }
 
   async function reply(res) {
@@ -459,6 +563,8 @@
     planner: planner,
     activityPill: activityPill,
     progress: progress,
+    overview: overview,
+    activityCounts: activityCounts,
     whenLabel: whenLabel,
     reviewState: reviewState,
     reviewPill: reviewPill,

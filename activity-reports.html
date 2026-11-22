@@ -37,7 +37,7 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 <link rel="stylesheet" href="assets/shell.css?v=8" />
-<link rel="stylesheet" href="assets/activity-reports.css?v=5" />
+<link rel="stylesheet" href="assets/activity-reports.css?v=7" />
 <script src="assets/permissions.js?v=2"></script>
 <script src="assets/dismiss.js?v=2"></script>
 <script src="/assets/clarity.js" defer></script>
@@ -76,13 +76,7 @@ document.addEventListener("DOMContentLoaded", function () {
     <div class="page-head">
       <div class="page-title">
         <h1>Activity Reports</h1>
-        <p>Plan the day for people whose work isn't in projects, then see what got done and review it as it happens.</p>
-      </div>
-      <div class="head-actions">
-        <a class="btn primary" id="planBtn" href="activity-report-plan.html" hidden>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-          New activity report
-        </a>
+        <p>Request reports from people whose work isn't in projects, or create your own, then see what got done and review it as it happens.</p>
       </div>
     </div>
 
@@ -96,10 +90,19 @@ document.addEventListener("DOMContentLoaded", function () {
 
     <!-- My reports: today first, then the history. -->
     <div class="view" id="view-mine" role="tabpanel" aria-labelledby="tab-mine" hidden>
-      <div class="today" id="todayCard"><div><p>Loading today's report...</p></div></div>
+      <div class="overview" id="mineOverview" aria-label="Your activities" hidden></div>
 
       <div class="panel">
-        <div class="panel-head"><h2>Your reports</h2></div>
+        <div class="panel-head">
+          <div>
+            <h2>Your reports</h2>
+            <p>Open one to update its activities, then send it whenever it's ready.</p>
+          </div>
+          <a class="btn primary" id="createBtn" href="activity-report-plan.html?self=1" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            Create report
+          </a>
+        </div>
         <table class="table">
           <thead><tr><th>Date</th><th>Progress</th><th>Status</th><th class="col-actions"><span class="sr-only">Actions</span></th></tr></thead>
           <tbody id="mineRows"><tr><td colspan="4" class="empty-cell">Loading...</td></tr></tbody>
@@ -123,7 +126,6 @@ document.addEventListener("DOMContentLoaded", function () {
           <option value="planned">To fill in</option>
           <option value="sent">Sent</option>
           <option value="reviewed">Reviewed</option>
-          <option value="missing">Not sent</option>
         </select>
       </div>
 
@@ -156,9 +158,19 @@ document.addEventListener("DOMContentLoaded", function () {
       </div>
       <div class="bar-pop pop-menu" id="pillMenu" role="menu" hidden></div>
 
-      <div class="stats" id="teamStats" hidden></div>
+      <div class="overview" id="teamOverview" aria-label="The team's activities" hidden></div>
 
       <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>Team reports</h2>
+            <p>Reports in the dates and filters above, the ones waiting on you first.</p>
+          </div>
+          <a class="btn primary" id="requestBtn" href="activity-report-plan.html" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            Request report
+          </a>
+        </div>
         <table class="table">
           <thead>
             <tr><th>Employee</th><th>Date</th><th>Progress</th><th>Status</th><th class="col-actions"><span class="sr-only">Actions</span></th></tr>
@@ -211,12 +223,14 @@ document.addEventListener("DOMContentLoaded", function () {
 <script src="assets/confirm.js?v=5"></script>
 <script src="assets/ui-utils.js?v=1"></script>
 <script src="assets/row-menu.js?v=1"></script>
-<script src="assets/activity-reports.js?v=3"></script>
+<script src="assets/activity-reports.js?v=6"></script>
 <script>
 /* Who gets what here:
-     reports.create   - plans reports for their team (New activity report) and
-                        keeps templates (Templates tab)
-     reports.self     - plans their own report, or adds activities to one planned for them
+     reports.create   - requests reports from their team (Request report, on
+                        Team reports) and keeps templates (Templates tab)
+     reports.self     - creates their own reports (Create report, on My reports),
+                        or adds activities to one planned for them
+   Anyone may have any number of reports a day, and sends each when it's ready.
      reports.review / reports.view_all / reports.create - Team reports
      anyone a report was planned for - My reports, no permission needed
    Someone with none of these and no reports goes back to the dashboard. */
@@ -229,7 +243,8 @@ let hasOwn = canSelf;        // My reports; set again once loadMine knows
 const TABS = ["mine", "team", "templates"];
 let activeTab = null;
 
-document.getElementById("planBtn").hidden = !canCreate;
+document.getElementById("requestBtn").hidden = !canCreate;
+document.getElementById("createBtn").hidden = !canSelf;
 
 function tabAllowed(tab) {
   return tab === "mine" ? hasOwn : tab === "team" ? canTeam : canCreate;
@@ -248,70 +263,24 @@ function statusCell(r) {
 
 /* ── My reports ─────────────────────────────────────────────────────────── */
 
-function renderToday(data) {
-  const card = document.getElementById("todayCard");
-  const s = data.today_sheet;
-  const day = esc(DR.dayLabel(data.today, true));
+/* The Dashboard's donut and tiles, over every report in the list below. */
+function renderMineOverview(rows) {
+  const box = document.getElementById("mineOverview");
+  if (!rows.length) { box.hidden = true; return; }
+  DR.overview(box, DR.activityCounts(rows), rows.length, "Your activities by status");
+}
 
-  card.classList.toggle("is-due", !!s && ["planned", "in_progress", "changes"].includes(s.effective_status));
-
-  if (!s) {
-    card.innerHTML = `
-      <div>
-        <div class="today-eyebrow">${day}</div>
-        <h2>Nothing planned for you today</h2>
-        <p>${data.can_self ? "Plan your own report, or wait for your manager to plan one." : "When your manager plans your day, it shows up here."}</p>
-      </div>
-      ${data.can_self ? `<div class="today-actions"><a class="btn primary" href="activity-report-plan.html?self=1">Start my own report</a></div>` : ""}`;
-    return;
-  }
-
-  const view = `activity-report-details.html?id=${Number(s.id)}`;
-  const progress = `<div style="margin-top:8px">${DR.progress(s.activities_done, s.activities_total)}</div>`;
-
-  if (s.status === "reviewed") {
-    card.innerHTML = `
-      <div>
-        <div class="today-eyebrow">${day}</div>
-        <h2>Reviewed by ${esc(s.reviewed_by_name || s.reviewer_name)}</h2>
-        <p>It's locked now.</p>
-        ${s.reviewer_note ? `<div class="note" dir="auto">"${esc(s.reviewer_note)}"</div>` : ""}
-      </div>
-      <div class="today-actions"><a class="btn" href="${view}">View</a></div>`;
-    return;
-  }
-
-  const closed = s.status === "submitted";
-  const heading = s.effective_status === "changes" ? `${(s.reviewers || []).length > 1 ? "Your reviewers" : esc(s.reviewer_name)} asked for changes`
-    : closed ? "Closed, waiting for review"
-    : {
-      planned: s.self_made ? "Your report for today is ready" : `${esc(s.created_by_name)} planned ${s.activities_total} activit${s.activities_total === 1 ? "y" : "ies"} for you today`,
-      in_progress: "Today's report is in progress",
-      awaiting: "Today's report is in progress"
-    }[s.effective_status] || "Today's report";
-
-  const text = s.effective_status === "changes"
-    ? "Open it to see the feedback and update those activities."
-    : closed
-      ? `Closed and sent to ${esc(s.reviewer_name)}. It's locked now, except anything they send back to you.`
-      : `Update each activity as you go - ${esc(s.reviewer_name)} can review the ones you mark Done straight away. Close it at the end of the day.`;
-
-  card.innerHTML = `
-    <div>
-      <div class="today-eyebrow">${day}${s.template_name ? " · " + esc(s.template_name) : ""}</div>
-      <h2>${heading}</h2>
-      <p>${text}</p>
-      ${progress}
-    </div>
-    <div class="today-actions">
-      <a class="btn primary" href="${view}">Open report</a>
-    </div>`;
+/* Several reports can share a day, so each says when it was made and by whom. */
+function created(r) {
+  const at = r.created_ts ? DR.timeLabel(r.created_ts) : "";
+  const who = r.self_made ? "Created" : "Requested by " + r.created_by_name;
+  return at ? who + " at " + at : who;
 }
 
 function mineRow(r) {
   return `
     <tr>
-      <td data-label="Date"><a class="row-link" href="activity-report-details.html?id=${Number(r.id)}"><strong>${esc(DR.dayLabel(r.report_date))}</strong></a></td>
+      <td data-label="Date"><a class="row-link" href="activity-report-details.html?id=${Number(r.id)}"><strong>${esc(DR.dayLabel(r.report_date))}</strong></a><small class="cell-sub">${esc(created(r))}</small></td>
       <td data-label="Progress">${DR.progress(r.activities_done, r.activities_total)}</td>
       <td data-label="Status">${statusCell(r)}</td>
       <td class="col-actions">${DR.kebab("Actions for your report on " + DR.dayLabel(r.report_date, true), "mineMenu(this, " + Number(r.id) + ")")}</td>
@@ -333,15 +302,15 @@ async function loadMine() {
     }
     // My reports is always there for someone with no team view: it's the only view they have,
     // and its empty state says their reports show up once one is planned.
-    hasOwn = canSelf || !canTeam || !!data.today_sheet || (data.items || []).length > 0 || (data.upcoming || []).length > 0;
+    hasOwn = canSelf || !canTeam || (data.items || []).length > 0 || (data.upcoming || []).length > 0;
     syncTabs();
     if (!hasOwn && activeTab === "mine") showTab(canTeam ? "team" : "templates");
 
-    renderToday(data);
-    const rows = data.items || [];
+    const rows = (data.upcoming || []).concat(data.items || []);
+    renderMineOverview(rows);
     body.innerHTML = rows.length
       ? rows.map(mineRow).join("")
-      : `<tr><td colspan="4" class="empty-cell">Your reports will show here once one has been planned for you.</td></tr>`;
+      : `<tr><td colspan="4" class="empty-cell">${canSelf ? "No reports yet. Create one, or wait for one to be requested from you." : "Your reports will show here once one has been requested from you."}</td></tr>`;
   } catch (err) {
     body.innerHTML = `<tr><td colspan="4" class="empty-cell">Connection error.</td></tr>`;
   }
@@ -394,12 +363,12 @@ function teamRow(r) {
   const by = r.self_made ? "Their own" : "By " + r.created_by_name;
   const role = [r.admin_position, r.department_name].filter(Boolean).join(", ");
   return `
-    <tr${r.effective_status === "missing" ? " class=\"is-missing\"" : ""}>
+    <tr>
       <td><div class="person-cell">
         <span class="row-avatar" aria-hidden="true">${esc(initials(r.admin_name))}</span>
         <span class="person-text"><a class="row-link" href="activity-report-details.html?id=${Number(r.id)}"><strong>${esc(r.admin_name)}</strong></a><small>${esc(role)}</small></span>
       </div></td>
-      <td data-label="Date">${esc(DR.dayLabel(r.report_date))}<small class="cell-sub">${esc(by)}</small></td>
+      <td data-label="Date">${esc(DR.dayLabel(r.report_date))}<small class="cell-sub">${esc(by + (r.created_ts ? " · " + DR.timeLabel(r.created_ts) : ""))}</small></td>
       <td data-label="Progress">${DR.progress(r.activities_done, r.activities_total)}</td>
       <td data-label="Status">${DR.sheetPill(r)}</td>
       <td class="col-actions">${DR.kebab("Actions for " + r.admin_name + "'s report", "reportMenu(this, " + Number(r.id) + ")")}</td>
@@ -572,23 +541,12 @@ async function deleteReport(r) {
   }
 }
 
+/* The Dashboard's donut and tiles: every activity on the reports in these
+   filters (all pages, not just the one loaded). */
 function renderStats(stats) {
-  const box = document.getElementById("teamStats");
-  box.hidden = !stats;
-  if (stats) {
-    const tile = (label, value, filter, extra) => filter
-      ? `<button class="stat" type="button" onclick="quickStatus('${filter}')"><span>${label}</span><strong>${value}</strong>${extra || ""}</button>`
-      : `<div class="stat"><span>${label}</span><strong>${value}</strong>${extra || ""}</div>`;
-    box.innerHTML =
-        tile("Awaiting review", stats.awaiting, "awaiting")
-      + tile("Needs changes", stats.changes, "changes")
-      + tile("Sent", stats.sent, "", ` <small>of ${Number(stats.reports)}</small>`);
-  }
-}
-
-function quickStatus(status) {
-  document.getElementById("fStatus").value = status;
-  loadTeam();
+  const box = document.getElementById("teamOverview");
+  if (!stats || !stats.reports) { box.hidden = true; return; }
+  DR.overview(box, stats.activities, stats.reports, "Team activities by status");
 }
 
 /* One page of reports at a time; Load more asks for the next from the cursor. */
