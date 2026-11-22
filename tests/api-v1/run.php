@@ -453,6 +453,7 @@ foreach ([
     "clients",
     "client-safety",
     "upload-safety",
+    "survey-uploads",
     "branding",
     "settings",
     "events",

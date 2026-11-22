@@ -85,6 +85,10 @@ function submitSurveyResponse(PDO $pdo, array $user, $surveyId, array $answers, 
         mkdir($uploadRoot, 0777, true);
     }
 
+    // Files moved into place so far: removed again if the submit fails, so a
+    // rolled-back response leaves nothing on disk (F-09).
+    $movedFiles = [];
+
     $pdo->beginTransaction();
 
     try {
@@ -147,7 +151,8 @@ function submitSurveyResponse(PDO $pdo, array $user, $surveyId, array $answers, 
                     $files["error"][$questionId] === UPLOAD_ERR_OK
                 ) {
 
-                    $originalName = $files["name"][$questionId];
+                    // No path parts, control characters or quotes (U-04).
+                    $originalName = cleanAttachmentName($files["name"][$questionId]);
                     $tmpName = $files["tmp_name"][$questionId];
                     $fileType = $files["type"][$questionId];
                     $fileSize = (int)$files["size"][$questionId];
@@ -176,6 +181,7 @@ function submitSurveyResponse(PDO $pdo, array $user, $surveyId, array $answers, 
                     if (!move_uploaded_file($tmpName, $filePath)) {
                         throw new Exception("Failed to upload file: " . $originalName);
                     }
+                    $movedFiles[] = $filePath;
 
                     $fileStmt->execute([
                         $responseId,
@@ -222,9 +228,11 @@ function submitSurveyResponse(PDO $pdo, array $user, $surveyId, array $answers, 
 
     } catch (PortalWriteError $e) {
         $pdo->rollBack();
+        removeMovedFiles($movedFiles);
         throw $e;
     } catch (Throwable $e) {
         $pdo->rollBack();
+        removeMovedFiles($movedFiles);
         throw new PortalWriteError($e->getMessage() ?: "Could not submit the survey", 422);
     }
 
@@ -246,6 +254,16 @@ function submitSurveyResponse(PDO $pdo, array $user, $surveyId, array $answers, 
     sendSurveyToSheet($user, $survey, $answers);
 
     return $responseId;
+}
+
+/** Deletes the files a failed submit had already moved into place. */
+function removeMovedFiles(array $paths)
+{
+    foreach ($paths as $path) {
+        if (is_file($path)) {
+            @unlink($path);
+        }
+    }
 }
 
 /*

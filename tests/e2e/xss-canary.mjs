@@ -49,7 +49,7 @@ const PAGES = [
     { label: "project-task-details.html (U-05)", as: "tok-owner", url: "project-task-details.html?id=601&project=501", shows: "Phase" },
     { label: "user-project-details.html, the client's project (U-05)", as: "tok-bob", url: "user-project-details.html?id=501", shows: "Phase",
       open: (tab) => tab.getByRole("button", { name: "View" }).first().click() },
-    { label: "survey.html (U-04)", as: "tok-client", url: "survey.html?id=102", shows: "logoZ", pending: "P1-1, step 6" },
+    { label: "survey.html (U-04)", as: "tok-client", url: "survey.html?id=102", shows: "logoZ" },
 ];
 
 /*
