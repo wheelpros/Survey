@@ -3,7 +3,8 @@
 #   - the api/v1 permission matrix passes against a real MariaDB;
 #   - the MCP server's tests pass, with its contract fixtures regenerated
 #     from that same PHP run - so a reply and its zod schema can't drift
-#     apart without this going red.
+#     apart without this going red;
+#   - no stored payload runs on the pages that render rich text or names.
 name: CI
 
 on:
@@ -62,3 +63,11 @@ jobs:
         run: |
           npm ci
           npm test
+
+      # Stored-XSS canary: real pages in Chromium against the same test
+      # database, reseeded with marker payloads (audit T-06, P0-0).
+      - name: XSS canary (browser)
+        run: |
+          npm install --no-save --no-package-lock --prefix tests/e2e playwright@1.63.0
+          tests/e2e/node_modules/.bin/playwright install --with-deps chromium
+          node tests/e2e/xss-canary.mjs
