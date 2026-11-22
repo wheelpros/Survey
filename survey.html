@@ -587,15 +587,15 @@ function renderQuestions(){
         const upload = (window.loadedFiles || {})[q.id];
 
         if(upload){
-          const base = "api/download-survey-file.php?id=" + upload.id +
+          const base = "api/download-survey-file.php?id=" + encodeURIComponent(upload.id) +
                        "&token=" + encodeURIComponent(token);
           const isImage = String(upload.file_type || "").indexOf("image/") === 0;
 
           answerHTML = `
             <div class="answer-box">
-              ${isImage ? `<img class="answer-image" src="${base}&mode=view" alt="${upload.original_name}">` : ""}
+              ${isImage ? `<img class="answer-image" src="${base}&mode=view" alt="${esc(upload.original_name)}">` : ""}
               <a class="answer-file" href="${base}" target="_blank" rel="noopener">
-                ⬇ ${upload.original_name}
+                ⬇ ${esc(upload.original_name)}
               </a>
             </div>
           `;
@@ -653,7 +653,8 @@ function renderQuestions(){
       <button
         class="chip-btn"
         type="button"
-        onclick="insertChip('${q.id}', '${chip.replace(/'/g, "\\'")}')"
+        data-chip="${esc(chip)}"
+        onclick="insertChip(${Number(q.id)}, this.dataset.chip)"
       >
         <span dir="auto">${esc(chip)}</span>
       </button>
