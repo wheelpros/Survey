@@ -126,7 +126,6 @@
   var PARENT = {
     "admin-form-builder.html": "admin.html",
     "admin-form-duplicate.html": "admin.html",
-    "responses.html": "admin.html",
     "response-details.html": "admin.html",
     "admin-content-form.html": "admin-content.html",
     "project-details.html": "project-management.html",

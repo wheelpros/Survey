@@ -5,9 +5,10 @@
 | Submitted responses
 |--------------------------------------------------------------------------
 |
-| Two callers, one query:
+| One query, with or without a filter:
 |
-|   responses.html                 no survey_id - the whole list
+|   no survey_id                   the whole list (responses.html used it;
+|                                  that page is retired, audit U-01)
 |   admin.html "View Responses"    ?survey_id=42 - one form's submissions
 |
 | The filter was missing before, so the second caller silently received the
