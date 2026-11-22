@@ -18,6 +18,7 @@
 require_once __DIR__ . "/db.php";
 require_once __DIR__ . "/notify.php";
 require_once __DIR__ . "/events.php";
+require_once __DIR__ . "/rich-text.php";
 
 /* The rich-text counter under the editor says 0 / 2000, and it counts text,
    not the markup the editor wraps around it. */
@@ -130,7 +131,8 @@ function saveProjectTask(PDO $pdo, array $actor, array $project, $existing, arra
 
     /* The editor stores HTML but the counter under it counts text, so the cap
        is checked against the text the same way the page measures it. */
-    $description = trim((string) ($f["description"] ?? ""));
+    // Scrubbed as it is written, so no reader has to trust it (audit U-03).
+    $description = cleanRichText(trim((string) ($f["description"] ?? "")));
     $plain = trim(html_entity_decode(strip_tags($description), ENT_QUOTES, "UTF-8"));
     if (mb_strlen($plain) > TASK_DESCRIPTION_MAX_CHARS) {
         throw new PortalWriteError("Description must be " . TASK_DESCRIPTION_MAX_CHARS . " characters or fewer.");
@@ -248,8 +250,8 @@ function checkedDueDate($value)
 | The people on a phase
 |--------------------------------------------------------------------------
 |
-| Two lists, both drawn from the client's team - the same pool a content
-| post picks from (contentAssigneeCandidates):
+| Two lists, both drawn from the people who can see the project - its
+| client's team, its manager and its members (taskTeamCandidates):
 |
 |   teammates     who is on the phase
 |   assignments   which teammates worked on it, what they did, and how far
@@ -264,10 +266,54 @@ function checkedDueDate($value)
 
 require_once __DIR__ . "/content-writes.php";
 
-/** Who can go on a phase of $project: [{id, name, email, role}], by name. */
+/**
+ * Who can go on a phase of $project: [{id, name, email, role}], by name.
+ *
+ * The project's own scope (projectScopeSql), not the client's company name:
+ * the staff assigned to its client, its manager and its members. Anyone
+ * outside it could not open the phase or set their status, so the phase
+ * would never complete (audit W-02). Roles as for a post
+ * (CONTENT_ASSIGNEE_ROLES). $project needs id, client_id and
+ * account_manager_admin_id, as loadScopedProject() returns it.
+ */
 function taskTeamCandidates(PDO $pdo, array $project)
 {
-    return contentAssigneeCandidates($pdo, $project["company_name"] ?? "");
+    ensureAdminColumns($pdo);
+    $roles = implode(",", array_fill(0, count(CONTENT_ASSIGNEE_ROLES), "?"));
+
+    $stmt = $pdo->prepare("
+        SELECT a.id, a.name, a.email, a.role, a.avatar_path
+        FROM admins a
+        WHERE a.active = 1 AND a.role IN ($roles)
+          AND (
+                a.id IN (SELECT admin_id FROM admin_user_assignments WHERE user_id = ?)
+             OR a.id = ?
+             OR a.id IN (SELECT admin_id FROM project_members WHERE project_id = ?)
+          )
+        ORDER BY a.name ASC
+    ");
+    // The manager is in scope only while they may manage (audit W-09).
+    $managerId = (int) ($project["account_manager_admin_id"] ?? 0);
+    if ($managerId > 0) {
+        $m = $pdo->prepare("SELECT id, role FROM admins WHERE id = ?");
+        $m->execute([$managerId]);
+        $manager = $m->fetch(PDO::FETCH_ASSOC);
+        if (!$manager || !isProjectManager($manager, $project)) {
+            $managerId = 0;
+        }
+    }
+
+    $stmt->execute(array_merge(CONTENT_ASSIGNEE_ROLES, [
+        (int) ($project["client_id"] ?? 0),
+        $managerId,
+        (int) ($project["id"] ?? 0),
+    ]));
+
+    return array_map(function ($r) {
+        return ["id" => (int) $r["id"], "name" => (string) $r["name"],
+                "email" => (string) $r["email"], "role" => (string) $r["role"],
+                "avatar_path" => $r["avatar_path"] ?: null];
+    }, $stmt->fetchAll(PDO::FETCH_ASSOC));
 }
 
 /** The ids from $ids that may go on a phase: candidates, plus anyone already on it. */
@@ -527,21 +573,57 @@ function setOwnPhaseStatus(PDO $pdo, $taskId, $adminId, $status)
         throw new PortalWriteError("Only someone assigned to this phase can change their status.", 403);
     }
 
-    $stmt = $pdo->prepare("UPDATE project_task_assignments SET status = ? WHERE task_id = ? AND admin_id = ?");
-    $stmt->execute([$status, (int) $taskId, (int) $adminId]);
+    // The row and the phase's completion move together.
+    inPhaseTransaction($pdo, function () use ($pdo, $taskId, $adminId, $status) {
+        $stmt = $pdo->prepare("UPDATE project_task_assignments SET status = ? WHERE task_id = ? AND admin_id = ?");
+        $stmt->execute([$status, (int) $taskId, (int) $adminId]);
 
-    recomputeTaskComplete($pdo, $taskId);
+        recomputeTaskComplete($pdo, $taskId);
 
-    [$title, $projectTitle, $clientId] = eventPhase($pdo, $taskId);
-    logEvent($pdo, EVENT_PHASE_STATUS, "phase", $taskId, $title,
-        "Set their status on \"" . $title . "\" to " . TASK_ASSIGNMENT_STATUSES[$status], $clientId);
+        [$title, $projectTitle, $clientId] = eventPhase($pdo, $taskId);
+        logEvent($pdo, EVENT_PHASE_STATUS, "phase", $taskId, $title,
+            "Set their status on \"" . $title . "\" to " . TASK_ASSIGNMENT_STATUSES[$status], $clientId);
+    });
 
     return $status;
 }
 
 /**
+ * Runs $work in one transaction and returns what it returns: a phase write
+ * touches the phase row, its people, its files and the log, and a failure
+ * part-way must leave none of it (audit D-04). Tables that could be created
+ * or altered on first use are ensured first, since DDL would commit the
+ * transaction early. Inside an open transaction it just runs $work. Never
+ * notify from $work (notify.php rule 2).
+ */
+function inPhaseTransaction(PDO $pdo, callable $work)
+{
+    require_once __DIR__ . "/upload-helpers.php";
+    ensureAttachmentsTable($pdo);
+    ensureAdminColumns($pdo);
+    ensurePermissionTables($pdo); // can() on another admin would create them mid-way
+
+    if ($pdo->inTransaction()) {
+        return $work();
+    }
+
+    $pdo->beginTransaction();
+    try {
+        $result = $work();
+        $pdo->commit();
+        return $result;
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $e;
+    }
+}
+
+/**
  * Deletes a phase with its people, attachments and files. The caller has
  * checked canEditTask(). Shared by project-tasks.php's DELETE and api/v1.
+ * The rows go in one transaction; the files only once it has committed.
  */
 function deleteProjectTask(PDO $pdo, array $task)
 {
@@ -549,16 +631,19 @@ function deleteProjectTask(PDO $pdo, array $task)
 
     $id = (int) $task["id"];
 
-    [$title, $projectTitle, $clientId] = eventPhase($pdo, $id);
-    $pdo->prepare("DELETE FROM project_tasks WHERE id = ?")->execute([$id]);
-    logEvent($pdo, EVENT_PHASE_DELETED, "phase", $id, $title,
-        "Deleted phase \"" . $title . "\"" . ($projectTitle !== "" ? " from " . $projectTitle : ""), $clientId);
-    $pdo->prepare("DELETE FROM project_task_teammates WHERE task_id = ?")->execute([$id]);
-    $pdo->prepare("DELETE FROM project_task_assignments WHERE task_id = ?")->execute([$id]);
-    $files = array_merge(
-        deleteAttachmentRows($pdo, "task", $id),
-        deleteAttachmentRows($pdo, CLIENT_PHASE_FILES_OWNER, $id)
-    );
+    $files = inPhaseTransaction($pdo, function () use ($pdo, $id) {
+        [$title, $projectTitle, $clientId] = eventPhase($pdo, $id);
+        $pdo->prepare("DELETE FROM project_task_teammates WHERE task_id = ?")->execute([$id]);
+        $pdo->prepare("DELETE FROM project_task_assignments WHERE task_id = ?")->execute([$id]);
+        $files = array_merge(
+            deleteAttachmentRows($pdo, "task", $id),
+            deleteAttachmentRows($pdo, CLIENT_PHASE_FILES_OWNER, $id)
+        );
+        $pdo->prepare("DELETE FROM project_tasks WHERE id = ?")->execute([$id]);
+        logEvent($pdo, EVENT_PHASE_DELETED, "phase", $id, $title,
+            "Deleted phase \"" . $title . "\"" . ($projectTitle !== "" ? " from " . $projectTitle : ""), $clientId);
+        return $files;
+    });
 
     deleteUploadedFiles(array_merge(
         $files,
@@ -951,7 +1036,10 @@ function teamAttention(PDO $pdo, array $actor, $scope, array $scopeParams)
             "id" => (int) $r["id"],
             "title" => (string) $r["title"],
             "project" => (string) $r["project_title"],
+            "project_id" => (int) $r["project_id"],
             "href" => "project-task-details.html?project=" . (int) $r["project_id"] . "&id=" . (int) $r["id"],
+            // The phase form, where people are assigned.
+            "edit_href" => "project-task-form.html?project=" . (int) $r["project_id"] . "&id=" . (int) $r["id"],
         ];
     }, $stmt->fetchAll(PDO::FETCH_ASSOC));
 

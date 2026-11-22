@@ -26,9 +26,10 @@
 |     "grant_id", "client_id", "client_name"  // via mcp only
 |   ]
 |
-| api/v1/ (the AI-facing API) uses this from the start. The existing browser
-| endpoints keep their own checks for now and can move onto this one at a
-| time. Requires db.php ($pdo) and api/oauth/lib.php for the token tables.
+| api/v1/ (the AI-facing API) uses this from the start; every browser
+| endpoint comes in through requireAdmin() below (or adminFromSessionToken()
+| for a download link). Which records they then see is scope.php. Requires
+| db.php ($pdo) and api/oauth/lib.php for the token tables.
 */
 
 require_once __DIR__ . "/oauth/lib.php";
@@ -116,6 +117,9 @@ const SCOPE_PAGES = [
     "projects:"      => "pages.projects",
     "messages:"      => "pages.messages",
     "notifications:" => "pages.notifications",
+    // Sent from the Notifications page (api/announcements.php checks it too).
+    "announcements:" => "pages.notifications",
+    "inquiries:"     => "inquiries.read",
     "activity_reports:" => "pages.daily_reports",
 ];
 
@@ -377,6 +381,52 @@ function requestAction()
         }
     }
     return "";
+}
+
+/*
+|--------------------------------------------------------------------------
+| The one way into an admin endpoint
+|--------------------------------------------------------------------------
+|
+|   $admin = requireAdmin($pdo);                     // any signed-in admin
+|   $admin = requireAdmin($pdo, "clients.delete");   // and holding this key
+|
+| Returns the principal (id, name, email, role...). Otherwise the request ends:
+|
+|   401  no token, an unknown or cleared one, a deactivated admin, or an AI
+|        (MCP) token - those belong to api/v1, which holds them to the scopes
+|        the person consented to
+|   403  a client's session, or an admin without $perm
+|
+| The role is read from the database on every request, never from anything
+| the browser sends.
+|
+*/
+
+function requireAdmin(PDO $pdo, $perm = null, $message = "You do not have permission to do that.")
+{
+    $p = currentPrincipal($pdo);
+    if (!$p || ($p["via"] ?? "") !== "session") {
+        denyRequest(401, "Unauthorized");
+    }
+    if ($p["kind"] !== "admin" || !in_array($p["role"], ADMIN_ROLES, true)) {
+        denyRequest(403, "This is for the portal's staff.");
+    }
+    if ($perm !== null && !can($p, $perm, $pdo)) {
+        denyRequest(403, $message);
+    }
+    return $p;
+}
+
+/**
+ * The admin behind a session token given some other way than the header -
+ * a download link's ?token=, which a browser opens without headers - or null.
+ * Held to the same rules as requireAdmin(): live, active, an admin.
+ */
+function adminFromSessionToken(PDO $pdo, $token)
+{
+    $p = principalFromSessionToken($pdo, (string) $token);
+    return $p && $p["kind"] === "admin" && in_array($p["role"], ADMIN_ROLES, true) ? $p : null;
 }
 
 function requirePage(PDO $pdo, $pages)

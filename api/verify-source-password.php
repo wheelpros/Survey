@@ -1,12 +1,13 @@
 <?php
 require_once "db.php";
+require_once "auth.php";
 header("Content-Type: application/json");
 
-$headers=getallheaders();
-$token=str_replace("Bearer ","",$headers["Authorization"]??"");
+$caller=requireAdmin($pdo);
+requirePage($pdo, "files");
 
-$stmt=$pdo->prepare("SELECT id,sources_password FROM admins WHERE session_token=?");
-$stmt->execute([$token]);
+$stmt=$pdo->prepare("SELECT id,sources_password FROM admins WHERE id=?");
+$stmt->execute([$caller["id"]]);
 
 $admin=$stmt->fetch();
 

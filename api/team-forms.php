@@ -33,7 +33,12 @@ if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") {
 }
 
 require_once "db.php";
+require_once "auth.php";
 require_once "team-form-writes.php";
+
+// Team forms are a section of the Forms page (Settings → Permissions → Forms),
+// as they are for the AI connection (SCOPE_PAGES).
+requirePage($pdo, "forms");
 
 function reply($success, $message = "", $extra = [], $code = 200)
 {
@@ -53,9 +58,7 @@ if (!$token) {
 // DDL before anything else: create and submit open transactions below.
 ensureTeamFormTables($pdo);
 
-$stmt = $pdo->prepare("SELECT id, name, email, role FROM admins WHERE session_token = ? AND active = 1 LIMIT 1");
-$stmt->execute([$token]);
-$admin = $stmt->fetch(PDO::FETCH_ASSOC);
+$admin = adminFromSessionToken($pdo, $token);
 
 if (!$admin) {
     reply(false, "Unauthorized token", [], 401);

@@ -88,13 +88,27 @@ if ($whatsappInput !== "" && $whatsapp === "") {
 
 if (!empty($_FILES["profile_image"]["name"])) {
 
-    $allowedTypes = ["image/jpeg", "image/png", "image/webp"];
-    $fileType = $_FILES["profile_image"]["type"];
+    /* The type and the extension come from the bytes, never from the browser:
+       the file is saved in the web root, so a name ending in .php would run
+       (audit S1). getimagesize() also refuses a script with an image header
+       glued on that finfo alone might pass. */
+    $imageExtensions = ["image/jpeg" => "jpg", "image/png" => "png", "image/webp" => "webp"];
+    $tmp = $_FILES["profile_image"]["tmp_name"];
+    $uploadOk = ($_FILES["profile_image"]["error"] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK && is_uploaded_file($tmp);
+    $fileType = $uploadOk ? (new finfo(FILEINFO_MIME_TYPE))->file($tmp) : "";
 
-    if (!in_array($fileType, $allowedTypes)) {
+    if (!isset($imageExtensions[$fileType]) || @getimagesize($tmp) === false) {
         echo json_encode([
             "success" => false,
             "message" => "Only JPG, PNG, WEBP images allowed"
+        ]);
+        exit;
+    }
+
+    if ($_FILES["profile_image"]["size"] > 5 * 1024 * 1024) {
+        echo json_encode([
+            "success" => false,
+            "message" => "The image must be 5 MB or smaller"
         ]);
         exit;
     }
@@ -105,7 +119,7 @@ if (!empty($_FILES["profile_image"]["name"])) {
         mkdir($uploadDir, 0775, true);
     }
 
-    $ext = pathinfo($_FILES["profile_image"]["name"], PATHINFO_EXTENSION);
+    $ext = $imageExtensions[$fileType];
     $fileName = "profile_" . $user["id"] . "_" . time() . "." . $ext;
     $targetPath = $uploadDir . $fileName;
 

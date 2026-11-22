@@ -1383,6 +1383,7 @@
   <script src="/assets/clarity.js" defer></script>
   <script src="/assets/auto-dir.js?v=1" defer></script>
   <script src="/assets/voice-input.js?v=1" defer></script>
+<script src="assets/sanitize-html.js?v=1"></script>
 </head>
 
   <body>
@@ -2995,7 +2996,8 @@
     |--------------------------------------------------------------------------
     */
 
-          document.getElementById("caption").innerHTML = item.caption || "";
+          // Loaded into a live editor, so scrubbed first (audit U-02).
+          document.getElementById("caption").innerHTML = sanitizeHtml(item.caption || "");
 
           updateCounter();
 
@@ -3687,7 +3689,7 @@
         document.getElementById("title").value = draft.title || "";
         document.getElementById("link").value = draft.link || "";
 
-        caption.innerHTML = draft.caption || "";
+        caption.innerHTML = sanitizeHtml(draft.caption || "");
         updateCounter();
 
         // Drafts written before the nine fixed types could carry a custom one.

@@ -356,7 +356,8 @@ export const READ_TOOLS = [
     scope: "projects:write",
     title: "Who can work on a phase",
     description:
-      "The people who can be put on a project's phases: its client's team. Use their ids for " +
+      "The people who can be put on a project's phases: the staff assigned to its client, its manager " +
+        "and its members - everyone who can open the project. Use their ids for " +
       "team and assignments in post_project_update or update_task.",
     input: { id: recordId("The project's id - from list_projects") },
     output: S.phaseTeammates,

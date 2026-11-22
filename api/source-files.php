@@ -4,19 +4,11 @@ require_once "auth.php";
 requirePage($pdo, "files"); // "Open X" in Settings > Permissions
 require_once "sources-lock.php";
 require_once "events.php";
+require_once "upload-helpers.php"; // storedUploadName()
+require_once "scope.php"; // requireRecord()
 header("Content-Type: application/json");
 
-$headers = getallheaders();
-$token = str_replace("Bearer ", "", $headers["Authorization"] ?? "");
-
-$stmt = $pdo->prepare("SELECT id FROM admins WHERE session_token=? LIMIT 1");
-$stmt->execute([$token]);
-$admin = $stmt->fetch();
-
-if(!$admin){
-  echo json_encode(["success"=>false,"message"=>"Unauthorized"]);
-  exit;
-}
+$admin = requireAdmin($pdo);
 
 /*
  Same gate as source-folders.php: the admin session is only half of it. The
@@ -104,6 +96,13 @@ if($method === "POST"){
     exit;
   }
 
+  // A file handed to a client lands in their downloads, so only a client
+  // this admin may see (audit S12); anyone else looks missing.
+  $userId = (int)($_POST["user_id"] ?? 0);
+  if($userId > 0){
+    requireRecord($pdo, $admin, "client", $userId, "Client not found");
+  }
+
   $folderPath = $uploadRoot . "/" . $admin["id"] . "/" . $folderId;
 
   if(!is_dir($folderPath)){
@@ -116,8 +115,7 @@ if($method === "POST"){
     $type = $_FILES["files"]["type"][$i];
     $size = $_FILES["files"]["size"][$i];
 
-    $safeName = preg_replace("/[^a-zA-Z0-9._-]/", "_", $name);
-    $storedName = time() . "_" . bin2hex(random_bytes(5)) . "_" . $safeName;
+    $storedName = storedUploadName($name);
     $path = $folderPath . "/" . $storedName;
 
     if(move_uploaded_file($tmp, $path)){
@@ -139,8 +137,6 @@ if($method === "POST"){
         ]);
 
         $fileId = $pdo->lastInsertId();
-
-        $userId = (int)($_POST["user_id"] ?? 0);
 
         if($userId > 0){
 

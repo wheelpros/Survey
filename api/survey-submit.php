@@ -23,6 +23,7 @@
 
 require_once __DIR__ . "/db.php";
 require_once __DIR__ . "/notify.php";
+require_once __DIR__ . "/upload-helpers.php"; // storedUploadName()
 
 /**
  * The client's own form, if it has been released to them: 'pending' is
@@ -169,8 +170,7 @@ function submitSurveyResponse(PDO $pdo, array $user, $surveyId, array $answers, 
                         mkdir($folderPath, 0777, true);
                     }
 
-                    $safeName = preg_replace("/[^a-zA-Z0-9._-]/", "_", $originalName);
-                    $storedName = time() . "_" . bin2hex(random_bytes(5)) . "_" . $safeName;
+                    $storedName = storedUploadName($originalName);
                     $filePath = $folderPath . "/" . $storedName;
 
                     if (!move_uploaded_file($tmpName, $filePath)) {

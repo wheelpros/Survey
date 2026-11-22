@@ -29,6 +29,7 @@
 
 require_once __DIR__ . "/../db.php";
 require_once __DIR__ . "/../auth.php";
+require_once __DIR__ . "/../scope.php";
 require_once __DIR__ . "/_helpers.php";
 
 header("Content-Type: application/json; charset=UTF-8");

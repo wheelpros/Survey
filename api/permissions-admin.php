@@ -5,14 +5,20 @@
 | Settings > Permissions
 |--------------------------------------------------------------------------
 |
-|   GET   the catalog, each role's column and every admin's exceptions
-|   POST  {"role": "super_admin", "changes": {"content.create": false}}
-|         {"admin_id": 7, "changes": {"inquiries.read": true}}
+|   GET   the catalog, each role's column, every admin's exceptions and
+|         where each of their answers comes from, and what the caller may
+|         not change (permissionsPanel())
+|   POST  {"batch": [{"role": "super_admin", "changes": {"content.create": false}},
+|                    {"admin_id": 7, "changes": {"inquiries.read": true}}]}
+|         One Save: all of it is stored, or none of it.
+|         "dry_run": true checks it all and stores nothing.
+|         The older one-at-a-time body ({"role": ...} or {"admin_id": ...}
+|         at the top) is a batch of one.
 |
 | A change is true (allow), false (deny) or "default" - for a role, the
 | portal's default; for an admin, whatever their role gets. The rules are
-| in admin-settings-writes.php, shared with api/v1. The Director's alone
-| (permissions.manage), from the browser only.
+| in admin-settings-writes.php, shared with api/v1. Needs permissions.manage
+| (the Director, or whoever the Director handed it to), from the browser only.
 |
 */
 
@@ -32,16 +38,10 @@ function permissionsReply($success, $message = "", $extra = [], $code = 200)
     exit;
 }
 
-$p = currentPrincipal($pdo);
-if (!$p || $p["via"] !== "session" || $p["kind"] !== "admin") {
-    permissionsReply(false, "Unauthorized", [], 401);
-}
-if (!can($p, "permissions.manage", $pdo)) {
-    permissionsReply(false, "Only the Director can change permissions.", [], 403);
-}
+$p = requireAdmin($pdo, "permissions.manage", "Only the Director can change permissions.");
 
 if ($_SERVER["REQUEST_METHOD"] === "GET") {
-    permissionsReply(true, "", ["data" => permissionsOverview($pdo)]);
+    permissionsReply(true, "", ["data" => permissionsPanel($pdo, $p)]);
 }
 
 if ($_SERVER["REQUEST_METHOD"] !== "POST") {
@@ -51,23 +51,19 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
 // Before the transaction: creating the tables would commit it.
 ensurePermissionTables($pdo);
 
-$input = json_decode(file_get_contents("php://input"), true) ?? [];
-$changes = $input["changes"] ?? null;
+$input = json_decode(file_get_contents("php://input"), true);
+$input = is_array($input) ? $input : [];
+$batch = array_key_exists("batch", $input) ? $input["batch"] : [$input];
+$dryRun = ($input["dry_run"] ?? false) === true;
 
 try {
     $pdo->beginTransaction();
+    $names = savePermissionBatch($pdo, $p, $batch);
 
-    if (isset($input["role"])) {
-        $role = (string) $input["role"];
-        $clean = checkRolePermissionChange($role, $changes);
-        setRolePermissions($pdo, $p, $role, $clean);
-        $message = "Saved for every " . adminRoleName($role) . ".";
-    } elseif (isset($input["admin_id"])) {
-        [$target, $clean] = checkAdminPermissionChange($pdo, (int) $input["admin_id"], $changes);
-        setAdminPermissions($pdo, $p, $target, $clean);
-        $message = "Saved for " . $target["name"] . ".";
-    } else {
-        throw new PortalWriteError("Say which role or admin to change.");
+    if ($dryRun) {
+        $pdo->rollBack();
+        forgetPermissions();
+        permissionsReply(true, "Nothing saved yet.", ["dry_run" => true]);
     }
 
     $pdo->commit();
@@ -75,8 +71,12 @@ try {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
+    forgetPermissions();
     permissionsReply(false, $e->getMessage(), [], $e->status);
 }
 
 forgetPermissions();
-permissionsReply(true, $message . " It applies on their next click - nobody is signed out.", ["data" => permissionsOverview($pdo)]);
+$message = count($names) === 1
+    ? "Saved for " . $names[0] . "."
+    : "Saved for " . implode(", ", array_slice($names, 0, -1)) . " and " . end($names) . ".";
+permissionsReply(true, $message . " It applies on their next click - nobody is signed out.", ["data" => permissionsPanel($pdo, $p)]);

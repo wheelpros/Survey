@@ -387,6 +387,7 @@ document.addEventListener("DOMContentLoaded", function () {
           <select id="clientId">
             <option value="">Select a client...</option>
           </select>
+          <p class="hint" id="clientLockedHint" hidden>This project has published phases or files from its client, so it stays with them. Create a new project for another client.</p>
         </div>
 
         <div class="field-row">
@@ -430,6 +431,7 @@ document.addEventListener("DOMContentLoaded", function () {
           <select id="managerId">
             <option value="">Select a manager...</option>
           </select>
+          <p class="hint" id="managerGoneHint" hidden></p>
         </div>
 
         <div class="field-row">
@@ -783,12 +785,26 @@ async function load(){
 
 function fill(project, members){
   document.getElementById("clientId").value    = project.client_id || "";
+  // The server refuses the move as well; this only saves a wasted Save.
+  document.getElementById("clientId").disabled = !!project.client_locked;
+  document.getElementById("clientLockedHint").hidden = !project.client_locked;
   document.getElementById("title").value       = project.title || "";
   document.getElementById("description").value = project.description || "";
   document.getElementById("status").value      = project.status || "planning";
   document.getElementById("startDate").value   = project.start_date || "";
   document.getElementById("endDate").value     = project.end_date || "";
   document.getElementById("managerId").value   = project.account_manager_admin_id || "";
+
+  /* A manager who may no longer manage projects is not among the choices,
+     so the select shows blank and Save would clear them - say so first. */
+  const managerSelect = document.getElementById("managerId");
+  const managerHint = document.getElementById("managerGoneHint");
+  const managerGone = !!project.account_manager_admin_id && managerSelect.value === "";
+  managerHint.hidden = !managerGone;
+  managerHint.textContent = managerGone
+    ? (project.account_manager_name || "The current manager")
+      + " can no longer manage projects, so saving removes them as manager. Pick a new manager."
+    : "";
 
   slider.value = Number(project.progress || 0);
   output.textContent = slider.value + "%";

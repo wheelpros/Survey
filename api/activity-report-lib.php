@@ -83,7 +83,7 @@ function drToday(PDO $pdo)
 
 function drSeesAll(PDO $pdo, array $p)
 {
-    return $p["role"] === "owner" || can($p, "reports.view_all", $pdo);
+    return can($p, "reports.view_all", $pdo); // the Director passes every can()
 }
 
 /** The people $p manages (teamPoolFor), cached per request. */
@@ -199,7 +199,7 @@ function drCanReviewActivities(PDO $pdo, array $p, array $r)
     if ($r["status"] === "reviewed" || $r["admin_id"] === $me) {
         return false;
     }
-    return in_array($me, $r["reviewer_ids"], true) || $p["role"] === "owner" || drReviewsTeam($pdo, $p, $r["admin_id"]);
+    return in_array($me, $r["reviewer_ids"], true) || isDirector($p) || drReviewsTeam($pdo, $p, $r["admin_id"]);
 }
 
 function drCanReviewReport(PDO $pdo, array $p, array $r)
@@ -225,6 +225,11 @@ function drPlannable(PDO $pdo, array $p)
     foreach ($rows as $x) {
         $id = (int) $x["id"];
         if ($id === (int) $p["id"] || ($pool !== null && !in_array($id, $pool, true))) {
+            continue;
+        }
+        // Someone whose Activity Reports page is turned off couldn't open,
+        // fill in or close a report planned for them, so they aren't offered.
+        if (!can(["id" => $id, "role" => $x["role"]], "pages.daily_reports", $pdo)) {
             continue;
         }
         $out[] = ["id" => $id, "name" => $x["name"], "role" => $x["role"], "position" => $x["position"],
@@ -253,7 +258,7 @@ function drReviewers(PDO $pdo)
     $cache = [];
     foreach ($rows as $x) {
         $who = ["id" => (int) $x["id"], "role" => $x["role"]];
-        if ($x["role"] !== "owner" && !(can($who, "reports.review", $pdo) && can($who, "pages.daily_reports", $pdo))) {
+        if (!isDirector($who) && !(can($who, "reports.review", $pdo) && can($who, "pages.daily_reports", $pdo))) {
             continue;
         }
         $cache[] = ["id" => (int) $x["id"], "name" => $x["name"], "role" => $x["role"], "position" => $x["position"],
@@ -640,7 +645,7 @@ function drSummaryFor(PDO $pdo, array $p, $departmentId = null)
 
 function drCanEditTemplate(array $p, array $t)
 {
-    return $p["role"] === "owner" || (int) $t["created_by"] === (int) $p["id"];
+    return isDirector($p) || (int) $t["created_by"] === (int) $p["id"];
 }
 
 function drTemplates(PDO $pdo, array $p, $id = null)

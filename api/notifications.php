@@ -68,11 +68,11 @@ $user = clientFromSessionToken($pdo, $token);
 $admin = null;
 
 if (!$user) {
-    $stmt = $pdo->prepare("SELECT id FROM admins WHERE session_token = ? LIMIT 1");
-    $stmt->execute([$token]);
-    $admin = $stmt->fetch(PDO::FETCH_ASSOC);
+    // An active admin only: a deactivated one is signed out.
+    $admin = adminFromSessionToken($pdo, $token);
 
     if (!$admin) {
+        http_response_code(401);
         reply(false, "Unauthorized token");
     }
 }

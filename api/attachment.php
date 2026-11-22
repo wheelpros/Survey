@@ -43,15 +43,8 @@ if ($token === "") {
     attachmentFail("Unauthorized.", 401);
 }
 
-$stmt = $pdo->prepare("SELECT id, role FROM admins WHERE session_token = ? AND active = 1 LIMIT 1");
-try {
-    $stmt->execute([$token]);
-} catch (PDOException $e) {
-    // A database from before the active column.
-    $stmt = $pdo->prepare("SELECT id, role FROM admins WHERE session_token = ? LIMIT 1");
-    $stmt->execute([$token]);
-}
-$admin = $stmt->fetch(PDO::FETCH_ASSOC);
+// An active admin (api/auth.php), or else a client's portal session.
+$admin = adminFromSessionToken($pdo, $token);
 
 $client = null;
 if (!$admin) {

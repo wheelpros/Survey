@@ -65,63 +65,11 @@ const PROJECT_IMAGE_MAX_BYTES = 3 * 1024 * 1024;
 
 /*
 |--------------------------------------------------------------------------
-| Get Admin Token
+| Who is calling (api/auth.php requireAdmin())
 |--------------------------------------------------------------------------
 */
 
-$headers = function_exists("getallheaders")
-    ? getallheaders()
-    : [];
-
-$authorization =
-    $headers["Authorization"]
-    ?? $headers["authorization"]
-    ?? "";
-
-if (!$authorization && isset($_SERVER["HTTP_AUTHORIZATION"])) {
-    $authorization = $_SERVER["HTTP_AUTHORIZATION"];
-}
-
-if (!preg_match('/Bearer\s+(.+)/i', $authorization, $matches)) {
-    response(false, "Unauthorized.", [], 401);
-}
-
-$token = trim($matches[1]);
-
-if (!$token) {
-    response(false, "Unauthorized.", [], 401);
-}
-
-/*
-|--------------------------------------------------------------------------
-| Validate Admin Token
-|--------------------------------------------------------------------------
-*/
-
-try {
-
-    $stmt = $pdo->prepare("
-        SELECT
-            id,
-            name,
-            email,
-            role
-        FROM admins
-        WHERE session_token = ?
-        LIMIT 1
-    ");
-
-    $stmt->execute([$token]);
-
-    $admin = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$admin) {
-        response(false, "Invalid or expired admin session.", [], 401);
-    }
-
-} catch (Throwable $e) {
-    response(false, "Authentication database error.", [], 500);
-}
+$admin = requireAdmin($pdo);
 
 /*
 |--------------------------------------------------------------------------
@@ -191,10 +139,32 @@ function canManageProject(array $admin, array $project)
         return true;
     }
 
-    $adminId = (int) $admin["id"];
+    return (int) $project["created_by_admin_id"] === (int) $admin["id"]
+        || isProjectManager($admin, $project);
+}
 
-    return (int) $project["created_by_admin_id"] === $adminId
-        || (int) $project["account_manager_admin_id"] === $adminId;
+/*
+| Whether a project is tied to its client for good (audit W-08): once a
+| phase is published, or the client has uploaded a file to one, its phases
+| and files were made for that client, and moving the project would hand
+| them to another client unannounced. Staff create a new project instead.
+| A project with drafts only can still move.
+*/
+function projectClientLocked(PDO $pdo, $projectId)
+{
+    require_once __DIR__ . "/upload-helpers.php";
+    ensureAttachmentsTable($pdo); // DDL: never call this inside a transaction
+
+    $stmt = $pdo->prepare("
+        SELECT 1 FROM project_tasks t
+        WHERE t.project_id = ?
+          AND (t.status = 'published'
+               OR EXISTS (SELECT 1 FROM attachments a WHERE a.owner_type = ? AND a.owner_id = t.id))
+        LIMIT 1
+    ");
+    $stmt->execute([(int) $projectId, CLIENT_PHASE_FILES_OWNER]);
+
+    return (bool) $stmt->fetchColumn();
 }
 
 function canDeleteProject(array $admin, array $project)
@@ -261,6 +231,21 @@ function scopedClients(PDO $pdo, array $admin)
 |
 */
 
+/** Active admins who may be a project's manager (PROJECT_MANAGER_PERMISSION), by name. */
+function projectManagerChoices(PDO $pdo)
+{
+    $rows = $pdo->query("
+        SELECT id, name, email, role
+        FROM admins
+        WHERE active = 1
+        ORDER BY name ASC
+    ")->fetchAll(PDO::FETCH_ASSOC);
+
+    return array_values(array_filter($rows, function ($row) use ($pdo) {
+        return can($row, PROJECT_MANAGER_PERMISSION, $pdo);
+    }));
+}
+
 function formOptions(PDO $pdo, array $admin)
 {
     $types = [];
@@ -273,12 +258,7 @@ function formOptions(PDO $pdo, array $admin)
         $statuses[] = ["id" => $id, "label" => $label];
     }
 
-    $managers = $pdo->query("
-        SELECT id, name, email, role
-        FROM admins
-        WHERE active = 1 AND role IN ('owner', 'account_manager')
-        ORDER BY name ASC
-    ")->fetchAll(PDO::FETCH_ASSOC);
+    $managers = projectManagerChoices($pdo);
 
     /* Anybody with an account can be put on a team - that is what membership
        is for. Who may then create or publish is decided at write time. */
@@ -534,9 +514,7 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
             | not a teammate's business.
             */
 
-            $seesEveryDraft =
-                can($admin, "tasks.see_drafts")
-                || (int) $project["account_manager_admin_id"] === (int) $admin["id"];
+            $seesEveryDraft = seesEveryPhaseDraft($admin, $project);
 
             $taskSql = "
                 SELECT
@@ -579,6 +557,8 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
                     break;
                 }
             }
+
+            $project["client_locked"] = projectClientLocked($pdo, $project["id"]);
 
             response(true, "Project loaded.", array_merge([
                 "project"    => $project,
@@ -811,6 +791,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         response(false, "That client is not available to you.", [], 403);
     }
 
+    if ($existing && (int) $existing["client_id"] !== $clientId && projectClientLocked($pdo, $existing["id"])) {
+        response(false, "This project already has published phases or files from its client, so it can't move to another client. Create a new project for the other client instead.", [], 409);
+    }
+
     /* The forms no longer ask for a type. The column stays because rows and
        other endpoints still read it, so an edit keeps whatever the project
        already had and a new project takes the default. */
@@ -843,21 +827,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     $managerId = (int) ($_POST["account_manager_admin_id"] ?? 0);
 
-    if ($managerId > 0) {
-
-        $stmt = $pdo->prepare("
-            SELECT id
-            FROM admins
-            WHERE id = ?
-              AND active = 1
-              AND role IN ('owner', 'account_manager')
-            LIMIT 1
-        ");
-        $stmt->execute([$managerId]);
-
-        if (!$stmt->fetch()) {
-            response(false, "The account manager must be an active account manager.", [], 400);
-        }
+    if ($managerId > 0 && !in_array($managerId, array_map("intval", array_column(projectManagerChoices($pdo), "id")), true)) {
+        response(false, "The manager must be an active admin allowed to manage projects.", [], 400);
     }
 
     /*
@@ -1045,9 +1016,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     | did it, who does not need telling.
     */
 
-    $recipients = $memberIds;
+    // Only the people new to it: a save that keeps someone on tells them
+    // nothing (audit W-16).
+    $recipients = $joined;
 
-    if ($managerId > 0) {
+    if ($managerId > 0 && $managerId !== (int) ($existing["account_manager_admin_id"] ?? 0)) {
         $recipients[] = $managerId;
     }
 
@@ -1109,20 +1082,34 @@ if ($_SERVER["REQUEST_METHOD"] === "DELETE") {
         response(false, "You do not have permission to delete this project.", [], 403);
     }
 
-    $stmt = $pdo->prepare("
-        SELECT image_path FROM project_tasks WHERE project_id = ? AND image_path IS NOT NULL
-    ");
-    $stmt->execute([$id]);
+    /* Every phase's cover, gallery and attachments (staff and client files)
+       go with it, as when a client is deleted (delete-client.php) - before
+       this only the covers did (audit D-03 / F-04). */
+    require_once __DIR__ . "/upload-helpers.php";
+    ensureAttachmentsTable($pdo); // DDL, so before the transaction
 
-    $files = $stmt->fetchAll(PDO::FETCH_COLUMN);
-
-    if (!empty($project["image_path"])) {
-        $files[] = $project["image_path"];
-    }
+    $files = [];
 
     try {
 
         $pdo->beginTransaction();
+
+        $stmt = $pdo->prepare("SELECT * FROM project_tasks WHERE project_id = ?");
+        $stmt->execute([$id]);
+
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $task) {
+            $files = array_merge(
+                $files,
+                array_filter([$task["image_path"] ?? null]),
+                taskGallery($task),
+                deleteAttachmentRows($pdo, "task", $task["id"]),
+                deleteAttachmentRows($pdo, CLIENT_PHASE_FILES_OWNER, $task["id"])
+            );
+        }
+
+        if (!empty($project["image_path"])) {
+            $files[] = $project["image_path"];
+        }
 
         $stmt = $pdo->prepare("DELETE FROM project_members WHERE project_id = ?");
         $stmt->execute([$id]);

@@ -28,6 +28,7 @@
 require_once __DIR__ . "/_bootstrap.php";
 require_once __DIR__ . "/../content-writes.php";
 require_once __DIR__ . "/../upload-helpers.php";
+require_once __DIR__ . "/../mailer.php"; // APP_URL, for an attachment's page_url
 
 $p = v1Principal($pdo);
 v1RequireMethod("GET");

@@ -69,63 +69,11 @@ const TASK_IMAGE_MAX_BYTES = 3 * 1024 * 1024;
 
 /*
 |--------------------------------------------------------------------------
-| Get Admin Token
+| Who is calling (api/auth.php requireAdmin())
 |--------------------------------------------------------------------------
 */
 
-$headers = function_exists("getallheaders")
-    ? getallheaders()
-    : [];
-
-$authorization =
-    $headers["Authorization"]
-    ?? $headers["authorization"]
-    ?? "";
-
-if (!$authorization && isset($_SERVER["HTTP_AUTHORIZATION"])) {
-    $authorization = $_SERVER["HTTP_AUTHORIZATION"];
-}
-
-if (!preg_match('/Bearer\s+(.+)/i', $authorization, $matches)) {
-    response(false, "Unauthorized.", [], 401);
-}
-
-$token = trim($matches[1]);
-
-if (!$token) {
-    response(false, "Unauthorized.", [], 401);
-}
-
-/*
-|--------------------------------------------------------------------------
-| Validate Admin Token
-|--------------------------------------------------------------------------
-*/
-
-try {
-
-    $stmt = $pdo->prepare("
-        SELECT
-            id,
-            name,
-            email,
-            role
-        FROM admins
-        WHERE session_token = ?
-        LIMIT 1
-    ");
-
-    $stmt->execute([$token]);
-
-    $admin = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$admin) {
-        response(false, "Invalid or expired admin session.", [], 401);
-    }
-
-} catch (Throwable $e) {
-    response(false, "Authentication database error.", [], 500);
-}
+$admin = requireAdmin($pdo);
 
 ensureProjectTables($pdo);
 
@@ -352,7 +300,8 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
 
             $project = loadScopedProject($pdo, $admin, $task["project_id"]);
 
-            if (!$project) {
+            // The list's draft rule, so a teammate's draft is not one id away.
+            if (!$project || !canSeePhase($admin, $project, $task)) {
                 response(false, "Task not found.", [], 404);
             }
 
@@ -405,9 +354,7 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
            project's manager see every draft, everyone else sees the published
            tasks plus their own. */
 
-        $seesEveryDraft =
-            can($admin, "tasks.see_drafts")
-            || (int) $project["account_manager_admin_id"] === (int) $admin["id"];
+        $seesEveryDraft = seesEveryPhaseDraft($admin, $project);
 
         $sql = "
             SELECT t.*, a.name AS created_by_name, " . TASK_IS_LIVE_SQL . " AS is_live
@@ -680,41 +627,50 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         response(false, "The team list could not be read.", [], 400);
     }
 
-    $taskSaved = false;
+    /* The row, its files and its people are one transaction (audit D-04): a
+       refusal part-way leaves the phase exactly as it was. Files written to
+       disk on the way are tracked so a rollback can remove them too. */
     $removedFiles = [];
+    $newFiles = array_merge(array_filter([$uploaded]), $newGallery);
 
     try {
-        $id = saveProjectTask($pdo, $admin, $project, $existing, $fields);
-        $taskSaved = true;
+        [$id, $newcomers] = inPhaseTransaction($pdo, function () use (
+            $pdo, $admin, $project, $existing, $fields, $keepFiles, $fileUploads, $keepClientFiles,
+            $clientFileUploads, $teammateIds, $assignments, &$removedFiles, &$newFiles
+        ) {
+            $id = saveProjectTask($pdo, $admin, $project, $existing, $fields);
 
-        $removedFiles = array_merge(
-            saveAttachments($pdo, "task", $id, $keepFiles, $fileUploads, $admin["id"]),
-            saveAttachments($pdo, CLIENT_PHASE_FILES_OWNER, $id, $keepClientFiles, $clientFileUploads, $admin["id"])
-        );
+            foreach (["task" => [$keepFiles, $fileUploads], CLIENT_PHASE_FILES_OWNER => [$keepClientFiles, $clientFileUploads]]
+                     as $owner => [$keep, $uploads]) {
+                $stmt = $pdo->prepare("SELECT path FROM attachments WHERE owner_type = ? AND owner_id = ?");
+                $stmt->execute([$owner, $id]);
+                $before = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-        $newcomers = [];
-        if ($teammateIds !== null) {
-            $newcomers = saveTaskTeammates($pdo, $project, $id, $teammateIds);
-        }
-        if ($assignments !== null) {
-            $newcomers = array_merge($newcomers, saveTaskAssignments($pdo, $project, $id, $assignments));
-        }
-        notifyAddedToPhase($pdo, $admin, $project, $id, $title, $newcomers);
+                $removedFiles = array_merge($removedFiles, saveAttachments($pdo, $owner, $id, $keep, $uploads, $admin["id"]));
+
+                $stmt->execute([$owner, $id]);
+                $newFiles = array_merge($newFiles, array_diff($stmt->fetchAll(PDO::FETCH_COLUMN), $before));
+            }
+
+            $newcomers = [];
+            if ($teammateIds !== null) {
+                $newcomers = saveTaskTeammates($pdo, $project, $id, $teammateIds);
+            }
+            if ($assignments !== null) {
+                $newcomers = array_merge($newcomers, saveTaskAssignments($pdo, $project, $id, $assignments));
+            }
+            return [$id, $newcomers];
+        });
     } catch (Throwable $e) {
-        // The row was never written, so the file just uploaded is an orphan.
-        // Once it was, the row points at the file and it has to stay.
-        if (!$taskSaved) {
-            deleteUploadedFiles(array_merge(array_filter([$uploaded]), $newGallery));
-        }
-        $message = $taskSaved
-            ? "The phase was saved, but its files or team were not: "
-            : "";
+        // Nothing points at the files written for this save any more.
+        deleteUploadedFiles($newFiles);
         if ($e instanceof PortalWriteError) {
-            response(false, $message . $e->getMessage(), $taskSaved ? ["id" => $id] : [], $e->status === 422 ? 400 : $e->status);
+            response(false, $e->getMessage(), [], $e->status === 422 ? 400 : $e->status);
         }
-        response(false, $taskSaved ? "The phase was saved, but its team could not be." : "Could not save the task.",
-            $taskSaved ? ["id" => $id] : [], 500);
+        response(false, "Could not save the task.", [], 500);
     }
+
+    notifyAddedToPhase($pdo, $admin, $project, $id, $title, $newcomers);
 
     // Safe now that the row points somewhere else.
     if (($uploaded || $removeImage) && !empty($existing["image_path"])) {

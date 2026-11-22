@@ -47,44 +47,21 @@ function response($success, $message = "", $extra = [], $code = 200)
 | Authenticate the admin
 |--------------------------------------------------------------------------
 |
-| Same guard as api/admin-content.php: resolving the bearer token against the
-| admins table is the authorisation, no role narrowing.
+| requireAdmin() (api/auth.php): any active admin may read the types; adding
+| or removing one needs content.create or content.publish.
 |
 */
 
-$headers = function_exists("getallheaders") ? getallheaders() : [];
+require_once "auth.php";
 
-$authorization =
-    $headers["Authorization"]
-    ?? $headers["authorization"]
-    ?? $_SERVER["HTTP_AUTHORIZATION"]
-    ?? "";
+$admin = requireAdmin($pdo);
+requirePage($pdo, "content"); // "Open X" in Settings > Permissions
 
-if (!preg_match('/Bearer\s+(.+)/i', $authorization, $matches)) {
-    response(false, "Unauthorized.", ["types" => []], 401);
-}
-
-$token = trim($matches[1]);
-
-try {
-
-    $stmt = $pdo->prepare("
-        SELECT id, name, role
-        FROM admins
-        WHERE session_token = ?
-        LIMIT 1
-    ");
-
-    $stmt->execute([$token]);
-
-    $admin = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$admin) {
-        response(false, "Invalid or expired admin session.", ["types" => []], 401);
-    }
-
-} catch (Throwable $e) {
-    response(false, "Authentication database error.", ["types" => []], 500);
+// The "+" chip on the post form adds a type and its menu removes one - both
+// part of writing posts, and shared by everyone, so a reader can't change them.
+if (in_array($_SERVER["REQUEST_METHOD"], ["POST", "DELETE"], true)
+    && !can($admin, "content.create", $pdo) && !can($admin, "content.publish", $pdo)) {
+    denyRequest(403, "You do not have permission to change content types.");
 }
 
 ensureContentTypesTable($pdo);

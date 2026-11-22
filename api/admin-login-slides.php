@@ -37,86 +37,12 @@ function response($success, $message = "", $extra = [], $code = 200)
 }
 
 /*
-|--------------------------------------------------------------------------
-| Get Admin Token
-|--------------------------------------------------------------------------
+| The Login Page Slideshow panel sits beside the Website Logo on
+| settings.html, and like it is settings.manage - the same key api/v1's
+| slide tools need. The page shows the panel only to whoever holds it.
 */
-
-$headers = function_exists("getallheaders")
-    ? getallheaders()
-    : [];
-
-$authorization =
-    $headers["Authorization"]
-    ?? $headers["authorization"]
-    ?? "";
-
-if (!$authorization && isset($_SERVER["HTTP_AUTHORIZATION"])) {
-    $authorization = $_SERVER["HTTP_AUTHORIZATION"];
-}
-
-if (!preg_match('/Bearer\s+(.+)/i', $authorization, $matches)) {
-    response(false, "Unauthorized.", [], 401);
-}
-
-$token = trim($matches[1]);
-
-if (!$token) {
-    response(false, "Unauthorized.", [], 401);
-}
-
-/*
-|--------------------------------------------------------------------------
-| Validate Admin Token
-|--------------------------------------------------------------------------
-*/
-
-try {
-
-    $stmt = $pdo->prepare("
-        SELECT
-            id,
-            name,
-            email,
-            role,
-            session_token
-        FROM admins
-        WHERE session_token = ?
-        LIMIT 1
-    ");
-
-    $stmt->execute([$token]);
-
-    $admin = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$admin) {
-        response(false, "Invalid or expired admin session.", [], 401);
-    }
-
-} catch (Throwable $e) {
-
-    response(
-        false,
-        "Authentication database error.",
-        [],
-        500
-    );
-}
-
-/*
-|--------------------------------------------------------------------------
-| Any admin may manage the login slideshow
-|--------------------------------------------------------------------------
-|
-| No role check here on purpose - this sits directly under the Website Logo
-| panel on settings.html, which every admin can already use.
-|
-| Resolving the token against the admins table above is the authorisation:
-| the same thing source-files.php, settings.php and upload-logo.php rely on.
-| Only genuinely role-limited features narrow further, the way
-| client-team.php does.
-|
-*/
+require_once "auth.php";
+$admin = requireAdmin($pdo, "settings.manage", "Only the Director can change the login page.");
 
 ensureLoginSlidesTable($pdo);
 

@@ -11,8 +11,9 @@
 |
 | A project's tasks are its phases. Each carries the people on it: teammates
 | (each ticks their own box done) and assignments (who worked on it, what
-| they did, todo / in_progress / done). Teammates for a project are its
-| client's team (task-writes.php taskTeamCandidates()); they are for changing
+| they did, todo / in_progress / done). Teammates for a project are the people
+| who can see it: its client's team, its manager and its members
+| (task-writes.php taskTeamCandidates()); they are for changing
 | a phase, so they need projects:write as well.
 |
 | Scope projects:read. Same rule as projects.php projectScope(): the owner
@@ -28,6 +29,7 @@
 require_once __DIR__ . "/_bootstrap.php";
 require_once __DIR__ . "/../task-writes.php";
 require_once __DIR__ . "/../upload-helpers.php";
+require_once __DIR__ . "/../mailer.php"; // APP_URL, for page and image links
 
 $p = v1Principal($pdo);
 v1RequireMethod("GET");
@@ -174,8 +176,9 @@ if (!empty($_GET["tasks"])) {
     /* The dashboard's Team overview, for the Director:
        one row per phase and post they can see, with its people, overdue and what needs
        attention. Posts, forms and meetings only for a connection that may
-       read them. */
-    if (can($p, "team.overview", $pdo)) {
+       read them. It sits on the Dashboard page, so it needs that page too,
+       as api/admin-dashboard.php does in the browser. */
+    if (can($p, "team.overview", $pdo) && can($p, "pages.dashboard", $pdo)) {
         $team = teamDashboardItems($pdo, $p);
         $teamItems = array_values(array_filter($team["tasks"], function ($t) use ($withPosts) {
             return $t["kind"] !== "content" || $withPosts;
@@ -287,8 +290,7 @@ if ($id !== null) {
         v1Error(404, "not_found", "No project with that id among the projects you can see.");
     }
 
-    $seesEveryDraft = can($p, "tasks.see_drafts", $pdo)
-        || (int) $project["account_manager_admin_id"] === (int) $p["id"];
+    $seesEveryDraft = seesEveryPhaseDraft($p, $project);
 
     $taskSql = "
         SELECT t.id, t.title, t.description, t.link, t.status, t.scheduled_date, t.scheduled_time,

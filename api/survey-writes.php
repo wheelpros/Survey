@@ -21,6 +21,7 @@
 */
 
 require_once __DIR__ . "/db.php";
+require_once __DIR__ . "/scope.php";
 require_once __DIR__ . "/notify.php";
 require_once __DIR__ . "/mailer.php";
 require_once __DIR__ . "/events.php";
@@ -56,23 +57,11 @@ function prepareChips($chips)
     return json_encode(array_values($chipsArray));
 }
 
-// The owner can touch any user; everyone else can only touch a user that's
-// actually assigned to their own admin_id - same boundary as the users list.
+// clients.view_all can touch any user; everyone else only a user assigned to
+// their own admin_id - scope.php's "client", the same boundary as the users list.
 function isUserInScope($pdo, $role, $adminId, $userId)
 {
-    if (can(["role" => $role, "id" => $adminId], "clients.view_all", $pdo)) {
-        return true;
-    }
-
-    $stmt = $pdo->prepare("
-        SELECT 1
-        FROM admin_user_assignments
-        WHERE admin_id = ? AND user_id = ?
-        LIMIT 1
-    ");
-    $stmt->execute([$adminId, $userId]);
-
-    return (bool)$stmt->fetch();
+    return canAccessRecord($pdo, ["kind" => "admin", "role" => $role, "id" => (int) $adminId], "client", $userId);
 }
 
 /**

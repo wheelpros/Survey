@@ -5,9 +5,10 @@
 | Submitted responses
 |--------------------------------------------------------------------------
 |
-| Two callers, one query:
+| One query, with or without a filter:
 |
-|   responses.html                 no survey_id - the whole list
+|   no survey_id                   the whole list (responses.html used it;
+|                                  that page is retired, audit U-01)
 |   admin.html "View Responses"    ?survey_id=42 - one form's submissions
 |
 | The filter was missing before, so the second caller silently received the
@@ -20,8 +21,7 @@
 */
 
 require_once "db.php";
-require_once "auth.php";
-requirePage($pdo, "forms"); // "Open X" in Settings > Permissions
+require_once "scope.php";
 
 header("Content-Type: application/json");
 
@@ -29,30 +29,8 @@ header("Content-Type: application/json");
 | Answers are client data, so this endpoint asks who is reading them. It did
 | not before - the responses came back to anyone who requested the URL.
 */
-
-$headers = function_exists("getallheaders") ? getallheaders() : [];
-$authHeader = $headers["Authorization"] ?? $headers["authorization"] ?? ($_SERVER["HTTP_AUTHORIZATION"] ?? "");
-$token = trim(str_replace("Bearer", "", $authHeader));
-
-if ($token === "") {
-    echo json_encode(["success" => false, "message" => "Unauthorized"]);
-    exit;
-}
-
-$adminStmt = $pdo->prepare("
-    SELECT id, role
-    FROM admins
-    WHERE session_token = ?
-    LIMIT 1
-");
-
-$adminStmt->execute([$token]);
-$currentAdmin = $adminStmt->fetch();
-
-if (!$currentAdmin) {
-    echo json_encode(["success" => false, "message" => "Unauthorized"]);
-    exit;
-}
+$currentAdmin = requireAdmin($pdo);
+requirePage($pdo, "forms"); // "Open X" in Settings > Permissions
 
 $surveyId = (int) ($_GET["survey_id"] ?? 0);
 
@@ -73,27 +51,20 @@ $sql = "
 $params = [];
 
 /*
-| The owner sees everything. Everyone else sees responses from the clients
-| assigned to them, plus responses to any form they built themselves - the
-| "New response" notification goes to a form's creator (notify.php), and it
-| would be no use if the creator could not then open what it points at.
+| forms.responses sees everything. Everyone else sees responses from the
+| clients assigned to them, plus responses to any form they built themselves -
+| the "New response" notification goes to a form's creator (notify.php), and
+| it would be no use if the creator could not then open what it points at.
 | Without this, filtering by survey_id would still hand over the answers of a
-| client outside the admin's own pool.
+| client outside the admin's own pool. The rule is scope.php's "response".
 */
 
 $where = [];
 
-if (!can($currentAdmin, "forms.responses", $pdo)) {
-    $sql .= "
-        LEFT JOIN admin_user_assignments aua
-            ON aua.user_id = sr.user_id
-           AND aua.admin_id = ?
-        LEFT JOIN surveys s ON s.id = sr.survey_id
-    ";
-    $params[] = $currentAdmin["id"];
-
-    $where[] = "(aua.admin_id IS NOT NULL OR s.created_by_admin_id = ?)";
-    $params[] = $currentAdmin["id"];
+[$scopeWhere, $scopeParams] = scopeSql($pdo, $currentAdmin, "response", "sr");
+if ($scopeWhere !== "") {
+    $where[] = $scopeWhere;
+    $params = array_merge($params, $scopeParams);
 }
 
 // The filter that was missing.

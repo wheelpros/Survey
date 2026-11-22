@@ -226,27 +226,20 @@ if ($action === "reset") {
     lockReply(true, "Password updated. You can open Files now.");
 }
 
-$headers = function_exists("getallheaders") ? getallheaders() : [];
-$authHeader = $headers["Authorization"] ?? $headers["authorization"] ?? ($_SERVER["HTTP_AUTHORIZATION"] ?? "");
-$sessionToken = trim(str_replace("Bearer", "", $authHeader));
+require_once "auth.php";
 
-if ($sessionToken === "") {
-    lockReply(false, "Unauthorized");
-}
+$caller = requireAdmin($pdo);
+requirePage($pdo, "files"); // "Open X" in Settings > Permissions
 
 $stmt = $pdo->prepare("
     SELECT id, name, email, sources_password
     FROM admins
-    WHERE session_token = ?
+    WHERE id = ?
     LIMIT 1
 ");
 
-$stmt->execute([$sessionToken]);
+$stmt->execute([$caller["id"]]);
 $admin = $stmt->fetch(PDO::FETCH_ASSOC);
-
-if (!$admin) {
-    lockReply(false, "Unauthorized");
-}
 
 $hasPassword = !empty($admin["sources_password"]);
 

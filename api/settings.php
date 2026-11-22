@@ -1,22 +1,12 @@
 <?php
 require_once "db.php";
+require_once "auth.php";
 require_once "admin-settings-writes.php";
 header("Content-Type: application/json");
 
-$headers = getallheaders();
-$token = str_replace("Bearer ","",$headers["Authorization"] ?? "");
-
-$stmt = $pdo->prepare("SELECT id, role FROM admins WHERE session_token=? LIMIT 1");
-$stmt->execute([$token]);
-$admin = $stmt->fetch();
-
-if (!$admin || !in_array($admin['role'], ['owner', 'super_admin', 'account_manager'], true)) {
-    echo json_encode([
-        "status" => "error",
-        "message" => "Unauthorized"
-    ]);
-    exit;
-}
+// Every action below checks its own key (settings.manage or admins.manage),
+// so the role alone opens nothing here.
+$admin = requireAdmin($pdo);
     
 if($_SERVER["REQUEST_METHOD"]=="GET"){
 

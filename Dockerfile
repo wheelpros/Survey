@@ -25,6 +25,8 @@ RUN { \
 RUN a2enmod headers
 COPY docker/cache-headers.conf /etc/apache2/conf-enabled/cache-headers.conf
 COPY docker/site-files.conf /etc/apache2/conf-enabled/site-files.conf
+# Nothing under uploads/ runs as PHP (docker/uploads.conf).
+COPY docker/uploads.conf /etc/apache2/conf-enabled/uploads.conf
 
 COPY . /var/www/html/
 

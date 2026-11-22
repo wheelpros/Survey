@@ -9,6 +9,7 @@ require_once "notify.php";
 require_once "content-writes.php";
 require_once "events.php";
 require_once "upload-helpers.php";
+require_once "rich-text.php";
 
 header("Content-Type: application/json; charset=UTF-8");
 
@@ -41,76 +42,7 @@ function response($success, $message = "", $extra = [], $code = 200)
     exit;
 }
 
-/*
-|--------------------------------------------------------------------------
-| Get Admin Token
-|--------------------------------------------------------------------------
-*/
-
-$headers = function_exists("getallheaders")
-    ? getallheaders()
-    : [];
-
-$authorization =
-    $headers["Authorization"]
-    ?? $headers["authorization"]
-    ?? "";
-
-if (!$authorization && isset($_SERVER["HTTP_AUTHORIZATION"])) {
-    $authorization = $_SERVER["HTTP_AUTHORIZATION"];
-}
-
-if (!preg_match('/Bearer\s+(.+)/i', $authorization, $matches)) {
-    response(false, "Unauthorized.", [], 401);
-}
-
-$token = trim($matches[1]);
-
-if (!$token) {
-    response(false, "Unauthorized.", [], 401);
-}
-
-/*
-|--------------------------------------------------------------------------
-| Validate Admin Token
-|--------------------------------------------------------------------------
-|
-| Same authentication idea used by your existing admin APIs:
-| Authorization: Bearer admin_token
-|
-*/
-
-try {
-
-    $stmt = $pdo->prepare("
-        SELECT
-            id,
-            name,
-            email,
-            role,
-            session_token
-        FROM admins
-        WHERE session_token = ?
-        LIMIT 1
-    ");
-
-    $stmt->execute([$token]);
-
-    $admin = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$admin) {
-        response(false, "Invalid or expired admin session.", [], 401);
-    }
-
-} catch (Throwable $e) {
-
-    response(
-        false,
-        "Authentication database error.",
-        [],
-        500
-    );
-}
+$admin = requireAdmin($pdo);
 
 /*
 |--------------------------------------------------------------------------
@@ -647,7 +579,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $client = trim($_POST["client"] ?? "");
     $link = trim($_POST["link"] ?? "");
 
-    $caption = $_POST["caption"] ?? "";
+    // Scrubbed as it is written, so no reader has to trust it (audit U-02).
+    $caption = cleanRichText($_POST["caption"] ?? "");
 
     $contentType = trim($_POST["content_type"] ?? "");
     $typeLabel = trim($_POST["type_label"] ?? "");
@@ -757,6 +690,28 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 403
             );
         }
+    }
+
+    /*
+    | Whose feed the post lands in (audit W-01). content.client is a company
+    | name, and the server used to take any string, so a post could be put
+    | in - or moved to - any client's feed. Now a new client must be one the
+    | caller can see, as api/v1 resolves it (v1VisibleClient), and only a
+    | publisher moves a post to another client: a teammate filling it in
+    | keeps the client it has, like its status and dates.
+    */
+    $existingClient = $existing ? trim((string) ($existing["client"] ?? "")) : "";
+    if ($existing && !array_key_exists("client", $_POST)) {
+        $client = $existingClient;
+    }
+    $clientChanges = !$existing || strcasecmp($client, $existingClient) !== 0;
+
+    if ($clientChanges && $existing && !canPublishContent($admin)) {
+        response(false, "Only someone who can publish may move a post to another client.", [], 403);
+    }
+
+    if ($clientChanges && !contentClientVisible($pdo, $admin, $client)) {
+        response(false, "Pick one of your clients for this post.", [], 403);
     }
 
     /*

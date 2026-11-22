@@ -6,17 +6,7 @@ require_once "sources-lock.php";
 require_once "events.php";
 header("Content-Type: application/json");
 
-$headers = getallheaders();
-$token = str_replace("Bearer ", "", $headers["Authorization"] ?? "");
-
-$stmt = $pdo->prepare("SELECT id FROM admins WHERE session_token=? LIMIT 1");
-$stmt->execute([$token]);
-$admin = $stmt->fetch();
-
-if(!$admin){
-  echo json_encode(["success"=>false,"message"=>"Unauthorized"]);
-  exit;
-}
+$admin = requireAdmin($pdo);
 
 /*
  An admin session gets you this far; the Files password gets you the

@@ -128,7 +128,7 @@ const phaseTeamFields = {
     .max(50)
     .optional()
     .describe(
-      "Everyone to put on the phase, from list_phase_teammates (the client's team). Replaces who is on it " +
+      "Everyone to put on the phase, from list_phase_teammates (the people who can open the project). Replaces who is on it " +
         "([] takes everyone off); each person newly added is notified."
     ),
   assignments: z

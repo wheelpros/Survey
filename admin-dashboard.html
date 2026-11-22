@@ -256,8 +256,30 @@ select.client-filter{
 .cell .av-stack .mini-av.in_progress{box-shadow:0 0 0 2px var(--c-doing)}
 .cell .av-stack .mini-av.done{box-shadow:0 0 0 2px var(--c-done)}
 .cell small.progress{display:block;margin-top:4px;font-size:11px;font-weight:700;color:var(--muted)}
-.attention{background:#fff7e6;border:1px solid #fde68a;border-radius:12px;padding:10px 14px;margin:0 0 14px;font-size:12px;color:#7c4a03}
-.attention a{color:inherit;font-weight:800}
+/* Needs attention: a one-line summary with a toggle, then the phases grouped by project. */
+.attention{background:#fff7e6;border:1px solid #fde68a;border-radius:12px;padding:12px 14px;margin:0 0 14px;font-size:12px;color:#7c4a03}
+.attention[hidden]{display:none}
+.att-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.att-text{display:flex;flex-direction:column;gap:2px;min-width:0}
+.att-text b{font-size:13px;font-weight:800}
+.att-text span{color:#92400e}
+.att-toggle{flex:none;font:inherit;font-weight:800;color:#7c4a03;background:#fff;border:1px solid #fcd34d;border-radius:8px;padding:6px 12px;cursor:pointer}
+.att-toggle:hover{background:#fffbeb}
+.att-toggle:focus-visible,.att-groups a:focus-visible{outline:2px solid #b45309;outline-offset:2px}
+.att-groups{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));align-items:start;gap:10px;margin-top:12px}
+.att-groups[hidden]{display:none}
+.att-group{background:#fff;border:1px solid #fde68a;border-radius:10px;padding:10px 12px;min-width:0}
+.att-project{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.att-project a{color:var(--text);font-weight:800;font-size:12px;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.att-project a:hover{text-decoration:underline}
+.att-count{flex:none;font-size:11px;font-weight:800;color:#92400e;background:#fef3c7;border-radius:20px;padding:1px 8px}
+.att-group ul{list-style:none;margin:0;padding:0}
+.att-group li{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;border-top:1px solid #fef3c7}
+.att-group li:first-child{border-top:0}
+.att-phase{color:var(--text);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.att-phase:hover{text-decoration:underline}
+.att-assign{flex:none;color:#b45309;font-weight:800;text-decoration:none;white-space:nowrap}
+.att-assign:hover{text-decoration:underline}
 .who-cell b.nobody{color:var(--muted);font-weight:600}
 .status-pill{display:inline-flex;align-items:center;padding:4px 10px;border-radius:20px;border:1px solid;font-size:11px;font-weight:800;white-space:nowrap}
 .status-pill.done{color:#17803d;background:#e8faef;border-color:#b8e7c8}
@@ -420,7 +442,7 @@ document.addEventListener("DOMContentLoaded", function () {
           </label>
         </div>
 
-        <p class="attention" id="teamAttention" hidden></p>
+        <section class="attention" id="teamAttention" aria-label="Needs attention" hidden></section>
 
         <div id="teamGroups"></div>
 
@@ -644,7 +666,8 @@ function startView(){
   let saved = "";
   try { saved = localStorage.getItem(VIEW_KEY) || ""; } catch (e) {}
   if (saved === "team" || saved === "mine") return saved;
-  return adminUser.role === "owner" ? "team" : "mine";
+  // Whoever sees the whole team (team.overview) starts on it.
+  return adminCan("team.overview") ? "team" : "mine";
 }
 
 const VIEW_TEXT = {
@@ -810,15 +833,59 @@ function paintTeamStats(){
 }
 
 /* Phases nobody is assigned to can never complete: the Director is told. */
+/* A summary line, then (behind Show) the phases grouped by project, each with
+   an Assign link to the phase form. Open by default only when the list is short. */
+let attentionOpen = null;
+
 function paintTeamAttention(){
   const box = document.getElementById("teamAttention");
   const phases = (team.attention && team.attention.unassigned_phases) || [];
-  if (!phases.length) { box.hidden = true; return; }
+  if (!phases.length) { box.hidden = true; box.innerHTML = ""; return; }
+
+  const groups = [];
+  const byProject = {};
+  phases.forEach(u => {
+    const key = String(u.project_id || u.project || "");
+    if (!byProject[key]) {
+      byProject[key] = { name: u.project || "No project", id: u.project_id, items: [] };
+      groups.push(byProject[key]);
+    }
+    byProject[key].items.push(u);
+  });
+
+  const open = attentionOpen === null ? phases.length <= 4 : attentionOpen;
+  const count = phases.length === 1 ? "1 phase has nobody assigned" : phases.length + " phases have nobody assigned";
+  const where = groups.length === 1 ? "in 1 project" : "across " + groups.length + " projects";
+
   box.hidden = false;
-  box.innerHTML = "<b>Needs attention:</b> "
-    + (phases.length === 1 ? "1 phase has" : phases.length + " phases have") + " nobody assigned - "
-    + phases.map(u => '<a href="' + esc(u.href) + '" dir="auto">' + esc(u.title) + "</a>"
-      + (u.project ? ' <span dir="auto">(' + esc(u.project) + ")</span>" : "")).join(", ");
+  box.innerHTML =
+    '<div class="att-head">'
+    + '<div class="att-text"><b>' + count + "</b>"
+    + "<span>" + where + ". A phase only completes once someone is assigned to it.</span></div>"
+    + '<button type="button" class="att-toggle" aria-expanded="' + open + '" aria-controls="teamAttentionList">'
+    + (open ? "Hide phases" : "Show phases") + "</button>"
+    + "</div>"
+    + '<div class="att-groups" id="teamAttentionList"' + (open ? "" : " hidden") + ">"
+    + groups.map(g =>
+        '<div class="att-group">'
+        + '<div class="att-project">'
+        + (g.id ? '<a href="project-details.html?id=' + Number(g.id) + '" dir="auto">' + esc(g.name) + "</a>"
+                : '<b dir="auto">' + esc(g.name) + "</b>")
+        + '<span class="att-count" aria-label="' + g.items.length + ' unassigned">' + g.items.length + "</span>"
+        + "</div><ul>"
+        + g.items.map(u =>
+            '<li><a class="att-phase" href="' + esc(u.href) + '" dir="auto" title="' + esc(u.title) + '">' + esc(u.title) + "</a>"
+            + (u.edit_href ? '<a class="att-assign" href="' + esc(u.edit_href) + '" aria-label="Assign people to ' + esc(u.title) + '">Assign</a>' : "")
+            + "</li>").join("")
+        + "</ul></div>").join("")
+    + "</div>";
+
+  box.querySelector(".att-toggle").addEventListener("click", function () {
+    attentionOpen = this.getAttribute("aria-expanded") !== "true";
+    this.setAttribute("aria-expanded", String(attentionOpen));
+    this.textContent = attentionOpen ? "Hide phases" : "Show phases";
+    document.getElementById("teamAttentionList").hidden = !attentionOpen;
+  });
 }
 
 function paintTeamPeople(){

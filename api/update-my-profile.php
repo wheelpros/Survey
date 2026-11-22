@@ -15,6 +15,7 @@
 */
 
 require_once "db.php";
+require_once "auth.php";
 require_once "admin-settings-writes.php";
 
 header("Content-Type: application/json; charset=UTF-8");
@@ -26,14 +27,10 @@ function reply($success, $message, $extra = [], $code = 200)
     exit;
 }
 
-$headers = function_exists("getallheaders") ? getallheaders() : [];
-$token = trim(str_ireplace("Bearer ", "", $headers["Authorization"] ?? $headers["authorization"] ?? $_SERVER["HTTP_AUTHORIZATION"] ?? ""));
+// The Director's own card - a system rule, not a permission.
+$admin = requireAdmin($pdo);
 
-$stmt = $pdo->prepare("SELECT id, role FROM admins WHERE session_token = ? LIMIT 1");
-$stmt->execute([$token]);
-$admin = $token !== "" ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
-
-if (!$admin || $admin["role"] !== "owner") {
+if (!isDirector($admin)) {
     reply(false, "Only the Director has this card.", [], 403);
 }
 

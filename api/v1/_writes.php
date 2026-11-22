@@ -514,7 +514,8 @@ function loadEditableTask(PDO $pdo, array $p, $id)
 | the same as project-task-form.html: phase, role, priority, notes (staff
 | only), team (teammate ids), assignments ([{admin_id, work_note}], one row
 | per person, each one a teammate) and gallery images. Only the ones given.
-| People come from the client's team plus anyone already on the phase
+| People come from the project's scope (its client's team, its manager and
+| its members) plus anyone already on the phase
 | (task-writes.php allowedTaskPeople()), and someone else is refused at
 | prepare rather than dropped at apply. Nobody's status is set here: each
 | person moves their own (set_my_phase_status), and the phase completes once
@@ -661,8 +662,9 @@ function phaseColumnsFrom(array $a)
 
 /**
  * Saves prepared team and assignments - the team first, since assignments
- * are drawn from it - then tells each newcomer once. An assignment keeps its
- * row, and the status its person set, when the same person is listed again.
+ * are drawn from it - and returns the newcomers, for notifyAddedToPhase()
+ * once the transaction has committed. An assignment keeps its row, and the
+ * status its person set, when the same person is listed again.
  */
 function savePhasePeople(PDO $pdo, array $p, array $project, $taskId, $title, array $a)
 {
@@ -673,7 +675,7 @@ function savePhasePeople(PDO $pdo, array $p, array $project, $taskId, $title, ar
     if (array_key_exists("assignments", $a)) {
         $newcomers = array_merge($newcomers, saveTaskAssignments($pdo, $project, $taskId, $a["assignments"]));
     }
-    notifyAddedToPhase($pdo, $p, $project, $taskId, $title, $newcomers);
+    return $newcomers;
 }
 
 /**
@@ -2544,15 +2546,19 @@ function v1WriteHandlers()
                 ensureProjectTables($pdo);
                 ensureNotificationsTable($pdo);
                 $project = loadScopedProject($pdo, $p, $a["project"]);
-                $id = saveProjectTask($pdo, $p, $project, null, [
-                    "title" => $a["title"],
-                    "link" => $a["link"],
-                    "description" => $a["body"] !== "" ? textToHtml($a["body"]) : "",
-                    "scheduled_date" => $a["date"],
-                    "scheduled_time" => $a["time"] !== null ? $a["time"] . ":00" : null,
-                    "status" => $a["publish"] ? "published" : "draft",
-                ] + phaseColumnsFrom($a));
-                savePhasePeople($pdo, $p, $project, $id, $a["title"], $a);
+                // The phase and its people in one transaction (audit D-04).
+                [$id, $newcomers] = inPhaseTransaction($pdo, function () use ($pdo, $p, $project, $a) {
+                    $id = saveProjectTask($pdo, $p, $project, null, [
+                        "title" => $a["title"],
+                        "link" => $a["link"],
+                        "description" => $a["body"] !== "" ? textToHtml($a["body"]) : "",
+                        "scheduled_date" => $a["date"],
+                        "scheduled_time" => $a["time"] !== null ? $a["time"] . ":00" : null,
+                        "status" => $a["publish"] ? "published" : "draft",
+                    ] + phaseColumnsFrom($a));
+                    return [$id, savePhasePeople($pdo, $p, $project, $id, $a["title"], $a)];
+                });
+                notifyAddedToPhase($pdo, $p, $project, $id, $a["title"], $newcomers);
                 $gallery = !empty($a["images"]) ? savePhaseGallery($pdo, ["id" => $id], $a["images"]) : 0;
                 return [
                     "task_id" => $id,
@@ -2623,21 +2629,25 @@ function v1WriteHandlers()
                 ensureNotificationsTable($pdo);
                 [$task, $project] = loadEditableTask($pdo, $p, $a["id"]);
                 $title = $a["title"] ?? $task["title"];
-                saveProjectTask($pdo, $p, $project, $task, [
-                    "title" => $title,
-                    "link" => array_key_exists("link", $a) ? $a["link"] : $task["link"],
-                    "description" => array_key_exists("body", $a)
-                        ? ($a["body"] !== "" ? textToHtml($a["body"]) : "")
-                        : (string) ($task["description"] ?? ""),
-                    "orientation" => $task["orientation"],
-                    "image_path" => $task["image_path"],
-                    "scheduled_date" => array_key_exists("date", $a) ? $a["date"] : $task["scheduled_date"],
-                    "scheduled_time" => array_key_exists("time", $a)
-                        ? ($a["time"] !== null ? $a["time"] . ":00" : null)
-                        : $task["scheduled_time"],
-                    "status" => $a["status"] ?? $task["status"],
-                ] + phaseColumnsFrom($a));
-                savePhasePeople($pdo, $p, $project, $a["id"], $title, $a);
+                // The phase and its people in one transaction (audit D-04).
+                $newcomers = inPhaseTransaction($pdo, function () use ($pdo, $p, $project, $task, $title, $a) {
+                    saveProjectTask($pdo, $p, $project, $task, [
+                        "title" => $title,
+                        "link" => array_key_exists("link", $a) ? $a["link"] : $task["link"],
+                        "description" => array_key_exists("body", $a)
+                            ? ($a["body"] !== "" ? textToHtml($a["body"]) : "")
+                            : (string) ($task["description"] ?? ""),
+                        "orientation" => $task["orientation"],
+                        "image_path" => $task["image_path"],
+                        "scheduled_date" => array_key_exists("date", $a) ? $a["date"] : $task["scheduled_date"],
+                        "scheduled_time" => array_key_exists("time", $a)
+                            ? ($a["time"] !== null ? $a["time"] . ":00" : null)
+                            : $task["scheduled_time"],
+                        "status" => $a["status"] ?? $task["status"],
+                    ] + phaseColumnsFrom($a));
+                    return savePhasePeople($pdo, $p, $project, $a["id"], $title, $a);
+                });
+                notifyAddedToPhase($pdo, $p, $project, $a["id"], $title, $newcomers);
                 $result = [
                     "task_id" => (int) $a["id"],
                     "client_notified" => announceTaskIfLive($pdo, $p, $project, $a["id"], $title),
@@ -2963,10 +2973,7 @@ function v1WriteHandlers()
             "scope" => "admins:write",
             "prepare" => function (PDO $pdo, array $p, array $a) {
                 $adminId = argInt($a, "admin");
-                $target = findAdminRow($pdo, $adminId);
-                if ($target["role"] === "owner") {
-                    throw new PortalWriteError("The Director's account cannot be edited here.", 403);
-                }
+                $target = checkAdminTarget($pdo, $p, findAdminRow($pdo, $adminId), "edit");
                 // An https image link, checked now and downloaded on confirm; "" removes the photo.
                 $url = trim((string) ($a["image"] ?? ""));
                 if ($url !== "") {
@@ -3013,8 +3020,8 @@ function v1WriteHandlers()
             "scope" => "admins:write",
             "prepare" => function (PDO $pdo, array $p, array $a) {
                 $role = argEnum($a, "role", PERMISSION_ROLES);
-                $changes = v1PermissionChanges($pdo, $p, $a, function ($changes) use ($role) {
-                    return checkRolePermissionChange($role, $changes);
+                $changes = v1PermissionChanges($pdo, $p, $a, function ($changes) use ($p, $role) {
+                    return checkRolePermissionChange($p, $role, $changes);
                 });
                 return [
                     "args" => ["role" => $role, "changes" => $changes],
@@ -3024,8 +3031,8 @@ function v1WriteHandlers()
                 ];
             },
             "apply" => function (PDO $pdo, array $p, array $a) {
-                $changes = v1PermissionChanges($pdo, $p, $a, function ($changes) use ($a) {
-                    return checkRolePermissionChange($a["role"], $changes);
+                $changes = v1PermissionChanges($pdo, $p, $a, function ($changes) use ($p, $a) {
+                    return checkRolePermissionChange($p, $a["role"], $changes);
                 });
                 $pdo->beginTransaction();
                 setRolePermissions($pdo, $p, $a["role"], $changes);
@@ -3039,8 +3046,8 @@ function v1WriteHandlers()
             "prepare" => function (PDO $pdo, array $p, array $a) {
                 $adminId = argInt($a, "admin");
                 $target = null;
-                $changes = v1PermissionChanges($pdo, $p, $a, function ($changes) use ($pdo, $adminId, &$target) {
-                    [$target, $clean] = checkAdminPermissionChange($pdo, $adminId, $changes);
+                $changes = v1PermissionChanges($pdo, $p, $a, function ($changes) use ($pdo, $p, $adminId, &$target) {
+                    [$target, $clean] = checkAdminPermissionChange($pdo, $p, $adminId, $changes);
                     return $clean;
                 });
                 return [
@@ -3057,8 +3064,8 @@ function v1WriteHandlers()
             },
             "apply" => function (PDO $pdo, array $p, array $a) {
                 $target = null;
-                $changes = v1PermissionChanges($pdo, $p, $a, function ($changes) use ($pdo, $a, &$target) {
-                    [$target, $clean] = checkAdminPermissionChange($pdo, $a["admin"], $changes);
+                $changes = v1PermissionChanges($pdo, $p, $a, function ($changes) use ($pdo, $p, $a, &$target) {
+                    [$target, $clean] = checkAdminPermissionChange($pdo, $p, $a["admin"], $changes);
                     return $clean;
                 });
                 $pdo->beginTransaction();
@@ -3072,7 +3079,8 @@ function v1WriteHandlers()
         "update_my_profile" => [
             "scope" => "settings:write",
             "prepare" => function (PDO $pdo, array $p, array $a) {
-                if (($p["role"] ?? "") !== "owner") {
+                // The Director's own card - a system rule, not a permission.
+                if (!isDirector($p)) {
                     throw new PortalWriteError("Only the Director has this card.", 403);
                 }
                 $now = adminProfile($pdo, $p["id"]);
@@ -3105,6 +3113,11 @@ function v1WriteHandlers()
                 $adminId = argInt($a, "admin");
                 $position = checkAdminPosition($a["position"] ?? "");
                 $target = findAdminRow($pdo, $adminId);
+                // Their own position is a label anyone may set; someone else's
+                // follows the target rules.
+                if ((int) $target["id"] !== (int) $p["id"]) {
+                    checkAdminTarget($pdo, $p, $target, "edit");
+                }
                 if (trim((string) ($target["position"] ?? "")) === $position) {
                     throw new PortalWriteError(adminLabel($target) . " already has that position.", 409);
                 }
@@ -3195,7 +3208,7 @@ function v1WriteHandlers()
                         throw new PortalWriteError("admins must be a list of admin ids.");
                     }
                 }
-                [$manager, $adminIds] = checkManagerAssignment($pdo, $managerId, $given);
+                [$manager, $adminIds] = checkManagerAssignment($pdo, $p, $managerId, $given);
                 $dropped = array_values(array_diff(array_unique($given), $adminIds));
                 if ($dropped) {
                     throw new PortalWriteError(adminRoleName($manager["role"]) . "s can't manage admin "
@@ -3221,7 +3234,7 @@ function v1WriteHandlers()
                 ];
             },
             "apply" => function (PDO $pdo, array $p, array $a) {
-                [, $adminIds, $allowedRoles] = checkManagerAssignment($pdo, $a["manager"], $a["admins"]);
+                [, $adminIds, $allowedRoles] = checkManagerAssignment($pdo, $p, $a["manager"], $a["admins"]);
                 assignAdminsToManager($pdo, $a["manager"], $adminIds, $allowedRoles);
                 return ["manager_id" => $a["manager"], "admins" => $adminIds];
             },

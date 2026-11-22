@@ -17,6 +17,7 @@
 */
 
 require_once __DIR__ . "/db.php";
+require_once __DIR__ . "/team-scope.php"; // MANAGER_CAN_MANAGE
 require_once __DIR__ . "/mailer.php";
 require_once __DIR__ . "/events.php";
 require_once __DIR__ . "/site-logo-store.php";
@@ -661,6 +662,21 @@ function listTeamAdmins(PDO $pdo)
     ")->fetchAll(PDO::FETCH_ASSOC);
 }
 
+/**
+ * Throws unless $actor may take $action on the admin $target - the system
+ * rules in permissions.php adminTargetRefusal(): never the Director, never
+ * yourself, and only the Director touches someone holding a Director-only
+ * key. Every check below that names an admin goes through here.
+ */
+function checkAdminTarget(PDO $pdo, array $actor, array $target, $action)
+{
+    $why = adminTargetRefusal($actor, $target, $action, $pdo);
+    if ($why !== null) {
+        throw new PortalWriteError($why, 403);
+    }
+    return $target;
+}
+
 /** Returns the admin whose role changes. */
 function checkAdminRoleChange(PDO $pdo, array $owner, $targetId, $newRole)
 {
@@ -668,17 +684,7 @@ function checkAdminRoleChange(PDO $pdo, array $owner, $targetId, $newRole)
         throw new PortalWriteError("Role must be one of: " . implode(", ", ASSIGNABLE_ADMIN_ROLES) . ".");
     }
 
-    $target = findAdminRow($pdo, $targetId);
-
-    if ($target["role"] === "owner") {
-        throw new PortalWriteError("The Director's role cannot be changed here.", 403);
-    }
-
-    if ((int) $target["id"] === (int) $owner["id"]) {
-        throw new PortalWriteError("You cannot change your own role.", 403);
-    }
-
-    return $target;
+    return checkAdminTarget($pdo, $owner, findAdminRow($pdo, $targetId), "role");
 }
 
 /**
@@ -698,27 +704,48 @@ function changeAdminRole(PDO $pdo, $targetId, $newRole)
         storeAdminPermission($pdo, $targetId, $perm, null, 0);
     }
 
+    // Manager links only run down MANAGER_CAN_MANAGE (team-scope.php), which
+    // is what keeps a chain from looping back. Links the new role breaks go:
+    // their own manager if that manager can't take the new role, and the
+    // people under them the new role can't manage. The Director re-assigns.
+    $pdo->prepare("
+        UPDATE admins a JOIN admins m ON m.id = a.managed_by_admin_id
+        SET a.managed_by_admin_id = NULL
+        WHERE a.id = ? AND NOT FIND_IN_SET(?, CASE m.role
+            WHEN 'super_admin' THEN ? WHEN 'account_manager' THEN ? ELSE '' END)
+    ")->execute([(int) $targetId, $newRole,
+        implode(",", MANAGER_CAN_MANAGE["super_admin"]), implode(",", MANAGER_CAN_MANAGE["account_manager"])]);
+    $keep = MANAGER_CAN_MANAGE[$newRole] ?? [];
+    $pdo->prepare("UPDATE admins SET managed_by_admin_id = NULL WHERE managed_by_admin_id = ?"
+        . ($keep ? " AND role NOT IN (" . implode(",", array_fill(0, count($keep), "?")) . ")" : ""))
+        ->execute(array_merge([(int) $targetId], $keep));
+
     logEvent($pdo, EVENT_ADMIN_ROLE, "admin", $targetId, $target["name"],
         "Changed " . $target["name"] . "'s role from " . adminRoleName($target["role"]) . " to " . adminRoleName($newRole));
 }
 
 /**
- * Activating or deactivating blocks login only - nothing about that admin
+ * Activating or deactivating blocks login - nothing about that admin
  * (assignments, forms, review history) is touched, and reactivating restores
- * access exactly as it was. The owner can toggle anyone but themself.
+ * access exactly as it was. Never the Director, never yourself
+ * (checkAdminTarget()).
  */
 function checkAdminActiveChange(PDO $pdo, array $owner, $targetId)
 {
-    if ((int) $targetId === (int) $owner["id"]) {
-        throw new PortalWriteError("You can't deactivate your own account", 403);
-    }
-
-    return findAdminRow($pdo, $targetId);
+    return checkAdminTarget($pdo, $owner, findAdminRow($pdo, $targetId), "active");
 }
 
+/**
+ * Deactivating also ends their session, as a role change does, so a tab
+ * that is already open stops working on its next request rather than only
+ * at the next sign-in. Their AI connections stop too: loadPrincipal()
+ * refuses an inactive admin.
+ */
 function setAdminActive(PDO $pdo, $targetId, $active)
 {
-    $pdo->prepare("UPDATE admins SET active = ? WHERE id = ?")->execute([$active ? 1 : 0, (int) $targetId]);
+    $pdo->prepare($active ? "UPDATE admins SET active = 1 WHERE id = ?"
+                          : "UPDATE admins SET active = 0, session_token = NULL WHERE id = ?")
+        ->execute([(int) $targetId]);
 
     $name = eventAdminName($pdo, $targetId);
     logEvent($pdo, EVENT_ADMIN_ACTIVE, "admin", $targetId, $name, ($active ? "Reactivated " : "Deactivated ") . $name);
@@ -730,24 +757,44 @@ function setAdminActive(PDO $pdo, $targetId, $active)
  * offers. Returns [manager row, the given ids that are allowed, allowed roles];
  * anything outside the pool is dropped.
  */
-function checkManagerAssignment(PDO $pdo, $managerId, array $adminIds)
+function checkManagerAssignment(PDO $pdo, array $actor, $managerId, array $adminIds)
 {
     $stmt = $pdo->prepare("SELECT id, name, email, role FROM admins WHERE id = ? LIMIT 1");
     $stmt->execute([(int) $managerId]);
     $manager = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$manager || !in_array($manager["role"], ["super_admin", "account_manager"], true)) {
+    if (!$manager || !isset(MANAGER_CAN_MANAGE[$manager["role"]])) {
         throw new PortalWriteError("That manager was not found.", 404);
     }
+    checkAdminTarget($pdo, $actor, $manager, "manager");
 
-    $allowedRoles = $manager["role"] === "account_manager" ? ["seo_admin", "super_admin"] : ["seo_admin"];
+    $allowedRoles = MANAGER_CAN_MANAGE[$manager["role"]];
     $rolePlaceholders = implode(",", array_fill(0, count($allowedRoles), "?"));
 
-    $valid = $pdo->prepare("SELECT id FROM admins WHERE role IN ($rolePlaceholders) AND id <> ?");
+    $valid = $pdo->prepare("SELECT id, role FROM admins WHERE role IN ($rolePlaceholders) AND id <> ?");
     $valid->execute(array_merge($allowedRoles, [(int) $managerId]));
-    $validIds = array_map("intval", $valid->fetchAll(PDO::FETCH_COLUMN));
+    // Each admin moved is checked on their own, so a bulk save can't carry
+    // someone the caller may not touch - themself, for one.
+    $validIds = [];
+    foreach ($valid->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        if (adminTargetRefusal($actor, $row, "manager", $pdo) === null) {
+            $validIds[] = (int) $row["id"];
+        }
+    }
 
     $adminIds = array_values(array_unique(array_intersect(array_map("intval", $adminIds), $validIds)));
+
+    // The save is a full replace, so leaving someone out moves them too. Whoever
+    // sits under this manager now and may not be touched by the caller (the
+    // caller themself, a holder of a Director-only key) stays where they are.
+    $current = $pdo->prepare("SELECT id, role FROM admins WHERE managed_by_admin_id = ?");
+    $current->execute([(int) $managerId]);
+    foreach ($current->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        if (!in_array((int) $row["id"], $adminIds, true) && in_array($row["role"], $allowedRoles, true)
+            && adminTargetRefusal($actor, $row, "manager", $pdo) !== null) {
+            $adminIds[] = (int) $row["id"];
+        }
+    }
 
     return [$manager, $adminIds, $allowedRoles];
 }
@@ -900,11 +947,7 @@ function createAdmin(PDO $pdo, $name, $email, $role, $password = null, $position
  */
 function checkAdminUpdate(PDO $pdo, array $owner, $targetId, array $in)
 {
-    $target = findAdminRow($pdo, $targetId);
-
-    if ($target["role"] === "owner") {
-        throw new PortalWriteError("The Director's account cannot be edited here.", 403);
-    }
+    $target = checkAdminTarget($pdo, $owner, findAdminRow($pdo, $targetId), "edit");
 
     $name = trim((string) ($in["name"] ?? ""));
     $email = trim((string) ($in["email"] ?? ""));
@@ -1035,11 +1078,15 @@ function emailNewAdminWelcome(PDO $pdo, $adminId, $name, $email, $role, $ownerNa
 */
 
 /**
- * Returns $changes cleaned up, or throws with the first thing wrong. The
- * Director-only keys go to one admin at a time, never to a whole role.
+ * Returns $changes cleaned up, or throws with the first thing wrong. $role is
+ * the role row being changed, or null for one admin's exceptions. The
+ * Director-only keys go to one admin at a time, never to a whole role; only
+ * the Director hands them out, and nobody else changes their own role's row
+ * (permissions.php permissionChangeRefusal()).
  */
-function checkPermissionChanges($changes, $forOneAdmin = false)
+function checkPermissionChanges(array $actor, $changes, $role = null)
 {
+    $forOneAdmin = $role === null;
     if (!is_array($changes) || $changes === []) {
         throw new PortalWriteError("Choose at least one permission to change.");
     }
@@ -1060,30 +1107,32 @@ function checkPermissionChanges($changes, $forOneAdmin = false)
         }
         $clean[$perm] = $value;
     }
+
+    $why = permissionChangeRefusal($actor, $clean, $role);
+    if ($why !== null) {
+        throw new PortalWriteError($why, 403);
+    }
     return $clean;
 }
 
-function checkRolePermissionChange($role, $changes)
+function checkRolePermissionChange(array $actor, $role, $changes)
 {
     if (!in_array($role, PERMISSION_ROLES, true)) {
         throw new PortalWriteError("Role must be one of: " . implode(", ", PERMISSION_ROLES) . ".");
     }
-    return checkPermissionChanges($changes);
+    return checkPermissionChanges($actor, $changes, $role);
 }
 
 /** Returns [the admin, $changes cleaned up]. */
-function checkAdminPermissionChange(PDO $pdo, $adminId, $changes)
+function checkAdminPermissionChange(PDO $pdo, array $actor, $adminId, $changes)
 {
-    $target = findAdminRow($pdo, $adminId);
+    $target = checkAdminTarget($pdo, $actor, findAdminRow($pdo, $adminId), "permissions");
 
-    if ($target["role"] === "owner") {
-        throw new PortalWriteError("The Director holds every permission.", 403);
-    }
     if (!in_array($target["role"], PERMISSION_ROLES, true)) {
         throw new PortalWriteError("This admin has no role to set permissions for.", 422);
     }
 
-    return [$target, checkPermissionChanges($changes, true)];
+    return [$target, checkPermissionChanges($actor, $changes)];
 }
 
 /** "Can now create posts; can no longer publish; back to the default for ..." */
@@ -1121,7 +1170,8 @@ function setAdminPermissions(PDO $pdo, array $by, array $target, array $changes)
 
 /**
  * Everything the Permissions panel draws: the catalog, each role's column,
- * and every admin with their exceptions and what they end up holding.
+ * and every admin with their exceptions, what they end up holding, and where
+ * each answer came from (permissionDecision(): override, role or default).
  */
 function permissionsOverview(PDO $pdo)
 {
@@ -1134,6 +1184,15 @@ function permissionsOverview(PDO $pdo)
         }, PERMISSION_ROLES),
         "matrix" => rolePermissionMatrix($pdo),
         "admins" => array_map(function ($a) use ($pdo, $overrides) {
+            $held = [];
+            $sources = [];
+            foreach (array_keys(PERMISSIONS) as $perm) {
+                $decision = permissionDecision($a, $perm, $pdo);
+                if ($decision["allowed"]) {
+                    $held[] = $perm;
+                }
+                $sources[$perm] = $decision["source"];
+            }
             return [
                 "id" => (int) $a["id"],
                 "name" => $a["name"],
@@ -1141,10 +1200,74 @@ function permissionsOverview(PDO $pdo)
                 "role_name" => adminRoleName($a["role"]),
                 "active" => (int) $a["active"] === 1,
                 "overrides" => (object) ($overrides[(int) $a["id"]] ?? []),
-                "permissions" => effectivePermissions($a, $pdo),
+                "permissions" => $held,
+                "sources" => $sources,
             ];
         }, permissionPeopleInOrder(listTeamAdmins($pdo))),
     ];
+}
+
+/**
+ * permissionsOverview() as $actor may edit it: which role columns and which
+ * people they may not change, and why - the same refusals a save would get
+ * (permissionChangeRefusal(), adminTargetRefusal()), so the page greys out
+ * exactly what the server would turn down.
+ */
+function permissionsPanel(PDO $pdo, array $actor)
+{
+    $o = permissionsOverview($pdo);
+    $o["me"] = ["id" => (int) $actor["id"], "director" => isDirector($actor)];
+    foreach ($o["roles"] as &$r) {
+        $r["locked"] = permissionChangeRefusal($actor, [], $r["key"]);
+    }
+    unset($r);
+    foreach ($o["admins"] as &$a) {
+        $a["locked"] = adminTargetRefusal($actor, $a, "permissions", $pdo);
+    }
+    unset($a);
+    return $o;
+}
+
+/**
+ * One Save on the Permissions panel: every role column and person that
+ * changed, as [{"role": ..., "changes": {...}} | {"admin_id": ..., ...}].
+ * Each is checked and stored in the caller's transaction, so one refusal
+ * leaves nothing stored. Returns the names that changed, for the reply.
+ */
+function savePermissionBatch(PDO $pdo, array $actor, $batch)
+{
+    if (!is_array($batch) || $batch === [] || count($batch) > 100) {
+        throw new PortalWriteError("Send between 1 and 100 sets of changes.");
+    }
+
+    $seen = [];
+    $names = [];
+    foreach (array_values($batch) as $item) {
+        if (!is_array($item)) {
+            throw new PortalWriteError("Each set of changes names a role or an admin.");
+        }
+        $id = isset($item["role"]) ? "role:" . json_encode($item["role"])
+            : (isset($item["admin_id"]) ? "admin:" . (int) $item["admin_id"] : null);
+        if ($id === null) {
+            throw new PortalWriteError("Say which role or admin to change.");
+        }
+        if (isset($seen[$id])) {
+            throw new PortalWriteError("Each role or admin can appear once in a save.");
+        }
+        $seen[$id] = true;
+
+        $changes = $item["changes"] ?? null;
+        if (isset($item["role"])) {
+            $role = is_string($item["role"]) ? $item["role"] : "";
+            setRolePermissions($pdo, $actor, $role, checkRolePermissionChange($actor, $role, $changes));
+            $names[] = "every " . adminRoleName($role);
+        } else {
+            [$target, $clean] = checkAdminPermissionChange($pdo, $actor, (int) $item["admin_id"], $changes);
+            setAdminPermissions($pdo, $actor, $target, $clean);
+            $names[] = $target["name"];
+        }
+    }
+    return $names;
 }
 
 /* The person picker's order: by role as the columns run (Admin, Super Admin,

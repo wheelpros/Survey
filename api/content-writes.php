@@ -38,6 +38,28 @@ function canCreateContent($admin)
     return can($admin, "content.create");
 }
 
+/**
+ * May $admin file a post under the company name $company? Only when it
+ * names a client account they can see (canSeeClient, the check api/v1 makes
+ * through v1VisibleClient). A blank name is a draft still waiting for its
+ * client; publishing one is refused elsewhere.
+ */
+function contentClientVisible(PDO $pdo, array $admin, $company)
+{
+    $company = trim((string) $company);
+    if ($company === "") {
+        return true;
+    }
+    $stmt = $pdo->prepare("SELECT id FROM users WHERE company_name = ? AND account_owner_id IS NULL");
+    $stmt->execute([$company]);
+    foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $userId) {
+        if (canSeeClient($pdo, $admin, (int) $userId)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 function canViewAllContent($admin)
 {
     return contentSeesAll($admin);

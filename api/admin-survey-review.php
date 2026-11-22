@@ -11,34 +11,7 @@ ensureNotificationsTable($pdo);
 // The queue below reads users.company_name.
 ensureUserProfileColumns($pdo);
 
-$headers = getallheaders();
-$authHeader = $headers["Authorization"] ?? "";
-$token = str_replace("Bearer ", "", $authHeader);
-
-if (!$token) {
-    echo json_encode([
-        "success" => false,
-        "message" => "Unauthorized"
-    ]);
-    exit;
-}
-
-$adminStmt = $pdo->prepare("
-    SELECT id, name, role
-    FROM admins
-    WHERE session_token = ?
-    LIMIT 1
-");
-$adminStmt->execute([$token]);
-$currentAdmin = $adminStmt->fetch();
-
-if (!$currentAdmin) {
-    echo json_encode([
-        "success" => false,
-        "message" => "Unauthorized"
-    ]);
-    exit;
-}
+$currentAdmin = requireAdmin($pdo);
 
 // The account manager is the desk a submitted form waits on, with the owner
 // alongside for oversight: only they may approve or reject. Every other admin

@@ -54,34 +54,10 @@ function respond($success, $message = "", $extra = [], $code = 200)
 
 const TEAM_ROLES = ["account_manager", "super_admin", "seo_admin"];
 
-$headers = function_exists("getallheaders") ? getallheaders() : [];
-
-$authorization =
-    $headers["Authorization"]
-    ?? $headers["authorization"]
-    ?? $_SERVER["HTTP_AUTHORIZATION"]
-    ?? "";
-
-if (!preg_match('/Bearer\s+(.+)/i', $authorization, $matches)) {
-    respond(false, "Unauthorized.", [], 401);
-}
-
-try {
-    $stmt = $pdo->prepare("SELECT id, role FROM admins WHERE session_token = ? LIMIT 1");
-    $stmt->execute([trim($matches[1])]);
-    $actor = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$actor) {
-        respond(false, "Unauthorized.", [], 401);
-    }
-} catch (Throwable $e) {
-    respond(false, "Authentication database error.", [], 500);
-}
+require_once "auth.php";
 
 // Clients Management, which this panel is part of, needs clients.details.
-if (!can($actor, "clients.details", $pdo)) {
-    respond(false, "Clients Management is not available to your role.", [], 403);
-}
+$actor = requireAdmin($pdo, "clients.details", "Clients Management is not available to your role.");
 
 $actorId = (int) $actor["id"];
 $seesAll = can($actor, "clients.view_all", $pdo);
@@ -92,14 +68,16 @@ $seesAll = can($actor, "clients.view_all", $pdo);
 | manager cannot take an admin belonging to someone else's team off a client.
 */
 
-/* Which columns the actor may change at all - the pool above says who. */
+/* Which columns the actor may change at all - the pool above says who. A
+   hierarchy rule (team-scope.php MANAGER_CAN_MANAGE), not a permission: the
+   Director every column, a manager the roles they may manage. */
 function editableColumnsFor($role)
 {
-    return [
-        "account_manager" => $role === "owner",
-        "super_admin"     => in_array($role, ["owner", "account_manager"], true),
-        "seo_admin"       => in_array($role, ["owner", "account_manager", "super_admin"], true),
-    ];
+    $columns = [];
+    foreach (["account_manager", "super_admin", "seo_admin"] as $column) {
+        $columns[$column] = $role === "owner" || in_array($column, MANAGER_CAN_MANAGE[$role] ?? [], true);
+    }
+    return $columns;
 }
 
 function teamMembers(PDO $pdo, $userId)
