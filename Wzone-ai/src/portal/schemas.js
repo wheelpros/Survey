@@ -1021,21 +1021,24 @@ export const myPosts = page(myPost);
 
 const count = z.number().int();
 const reportStatus = z
-  .enum(["awaiting", "changes", "reviewed", "sent", "missing", "in_progress", "planned"])
+  .enum(["awaiting", "changes", "reviewed", "sent", "in_progress", "planned"])
   .describe(
     "awaiting: Done work waiting for review; changes: work sent back to fix; reviewed: locked; " +
-      "sent: closed, nothing left to review but the report; missing: its day ended unclosed; " +
+      "sent: sent by its author, nothing left to review but the report; " +
       "in_progress: being filled in; planned: not started"
   );
+const activityCounts = z
+  .object({ todo: count, in_progress: count, follow_up: count, done: count })
+  .describe("Activities by status: the Activity Reports donut");
 const person = z.object({ id, name: text });
 
 const dailyItem = z.object({
   id,
-  report_date: text.describe("YYYY-MM-DD, the portal's day"),
+  report_date: text.describe("YYYY-MM-DD, the portal's day it was made - a label; it stays open until sent"),
   person: person.describe("Who fills it in"),
   department: maybe,
   status: reportStatus,
-  closed: z.boolean().describe("Closed by its author: only work sent back can change now"),
+  closed: z.boolean().describe("Sent by its author: only work sent back can change now"),
   activities_done: count,
   activities_total: count,
   to_review: count.describe("Done activities not reviewed yet"),
@@ -1043,13 +1046,15 @@ const dailyItem = z.object({
   reviewers: z.array(person).describe("Who sees and reviews it - any one of them completes the review"),
   reviewer: person.nullable().describe("The first of reviewers (older clients)"),
   challenge_priority: z.enum(["low", "medium", "high"]).nullable().describe("How urgent the author's challenge is; high means they need help"),
+  activity_counts: activityCounts,
 });
 
 export const myDailyReports = {
   today: text.describe("The portal's date today"),
-  today_report: dailyItem.nullable(),
-  needs_me: count.describe("My reports that need me: today's still open, plus any with work sent back"),
-  can_plan_own: z.boolean().describe("Whether I may start my own report in the portal"),
+  today_report: dailyItem.nullable().describe("The first report made today (older clients); open_reports has them all"),
+  open_reports: z.array(dailyItem).describe("Every report of mine not sent yet, from any day, newest first"),
+  needs_me: count.describe("My reports that need me: every one not sent yet, plus any with work sent back"),
+  can_plan_own: z.boolean().describe("Whether I may create my own reports"),
   items: z.array(dailyItem).describe("My last 30 reports, newest first"),
 };
 
@@ -1058,11 +1063,12 @@ export const teamDailyReports = {
   to: text,
   items: z.array(dailyItem),
   next_cursor: maybe.describe("Pass as `cursor` for the next page; null when this is the last"),
+  activity_counts: activityCounts.describe("Activities by status over every matching report, not just this page"),
   waiting_for_me: count.describe("Reports sent to me with Done work to review, any day"),
 };
 
 export const activityReportReviewers = {
-  can_plan_own: z.boolean().describe("Whether I may start my own report (plan_my_activity_report)"),
+  can_plan_own: z.boolean().describe("Whether I may create my own reports (plan_my_activity_report)"),
   reviewers: z.array(
     z.object({ id, name: text, is_director: z.boolean(), position: maybe, department: maybe })
   ),
@@ -1071,7 +1077,7 @@ export const activityReportReviewers = {
 
 export const dailyReport = {
   ...dailyItem.shape,
-  can_edit: z.boolean().describe("I'm its author and it's open: any activity not reviewed can change"),
+  can_edit: z.boolean().describe("I'm its author and haven't sent it, whatever its day: any activity not reviewed can change"),
   can_fix_sent_back: z.boolean().describe("I'm its author and only the activities sent back to me can change"),
   can_review_activities: z.boolean(),
   can_review_report: z.boolean(),

@@ -1697,9 +1697,9 @@ function ensureDepartmentsTable(PDO $pdo)
 /**
  * Activity reports (api/activity-report-lib.php has the rules):
  *
- *   daily_reports                    one per person per day, planned by
- *                                    someone (or themselves), closed by them
- *                                    with an end-of-day note
+ *   daily_reports                    a person's activities, planned by
+ *                                    someone (or themselves), sent by them
+ *                                    with an end-of-day note; any number a day
  *   daily_report_reviewers           who reviews each one: the planner, or the
  *                                    people picked for your own report
  *   daily_report_activities          the day's activities; the latest review
@@ -1739,7 +1739,7 @@ function ensureDailyReportTables(PDO $pdo)
               submitted_at      DATETIME         NULL,
               created_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
               updated_at        DATETIME         NULL,
-              UNIQUE KEY uq_person_day (admin_id, report_date),
+              KEY idx_person_day (admin_id, report_date),
               KEY idx_date (report_date),
               KEY idx_reviewer (reviewer_admin_id, status),
               KEY idx_created_by (created_by)
@@ -1811,6 +1811,25 @@ function ensureDailyReportTables(PDO $pdo)
             if (!in_array($column, $existing, true)) {
                 $pdo->exec("ALTER TABLE daily_reports ADD COLUMN `$column` $type");
             }
+        }
+
+        // One report a day used to be a unique key; any number is allowed now.
+        // Swapped in one ALTER so (admin_id, report_date) stays indexed throughout.
+        $stmt = $pdo->query("
+            SELECT INDEX_NAME FROM information_schema.STATISTICS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'daily_reports'
+              AND INDEX_NAME IN ('uq_person_day', 'idx_person_day')
+        ");
+        $indexes = array_unique($stmt->fetchAll(PDO::FETCH_COLUMN));
+        $changes = [];
+        if (in_array("uq_person_day", $indexes, true)) {
+            $changes[] = "DROP INDEX uq_person_day";
+        }
+        if (!in_array("idx_person_day", $indexes, true)) {
+            $changes[] = "ADD KEY idx_person_day (admin_id, report_date)";
+        }
+        if ($changes) {
+            $pdo->exec("ALTER TABLE daily_reports " . implode(", ", $changes));
         }
 
         // Reports from before the reviewers table: their one reviewer. Runs

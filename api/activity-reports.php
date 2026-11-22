@@ -6,10 +6,11 @@
 |--------------------------------------------------------------------------
 |
 | GET ?action=
-|   pending_count   my reports that need me: today's still open, plus any
-|                   with work sent back (the sidebar badge)
+|   pending_count   my reports that need me: every one not sent yet, plus
+|                   any with work sent back (the sidebar badge)
 |   summary         the Dashboard's cards (drSummaryFor); department=
-|   mine            my reports, today's first
+|   mine            my reports, newest first, and open_reports: every one
+|                   not sent yet, any day
 |   get&id=         one report I may see, with the can_* flags
 |   plan_options    who I can plan for, reviewers, departments, templates
 |                   (reports.create or reports.self)
@@ -17,7 +18,9 @@
 |   template&id=    one template to edit (its maker, or the Director)
 |   filters         Team reports' pickers: departments and people
 |   list            Team reports: department, admin_id, from, to, status;
-|                   one page at a time (limit, cursor -> next_cursor)
+|                   one page at a time (limit, cursor -> next_cursor);
+|                   stats.activities counts the filtered reports' activities
+|                   by status, and stats.reports how many reports those are
 |
 | Every reply carries `today`: the portal's day, which the pages use instead
 | of the browser's. The rules are in activity-report-lib.php; writes are
@@ -69,9 +72,10 @@ try {
         reply(true, "", ["pending" => drPendingCount($pdo, $p)]);
     }
 
-    // The Dashboard's Activity reports cards: my report today, what waits for my
-    // review, and - for whoever sees the team's reports - today's counted by
-    // status (?department= an id, or "none").
+    // The Dashboard's Activity reports cards: my first report today and how many
+    // of mine are open, what waits for my review, and - for whoever sees the
+    // team's reports - today's and every older open one counted by status
+    // (?department= an id, or "none").
     if ($action === "summary") {
         $dept = (string) ($_GET["department"] ?? "");
         reply(true, "", ["summary" => drSummaryFor($pdo, $p, $dept === "none" ? "none" : ((int) $dept ?: null))]);
@@ -79,6 +83,7 @@ try {
 
     if ($action === "mine") {
         $mine = drFetch($pdo, "r.admin_id = ?", [$p["id"]], false, "ORDER BY r.report_date DESC, r.id DESC LIMIT 120");
+        // today_sheet: the first one made today, for anything still reading it.
         $todayOne = null;
         $items = [];
         $upcoming = [];
@@ -93,7 +98,10 @@ try {
                 $items[] = $s;
             }
         }
-        reply(true, "", ["today_sheet" => $todayOne, "upcoming" => $upcoming, "items" => $items,
+        // Every open one, however far back: the list above stops at 120.
+        $open = array_values(array_map(function ($r) use ($pdo, $p) { return drSummary($pdo, $p, $r); },
+            drFetch($pdo, "r.admin_id = ? AND r.status = 'planned'", [$p["id"]])));
+        reply(true, "", ["today_sheet" => $todayOne, "open_reports" => $open, "upcoming" => $upcoming, "items" => $items,
             "can_self" => can($p, "reports.self", $pdo)]);
     }
 
@@ -208,7 +216,8 @@ try {
         $inRange = drFetch($pdo, $where, $params);
         $status = (string) ($_GET["status"] ?? "");
         $rows = [];
-        $stats = ["reports" => count($inRange), "sent" => 0, "awaiting" => 0, "changes" => 0];
+        $shown = [];
+        $stats = ["reports" => 0, "sent" => 0, "awaiting" => 0, "changes" => 0];
         foreach ($inRange as $r) {
             $s = drSummary($pdo, $p, $r);
             $stats["sent"] += $r["status"] !== "planned" ? 1 : 0;
@@ -216,8 +225,12 @@ try {
             $stats["changes"] += $s["effective_status"] === "changes" ? 1 : 0;
             if ($status === "" || $s["effective_status"] === $status) {
                 $rows[] = $s;
+                $shown[] = $r;
             }
         }
+        // The donut follows every filter, status included.
+        $stats["reports"] = count($shown);
+        $stats["activities"] = drActivityCounts($shown);
         usort($rows, function ($a, $b) {
             return strcmp($b["report_date"], $a["report_date"])
                 ?: (DR_STATUS_RANK[$a["effective_status"]] <=> DR_STATUS_RANK[$b["effective_status"]])

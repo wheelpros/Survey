@@ -2152,7 +2152,7 @@ function v1WriteHandlers()
         ],
 
         // ── Activity reports (activity-report-lib.php) ─────────────────────────
-        // Planning, filling in and closing your own report, and reviewing the
+        // Creating, filling in and sending your own reports, and reviewing the
         // ones sent to you. Planning for others, templates and deleting stay
         // in the portal.
 
@@ -2174,21 +2174,31 @@ function v1WriteHandlers()
                     if (!is_array($x)) {
                         throw new PortalWriteError("activities[$i] must be an object.");
                     }
-                    $acts[] = ["title" => argText($x, "title", 200), "description" => argText($x, "description", 2000, false),
+                    $act = ["title" => argText($x, "title", 200), "description" => argText($x, "description", 2000, false),
                         "count_unit" => argText($x, "count_unit", 30, false) ?: null];
+                    // Progress is optional; given, it's saved with the report.
+                    if (isset($x["status"]) || isset($x["outcome"]) || isset($x["count"])) {
+                        if (isset($x["count"]) && (!is_int($x["count"]) || $x["count"] < 0)) {
+                            throw new PortalWriteError("activities[$i].count must be a whole number, 0 or more.");
+                        }
+                        if (isset($x["count"]) && !$act["count_unit"]) {
+                            throw new PortalWriteError("activities[$i] has a count but nothing to count: give it a count_unit.");
+                        }
+                        $act += ["status" => isset($x["status"]) ? argEnum($x, "status", DR_ACTIVITY_STATUSES) : "todo",
+                            "outcome" => argText($x, "outcome", 5000, false), "count_value" => $x["count"] ?? null];
+                    }
+                    $acts[] = $act;
                 }
-                $stmt = $pdo->prepare("SELECT 1 FROM daily_reports WHERE admin_id = ? AND report_date = ?");
-                $stmt->execute([(int) $p["id"], drToday($pdo)]);
-                if ($stmt->fetchColumn()) {
-                    throw new PortalWriteError("You already have a report for today. Use add_report_activity to add to it.", 409);
-                }
+                drCleanPlan($acts, true); // the portal's own checks
                 $names = array_map(function ($id) use ($pdo) { return eventAdminName($pdo, $id); }, $reviewers);
+                $done = count(array_filter($acts, function ($x) { return ($x["status"] ?? "") === "done"; }));
                 return [
                     "args" => ["reviewers" => $reviewers, "activities" => $acts],
-                    "summary" => "Start your own activity report for today with " . count($acts) . " activit" . (count($acts) === 1 ? "y" : "ies")
+                    "summary" => "Create your own activity report with " . count($acts) . " activit" . (count($acts) === 1 ? "y" : "ies")
                         . " (" . implode(", ", array_map(function ($x) { return quoteFor($x["title"], 60); }, $acts)) . "), reviewed by "
-                        . implode(", ", $names) . (count($names) > 1 ? " - any one of them can review it." : "."),
-                    "preview" => ["reviewers" => $reviewers, "activities" => count($acts)],
+                        . implode(", ", $names) . (count($names) > 1 ? " - any one of them can review it." : ".")
+                        . " They're told as soon as it's saved" . ($done ? ", and can review the " . $done . " Done straight away." : "."),
+                    "preview" => ["reviewers" => $reviewers, "activities" => count($acts), "done" => $done],
                 ];
             },
             "apply" => function (PDO $pdo, array $p, array $a) {
@@ -2206,10 +2216,10 @@ function v1WriteHandlers()
                 if (!$r || $r["admin_id"] !== (int) $p["id"]) {
                     throw new PortalWriteError("No activity report of yours with that id.", 404);
                 }
-                if (!drCanAddOwn($pdo, $p, $r, drToday($pdo))) {
+                if (!drCanAddOwn($pdo, $p, $r)) {
                     throw new PortalWriteError($r["created_by"] === (int) $p["id"]
                         ? "This is your own plan: change it on the plan page."
-                        : "You can't add activities to this report: it needs to be today's, still open, and you need \"Plan their own activity report\".", 403);
+                        : "You can't add activities to this report: it needs to be not sent yet, and you need \"Plan their own activity report\".", 403);
                 }
                 $act = ["title" => argText($a, "title", 200), "description" => argText($a, "description", 2000, false),
                     "count_unit" => argText($a, "count_unit", 30, false)];
@@ -2248,7 +2258,7 @@ function v1WriteHandlers()
                 if ($act["origin"] !== "employee") {
                     throw new PortalWriteError("Only activities you added can be removed.", 403);
                 }
-                if (!drCanAddOwn($pdo, $p, $r, drToday($pdo))) {
+                if (!drCanAddOwn($pdo, $p, $r)) {
                     throw new PortalWriteError("This report can't be changed any more.", 403);
                 }
                 if (drTouched($act)) {
@@ -2275,8 +2285,8 @@ function v1WriteHandlers()
                 if (!$r || $r["admin_id"] !== (int) $p["id"]) {
                     throw new PortalWriteError("No activity report of yours with that id.", 404);
                 }
-                if (!drCanFill($p, $r, drToday($pdo))) {
-                    throw new PortalWriteError($r["status"] === "planned" ? "This day has passed, so the report can't change." : "It's closed, so this can't change.");
+                if (!drCanFill($p, $r)) {
+                    throw new PortalWriteError("It's sent, so this can't change.");
                 }
                 // What's given replaces what's saved; the rest stays.
                 $eod = drCleanEndOfDay([
@@ -2386,10 +2396,7 @@ function v1WriteHandlers()
                     throw new PortalWriteError("No activity report of yours with that id.", 404);
                 }
                 if ($r["status"] !== "planned") {
-                    throw new PortalWriteError("It's already closed.", 409);
-                }
-                if (!drCanFill($p, $r, drToday($pdo))) {
-                    throw new PortalWriteError("This day has passed, so the report can't change.");
+                    throw new PortalWriteError("It's already sent.", 409);
                 }
                 $open = count(array_filter($r["activities"], function ($x) { return $x["status"] !== "done"; }));
                 // The end-of-day note: what's given replaces what's saved; the rest stays.
@@ -2403,7 +2410,7 @@ function v1WriteHandlers()
                 $eod = drCleanEndOfDay($eod);
                 return [
                     "args" => ["id" => $id] + $eod,
-                    "summary" => "Close your activity report for " . $r["report_date"] . " (" . drProgressText($r) . ") and send it to "
+                    "summary" => "Send your activity report for " . $r["report_date"] . " (" . drProgressText($r) . ") to "
                         . ($r["reviewer_name"] ?: "your reviewer") . ". After that only activities sent back to you can change."
                         . ($open ? " " . $open . " activit" . ($open === 1 ? "y isn't" : "ies aren't") . " Done." : ""),
                     "preview" => ["report_id" => $id, "status" => "sent"],
@@ -2470,7 +2477,7 @@ function v1WriteHandlers()
                     throw new PortalWriteError("An activity is waiting on changes. Review the report once it's done again.", 409);
                 }
                 if (!drCanReviewReport($pdo, $p, $r)) {
-                    throw new PortalWriteError($r["status"] === "planned" ? "It isn't closed yet." : "You can't review this report.", 403);
+                    throw new PortalWriteError($r["status"] === "planned" ? "It isn't sent yet." : "You can't review this report.", 403);
                 }
                 $more = count(array_filter($r["activities"], "drAwaiting"));
                 return [

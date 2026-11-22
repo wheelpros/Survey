@@ -1,5 +1,5 @@
--- Activity reports: a day's activities planned for one person, filled in and
--- closed by them with an end-of-day note, reviewed activity by activity by
+-- Activity reports: activities planned for one person, filled in and sent by
+-- them with an end-of-day note, any number a day, reviewed activity by activity by
 -- any one of its reviewers (daily_report_reviewers).
 --
 -- The rules are in api/activity-report-lib.php. Files are rows in `attachments`
@@ -15,8 +15,8 @@ CREATE TABLE IF NOT EXISTS daily_reports (
   reviewer_admin_id INT              NULL,              -- before daily_report_reviewers; no longer read
   department_id     INT              NULL,
   template_id       INT              NULL,
-  report_date       DATE         NOT NULL,              -- the portal's day it was planned for
-  status            VARCHAR(10)  NOT NULL DEFAULT 'planned',  -- planned | submitted (closed) | reviewed
+  report_date       DATE         NOT NULL,              -- the portal's day it was created on (a label)
+  status            VARCHAR(10)  NOT NULL DEFAULT 'planned',  -- planned | submitted (sent) | reviewed
   started           TINYINT(1)   NOT NULL DEFAULT 0,    -- anything saved yet
   reviewer_note     TEXT             NULL,
   reviewed_by       INT              NULL,
@@ -28,11 +28,14 @@ CREATE TABLE IF NOT EXISTS daily_reports (
   challenge_priority VARCHAR(6)      NULL,              -- low | medium | high
   created_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at        DATETIME         NULL,
-  UNIQUE KEY uq_person_day (admin_id, report_date),
+  KEY idx_person_day (admin_id, report_date),
   KEY idx_date (report_date),
   KEY idx_reviewer (reviewer_admin_id, status),
   KEY idx_created_by (created_by)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Installs from before many reports a day had a unique key here. Swap it once:
+--   ALTER TABLE daily_reports DROP INDEX uq_person_day, ADD KEY idx_person_day (admin_id, report_date);
 
 CREATE TABLE IF NOT EXISTS daily_report_activities (
   id              INT AUTO_INCREMENT PRIMARY KEY,

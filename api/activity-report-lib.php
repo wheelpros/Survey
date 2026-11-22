@@ -5,15 +5,15 @@
 | Activity reports: the rules, in one place
 |--------------------------------------------------------------------------
 |
-| A planner writes the day's activities for someone: reports.create for their
-| team (everyone, for the Director and reports.view_all), reports.self for
-| their own report. The person fills it in on the report page through the
-| day - each activity's status, outcome and count, plus files - and closes it
-| at the end of the day with an end-of-day note (outstanding work, tomorrow's
-| priorities, challenges). Its reviewers (daily_report_reviewers) review each
-| Done activity as soon as it's saved - Reviewed, or Needs changes with
-| feedback - and the whole report once it's closed. Any one of them completes
-| the review.
+| A planner writes activities for someone: reports.create for their team
+| (everyone, for the Director and reports.view_all), reports.self for their
+| own report. Anyone may hold any number of reports, several on one day. The
+| person fills each in on the report page - each activity's status, outcome
+| and count, plus files - and sends it whenever it's ready, with an end-of-day
+| note (outstanding work, tomorrow's priorities, challenges). Its reviewers
+| (daily_report_reviewers) review each Done activity as soon as it's saved -
+| Reviewed, or Needs changes with feedback - and the whole report once it's
+| sent. Any one of them completes the review.
 |
 | Who the reviewers are: whoever planned it, for a report planned for someone;
 | the people the author picks, for their own (the Director, or anyone with
@@ -21,15 +21,15 @@
 |
 | The rules, as the audit left them (docs: the fix plan of 2026-11-19):
 |
-|   - "Today" is the portal's day (portalTimezone()), never the browser's.
-|   - The author edits their report while it's today's and not closed. After
-|     that only activities sent back for changes - on ANY day, so a send-back
-|     never leaves a report stuck.
-|   - Edit plan: only while the report is today's and not closed, and only
-|     safe changes. Activities are matched by id; one that was worked on or
-|     reviewed can't be removed or retitled.
-|   - Delete: the planner, only before anything happened (today's, not
-|     started). A missed report stays on record.
+|   - A report's date is the portal's day it was made (portalTimezone(), never
+|     the browser's). It is a label: nothing locks when the day ends.
+|   - The author edits their report until they send it. After that only
+|     activities sent back for changes.
+|   - Edit plan: only until it's sent, and only safe changes. Activities are
+|     matched by id; one that was worked on or reviewed can't be removed or
+|     retitled. Your own report's plan also carries each new or untouched
+|     activity's status, outcome and count.
+|   - Delete: the planner, only before anything happened (not started).
 |   - Reviewing: the report's reviewers, the Director, or reports.review for
 |     their own team. reports.view_all sees every report but reviews none by
 |     itself. Nobody reviews their own report.
@@ -43,7 +43,8 @@
 |
 | Notifications go out after each commit:
 |   planned, or the plan changed      -> the employee
-|   closed, or sent-back work fixed   -> every reviewer
+|   your own report created or saved  -> every reviewer, one row per report
+|   sent, or sent-back work fixed     -> every reviewer
 |   activities reviewed               -> the employee, one merged row per report
 |   report reviewed, or deleted       -> the employee
 |
@@ -63,7 +64,7 @@ const DR_MAX_ACTIVITIES = 30;
 const DR_LIST_PAGE_MAX = 100;
 
 /* Effective statuses, as the lists sort them (most in need of someone first). */
-const DR_STATUS_RANK = ["awaiting" => 0, "changes" => 1, "sent" => 2, "in_progress" => 3, "planned" => 4, "missing" => 5, "reviewed" => 6];
+const DR_STATUS_RANK = ["awaiting" => 0, "changes" => 1, "sent" => 2, "in_progress" => 3, "planned" => 4, "reviewed" => 5];
 
 /** The portal's date today, YYYY-MM-DD. */
 function drToday(PDO $pdo)
@@ -127,11 +128,8 @@ function drTouched(array $a)
 }
 
 /** What the report is waiting on, first match wins. */
-function drEffectiveStatus(array $r, $today)
+function drEffectiveStatus(array $r)
 {
-    if ($r["status"] === "planned" && $r["report_date"] < $today) {
-        return "missing";
-    }
     foreach ($r["activities"] as $a) {
         if (drAwaiting($a)) {
             return "awaiting";
@@ -161,21 +159,21 @@ function drAnySentBack(array $r)
     return false;
 }
 
-/** The author, while it's open: today's and not closed. */
-function drCanFill(array $p, array $r, $today)
+/** The author, until they send it. */
+function drCanFill(array $p, array $r)
 {
-    return $r["admin_id"] === (int) $p["id"] && $r["status"] === "planned" && $r["report_date"] === $today;
+    return $r["admin_id"] === (int) $p["id"] && $r["status"] === "planned";
 }
 
-/** The author fixing what was sent back, once the report is closed or its day has passed. */
-function drCanFix(array $p, array $r, $today)
+/** The author fixing what was sent back, once the report is sent. */
+function drCanFix(array $p, array $r)
 {
-    return $r["admin_id"] === (int) $p["id"] && $r["status"] !== "reviewed" && !drCanFill($p, $r, $today) && drAnySentBack($r);
+    return $r["admin_id"] === (int) $p["id"] && $r["status"] !== "reviewed" && !drCanFill($p, $r) && drAnySentBack($r);
 }
 
-function drCanPlan(array $p, array $r, $today)
+function drCanPlan(array $p, array $r)
 {
-    return $r["created_by"] === (int) $p["id"] && $r["status"] === "planned" && $r["report_date"] === $today;
+    return $r["created_by"] === (int) $p["id"] && $r["status"] === "planned";
 }
 
 /**
@@ -183,14 +181,14 @@ function drCanPlan(array $p, array $r, $today)
  * adds activities of their own (origin "employee"). Their own self-planned
  * report doesn't need this - they change it with Edit plan.
  */
-function drCanAddOwn(PDO $pdo, array $p, array $r, $today)
+function drCanAddOwn(PDO $pdo, array $p, array $r)
 {
-    return drCanFill($p, $r, $today) && !drCanPlan($p, $r, $today) && can($p, "reports.self", $pdo);
+    return drCanFill($p, $r) && !drCanPlan($p, $r) && can($p, "reports.self", $pdo);
 }
 
-function drCanDelete(array $p, array $r, $today)
+function drCanDelete(array $p, array $r)
 {
-    return $r["created_by"] === (int) $p["id"] && drEffectiveStatus($r, $today) === "planned";
+    return $r["created_by"] === (int) $p["id"] && drEffectiveStatus($r) === "planned";
 }
 
 function drCanReviewActivities(PDO $pdo, array $p, array $r)
@@ -228,7 +226,7 @@ function drPlannable(PDO $pdo, array $p)
             continue;
         }
         // Someone whose Activity Reports page is turned off couldn't open,
-        // fill in or close a report planned for them, so they aren't offered.
+        // fill in or send a report planned for them, so they aren't offered.
         if (!can(["id" => $id, "role" => $x["role"]], "pages.daily_reports", $pdo)) {
             continue;
         }
@@ -486,10 +484,23 @@ function drCounts(array $reports)
     return $out;
 }
 
+/** Activities by status over $reports: the Activity Reports donut. */
+function drActivityCounts(array $reports)
+{
+    $counts = array_fill_keys(DR_ACTIVITY_STATUSES, 0);
+    foreach ($reports as $r) {
+        foreach ($r["activities"] as $a) {
+            if (isset($counts[$a["status"]])) {
+                $counts[$a["status"]]++;
+            }
+        }
+    }
+    return $counts;
+}
+
 /** A report as the lists show it. */
 function drSummary(PDO $pdo, array $p, array $r)
 {
-    $today = drToday($pdo);
     $done = 0;
     $toReview = 0;
     foreach ($r["activities"] as $a) {
@@ -502,16 +513,16 @@ function drSummary(PDO $pdo, array $p, array $r)
         "department_id" => $r["department_id"], "department_name" => $r["department_name"],
         "created_by" => $r["created_by"], "created_by_name" => $r["created_by_name"], "self_made" => $r["created_by"] === $r["admin_id"],
         "template_name" => $r["template_name"],
-        "report_date" => $r["report_date"], "status" => $r["status"], "effective_status" => drEffectiveStatus($r, $today),
+        "report_date" => $r["report_date"], "status" => $r["status"], "effective_status" => drEffectiveStatus($r),
         "to_review" => $toReview, "activities_total" => count($r["activities"]), "activities_done" => $done,
-        "counts" => drCounts([$r]),
+        "counts" => drCounts([$r]), "activity_counts" => drActivityCounts([$r]),
         "reviewer_id" => $r["reviewer_id"], "reviewer_name" => $r["reviewer_name"],
         "reviewers" => $r["reviewers"], "reviewer_ids" => $r["reviewer_ids"],
         "challenge_priority" => $r["challenge_priority"],
         "reviewed_by" => $r["reviewed_by"], "reviewed_by_name" => $r["reviewed_by_name"], "reviewer_note" => $r["reviewer_note"],
         "reviewed_ts" => $r["reviewed_ts"], "submitted_ts" => $r["submitted_ts"], "updated_ts" => $r["updated_ts"], "created_ts" => $r["created_ts"],
         "file_count" => $r["file_count"],
-        "can_plan" => drCanPlan($p, $r, $today), "can_delete" => drCanDelete($p, $r, $today),
+        "can_plan" => drCanPlan($p, $r), "can_delete" => drCanDelete($p, $r),
     ];
 }
 
@@ -530,14 +541,13 @@ function drFull(PDO $pdo, array $p, array $r)
 /** The flags the report page needs, beside the report itself. */
 function drFlags(PDO $pdo, array $p, array $r)
 {
-    $today = drToday($pdo);
     $canReviewActivities = drCanReviewActivities($pdo, $p, $r);
     return [
-        "can_fill" => drCanFill($p, $r, $today),
-        "can_fix" => drCanFix($p, $r, $today),
-        "can_plan" => drCanPlan($p, $r, $today),
-        "can_delete" => drCanDelete($p, $r, $today),
-        "can_add_own" => drCanAddOwn($pdo, $p, $r, $today),
+        "can_fill" => drCanFill($p, $r),
+        "can_fix" => drCanFix($p, $r),
+        "can_plan" => drCanPlan($p, $r),
+        "can_delete" => drCanDelete($p, $r),
+        "can_add_own" => drCanAddOwn($pdo, $p, $r),
         "can_review_activities" => $canReviewActivities,
         "can_review" => drCanReviewReport($pdo, $p, $r),
         "review_blocked" => $canReviewActivities && $r["status"] === "submitted" && drAnySentBack($r),
@@ -564,19 +574,18 @@ function drTeamScopeSql(PDO $pdo, array $p)
     return ["r.admin_id <> ? AND (" . implode(" OR ", $parts) . ")", [$me, $me, $me]];
 }
 
-/** How many of $p's reports need them: today's still open, plus any with work sent back to fix. */
+/** How many of $p's reports need them: every one not sent yet, plus any with work sent back to fix. */
 function drPendingCount(PDO $pdo, array $p)
 {
-    $today = drToday($pdo);
     $stmt = $pdo->prepare("
         SELECT COUNT(*) FROM daily_reports r
         WHERE r.admin_id = ?
-          AND ((r.report_date = ? AND r.status = 'planned')
+          AND (r.status = 'planned'
             OR (r.status <> 'reviewed' AND EXISTS (
                   SELECT 1 FROM daily_report_activities x
                   WHERE x.report_id = r.id AND x.review_state = 'changes' AND x.status <> 'done')))
     ");
-    $stmt->execute([(int) $p["id"], $today]);
+    $stmt->execute([(int) $p["id"]]);
     return (int) $stmt->fetchColumn();
 }
 
@@ -596,19 +605,23 @@ function drWaitingForMe(PDO $pdo, array $p)
 }
 
 /**
- * The dashboard's numbers for $p, in one call: their own report today, how
- * many reports wait for their review, and - for whoever sees the team's - the
- * day's reports counted by effective status.
+ * The dashboard's numbers for $p, in one call: their first report today and
+ * how many of theirs are still open, how many reports wait for their review,
+ * and - for whoever sees the team's - today's reports plus every older one not
+ * sent yet, counted by effective status.
  */
 function drSummaryFor(PDO $pdo, array $p, $departmentId = null)
 {
     $today = drToday($pdo);
-    $mine = drFetch($pdo, "r.admin_id = ? AND r.report_date = ?", [(int) $p["id"], $today]);
-    $mine = $mine ? reset($mine) : null;
+    $todays = drFetch($pdo, "r.admin_id = ? AND r.report_date = ?", [(int) $p["id"], $today], false, "ORDER BY r.id");
+    $mine = $todays ? reset($todays) : null;
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM daily_reports WHERE admin_id = ? AND status = 'planned'");
+    $stmt->execute([(int) $p["id"]]);
 
     $out = [
         "today" => $today,
         "my_report" => $mine ? drSummary($pdo, $p, $mine) : null,
+        "my_open" => (int) $stmt->fetchColumn(),
         "pending" => drPendingCount($pdo, $p),
         "waiting_for_me" => drWaitingForMe($pdo, $p),
         "team" => null,
@@ -616,7 +629,7 @@ function drSummaryFor(PDO $pdo, array $p, $departmentId = null)
 
     if (drSeesAll($pdo, $p) || can($p, "reports.review", $pdo) || can($p, "reports.create", $pdo)) {
         [$scope, $params] = drTeamScopeSql($pdo, $p);
-        $where = $scope . " AND r.report_date = ?";
+        $where = $scope . " AND (r.report_date = ? OR r.status = 'planned')";
         $params[] = $today;
         if ($departmentId === "none") {
             $where .= " AND r.department_id IS NULL";
@@ -626,7 +639,7 @@ function drSummaryFor(PDO $pdo, array $p, $departmentId = null)
         }
         $counts = array_fill_keys(array_keys(DR_STATUS_RANK), 0);
         foreach (drFetch($pdo, $where, $params) as $r) {
-            $counts[drEffectiveStatus($r, $today)]++;
+            $counts[drEffectiveStatus($r)]++;
         }
         $out["team"] = $counts;
         $out["departments"] = array_map(function ($d) {
@@ -718,14 +731,48 @@ function drNotifyActivityReviews(PDO $pdo, array $p, $reportId)
         drLink($r["id"]), "admin", (int) $p["id"]);
 }
 
+/**
+ * Your own report, created or its plan saved: each reviewer's one row for it,
+ * replaced on every save. $dropped are reviewers taken off it: their unread
+ * row goes, since the report isn't theirs to look at any more.
+ */
+function drNotifyReviewersOfOwn(PDO $pdo, array $p, $reportId, $created, array $dropped = [])
+{
+    $r = drFind($pdo, $reportId, false);
+    if (!$r) {
+        return;
+    }
+    if ($dropped) {
+        try {
+            $pdo->prepare("DELETE FROM notifications WHERE recipient_kind = 'admin' AND event_type = ? AND link = ? AND read_at IS NULL
+                           AND recipient_id IN (" . implode(",", array_map("intval", $dropped)) . ")")
+                ->execute([NOTIFY_DAILY_REPORT, drLink($r["id"])]);
+        } catch (Throwable $e) {
+            // A leftover row opens a report they can't see; harmless.
+        }
+    }
+    $waiting = count(array_filter($r["activities"], "drAwaiting"));
+    foreach ($r["reviewer_ids"] as $reviewerId) {
+        notifyReplacing($pdo, "admin", $reviewerId, NOTIFY_DAILY_REPORT,
+            $r["admin_name"] . ($created ? " created an activity report" : " updated their activity report"),
+            drProgressText($r) . ($waiting ? ", " . $waiting . " waiting for your review." : "."),
+            drLink($r["id"]), "admin", (int) $p["id"]);
+    }
+}
+
 /*
 |--------------------------------------------------------------------------
 | Writing
 |--------------------------------------------------------------------------
 */
 
-/** A planner's activities, checked and tidied: [{id, title, description, count_unit, origin}]. */
-function drCleanPlan($list)
+/**
+ * A planner's activities, checked and tidied: [{id, title, description,
+ * count_unit, origin, progress}]. $withProgress (your own report) also reads
+ * each one's status, outcome and count_value into progress; otherwise, and
+ * when none of the three is given, progress is null.
+ */
+function drCleanPlan($list, $withProgress = false)
 {
     $out = [];
     foreach (is_array($list) ? $list : [] as $x) {
@@ -743,6 +790,7 @@ function drCleanPlan($list)
             "description" => mb_substr(trim((string) ($x["description"] ?? "")), 0, 2000),
             "count_unit" => $unit !== "" ? $unit : null,
             "origin" => ($x["origin"] ?? "") === "carried" ? "carried" : "planned",
+            "progress" => $withProgress ? drCleanProgress($x, $title, $unit !== "") : null,
         ];
     }
     if (!$out) {
@@ -752,6 +800,33 @@ function drCleanPlan($list)
         throw new PortalWriteError("A report can have up to " . DR_MAX_ACTIVITIES . " activities.");
     }
     return $out;
+}
+
+/** One activity's status, outcome and count from a plan, or null when none is given. */
+function drCleanProgress(array $x, $title, $counted)
+{
+    if (!array_key_exists("status", $x) && !array_key_exists("outcome", $x) && !array_key_exists("count_value", $x)) {
+        return null;
+    }
+    $status = (string) ($x["status"] ?? "todo");
+    if (!in_array($status, DR_ACTIVITY_STATUSES, true)) {
+        throw new PortalWriteError("Pick a status for “" . $title . "”.");
+    }
+    $count = $x["count_value"] ?? null;
+    if ($count === "" || $count === null) {
+        $count = null;
+    } elseif (!is_numeric($count) || (int) $count != $count || (int) $count < 0) {
+        throw new PortalWriteError("Counts are whole numbers, 0 or more.");
+    } else {
+        $count = (int) $count;
+    }
+    return ["status" => $status, "outcome" => mb_substr(trim((string) ($x["outcome"] ?? "")), 0, 5000), "count_value" => $counted ? $count : null];
+}
+
+/** Whether a plan's progress is anything more than an untouched To do. */
+function drHasProgress($progress)
+{
+    return $progress !== null && ($progress["status"] !== "todo" || $progress["outcome"] !== "" || $progress["count_value"] !== null);
 }
 
 function drCheckDepartment(PDO $pdo, $departmentId)
@@ -771,17 +846,32 @@ function drCheckDepartment(PDO $pdo, $departmentId)
 function drInsertActivities(PDO $pdo, $reportId, array $acts, $startOrder = 0)
 {
     $insert = $pdo->prepare("
-        INSERT INTO daily_report_activities (report_id, sort_order, title, description, origin, count_unit)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO daily_report_activities (report_id, sort_order, title, description, origin, count_unit, status, outcome, count_value, done_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, IF(? = 'done', NOW(), NULL))
     ");
     foreach (array_values($acts) as $i => $a) {
-        $insert->execute([(int) $reportId, $startOrder + $i, $a["title"], $a["description"], $a["origin"], $a["count_unit"]]);
+        $g = $a["progress"] ?? null;
+        $status = $g ? $g["status"] : "todo";
+        $insert->execute([(int) $reportId, $startOrder + $i, $a["title"], $a["description"], $a["origin"], $a["count_unit"],
+            $status, $g && $g["outcome"] !== "" ? $g["outcome"] : null, $g ? $g["count_value"] : null, $status]);
     }
 }
 
+/** An untouched activity's progress, from your own plan (inside the caller's transaction). */
+function drWriteProgress(PDO $pdo, $reportId, $activityId, array $g)
+{
+    $pdo->prepare("
+        UPDATE daily_report_activities
+        SET status = ?, outcome = ?, count_value = ?, done_at = IF(? = 'done', NOW(), NULL)
+        WHERE id = ? AND report_id = ?
+    ")->execute([$g["status"], $g["outcome"] !== "" ? $g["outcome"] : null, $g["count_value"], $g["status"], (int) $activityId, (int) $reportId]);
+}
+
 /**
- * Plans today's report: for the people in $in["admin_ids"] (reports.create),
- * or for $p themselves ($in["self"], reports.self). Returns [ids, message].
+ * Plans a report dated today: for the people in $in["admin_ids"]
+ * (reports.create), or for $p themselves ($in["self"], reports.self), whatever
+ * else they already have. Your own may carry each activity's progress, and
+ * its reviewers hear of it at once. Returns [ids, message].
  * With $in["id"], changes that report's plan instead (drReplan()).
  */
 function drPlan(PDO $pdo, array $p, array $in)
@@ -795,7 +885,8 @@ function drPlan(PDO $pdo, array $p, array $in)
         throw new PortalWriteError("You can't plan this report.", 403);
     }
     $today = drToday($pdo);
-    $acts = drCleanPlan($in["activities"] ?? []);
+    $acts = drCleanPlan($in["activities"] ?? [], $self);
+    $started = count(array_filter($acts, function ($a) { return drHasProgress($a["progress"]); })) > 0;
     $deptId = drCheckDepartment($pdo, $in["department_id"] ?? null);
     $tplId = (int) ($in["template_id"] ?? 0) ?: null;
 
@@ -816,22 +907,13 @@ function drPlan(PDO $pdo, array $p, array $in)
     // Your own: the people you picked. Planned for someone: you review it.
     $reviewerIds = $self ? drCheckReviewers($pdo, $in["reviewer_ids"] ?? [], (int) $p["id"]) : [(int) $p["id"]];
 
-    $marks = implode(",", array_fill(0, count($ids), "?"));
-    $taken = $pdo->prepare("SELECT a.name FROM daily_reports r JOIN admins a ON a.id = r.admin_id WHERE r.report_date = ? AND r.admin_id IN ($marks)");
-    $taken->execute(array_merge([$today], $ids));
-    $names = $taken->fetchAll(PDO::FETCH_COLUMN);
-    if ($names) {
-        throw new PortalWriteError($self ? "You already have a report for today."
-            : implode(", ", $names) . (count($names) === 1 ? " already has" : " already have") . " a report for today. Open it from Team reports to change it.", 409);
-    }
-
     $deptOf = $pdo->prepare("SELECT department_id FROM admins WHERE id = ?");
     $made = [];
     $pdo->beginTransaction();
     try {
         $insert = $pdo->prepare("
-            INSERT INTO daily_reports (admin_id, created_by, reviewer_admin_id, department_id, template_id, report_date, status, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, 'planned', NOW())
+            INSERT INTO daily_reports (admin_id, created_by, reviewer_admin_id, department_id, template_id, report_date, status, started, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, 'planned', ?, NOW())
         ");
         foreach ($ids as $id) {
             $dept = $deptId;
@@ -839,7 +921,7 @@ function drPlan(PDO $pdo, array $p, array $in)
                 $deptOf->execute([$id]);
                 $dept = $deptOf->fetchColumn() ?: null;
             }
-            $insert->execute([$id, (int) $p["id"], $reviewerIds[0], $dept, $tplId, $today]);
+            $insert->execute([$id, (int) $p["id"], $reviewerIds[0], $dept, $tplId, $today, $started ? 1 : 0]);
             $rid = (int) $pdo->lastInsertId();
             drSetReviewers($pdo, $rid, $reviewerIds);
             drInsertActivities($pdo, $rid, $acts);
@@ -850,22 +932,21 @@ function drPlan(PDO $pdo, array $p, array $in)
         $pdo->commit();
     } catch (Throwable $e) {
         $pdo->rollBack();
-        if ($e instanceof PDOException && (string) $e->getCode() === "23000") {
-            throw new PortalWriteError("Someone already has a report for today. Reload and try again.", 409);
-        }
         throw $e;
     }
 
-    if (!$self) {
+    if ($self) {
+        drNotifyReviewersOfOwn($pdo, $p, $made[0], true);
+    } else {
         foreach ($made as $i => $rid) {
             notify($pdo, "admin", $ids[$i], NOTIFY_DAILY_PLANNED, $p["name"] . " planned your day",
-                count($acts) . " activit" . (count($acts) === 1 ? "y" : "ies") . " for today. " . $p["name"] . " reviews it.",
+                count($acts) . " activit" . (count($acts) === 1 ? "y" : "ies") . ". " . $p["name"] . " reviews it.",
                 drLink($rid), "admin", (int) $p["id"]);
         }
     }
 
-    $message = $self ? "Your report for today is ready to fill in."
-        : (count($ids) === 1 ? eventAdminName($pdo, $ids[0]) . " has" : count($ids) . " people have") . " been sent their report for today.";
+    $message = $self ? "Your report is saved, and its reviewers have been told."
+        : (count($ids) === 1 ? eventAdminName($pdo, $ids[0]) . " has" : count($ids) . " people have") . " been sent their report.";
     return [$made, $message];
 }
 
@@ -877,13 +958,13 @@ function drPlan(PDO $pdo, array $p, array $in)
 function drReplan(PDO $pdo, array $p, $id, array $in)
 {
     $r = drFind($pdo, $id);
-    $today = drToday($pdo);
-    if (!$r || !drCanSee($pdo, $p, $r) || !drCanPlan($p, $r, $today)) {
+    if (!$r || !drCanSee($pdo, $p, $r) || !drCanPlan($p, $r)) {
         throw new PortalWriteError("This report can't be changed any more.", 403);
     }
-    $acts = drCleanPlan($in["activities"] ?? []);
-    // Your own report: the reviewers you pick now. Someone else's: the planner, unchanged.
+    // Your own report: the reviewers you pick now, and progress on untouched
+    // activities. Someone else's: the planner, unchanged, and no progress.
     $self = $r["admin_id"] === (int) $p["id"];
+    $acts = drCleanPlan($in["activities"] ?? [], $self);
     $reviewerIds = $self ? drCheckReviewers($pdo, $in["reviewer_ids"] ?? [], (int) $p["id"]) : null;
     $deptId = drCheckDepartment($pdo, $in["department_id"] ?? null);
     $tplId = (int) ($in["template_id"] ?? 0) ?: null;
@@ -930,12 +1011,17 @@ function drReplan(PDO $pdo, array $p, $id, array $in)
     try {
         $update = $pdo->prepare("UPDATE daily_report_activities SET title = ?, description = ?, count_unit = ?, sort_order = ? WHERE id = ? AND report_id = ?");
         $move = $pdo->prepare("UPDATE daily_report_activities SET sort_order = ? WHERE id = ? AND report_id = ?");
+        $started = false;
         foreach ($acts as $i => $a) {
+            $started = $started || drHasProgress($a["progress"]);
             if ($a["id"]) {
                 if (drTouched($byId[$a["id"]])) {
                     $move->execute([$i, $a["id"], $r["id"]]);
                 } else {
                     $update->execute([$a["title"], $a["description"], $a["count_unit"], $i, $a["id"], $r["id"]]);
+                    if ($a["progress"]) {
+                        drWriteProgress($pdo, $r["id"], $a["id"], $a["progress"]);
+                    }
                 }
             } else {
                 drInsertActivities($pdo, $r["id"], [$a], $i);
@@ -949,8 +1035,8 @@ function drReplan(PDO $pdo, array $p, $id, array $in)
         foreach (array_keys($own) as $k => $ownId) {
             $move->execute([count($acts) + $k, $ownId, $r["id"]]);
         }
-        $pdo->prepare("UPDATE daily_reports SET department_id = ?, template_id = ?, updated_at = NOW() WHERE id = ?")
-            ->execute([$deptId, $tplId, $r["id"]]);
+        $pdo->prepare("UPDATE daily_reports SET department_id = ?, template_id = ?, started = started OR ?, updated_at = NOW() WHERE id = ?")
+            ->execute([$deptId, $tplId, $started ? 1 : 0, $r["id"]]);
         if ($reviewerIds !== null) {
             drSetReviewers($pdo, $r["id"], $reviewerIds);
         }
@@ -962,13 +1048,15 @@ function drReplan(PDO $pdo, array $p, $id, array $in)
         throw $e;
     }
 
-    if ($r["admin_id"] !== (int) $p["id"]) {
-        notifyReplacing($pdo, "admin", $r["admin_id"], NOTIFY_DAILY_PLANNED, $p["name"] . " changed your plan for today",
+    if ($self) {
+        drNotifyReviewersOfOwn($pdo, $p, $r["id"], false, array_values(array_diff($r["reviewer_ids"], $reviewerIds)));
+    } else {
+        notifyReplacing($pdo, "admin", $r["admin_id"], NOTIFY_DAILY_PLANNED, $p["name"] . " changed your activity report",
             count($acts) . " activit" . (count($acts) === 1 ? "y" : "ies") . " now. Work you've done stays as it is.",
             drLink($r["id"]), "admin", (int) $p["id"]);
     }
 
-    return [[$r["id"]], $r["admin_id"] === (int) $p["id"] ? "Your report is updated." : "Report updated. " . $r["admin_name"] . " sees the change."];
+    return [[$r["id"]], $self ? "Your report is updated, and its reviewers have been told." : "Report updated. " . $r["admin_name"] . " sees the change."];
 }
 
 /**
@@ -978,7 +1066,7 @@ function drReplan(PDO $pdo, array $p, $id, array $in)
 function drAddOwnActivity(PDO $pdo, array $p, $id, array $in)
 {
     $r = drOwn($pdo, $p, $id);
-    if (!drCanAddOwn($pdo, $p, $r, drToday($pdo))) {
+    if (!drCanAddOwn($pdo, $p, $r)) {
         throw new PortalWriteError("You can't add activities to this report.", 403);
     }
     if (count($r["activities"]) >= DR_MAX_ACTIVITIES) {
@@ -1011,7 +1099,7 @@ function drAddOwnActivity(PDO $pdo, array $p, $id, array $in)
 function drRemoveOwnActivity(PDO $pdo, array $p, $id, $activityId)
 {
     $r = drOwn($pdo, $p, $id);
-    if (!drCanAddOwn($pdo, $p, $r, drToday($pdo))) {
+    if (!drCanAddOwn($pdo, $p, $r)) {
         throw new PortalWriteError("This report can't be changed any more.", 403);
     }
     $act = null;
@@ -1056,8 +1144,8 @@ function drOwn(PDO $pdo, array $p, $id)
 
 /**
  * The author's in-place edits: [{id, status, outcome, count_value}], only the
- * changed ones. While the report is open, anything not reviewed; once it's
- * closed or its day has passed, only activities sent back. Returns a message.
+ * changed ones. Until the report is sent, anything not reviewed; after that,
+ * only activities sent back. Returns a message.
  */
 function drUpdateActivities(PDO $pdo, array $p, $id, $edits)
 {
@@ -1073,9 +1161,8 @@ function drUpdateActivities(PDO $pdo, array $p, $id, $edits)
 function drCheckActivityEdits(PDO $pdo, array $p, $id, $edits)
 {
     $r = drOwn($pdo, $p, $id);
-    $today = drToday($pdo);
-    $open = drCanFill($p, $r, $today);
-    if (!$open && !drCanFix($p, $r, $today)) {
+    $open = drCanFill($p, $r);
+    if (!$open && !drCanFix($p, $r)) {
         throw new PortalWriteError($r["status"] === "reviewed" ? "It has been reviewed, so it can't change." : "This report is locked.");
     }
     if (!is_array($edits) || !$edits) {
@@ -1147,8 +1234,8 @@ function drSaveActivityEdits(PDO $pdo, array $p, array $r, $open, array $clean)
         $waiting += drAwaiting($a) ? 1 : 0;
     }
 
-    // Sent-back work done again on a locked report: the reviewer wouldn't
-    // otherwise know to look. (During the open day, Done work just appears.)
+    // Sent-back work done again on a sent report: the reviewer wouldn't
+    // otherwise know to look. (While it's open, Done work just appears.)
     $fixed = array_filter($clean, function ($c) { return drSentBack($c[0]) && $c[1] === "done"; });
     if (!$open && $fixed) {
         foreach ($r["reviewer_ids"] as $reviewerId) {
@@ -1190,25 +1277,22 @@ function drWriteEndOfDay(PDO $pdo, $reportId, array $eod)
 function drSaveEndOfDay(PDO $pdo, array $p, $id, array $in)
 {
     $r = drOwn($pdo, $p, $id);
-    if (!drCanFill($p, $r, drToday($pdo))) {
-        throw new PortalWriteError($r["status"] === "planned" ? "This day has passed, so the report can't change." : "It's closed, so this can't change.");
+    if (!drCanFill($p, $r)) {
+        throw new PortalWriteError("It's sent, so this can't change.");
     }
     drWriteEndOfDay($pdo, $r["id"], drCleanEndOfDay($in));
     return "End of day saved.";
 }
 
 /**
- * Closing the day: the author sends their report, with the end-of-day note
- * when $in carries one. Returns [report, message].
+ * Sending: the author sends an open report, from any day, with the end-of-day
+ * note when $in carries one. Returns [report, message].
  */
 function drClose(PDO $pdo, array $p, $id, array $in = [])
 {
     $r = drOwn($pdo, $p, $id);
     if ($r["status"] !== "planned") {
-        throw new PortalWriteError("It's already closed.");
-    }
-    if (!drCanFill($p, $r, drToday($pdo))) {
-        throw new PortalWriteError("This day has passed, so the report can't change.");
+        throw new PortalWriteError("It's already sent.");
     }
     $eod = array_key_exists("outstanding", $in) || array_key_exists("priorities", $in) || array_key_exists("challenges", $in)
         ? drCleanEndOfDay($in) : null;
@@ -1221,7 +1305,7 @@ function drClose(PDO $pdo, array $p, $id, array $in = [])
         $stmt = $pdo->prepare("UPDATE daily_reports SET status = 'submitted', started = 1, submitted_at = NOW(), updated_at = NOW() WHERE id = ? AND status = 'planned'");
         $stmt->execute([$r["id"]]);
         if (!$stmt->rowCount()) {
-            throw new PortalWriteError("It's already closed.", 409);
+            throw new PortalWriteError("It's already sent.", 409);
         }
         logEvent($pdo, EVENT_REPORT_CLOSED, "daily_report", $r["id"], $r["admin_name"], "Sent the activity report for " . $r["report_date"]);
         $pdo->commit();
@@ -1234,11 +1318,11 @@ function drClose(PDO $pdo, array $p, $id, array $in = [])
     $priority = $eod ? $eod["challenge_priority"] : $r["challenge_priority"];
     $help = $priority === "high" ? " Needs help: a high-priority challenge." : "";
     foreach ($r["reviewer_ids"] as $reviewerId) {
-        notifyReplacing($pdo, "admin", $reviewerId, NOTIFY_DAILY_REPORT, $r["admin_name"] . " closed their activity report",
+        notifyReplacing($pdo, "admin", $reviewerId, NOTIFY_DAILY_REPORT, $r["admin_name"] . " sent their activity report",
             drProgressText($r) . ($waiting ? ", " . $waiting . " waiting for your review." : ".") . $help,
             drLink($r["id"]), "admin", (int) $p["id"]);
     }
-    return [$r, "Report closed and sent to " . ($r["reviewer_name"] ?: "your reviewer") . ". They've been told it's ready."];
+    return [$r, "Report sent to " . ($r["reviewer_name"] ?: "your reviewer") . ". They've been told it's ready."];
 }
 
 /**
@@ -1248,8 +1332,7 @@ function drClose(PDO $pdo, array $p, $id, array $in = [])
 function drUpdateFiles(PDO $pdo, array $p, $id, $keepIds, array $files)
 {
     $r = drOwn($pdo, $p, $id);
-    $today = drToday($pdo);
-    if (!drCanFill($p, $r, $today) && !drCanFix($p, $r, $today)) {
+    if (!drCanFill($p, $r) && !drCanFix($p, $r)) {
         throw new PortalWriteError($r["status"] === "reviewed" ? "It has been reviewed, so it can't change." : "This report is locked.");
     }
     $pdo->beginTransaction();
@@ -1334,7 +1417,7 @@ function drReviewActivity(PDO $pdo, array $p, $activityId, $state, $feedback)
 }
 
 /**
- * The whole report reviewed, once closed: remaining Done activities are
+ * The whole report reviewed, once sent: remaining Done activities are
  * approved with it; refused while anything waits on changes. Returns [report, message].
  */
 function drReviewReport(PDO $pdo, array $p, $id, $note)
@@ -1405,8 +1488,8 @@ function drDelete(PDO $pdo, array $p, $id)
     if ($r["created_by"] !== (int) $p["id"]) {
         throw new PortalWriteError("Only the person who planned it can delete it.", 403);
     }
-    if (!drCanDelete($p, $r, drToday($pdo))) {
-        throw new PortalWriteError($r["report_date"] < drToday($pdo) ? "Its day has passed, so it stays on record." : "Work has started on it, so it can't be deleted.");
+    if (!drCanDelete($p, $r)) {
+        throw new PortalWriteError("Work has started on it, so it can't be deleted.");
     }
 
     $pdo->beginTransaction();
@@ -1431,10 +1514,10 @@ function drDelete(PDO $pdo, array $p, $id)
         } catch (Throwable $e) {
             // Leftovers open a "doesn't exist" page; harmless.
         }
-        notify($pdo, "admin", $r["admin_id"], NOTIFY_DAILY_REPORT_DELETED, $p["name"] . " withdrew your report for today",
-            "You don't need to fill it in.", "activity-reports.html", "admin", (int) $p["id"]);
+        notify($pdo, "admin", $r["admin_id"], NOTIFY_DAILY_REPORT_DELETED, $p["name"] . " withdrew your activity report",
+            "Your report for " . $r["report_date"] . ": you don't need to fill it in.", "activity-reports.html", "admin", (int) $p["id"]);
     }
-    return [$r, $mine ? "Your report for today is deleted." : $r["admin_name"] . "'s report is deleted. They've been told.", $paths];
+    return [$r, $mine ? "Your report is deleted." : $r["admin_name"] . "'s report is deleted. They've been told.", $paths];
 }
 
 /** Creates or changes a template (reports.create; changes by its maker or the Director). Returns [id, message]. */

@@ -15,9 +15,11 @@
 |   end_of_day {id, outstanding, priorities, challenges, challenge_priority}
 |                       the author's end-of-day note, while it's open
 |   close {id, ...end_of_day fields?}
-|                       the author closes the day (saving the note with it)
-|   plan {...}          plan today's report(s); with id, change a plan. Your
-|                       own takes reviewer_ids; for others, you review it
+|                       the author sends an open report, from any day
+|                       (saving the note with it)
+|   plan {...}          a new report (any number a day); with id, change a
+|                       plan. Your own takes reviewer_ids and each activity's
+|                       status, outcome, count_value; for others, you review it
 |   delete {id}         the planner, before anything happened
 |   review_activity {activity_id, state: approved|changes, feedback}
 |   review {id, feedback}
