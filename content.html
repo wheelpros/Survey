@@ -793,6 +793,7 @@
     <link rel="stylesheet" href="assets/shell.css?v=8" />
   <script src="/assets/clarity.js" defer></script>
   <script src="/assets/auto-dir.js?v=1" defer></script>
+<script src="assets/sanitize-html.js?v=1"></script>
 </head>
 
   <body>
@@ -1104,74 +1105,7 @@
           .replace(/'/g, "&#39;");
       }
 
-      // Captions are stored as HTML from the admin editor. The API sanitises them, but
-      // this page is the one calling innerHTML — strip anything unexpected here too.
-      // Text alignment is the one piece of styling the toolbar can set, so it is read
-      // off the node and put back after every other attribute is dropped.
-      const ALIGNMENTS = ["left", "center", "right", "justify"];
-
-      function sanitizeCaption(html) {
-        /* Parsed into a <template>, not a <div>: a template's content lives in an
-     inert document, so an <img src=x onerror=...> in here never loads and
-     never fires. A live element would run the handler while this function was
-     still busy stripping it - the returned markup was clean either way, but
-     the payload had already gone off. */
-        const frame = document.createElement("template");
-        frame.innerHTML = html || "";
-        const box = frame.content;
-
-        const allowed = [
-          "B",
-          "STRONG",
-          "I",
-          "EM",
-          "U",
-          "UL",
-          "OL",
-          "LI",
-          "A",
-          "BR",
-          "P",
-          "DIV",
-        ];
-
-        box.querySelectorAll("*").forEach((node) => {
-          // Unwrapping a script or style would leave its source behind as text.
-          if (node.tagName === "SCRIPT" || node.tagName === "STYLE") {
-            node.remove();
-            return;
-          }
-
-          if (!allowed.includes(node.tagName)) {
-            node.replaceWith(...node.childNodes);
-            return;
-          }
-
-          // Browsers write alignment as either inline style or an align attribute.
-          const align = (
-            (node.style && node.style.textAlign) ||
-            node.getAttribute("align") ||
-            ""
-          ).toLowerCase();
-
-          [...node.attributes].forEach((attr) => {
-            const keep =
-              node.tagName === "A" &&
-              attr.name === "href" &&
-              !/^\s*(javascript|data|vbscript):/i.test(attr.value);
-            if (!keep) node.removeAttribute(attr.name);
-          });
-
-          if (ALIGNMENTS.includes(align)) node.style.textAlign = align;
-
-          if (node.tagName === "A") {
-            node.setAttribute("target", "_blank");
-            node.setAttribute("rel", "noopener noreferrer");
-          }
-        });
-
-        return frame.innerHTML;
-      }
+      // Captions go through sanitizeHtml() (assets/sanitize-html.js) before innerHTML.
 
       /** The link shows as a "View link" action on the footer line, never a URL. */
       function renderLink(item) {
@@ -1632,7 +1566,7 @@
 
         // Alignment travels with the caption HTML, set on the editor's toolbar.
         document.getElementById("detailCaption").innerHTML =
-          sanitizeCaption(item.caption) || "—";
+          sanitizeHtml(item.caption) || "—";
 
         renderLink(item);
         renderFiles(item);

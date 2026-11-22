@@ -332,6 +332,7 @@ body{background:#f7f8fc;color:var(--text)}
 <link rel="stylesheet" href="assets/shell.css?v=8" />
 <script src="/assets/clarity.js" defer></script>
 <script src="/assets/auto-dir.js?v=1" defer></script>
+<script src="assets/sanitize-html.js?v=1"></script>
 </head>
 
 <body>
@@ -611,76 +612,15 @@ setAvatarImage(user);
 
 /*
 |------------------------------------------------------------------------------
-| The View panel's two borrowed helpers
+| The View panel's borrowed helper
 |------------------------------------------------------------------------------
 |
-| sanitizeCaption() and renderLink() from content.html, unchanged apart from
-| the first one's name.
-|
-| This matters more here than it does there: api/project-tasks.php stores the
-| update's description exactly as the editor wrote it and only strip_tags()es
-| a copy to measure its length. No endpoint in this codebase sanitises rich
-| text, so this function is the only thing standing between a pasted <script>
-| and a client session - and portal_token lives in localStorage.
-|
-| Text alignment is the one piece of styling the editor's toolbar can set, and
-| direction is what an Arabic paragraph carries. Both are read off the node and
-| put back after every other attribute is dropped.
+| renderLink() from content.html. The description itself goes through
+| sanitizeHtml() (assets/sanitize-html.js): it is stored as the editor wrote
+| it, and portal_token lives in localStorage, so that scrubber is what stands
+| between a pasted <script> and a client session.
 */
 
-const ALIGNMENTS = ["left","center","right","justify"];
-const DIRECTIONS = ["ltr","rtl","auto"];
-
-function sanitizeRichText(html){
-  /* Parsed into a <template>, not a <div>: a template's content lives in an
-     inert document, so an <img src=x onerror=...> in here never loads and
-     never fires. A live element would run the handler while this function was
-     still busy stripping it - the returned markup was clean either way, but
-     the payload had already gone off. */
-  const frame = document.createElement("template");
-  frame.innerHTML = html || "";
-  const box = frame.content;
-
-  const allowed = ["B","STRONG","I","EM","U","UL","OL","LI","A","BR","P","DIV"];
-
-  box.querySelectorAll("*").forEach(node => {
-    // Unwrapping a script or style would leave its source behind as text.
-    if(node.tagName === "SCRIPT" || node.tagName === "STYLE"){
-      node.remove();
-      return;
-    }
-
-    if(!allowed.includes(node.tagName)){
-      node.replaceWith(...node.childNodes);
-      return;
-    }
-
-    // Browsers write alignment as either inline style or an align attribute.
-    const align = ((node.style && node.style.textAlign) || node.getAttribute("align") || "")
-      .toLowerCase();
-
-    /* Read for the same reason as the alignment above: an Arabic paragraph
-       carries its direction on the node, and the loop below is about to drop
-       every attribute it has. */
-    const dir = (node.getAttribute("dir") || "").toLowerCase();
-
-    [...node.attributes].forEach(attr => {
-      const keep = node.tagName === "A" && attr.name === "href"
-        && !/^\s*(javascript|data|vbscript):/i.test(attr.value);
-      if(!keep) node.removeAttribute(attr.name);
-    });
-
-    if(ALIGNMENTS.includes(align)) node.style.textAlign = align;
-    if(DIRECTIONS.includes(dir)) node.setAttribute("dir", dir);
-
-    if(node.tagName === "A"){
-      node.setAttribute("target","_blank");
-      node.setAttribute("rel","noopener noreferrer");
-    }
-  });
-
-  return frame.innerHTML;
-}
 
 /** The link shows as a "View link" action on the footer line, never a URL. */
 function renderLink(item){
@@ -1080,7 +1020,7 @@ function openTask(id){
      this panel exists - so it is rendered as markup, through the scrubber
      above, never flattened by esc(). */
   document.getElementById("detailDescription").innerHTML =
-    sanitizeRichText(task.description) || "—";
+    sanitizeHtml(task.description) || "—";
 
   renderLink(task);
   renderFiles(task);

@@ -395,6 +395,7 @@ document.addEventListener("DOMContentLoaded", function () {
 <script src="/assets/clarity.js" defer></script>
 <script src="/assets/auto-dir.js?v=1" defer></script>
 <script src="/assets/voice-input.js?v=1" defer></script>
+<script src="assets/sanitize-html.js?v=1"></script>
 </head><body>
 <aside class="admin-sidebar">
   <div>
@@ -1374,7 +1375,8 @@ function fill(task){
   document.getElementById("dueDate").value    = task.due_date || "";
   notes.value = task.notes || "";
 
-  editor.innerHTML = task.description || "";
+  // Loaded into a live editor, so scrubbed first (audit U-03).
+  editor.innerHTML = sanitizeHtml(task.description || "");
 
   keep = {
     orientation   : task.orientation === "vertical" ? "vertical" : "horizontal"

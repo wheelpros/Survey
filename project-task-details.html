@@ -339,6 +339,7 @@ document.addEventListener("DOMContentLoaded", function () {
 <script src="assets/permissions.js?v=2"></script>
 <script src="/assets/clarity.js" defer></script>
 <script src="/assets/auto-dir.js?v=1" defer></script>
+<script src="assets/sanitize-html.js?v=1"></script>
 </head><body>
 <aside class="admin-sidebar">
   <div>
@@ -582,61 +583,8 @@ function todayISO(){
     + String(now.getDate()).padStart(2, "0");
 }
 
-/* sanitizeRichText() from user-project-details.html, unchanged: no endpoint
-   sanitises a task description, so whatever renders it has to. */
-const ALIGNMENTS = ["left","center","right","justify"];
-const DIRECTIONS = ["ltr","rtl","auto"];
-
-function sanitizeRichText(html){
-  /* Parsed into a <template>, not a <div>: a template's content lives in an
-     inert document, so an <img src=x onerror=...> in here never loads and
-     never fires. A live element would run the handler while this function was
-     still busy stripping it - the returned markup was clean either way, but
-     the payload had already gone off. */
-  const frame = document.createElement("template");
-  frame.innerHTML = html || "";
-  const box = frame.content;
-
-  const allowed = ["B","STRONG","I","EM","U","UL","OL","LI","A","BR","P","DIV"];
-
-  box.querySelectorAll("*").forEach(node => {
-    // Unwrapping a script or style would leave its source behind as text.
-    if(node.tagName === "SCRIPT" || node.tagName === "STYLE"){
-      node.remove();
-      return;
-    }
-
-    if(!allowed.includes(node.tagName)){
-      node.replaceWith(...node.childNodes);
-      return;
-    }
-
-    // Browsers write alignment as either inline style or an align attribute.
-    const align = ((node.style && node.style.textAlign) || node.getAttribute("align") || "")
-      .toLowerCase();
-
-    /* Read for the same reason as the alignment above: an Arabic paragraph
-       carries its direction on the node, and the loop below is about to drop
-       every attribute it has. */
-    const dir = (node.getAttribute("dir") || "").toLowerCase();
-
-    [...node.attributes].forEach(attr => {
-      const keep = node.tagName === "A" && attr.name === "href"
-        && !/^\s*(javascript|data|vbscript):/i.test(attr.value);
-      if(!keep) node.removeAttribute(attr.name);
-    });
-
-    if(ALIGNMENTS.includes(align)) node.style.textAlign = align;
-    if(DIRECTIONS.includes(dir)) node.setAttribute("dir", dir);
-
-    if(node.tagName === "A"){
-      node.setAttribute("target","_blank");
-      node.setAttribute("rel","noopener noreferrer");
-    }
-  });
-
-  return frame.innerHTML;
-}
+/* No endpoint sanitises a task description, so it goes through sanitizeHtml()
+   (assets/sanitize-html.js) before innerHTML. */
 
 const params    = new URLSearchParams(location.search);
 const taskId    = params.get("id") || "";
@@ -882,7 +830,7 @@ function paintPhase(project, at){
 
   /* The editor's HTML, through the same sanitiser the client page uses. */
   document.getElementById("phaseDesc").innerHTML =
-    sanitizeRichText(task.description) || '<span class="muted">No description was added.</span>';
+    sanitizeHtml(task.description) || '<span class="muted">No description was added.</span>';
 
   document.getElementById("factDue").textContent  = task.scheduled_date ? fmtDateShort(task.scheduled_date) : "—";
   document.getElementById("factVis").textContent  = vis.text;

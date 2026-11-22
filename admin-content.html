@@ -256,6 +256,7 @@ function closeAccount(){ document.getElementById("acctModal").classList.remove("
 <script src="assets/permissions.js?v=2"></script>
 <script src="/assets/clarity.js" defer></script>
 <script src="/assets/auto-dir.js?v=1" defer></script>
+<script src="assets/sanitize-html.js?v=1"></script>
 </head>
 
 <body>
@@ -454,50 +455,7 @@ function esc(value){
     .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
 }
 
-// The caption comes back as HTML from the editor — strip anything the toolbar
-// could not have produced before handing it to innerHTML. Text alignment is the
-// one piece of styling the toolbar can set, so it is read off the node and put
-// back after every other attribute is dropped.
-const ALIGNMENTS = ["left","center","right","justify"];
-
-function sanitizeCaption(html){
-  const box = document.createElement("div");
-  box.innerHTML = html || "";
-
-  const allowed = ["B","STRONG","I","EM","U","UL","OL","LI","A","BR","P","DIV"];
-
-  box.querySelectorAll("*").forEach(node => {
-    // Unwrapping a script or style would leave its source behind as text.
-    if(node.tagName === "SCRIPT" || node.tagName === "STYLE"){
-      node.remove();
-      return;
-    }
-
-    if(!allowed.includes(node.tagName)){
-      node.replaceWith(...node.childNodes);
-      return;
-    }
-
-    // Browsers write alignment as either inline style or an align attribute.
-    const align = ((node.style && node.style.textAlign) || node.getAttribute("align") || "")
-      .toLowerCase();
-
-    [...node.attributes].forEach(attr => {
-      const keep = node.tagName === "A" && attr.name === "href"
-        && !/^\s*(javascript|data|vbscript):/i.test(attr.value);
-      if(!keep) node.removeAttribute(attr.name);
-    });
-
-    if(ALIGNMENTS.includes(align)) node.style.textAlign = align;
-
-    if(node.tagName === "A"){
-      node.setAttribute("target","_blank");
-      node.setAttribute("rel","noopener noreferrer");
-    }
-  });
-
-  return box.innerHTML;
-}
+// Captions go through sanitizeHtml() (assets/sanitize-html.js) before innerHTML.
 
 /** The link shows as a "View link" action on the footer line, never a URL. */
 function renderLink(item){
@@ -907,7 +865,7 @@ function selectContent(id){
   renderGallery(item);
 
   // Alignment travels with the caption HTML, set on the editor's toolbar.
-  document.getElementById("detailCaption").innerHTML = sanitizeCaption(item.caption) || "—";
+  document.getElementById("detailCaption").innerHTML = sanitizeHtml(item.caption) || "—";
 
   renderLink(item);
 
