@@ -449,6 +449,7 @@ foreach ([
     "rich-text",
     "phases",
     "messages",
+    "client-messages",
     "positions",
     "clients",
     "client-safety",

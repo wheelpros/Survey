@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Messages</title>
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+:root{--brand:#c9000b;--nav-active:#1b1e3a;--text:#101828;--muted:#667085;--line:#eaecf0;--sidebar-w:260px}
+body{background:#f7f8fc;color:var(--text)}
+.app{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar-w);background:#fff;border-right:1px solid var(--line);position:fixed;top:0;left:0;bottom:0;padding:26px 12px 18px;display:flex;flex-direction:column;justify-content:space-between}
+.nav a{display:flex;gap:10px;align-items:center;text-decoration:none;color:var(--muted);padding:8px 10px;border-radius:9px;margin-bottom:2px;font-size:14px;font-weight:600;transition:background .15s,color .15s}
+.nav a svg{width:17px;height:17px;flex:none}
+.nav a:hover{background:#f6f7f9;color:var(--text)}
+.nav a.active{background:var(--nav-active);color:#fff}
+.user-card{width:100%;font:inherit;text-align:left;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;gap:10px;align-items:center;cursor:pointer;transition:background .15s,border-color .15s}
+.user-card:hover{background:#fafbfc;border-color:#d7dae0}
+.avatar{width:36px;height:36px;border-radius:50%;background:#dce3ff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#3745a4;background-size:cover;background-position:center;flex:none}
+.user-meta{flex:1;min-width:0}
+.user-meta h4{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-meta p{font-size:11px;color:#98a2b3}
+.user-dots{color:#98a2b3;flex:none}
+.main{margin-left:var(--sidebar-w);width:calc(100% - var(--sidebar-w))}
+
+.content{padding:34px 44px}
+.page-title h1{font-size:30px;margin-bottom:8px}
+.page-title p{font-size:14px;color:#667085;max-width:620px}
+
+/* ── Collapsible sidebar ── */
+:root.sidebar-collapsed{--sidebar-w:78px}
+.sidebar,.main{transition:width .18s ease,margin-left .18s ease}
+:root.sidebar-collapsed .sidebar{padding:26px 4px 18px}
+:root.sidebar-collapsed .nav a{width:38px;height:38px;padding:0;margin:0 auto 4px;border-radius:10px;justify-content:center}
+:root.sidebar-collapsed .nav a span{display:none}
+/* The account card is the only route to profile and logout — collapse it, never hide it. */
+:root.sidebar-collapsed .user-card{justify-content:center;padding:8px}
+:root.sidebar-collapsed .user-meta,:root.sidebar-collapsed .user-dots{display:none}
+
+/* ── The collapse control lives in the sidebar head ── */
+.side-head{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:36px;margin-bottom:26px;padding:0 2px}
+.logo{padding:0;margin:0;flex:1;min-width:0}
+.logo img{width:132px;max-width:100%;height:auto;display:block}
+.sidebar-toggle{width:34px;height:34px;flex:none;border-radius:9px;border:none;background:transparent;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s}
+.sidebar-toggle:hover{background:#f2f4f8;color:var(--text)}
+.sidebar-toggle svg{width:18px;height:18px}
+/* Collapsed to 78px the wordmark is illegible, so the head keeps only the toggle. */
+:root.sidebar-collapsed .side-head{justify-content:center;margin-bottom:22px}
+:root.sidebar-collapsed .logo{display:none}
+
+/* The account card opens a dropup; it is the only route to profile and logout. */
+.account{position:relative}
+.account-menu{position:absolute;bottom:calc(100% + 8px);left:0;min-width:200px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 16px 40px rgba(16,24,40,.14);padding:6px;display:none;z-index:200}
+.account.open .account-menu{display:block}
+.account-menu a,.account-menu button{width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;border:none;background:transparent;border-radius:9px;font:inherit;font-size:13px;font-weight:700;color:var(--text);text-align:left;text-decoration:none;cursor:pointer}
+.account-menu a:hover,.account-menu button:hover{background:#f6f7f9}
+.account-menu svg{width:16px;height:16px;flex:none;color:var(--muted)}
+.account-menu .danger,.account-menu .danger svg{color:var(--brand)}
+.account-menu .danger:hover{background:#fff5f5}
+
+@media(max-width:950px){
+  /* Force-collapsed below this width, so the head has nothing left to show. */
+  .side-head{display:none}
+  .content{padding:24px 18px}
+}
+/* ── Messages: the account's one chat with its account managers ── */
+.page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:22px}
+.create-btn{flex:none;display:inline-flex;align-items:center;gap:8px;background:var(--nav-active);color:#fff;border:none;padding:11px 18px;border-radius:10px;font:inherit;font-size:13px;font-weight:800;cursor:pointer}
+.create-btn:hover{background:#282c52}
+.create-btn:disabled{opacity:.45;cursor:not-allowed}
+
+.chat{display:flex;flex-direction:column;background:#fff;border-radius:20px;box-shadow:0 14px 35px rgba(0,0,0,.06);overflow:hidden;height:calc(100vh - 190px);min-height:460px}
+.thread-head{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid #eef1f5}
+.thread-head strong{display:block;font-size:15px}
+.thread-head span{font-size:12px;color:var(--muted)}
+.av-stack{display:flex}
+.av-stack .av + .av{margin-left:-10px;border:2px solid #fff}
+.av{width:40px;height:40px;border-radius:50%;flex:none;background:#dce3ff;color:#3745a4;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;overflow:hidden}
+.av img{width:100%;height:100%;object-fit:cover}
+
+.messages{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:6px;background:#fbfbfd}
+.older-btn{align-self:center;border:1px solid #dfe3ea;background:#fff;border-radius:20px;padding:6px 14px;font:inherit;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;margin-bottom:8px}
+.day{align-self:center;font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#98a2b3;margin:12px 0 6px}
+/* Our side on the left, the account team's on the right - as on the staff page. */
+.msg{max-width:min(520px,78%);display:flex;flex-direction:column;gap:3px;align-self:flex-end;align-items:flex-end}
+.msg.ours{align-self:flex-start;align-items:flex-start}
+.msg .who{font-size:11px;font-weight:700;color:var(--muted)}
+.bubble{padding:9px 13px;border-radius:14px;background:#fff;border:1px solid #eaecf0;font-size:14px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+.msg.mine .bubble{background:var(--nav-active);border-color:var(--nav-active);color:#fff}
+.msg.mine .bubble a{color:#fff}
+.msg.ours:not(.mine) .bubble{background:#eef0fb;border-color:#e0e4f6}
+.bubble a{color:var(--nav-active);text-decoration:underline}
+.msg time,.seen{font-size:11px;color:#98a2b3}
+.seen{font-weight:700}
+
+.composer{display:flex;gap:10px;align-items:flex-end;padding:14px 20px;border-top:1px solid #eef1f5;background:#fff}
+.composer-field{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.composer textarea{width:100%;min-height:42px;max-height:160px;resize:none;border:1px solid #dfe3ea;border-radius:10px;padding:10px 12px;font:inherit;font-size:14px;line-height:1.45}
+.composer textarea:focus{outline:2px solid var(--nav-active);outline-offset:1px}
+.counter{font-size:11px;color:#98a2b3;text-align:right}
+.counter.over{color:var(--brand);font-weight:700}
+.composer-note{padding:14px 20px;border-top:1px solid #eef1f5;color:var(--muted);font-size:13px;background:#fff}
+.send-error{padding:0 20px 10px;color:var(--brand);font-size:13px;background:#fff}
+.send-error[hidden]{display:none}
+
+.placeholder{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--muted);text-align:center;padding:24px}
+.placeholder strong{color:var(--text);font-size:16px}
+
+@media(max-width:768px){
+  .chat{height:calc(100vh - 200px)}
+  .messages{padding:14px}
+  .composer,.thread-head{padding:12px 14px}
+  .msg{max-width:88%}
+}
+/* ── Unread badge on the Notifications nav item ──
+   Collapsed, the sidebar hides labels, so the count degrades to a dot on
+   the icon - the same affordance the old topbar bell had. */
+.nav a{position:relative}
+.nav-badge{
+  margin-left:auto;font-style:normal;font-size:11px;font-weight:800;line-height:1;
+  min-width:18px;padding:3px 6px;border-radius:9px;
+  background:var(--brand);color:#fff;text-align:center;
+}
+.nav-badge[hidden]{display:none}
+.nav a.active .nav-badge{background:#fff;color:var(--nav-active)}
+:root.sidebar-collapsed .nav-badge{
+  position:absolute;top:4px;right:8px;margin:0;
+  width:8px;height:8px;min-width:0;padding:0;border-radius:50%;
+  font-size:0;border:2px solid #fff;
+}
+</style>
+
+<script>
+// Runs before paint so the collapsed state never flashes open on load.
+(function () {
+  var root = document.documentElement;
+  var KEY = "wz_sidebar_collapsed";
+  var MOBILE = 950;
+  var DRAWER = 768;   // below this the sidebar is a drawer, never a rail
+  function prefersCollapsed(){ return localStorage.getItem(KEY) === "1"; }
+  function apply(){
+    root.classList.toggle("sidebar-collapsed", window.innerWidth > DRAWER && (window.innerWidth <= MOBILE || prefersCollapsed()));
+  }
+  window.toggleSidebar = function(){
+    if (window.innerWidth <= MOBILE) return; // forced collapsed, nothing to toggle
+    localStorage.setItem(KEY, prefersCollapsed() ? "0" : "1");
+    apply();
+  };
+  apply();
+  window.addEventListener("resize", apply);
+})();
+
+// Sidebar account card -> dropup with Profile / Logout.
+(function () {
+  function menu() { return document.getElementById("account"); }
+  function close() {
+    var el = menu();
+    if (!el || !el.classList.contains("open")) return;
+    el.classList.remove("open");
+    el.querySelector(".user-card").setAttribute("aria-expanded", "false");
+  }
+  window.toggleAccountMenu = function () {
+    var el = menu();
+    var open = el.classList.toggle("open");
+    el.querySelector(".user-card").setAttribute("aria-expanded", open ? "true" : "false");
+  };
+  document.addEventListener("click", function (e) {
+    var el = menu();
+    if (el && !el.contains(e.target)) close();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") close();
+  });
+})();
+</script>
+<link rel="stylesheet" href="assets/shell.css?v=8" />
+<script src="/assets/clarity.js" defer></script>
+<script src="/assets/auto-dir.js?v=1" defer></script>
+</head>
+
+<body>
+
+<div class="app">
+
+<aside class="sidebar">
+  <div>
+    <div class="side-head">
+      <div class="logo">
+        <img src="logo.png" alt="Logo" onerror="this.remove()">
+      </div>
+      <button class="sidebar-toggle" type="button" onclick="toggleSidebar()" title="Toggle sidebar" aria-label="Toggle sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9.5 4v16"/></svg>
+      </button>
+    </div>
+    <nav class="nav">
+      <a href="dashboard.html" title="Dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        <span>Dashboard</span>
+      </a>
+      <a href="forms.html" title="Forms">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>
+        <span>Forms</span>
+      </a>
+      <a href="user-projects.html" title="Projects">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+        <span>Projects</span>
+      </a>
+      <a href="content.html" title="Content">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+        <span>Content</span>
+      </a>
+      <a href="messages.html" title="Messages" class="active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z"/></svg>
+        <span>Messages</span>
+        <em class="nav-badge" id="msgBadge" hidden></em>
+      </a>
+      <a href="notifications.html" title="Notifications">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 6-3 7-3 7h18s-3-1-3-7"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+        <span>Notifications</span>
+        <em class="nav-badge" id="notifBadge" hidden></em>
+      </a>
+      <a href="help.html" title="Help Center">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M9.5 9.5a2.6 2.6 0 1 1 3.4 2.5c-.6.2-.9.8-.9 1.4v.4"/><path d="M12 17h.01"/></svg>
+        <span>Help Center</span>
+      </a>
+    </nav>
+  </div>
+
+  <div class="account" id="account">
+    <button class="user-card" type="button" onclick="toggleAccountMenu()" aria-haspopup="true" aria-expanded="false" title="Account">
+      <div class="avatar" id="sideAvatar">U</div>
+      <div class="user-meta">
+        <h4 id="sideName">User</h4>
+        <p>Pro Member</p>
+      </div>
+      <svg class="user-dots" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
+    </button>
+    <div class="account-menu" role="menu">
+      <a role="menuitem" href="profile.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Profile</span></a>
+      <button role="menuitem" type="button" class="danger" onclick="logout()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>Logout</span></button>
+    </div>
+  </div>
+</aside>
+
+<main class="main">
+  <section class="content">
+
+    <div class="page-head">
+      <div class="page-title">
+        <h1>Messages</h1>
+        <p>Your chat with your account manager. Everyone on your account sees it.</p>
+      </div>
+    </div>
+
+    <div class="chat" id="chat" aria-label="Your chat with your account manager">
+      <div class="thread-head" id="threadHead"></div>
+      <div class="messages" id="messages" aria-live="polite">
+        <div class="placeholder"><span>Loading your messages...</span></div>
+      </div>
+      <div id="composerSlot"></div>
+    </div>
+
+  </section>
+</main>
+
+</div>
+
+<script>
+const token = localStorage.getItem("portal_token");
+
+if(!token){
+  window.location.href = "login.html";
+}
+
+function setAvatarImage(user){
+  const avatar = document.getElementById("sideAvatar");
+  if(!avatar) return;
+
+  if(user.profile_image){
+    avatar.innerText = "";
+    avatar.style.backgroundImage = `url('${user.profile_image}')`;
+  }else{
+    avatar.innerText = (user.name || "User").charAt(0).toUpperCase();
+    avatar.style.backgroundImage = "";
+  }
+}
+
+function logout(){
+  localStorage.clear();
+  window.location.href = "login.html";
+}
+
+const user = JSON.parse(localStorage.getItem("portal_user") || "{}");
+document.getElementById("sideName").innerText = user.name || "User";
+setAvatarImage(user);
+
+/* ── Messages ───────────────────────────────────────────────────────────────
+   api/client-messages.php holds the account's chat with its account
+   managers. This page shows it and keeps it fresh by asking for anything
+   newer every few seconds while the tab is visible. */
+
+const POLL_MS = 5000;
+const MAX_CHARS = 2000;
+
+let managers = [];
+let canSend = false;
+let messages = [];        // oldest first
+let hasOlder = false;
+let seenBy = [];
+let sending = false;
+let pollTimer = null;
+let loaded = false;
+
+function esc(value){
+  return String(value == null ? "" : value)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+
+/* Escapes first, then turns http(s) addresses into links - nothing else a
+   message contains is ever treated as markup. */
+function linkify(text){
+  return esc(text).replace(/\bhttps?:\/\/[^\s<]+[^\s<.,;:!?)\]'"]/g,
+    url => `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`);
+}
+
+const clock = s => new Date(s * 1000).toLocaleTimeString(undefined, {hour:"numeric", minute:"2-digit"});
+
+function dayLabel(seconds){
+  const d = new Date(seconds * 1000);
+  const today = new Date();
+  const yesterday = new Date(Date.now() - 86400000);
+  if(d.toDateString() === today.toDateString()) return "Today";
+  if(d.toDateString() === yesterday.toDateString()) return "Yesterday";
+  return d.toLocaleDateString(undefined, {weekday:"short", day:"numeric", month:"short", year:"numeric"});
+}
+
+function avatar(person){
+  if(person.avatar_path) return `<span class="av"><img src="${esc(person.avatar_path)}" alt=""></span>`;
+  return `<span class="av">${esc((person.name || "?").charAt(0).toUpperCase())}</span>`;
+}
+
+async function api(params, body){
+  const options = { headers: { Authorization: "Bearer " + token } };
+  if(body){
+    options.method = "POST";
+    options.headers["Content-Type"] = "application/json";
+    options.body = JSON.stringify(body);
+  }
+  const res = await fetch("api/client-messages.php" + (params ? "?" + new URLSearchParams(params) : ""), options);
+  if(res.status === 401){
+    logout();
+    throw new Error("signed out");
+  }
+  return res.json();
+}
+
+function paintBadge(count){
+  const badge = document.getElementById("msgBadge");
+  if(!badge) return;
+  badge.textContent = count > 9 ? "9+" : String(count);
+  badge.hidden = count <= 0;
+}
+
+/* ── The chat ── */
+
+async function load(){
+  const data = await api({ action: "thread" }).catch(() => null);
+  if(!data || !data.success){
+    document.getElementById("messages").innerHTML =
+      `<div class="placeholder"><strong>${esc((data && data.message) || "Could not load your messages.")}</strong><span>Reload the page to try again.</span></div>`;
+    return;
+  }
+  managers = data.managers;
+  canSend = data.can_send;
+  messages = data.messages;
+  hasOlder = data.has_older;
+  seenBy = data.seen_by;
+  loaded = true;
+
+  renderHead();
+  renderComposer();
+  renderMessages();
+  scrollToEnd();
+  markRead();
+  startPolling();
+}
+
+function renderHead(){
+  const head = document.getElementById("threadHead");
+  if(!managers.length){
+    head.innerHTML = `<div><strong>Your account manager</strong><span>Not assigned yet</span></div>`;
+    return;
+  }
+  const names = managers.map(m => m.name).join(" and ");
+  const role = managers.length > 1 ? "Your account managers" : (managers[0].position || "Your account manager");
+  head.innerHTML = `<span class="av-stack">${managers.slice(0, 3).map(avatar).join("")}</span>
+    <div><strong>${esc(names)}</strong><span>${esc(role)}</span></div>`;
+}
+
+function renderComposer(){
+  const slot = document.getElementById("composerSlot");
+  if(!canSend){
+    slot.innerHTML = `<div class="composer-note">Your account manager hasn't been assigned yet. You can send messages once they have.</div>`;
+    return;
+  }
+  const who = managers.length === 1 ? managers[0].name : "your account managers";
+  slot.innerHTML = `
+    <div class="send-error" id="sendError" hidden></div>
+    <form class="composer" id="composer" onsubmit="event.preventDefault(); sendMessage();">
+      <div class="composer-field">
+        <textarea id="composerInput" rows="1" dir="auto" placeholder="Message ${esc(who)}" aria-label="Message" oninput="onType()" onkeydown="onKey(event)"></textarea>
+        <span class="counter" id="counter" hidden></span>
+      </div>
+      <button class="create-btn" type="submit" id="sendBtn" disabled>Send</button>
+    </form>`;
+  const input = document.getElementById("composerInput");
+  if(window.innerWidth > 768) input.focus();
+}
+
+/* The last message from our side, marked Seen once an account manager has read it. */
+function seenMark(){
+  const ours = messages.filter(m => m.side === "client");
+  const last = ours[ours.length - 1];
+  if(!last || !seenBy.some(s => s.last_read_id >= last.id)) return { id: 0 };
+  return { id: last.id };
+}
+
+function messagesHtml(){
+  if(!messages.length){
+    return canSend
+      ? `<div class="placeholder"><strong>No messages yet</strong><span>Ask your account manager anything - everyone on your account will see it.</span></div>`
+      : `<div class="placeholder"><span>No messages yet.</span></div>`;
+  }
+  const seen = seenMark();
+  let lastDay = "";
+  return (hasOlder ? `<button class="older-btn" type="button" onclick="loadOlder()">Show earlier messages</button>` : "")
+    + messages.map((m, i) => {
+      const day = dayLabel(m.created_ts);
+      const sep = day !== lastDay ? `<div class="day">${esc(day)}</div>` : "";
+      lastDay = day;
+      const ours = m.side === "client";
+      // A name over a run of messages from the same person, unless it's me.
+      const prev = messages[i - 1];
+      const showName = !m.mine && (!prev || prev.sender.id !== m.sender.id || prev.side !== m.side || sep);
+      return sep + `
+        <div class="msg${ours ? " ours" : ""}${m.mine ? " mine" : ""}" data-id="${m.id}">
+          ${showName ? `<span class="who">${esc(m.sender.name)}</span>` : ""}
+          <div class="bubble" dir="auto">${linkify(m.body)}</div>
+          <time title="${esc(new Date(m.created_ts * 1000).toLocaleString())}">${esc(clock(m.created_ts))}</time>
+          ${seen.id === m.id ? `<span class="seen">Seen</span>` : ""}
+        </div>`;
+    }).join("");
+}
+
+function renderMessages(){
+  document.getElementById("messages").innerHTML = messagesHtml();
+}
+
+function appendMessages(rows){
+  const known = new Set(messages.map(m => m.id));
+  const fresh = rows.filter(m => !known.has(m.id));
+  if(!fresh.length) return false;
+
+  const box = document.getElementById("messages");
+  const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+  messages = messages.concat(fresh);
+  renderMessages();
+  if(nearBottom || fresh.some(m => m.mine)) scrollToEnd();
+  return true;
+}
+
+async function loadOlder(){
+  if(!messages.length) return;
+  const box = document.getElementById("messages");
+  const fromBottom = box.scrollHeight - box.scrollTop;
+
+  const data = await api({ action: "thread", before: messages[0].id }).catch(() => null);
+  if(!data || !data.success) return;
+
+  messages = data.messages.concat(messages);
+  hasOlder = data.has_older;
+  renderMessages();
+  box.scrollTop = box.scrollHeight - fromBottom;   // stay on the message being read
+}
+
+function scrollToEnd(){
+  const box = document.getElementById("messages");
+  box.scrollTop = box.scrollHeight;
+}
+
+function markRead(){
+  api(null, { action: "read" })
+    .then(data => { if(data && data.success) paintBadge(data.unread); })
+    .catch(() => {});
+}
+
+/* ── Writing ── */
+
+function onType(){
+  const input = document.getElementById("composerInput");
+  const counter = document.getElementById("counter");
+
+  input.style.height = "auto";
+  input.style.height = Math.min(input.scrollHeight, 160) + "px";
+
+  // The counter only shows once it matters.
+  counter.hidden = input.value.length < MAX_CHARS - 200;
+  counter.textContent = input.value.length + " / " + MAX_CHARS;
+  counter.classList.toggle("over", input.value.length > MAX_CHARS);
+
+  document.getElementById("sendBtn").disabled = sending || input.value.trim().length === 0 || input.value.length > MAX_CHARS;
+}
+
+// Enter sends; Shift+Enter is a new line.
+function onKey(event){
+  if(event.key === "Enter" && !event.shiftKey && !event.isComposing){
+    event.preventDefault();
+    sendMessage();
+  }
+}
+
+async function sendMessage(){
+  const input = document.getElementById("composerInput");
+  const error = document.getElementById("sendError");
+  const body = input.value.trim();
+  if(sending || !body || input.value.length > MAX_CHARS) return;
+
+  sending = true;
+  document.getElementById("sendBtn").disabled = true;
+  error.hidden = true;
+
+  try{
+    const data = await api(null, { action: "send", body });
+    if(!data.success) throw new Error(data.message || "Could not send the message.");
+
+    input.value = "";
+    sending = false;
+    onType();
+    appendMessages([data.message_row]);
+  }catch(err){
+    sending = false;
+    onType();
+    error.textContent = err.message === "signed out" ? "" : err.message + " Your message is still in the box.";
+    error.hidden = false;
+  }
+}
+
+/* ── Keeping the chat fresh ── */
+
+async function poll(){
+  if(!loaded || document.hidden) return;
+  const last = messages.length ? messages[messages.length - 1].id : 0;
+
+  try{
+    const data = await api(last ? { action: "thread", after: last } : { action: "thread" });
+    if(!data.success) return;
+
+    const before = JSON.stringify([seenBy, managers, canSend]);
+    seenBy = data.seen_by;
+    if(JSON.stringify(data.managers) !== JSON.stringify(managers) || data.can_send !== canSend){
+      managers = data.managers;
+      canSend = data.can_send;
+      renderHead();
+      renderComposer();
+    }
+    const added = appendMessages(data.messages);
+    if(!added && before !== JSON.stringify([seenBy, managers, canSend])) renderMessages();
+    if(data.messages.some(m => !m.mine)) markRead();
+  }catch(err){
+    // Try again on the next tick.
+  }
+}
+
+function startPolling(){
+  if(pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(poll, POLL_MS);
+}
+
+// Back on the tab: catch up at once rather than waiting for the next tick.
+document.addEventListener("visibilitychange", () => {
+  if(!document.hidden) poll();
+});
+
+load();
+</script>
+
+<script src="assets/notifications.js?v=2"></script>
+<script src="assets/messages-badge.js?v=3" data-page-polls></script>
+<script src="assets/shell.js?v=6"></script>
+
+</body>
+</html>

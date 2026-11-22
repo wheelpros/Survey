@@ -587,6 +587,11 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
               <span>Content</span>
             </a>
+            <a href="messages.html" title="Messages">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z"/></svg>
+              <span>Messages</span>
+              <em class="nav-badge" id="msgBadge" hidden></em>
+            </a>
             <a href="notifications.html" title="Notifications">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 6-3 7-3 7h18s-3-1-3-7"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
               <span>Notifications</span>
@@ -708,6 +713,18 @@
               </div>
             </div>
 
+            <div class="faq-item" id="faq6">
+              <button class="faq-question" onclick="toggleFaq('faq6')">
+                How do I message my account manager?
+                <span class="faq-arrow">▾</span>
+              </button>
+              <div class="faq-answer">
+                <div class="faq-answer-inner">
+                  Open Messages in the sidebar. It is one chat between your account and your account manager, and everyone on your account sees it, so a teammate can pick up where you left off. You'll see "Seen" once your account manager has read your message. If a message waits unread for 15 minutes, we email the person it's for. Until an account manager is assigned to you, Messages has no one to send to.
+                </div>
+              </div>
+            </div>
+
             <div class="faq-item" id="faq5">
               <button class="faq-question" onclick="toggleFaq('faq5')">
                 What if I need urgent help?
@@ -809,6 +826,7 @@
       }
     </script>
   <script src="assets/notifications.js?v=2"></script>
+<script src="assets/messages-badge.js?v=3"></script>
   <script src="assets/shell.js?v=6"></script>
 </body>
 </html>

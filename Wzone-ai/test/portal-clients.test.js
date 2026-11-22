@@ -31,6 +31,7 @@ function fakePortal({ scopes = CLIENT } = {}) {
       "me/content.php": "my_content",
       "me/projects.php": q.has("id") ? "get_my_project" : "my_projects",
       "me/notifications.php": body ? "mark_my_notifications_read" : "my_notifications",
+      "me/messages.php": body ? "mark_my_messages_read" : "my_messages",
       "changes.php": body?.action === "confirm" ? "confirm_change" : "prepare_change",
     }[path];
     return pick
@@ -118,6 +119,24 @@ describe("private server: a client's own assistant", () => {
     await c.close();
   });
 
+  it("reads, writes and marks read the client's chat with their account manager", async () => {
+    const upstream = fakePortal();
+    const c = await connect();
+    const read = await c.callTool({ name: "my_messages", arguments: { limit: 5 } });
+    expect(read.isError).toBeFalsy();
+    expect(read.structuredContent.account_managers[0].name).toBe("Amy");
+    const sent = await c.callTool({ name: "send_my_message", arguments: { body: "Can we talk Friday?" } });
+    expect(sent.content[0].text).toMatch(/^NOTHING HAS CHANGED YET/);
+    const marked = await c.callTool({ name: "mark_my_messages_read", arguments: {} });
+    expect(marked.isError).toBeFalsy();
+    expect(calls(upstream)).toEqual([
+      { path: "me/messages.php", body: undefined },
+      { path: "changes.php", body: { action: "prepare", tool: "send_my_message", args: { body: "Can we talk Friday?" } } },
+      { path: "me/messages.php", body: { read: true } },
+    ]);
+    await c.close();
+  });
+
   it("fills the form prompt around the confirmation step", async () => {
     fakePortal();
     const c = await connect();
@@ -136,6 +155,8 @@ describe("private server: a client's own assistant", () => {
     expect(names).not.toContain("submit_my_form");
     expect(names).not.toContain("confirm_change");
     expect(names).not.toContain("mark_my_notifications_read");
+    expect(names).not.toContain("mark_my_messages_read");
+    expect(names).not.toContain("send_my_message");
     expect((await c.listPrompts()).prompts.map((p) => p.name)).toEqual(["my_week"]);
     await c.close();
   });

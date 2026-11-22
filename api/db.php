@@ -89,6 +89,8 @@ const CLIENT_TENANT_COLUMNS = [
     "user_source_files"      => "user_id",
     "admin_user_assignments" => "user_id",
     "client_admin_notes"     => "user_id",
+    "client_messages"        => "user_id",
+    "client_message_reads"   => "user_id",
 ];
 
 /*
@@ -2490,6 +2492,59 @@ function ensureAdminMessageTables(PDO $pdo)
     } catch (PDOException $e) {
         // Read-only DB user: run sql/admin_messages.sql by hand. Until then
         // the Messages page says it can't load.
+    }
+}
+
+/*
+| A client account's chat with its account managers (api/client-message-writes.php).
+| One chat per account, so the messages hang straight off the account's id
+| (user_id, the owner's users.id) - delete-client.php and the account merge find
+| them by that column like every other client table. Each person's read
+| marker, and how far they have been emailed, is a row of client_message_reads.
+| sql/client_messages.sql is the manual version.
+*/
+function ensureClientMessageTables(PDO $pdo)
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    try {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS client_messages (
+              id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+              user_id     INT         NOT NULL,
+              sender_kind VARCHAR(10) NOT NULL,
+              sender_id   INT         NOT NULL,
+              sender_name VARCHAR(190) NOT NULL DEFAULT '',
+              body        TEXT        NOT NULL,
+              created_at  TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              KEY idx_account (user_id, id),
+              KEY idx_created (created_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS client_message_reads (
+              user_id          INT         NOT NULL,
+              reader_kind      VARCHAR(10) NOT NULL,
+              reader_id        INT         NOT NULL,
+              last_read_id     BIGINT      NOT NULL DEFAULT 0,
+              emailed_up_to_id BIGINT      NOT NULL DEFAULT 0,
+              PRIMARY KEY (user_id, reader_kind, reader_id),
+              KEY idx_reader (reader_kind, reader_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS client_message_jobs (
+              name   VARCHAR(40) NOT NULL PRIMARY KEY,
+              ran_at TIMESTAMP   NOT NULL DEFAULT '2000-01-01 00:00:00'
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        $pdo->exec("INSERT IGNORE INTO client_message_jobs (name) VALUES ('email_sweep')");
+    } catch (PDOException $e) {
+        // Read-only DB user: run sql/client_messages.sql by hand.
     }
 }
 

@@ -40,6 +40,7 @@ ensureAdminColumns($pdo);
 ensureSurveyColumns($pdo);
 ensureContentColumns($pdo);
 ensureAdminMessageTables($pdo);
+ensureClientMessageTables($pdo);
 ensureAppointmentTables($pdo);
 ensureAnnouncementsTable($pdo);
 ensureProjectTables($pdo);

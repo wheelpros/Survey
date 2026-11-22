@@ -708,6 +708,46 @@ export const markedConversationRead = {
   unread_count: id.describe("Unread messages left across every conversation"),
 };
 
+// ── Client messages (a client account's chat with its account managers) ─
+
+const clientMessage = z.object({
+  id,
+  side: z.enum(["client", "team"]).describe("client: someone on the client's account; team: one of its account managers"),
+  mine: z.boolean().describe("You sent it"),
+  from: text.describe("Who sent it"),
+  created_at: utcTime,
+  untrusted_content: untrusted({ body: text }),
+});
+
+export const clientChats = {
+  ...page(
+    z.object({
+      client: clientRef,
+      unread: id.describe("Messages from the client you haven't read"),
+      last_message_at: utcTime.nullable().describe("null: no messages yet"),
+      last_is_mine: z.boolean(),
+      last_from: maybe,
+      untrusted_content: untrusted({ last_message: text }),
+    })
+  ),
+  unread_count: id.describe("Unread client messages across every client you manage"),
+};
+
+export const clientChat = {
+  client: clientRef,
+  ...page(clientMessage),
+  people: z.array(z.object({ id, name: text })).describe("Everyone on the client's account, who all read this chat"),
+  client_last_read_id: id.describe("The newest message anyone at the client has seen; 0 for none"),
+};
+
+export const myMessages = {
+  account_managers: z.array(z.object({ id, name: text, position: maybe })),
+  can_send: z.boolean().describe("false until an account manager is assigned"),
+  ...page(clientMessage),
+  unread_count: id.describe("Messages from your account manager you haven't read"),
+  team_last_read_id: id.describe("The newest message your account manager has seen; 0 for none"),
+};
+
 // ── Event log (the Director's) ─────────────────────────────────────────────
 
 export const adminEvents = page(

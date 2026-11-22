@@ -65,6 +65,7 @@ require_once __DIR__ . "/../content-image-fetch.php";
 require_once __DIR__ . "/../admin-settings-writes.php";
 require_once __DIR__ . "/../upload-helpers.php";
 require_once __DIR__ . "/../message-writes.php";
+require_once __DIR__ . "/../client-message-writes.php";
 require_once __DIR__ . "/../announcement-writes.php";
 require_once __DIR__ . "/../client-team-writes.php";
 require_once __DIR__ . "/../team-form-writes.php";
@@ -1939,6 +1940,32 @@ function v1WriteHandlers()
             },
         ],
 
+        "send_client_message" => [
+            "scope" => "messages:write",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                $client = argInt($a, "client");
+                $body = argText($a, "body", CLIENT_MESSAGE_MAX_CHARS);
+                ensureAdminColumns($pdo);
+                ensureClientMessageTables($pdo);
+                $account = openClientChat($pdo, $p, $client);
+                $body = checkClientMessage($pdo, $p, $account, $body);
+                $label = trim((string) $account["company_name"]) !== "" ? $account["company_name"] : $account["name"];
+                return [
+                    "args" => ["client" => $client, "body" => $body],
+                    "summary" => "Send " . $label . " a message from you in their Messages chat: " . quoteFor($body)
+                        . ". Everyone on their account sees it, and so do their other account managers.",
+                    "preview" => [
+                        "client" => ["id" => (int) $account["id"], "name" => $account["name"], "company_name" => v1NullableString($account["company_name"])],
+                        "untrusted_content" => ["body" => $body],
+                    ],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                $row = sendClientMessage($pdo, $p, openClientChat($pdo, $p, $a["client"]), $a["body"]);
+                return ["message_id" => (int) $row["id"], "client" => $a["client"]];
+            },
+        ],
+
         "send_announcement" => [
             "scope" => "announcements:write",
             "prepare" => function (PDO $pdo, array $p, array $a) {
@@ -3248,6 +3275,30 @@ function v1WriteHandlers()
         ],
 
         // ── A client's own account ───────────────────────────────────────
+
+        // The account's chat with its account managers (client-message-writes.php).
+        "send_my_message" => [
+            "scope" => "self:write",
+            "kind" => "user",
+            "prepare" => function (PDO $pdo, array $p, array $a) {
+                $body = argText($a, "body", CLIENT_MESSAGE_MAX_CHARS);
+                ensureAdminColumns($pdo);
+                ensureClientMessageTables($pdo);
+                $account = openClientChat($pdo, $p);
+                $body = checkClientMessage($pdo, $p, $account, $body);
+                $names = array_column(clientChatManagers($pdo, $account["id"]), "name");
+                return [
+                    "args" => ["body" => $body],
+                    "summary" => "Send your account manager (" . implode(", ", $names) . ") a message from you: " . quoteFor($body)
+                        . ". Everyone on your account sees it in Messages.",
+                    "preview" => ["account_managers" => $names, "untrusted_content" => ["body" => $body]],
+                ];
+            },
+            "apply" => function (PDO $pdo, array $p, array $a) {
+                $row = sendClientMessage($pdo, $p, openClientChat($pdo, $p), $a["body"]);
+                return ["message_id" => (int) $row["id"]];
+            },
+        ],
 
         // A client's team
         // The rules are client-team-writes.php's, the same as the Team section of profile.html.
