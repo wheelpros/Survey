@@ -695,7 +695,6 @@ function setView(next, remember){
     url.searchParams.set("view", view);
     history.replaceState(null, "", url);
   }
-  paintDailyReports();
 }
 
 document.getElementById("dashTabs").addEventListener("click", e => {

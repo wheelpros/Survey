@@ -3,7 +3,8 @@
 /*
 | Activity reports (api/activity-report-lib.php has the rules).
 |
-|   GET activity-reports.php              list_my_activity_reports    my reports, newest first
+|   GET activity-reports.php              list_my_activity_reports    my reports, newest first,
+|                                      and every one I haven't sent (open_reports)
 |   GET activity-reports.php?id=N         get_activity_report         one report I may see
 |   GET activity-reports.php?team=1       list_team_activity_reports  the reports I review,
 |                                      plan or see: from, to, status, department, paged
@@ -17,9 +18,9 @@
 | What people typed - titles, descriptions, outcomes, feedback, notes, count
 | units, file names, the end-of-day note - is under untrusted_content.
 |
-| Writes go through prepare/confirm in _writes.php: planning your own report
+| Writes go through prepare/confirm in _writes.php: creating your own report
 | (plan_my_activity_report), filling it in (update_report_activity,
-| add_report_activity, remove_report_activity, save_end_of_day), closing
+| add_report_activity, remove_report_activity, save_end_of_day), sending
 | (close_activity_report) and reviewing (review_report_activity,
 | review_activity_report). Planning for others stays in the portal.
 */
@@ -53,6 +54,7 @@ function v1DailyItem(PDO $pdo, array $p, array $r)
         "reviewers" => $r["reviewers"],
         "reviewer" => $r["reviewers"] ? $r["reviewers"][0] : null,
         "challenge_priority" => $r["challenge_priority"],
+        "activity_counts" => $s["activity_counts"],
     ];
 }
 
@@ -152,10 +154,12 @@ if (v1IntParam("team") === 1) {
     }
 
     $rows = [];
+    $shown = [];
     foreach (drFetch($pdo, $where, $params) as $r) {
         $item = v1DailyItem($pdo, $p, $r);
         if ($status === null || $item["status"] === $status) {
             $rows[] = $item;
+            $shown[] = $r;
         }
     }
     usort($rows, function ($a, $b) {
@@ -171,6 +175,8 @@ if (v1IntParam("team") === 1) {
         "to" => $to,
         "items" => array_slice($rows, $start, $limit),
         "next_cursor" => $start + $limit < count($rows) ? (string) ($start + $limit) : null,
+        // Every matching report, not just this page: the page's donut.
+        "activity_counts" => drActivityCounts($shown),
         "waiting_for_me" => drWaitingForMe($pdo, $p),
     ]);
 }
@@ -179,10 +185,13 @@ $today = drToday($pdo);
 $mine = drFetch($pdo, "r.admin_id = ?", [(int) $p["id"]], false, "ORDER BY r.report_date DESC, r.id DESC LIMIT 30");
 $items = array_values(array_map(function ($r) use ($pdo, $p) { return v1DailyItem($pdo, $p, $r); }, $mine));
 $todays = array_values(array_filter($items, function ($i) use ($today) { return $i["report_date"] === $today; }));
+$open = drFetch($pdo, "r.admin_id = ? AND r.status = 'planned'", [(int) $p["id"]]);
 
 v1Reply(200, [
     "today" => $today,
-    "today_report" => $todays[0] ?? null,
+    // The first one made today, kept for clients from before many a day.
+    "today_report" => $todays ? end($todays) : null,
+    "open_reports" => array_values(array_map(function ($r) use ($pdo, $p) { return v1DailyItem($pdo, $p, $r); }, $open)),
     "needs_me" => drPendingCount($pdo, $p),
     "can_plan_own" => can($p, "reports.self", $pdo),
     "items" => $items,

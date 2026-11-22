@@ -449,17 +449,18 @@ export const READ_TOOLS = [
     path: "team-forms.php",
   },
 
-  // ── Activity reports (planned days, filled in and reviewed activity by activity) ──
+  // ── Activity reports (planned, filled in, sent and reviewed activity by activity) ──
   {
     name: "list_my_activity_reports",
     scope: "activity_reports:read",
     title: "My activity reports",
     description:
-      "Your own activity reports: today's first (today_report), then your last 30, newest first, each with how many " +
-      "activities are done, where it stands and who reviews it. Open one with get_activity_report; fill it in with " +
-      "update_report_activity (and add_report_activity on a report someone else planned), write the end of the day " +
-      "with save_end_of_day, and close the day with close_activity_report. No report today and can_plan_own: " +
-      "start one with plan_my_activity_report.",
+      "Your own activity reports: every one you haven't sent yet, from any day (open_reports), then your last 30, " +
+      "newest first, each with how many activities are done, its activities by status (activity_counts), where it " +
+      "stands and who reviews it. You may have several on one day; today_report is the first one made today. Open " +
+      "one with get_activity_report; fill it in with update_report_activity (and add_report_activity on a report " +
+      "someone else planned), write the end of the day with save_end_of_day, and send it with close_activity_report " +
+      "whenever it's ready. With can_plan_own, create another with plan_my_activity_report at any time.",
     input: {},
     output: S.myDailyReports,
     path: "activity-reports.php",
@@ -472,7 +473,7 @@ export const READ_TOOLS = [
       "An activity report's activities - status, outcome, count, each one's review, and whether its author added it " +
       "(added_by_author) - plus its reviewers, the author's end-of-day note (outstanding work, tomorrow's priorities, " +
       "challenges with challenge_priority; high means they need help), its files and what you may do with it " +
-      "(can_edit, can_fix_sent_back, can_add_own_activities, can_review_activities, can_review_report). Only reports " +
+      "(can_edit until it's sent, can_fix_sent_back, can_add_own_activities, can_review_activities, can_review_report). Only reports " +
       "you may see: your own, the ones you planned or review, your team's if you review it.",
     input: { id: recordId("The report's id - from list_my_activity_reports, list_team_activity_reports or a notification") },
     output: S.dailyReport,
@@ -485,11 +486,12 @@ export const READ_TOOLS = [
     description:
       "The activity reports you review, plan or may see, for a day or a range (today by default), the ones needing " +
       "someone first. status awaiting lists those with Done work to review; waiting_for_me counts the ones sent " +
-      "to you. For reviewers, planners and whoever sees every report.",
+      "to you; activity_counts adds up the activities of every matching report by status. For reviewers, planners " +
+      "and whoever sees every report.",
     input: {
       from: date("First day, YYYY-MM-DD (default today)").optional(),
       to: date("Last day (default: from)").optional(),
-      status: z.enum(["awaiting", "changes", "reviewed", "sent", "missing", "in_progress", "planned"]).optional(),
+      status: z.enum(["awaiting", "changes", "reviewed", "sent", "in_progress", "planned"]).optional(),
       department: recordId("A department's id").optional(),
       ...paging,
     },
@@ -504,7 +506,7 @@ export const READ_TOOLS = [
     description:
       "The people you can pick to review your own activity report: the Director and whoever reviews team reports, " +
       "never you. default_ids is the portal's starting pick (your Account Manager, else the Director). Use it before " +
-      "plan_my_activity_report; can_plan_own says whether you may start your own report at all.",
+      "plan_my_activity_report; can_plan_own says whether you may create your own reports at all.",
     input: {},
     output: S.activityReportReviewers,
     path: "activity-reports.php",

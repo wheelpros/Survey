@@ -520,11 +520,12 @@ export const WRITE_TOOLS = [
   {
     name: "plan_my_activity_report",
     scope: "activity_reports:write",
-    title: "Start my own activity report",
+    title: "Create my own activity report",
     description:
-      "Starts today's activity report for yourself, when nobody planned one: the activities, and who reviews it " +
-      "(one or more ids from list_activity_report_reviewers; any one of them completes the review). Needs \"Plan " +
-      "their own activity report\". Refused if you already have a report today - use add_report_activity then." + TWO_STEP,
+      "Creates a new activity report for yourself, dated today, whatever reports you already have: the activities, " +
+      "and who reviews it (one or more ids from list_activity_report_reviewers; any one of them completes the review). " +
+      "Each activity can already carry its status, outcome and count. The reviewers are told as soon as it's saved " +
+      "and can review Done activities straight away. Needs \"Plan their own activity report\"." + TWO_STEP,
     input: {
       reviewers: z.array(z.number().int().positive()).min(1).max(20).describe("Admin ids from list_activity_report_reviewers"),
       activities: z
@@ -533,6 +534,9 @@ export const WRITE_TOOLS = [
             title: z.string().min(1).max(200),
             description: z.string().max(2000).optional(),
             count_unit: z.string().max(30).optional().describe("Something to count, like calls or CVs"),
+            status: z.enum(["todo", "in_progress", "follow_up", "done"]).optional().describe("Where it stands (default todo)"),
+            outcome: z.string().max(5000).optional().describe("What came of it so far"),
+            count: z.number().int().min(0).optional().describe("How many, for an activity with a count_unit"),
           })
         )
         .min(1)
@@ -544,7 +548,7 @@ export const WRITE_TOOLS = [
     scope: "activity_reports:write",
     title: "Add an activity to my activity report",
     description:
-      "Adds an activity of your own to today's report when someone else planned it (can_add_own_activities on " +
+      "Adds an activity of your own to an open report someone else planned for you (can_add_own_activities on " +
       "get_activity_report). It's marked as added by you, and the planner's Edit plan leaves it alone." + TWO_STEP,
     input: {
       report: recordId("The report's id - from list_my_activity_reports"),
@@ -558,7 +562,7 @@ export const WRITE_TOOLS = [
     scope: "activity_reports:write",
     title: "Remove an activity I added",
     description:
-      "Takes back an activity you added (added_by_author) to today's report, before any work on it. Planned " +
+      "Takes back an activity you added (added_by_author) to an open report, before any work on it. Planned " +
       "activities can't be removed this way." + TWO_STEP,
     input: {
       report: recordId("The report's id"),
@@ -570,7 +574,7 @@ export const WRITE_TOOLS = [
     scope: "activity_reports:write",
     title: "Write the end of day on my activity report",
     description:
-      "Saves the end-of-day note on your open report for today without closing it: outstanding work, tomorrow's " +
+      "Saves the end-of-day note on one of your open reports, from any day, without sending it: outstanding work, tomorrow's " +
       "priorities, and challenges or assistance required. Give only the parts to change; the rest stays. " +
       "challenge_priority is required with challenges (high = you need help). close_activity_report can also " +
       "take them." + TWO_STEP,
@@ -588,8 +592,8 @@ export const WRITE_TOOLS = [
     title: "Update an activity on my activity report",
     description:
       "Sets one activity on your own activity report: its status, outcome and/or count - only what you give changes. " +
-      "While the report is open, any activity not reviewed yet; once it's closed (or its day has passed), only the " +
-      "ones sent back to you. Saving it as done lets your reviewers review it." + TWO_STEP,
+      "Until you send the report, whatever its day, any activity not reviewed yet; once it's sent, only the ones " +
+      "sent back to you. Saving it as done lets your reviewers review it." + TWO_STEP,
     input: {
       report: recordId("The report's id - from list_my_activity_reports"),
       activity: recordId("The activity's id - from get_activity_report"),
@@ -601,9 +605,9 @@ export const WRITE_TOOLS = [
   {
     name: "close_activity_report",
     scope: "activity_reports:write",
-    title: "Close my activity report",
+    title: "Send my activity report",
     description:
-      "Closes today's report and sends it to its reviewers (any one of them reviews it). After that it's locked, " +
+      "Sends one of your open reports, from any day, to its reviewers (any one of them reviews it). After that it's locked, " +
       "except activities sent back. The end-of-day note goes with it: give only the parts you have; a parameter " +
       "left out keeps what's saved. challenge_priority is required with challenges (high = they need help)." + TWO_STEP,
     input: {
@@ -632,7 +636,7 @@ export const WRITE_TOOLS = [
     scope: "activity_reports:review",
     title: "Mark an activity report as reviewed",
     description:
-      "For the report's reviewers, once it's closed - the first one completes it: marks the whole report reviewed, approving any Done activities " +
+      "For the report's reviewers, once it's sent - the first one completes it: marks the whole report reviewed, approving any Done activities " +
       "not reviewed yet, with an optional note. Refused while an activity waits on changes." + TWO_STEP,
     input: {
       id: recordId("The report's id"),
