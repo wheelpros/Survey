@@ -85,9 +85,24 @@ $n = drNotes($pdo, 42, "daily_planned");
 check("notify: Hana hears her day was planned", count($n) === 1 && strpos($n[0][0], "Olivia planned your day") === 0
     && $n[0][2] === "activity-report-details.html?id=$hanaReport", json_encode($n));
 
-[$status, $r] = drPost($owner, ["action" => "plan", "admin_ids" => [42], "activities" => [["title" => "Afternoon post run"]]]);
+[$status, $r] = drPost($owner, ["action" => "plan", "admin_ids" => [42], "title" => str_repeat("x", 151), "activities" => [["title" => "Afternoon post run"]]]);
+check("daily: a title over 150 characters is refused", $status === 422 && strpos($r["message"] ?? "", "150 characters") !== false, json_encode($r));
+[$status, $r] = drPost($owner, ["action" => "plan", "admin_ids" => [42], "title" => "  Afternoon \n post  ", "activities" => [["title" => "Afternoon post run"]]]);
 $hanaSecond = (int) ($r["ids"][0] ?? 0);
 check("daily: a second report for Hana the same day", $status === 200 && $hanaSecond > $hanaReport, "HTTP $status " . json_encode($r));
+check("daily: its title is kept on one line", (drReport($hana, $hanaSecond)["report"]["title"] ?? null) === "Afternoon post",
+    json_encode(drReport($hana, $hanaSecond)["report"]["title"] ?? null));
+check("daily: a report planned without a title has none", (drReport($hana, $hanaReport)["report"]["title"] ?? null) === "");
+[, $r] = drGet($owner, "action=list&from=$drToday&to=$drToday&admin_id=42");
+check("daily: the team list carries the title", (array_column($r["items"] ?? [], "title", "id")[$hanaSecond] ?? null) === "Afternoon post",
+    json_encode(array_column($r["items"] ?? [], "title", "id")));
+$secondActs = drReport($owner, $hanaSecond)["report"]["activities"] ?? [];
+[$status, $r] = drPost($owner, ["action" => "plan", "id" => $hanaSecond, "activities" => $secondActs]);
+check("daily: an edit without a title keeps the one it has", $status === 200 && (drReport($owner, $hanaSecond)["report"]["title"] ?? null) === "Afternoon post",
+    "HTTP $status " . json_encode($r));
+[$status, $r] = drPost($owner, ["action" => "plan", "id" => $hanaSecond, "title" => "Evening post", "activities" => $secondActs]);
+check("daily: an edit can change the title", $status === 200 && (drReport($owner, $hanaSecond)["report"]["title"] ?? null) === "Evening post",
+    "HTTP $status " . json_encode($r));
 [, $r] = drGet($hana, "action=mine");
 check("daily: both are open, today_sheet stays the first", array_column($r["open_reports"] ?? [], "id") === [$hanaSecond, $hanaReport]
     && ($r["today_sheet"]["id"] ?? 0) === $hanaReport, json_encode($r));

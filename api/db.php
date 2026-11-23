@@ -1846,9 +1846,11 @@ function ensureDailyReportTables(PDO $pdo)
     }
 }
 
-/* The end of the day, filled in by the author: what's left, what's next, and
-   anything they need help with (with how urgent it is). */
+/* Added after the first release: the report's title, given when it's planned,
+   then the end of the day, filled in by the author: what's left, what's next,
+   and anything they need help with (with how urgent it is). */
 const DAILY_REPORT_EXTRA_COLUMNS = [
+    "title"              => "VARCHAR(150) NULL",
     "outstanding"        => "TEXT NULL",
     "priorities"         => "TEXT NULL",
     "challenges"         => "TEXT NULL",

@@ -1122,13 +1122,8 @@ async function viewSurveyResponses(surveyId){
     }
 
     // Newest first from the endpoint, so [0] is the latest submission rather
-    // than an arbitrary one. Opened in its own tab: the modal behind it keeps
-    // its place, the same as Send Again.
-    window.open(
-      "response-details.html?id=" + encodeURIComponent(data.responses[0].id),
-      "_blank",
-      "noopener"
-    );
+    // than an arbitrary one. Opened in this tab; its back link returns to Forms.
+    window.location.href = "response-details.html?id=" + encodeURIComponent(data.responses[0].id);
 
   }catch(error){
     alert("Connection error.");

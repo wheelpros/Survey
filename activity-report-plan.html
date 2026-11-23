@@ -37,7 +37,7 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 <link rel="stylesheet" href="assets/shell.css?v=8" />
-<link rel="stylesheet" href="assets/activity-reports.css?v=7" />
+<link rel="stylesheet" href="assets/activity-reports.css?v=8" />
 <script src="assets/permissions.js?v=2"></script>
 <script src="/assets/clarity.js" defer></script>
 <script src="/assets/auto-dir.js?v=1" defer></script>
@@ -88,6 +88,12 @@ document.addEventListener("DOMContentLoaded", function () {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
             For <strong id="metaDate">today</strong>
           </span>
+        </div>
+        <div class="report-title-field">
+          <label class="field-label" for="reportTitle">Title</label>
+          <input class="input" type="text" id="reportTitle" maxlength="150" autocomplete="off" dir="auto"
+                 placeholder="Client follow-ups for the week" aria-describedby="titleError">
+          <div class="field-error" id="titleError"></div>
         </div>
       </div>
 
@@ -552,6 +558,7 @@ async function load() {
       }
       const r = data.report;
       ownEdit = !!r.self_made && Number(r.admin_id) === Number(me.id);
+      document.getElementById("reportTitle").value = r.title || "";
       document.getElementById("planTitle").textContent = ownEdit ? "Change your own report" : "Change " + r.admin_name + "'s report";
       document.getElementById("sendBtn").textContent = "Save changes";
       document.getElementById("metaDate").textContent = DR.dayLabel(r.report_date, true);
@@ -614,6 +621,12 @@ async function load() {
     setStatus("Connection error.", "error");
   }
 }
+
+document.getElementById("reportTitle").addEventListener("input", e => {
+  dirty = true;
+  e.target.classList.remove("is-invalid");
+  document.getElementById("titleError").textContent = "";
+});
 
 window.addEventListener("beforeunload", event => {
   if (dirty && !sending) { event.preventDefault(); event.returnValue = ""; }
@@ -696,9 +709,13 @@ async function sendPlan(event) {
   event.preventDefault();
   if (sending) return;
   setStatus("");
-  ["deptError", "reviewersError", "peopleError", "activitiesError"].forEach(id => { document.getElementById(id).textContent = ""; });
+  ["titleError", "deptError", "reviewersError", "peopleError", "activitiesError"].forEach(id => { document.getElementById(id).textContent = ""; });
 
   let ok = planner.validate();
+  const titleInput = document.getElementById("reportTitle");
+  const title = titleInput.value.trim();
+  titleInput.classList.toggle("is-invalid", !title);
+  if (!title) { document.getElementById("titleError").textContent = "Give the report a title."; ok = false; }
   if (!editId && !selfMode && !deptValue()) { document.getElementById("deptError").textContent = "Choose a department."; ok = false; }
   else if (!picked.size) { document.getElementById("peopleError").textContent = "Pick who it goes to."; ok = false; }
   if (isOwn() && !reviewers.size) { document.getElementById("reviewersError").textContent = "Pick who reviews it."; ok = false; }
@@ -724,6 +741,7 @@ async function sendPlan(event) {
       id: editId,
       admin_ids: [...picked],
       self: isOwn(),
+      title,
       template_id: loadedTemplate ? loadedTemplate.id : null,
       department_id: dept && dept !== "none" ? Number(dept) : null,
       reviewer_ids: isOwn() ? [...reviewers] : [],
