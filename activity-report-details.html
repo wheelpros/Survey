@@ -37,7 +37,7 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 <link rel="stylesheet" href="assets/shell.css?v=8" />
-<link rel="stylesheet" href="assets/activity-reports.css?v=7" />
+<link rel="stylesheet" href="assets/activity-reports.css?v=8" />
 <script src="assets/permissions.js?v=2"></script>
 <script src="/assets/clarity.js" defer></script>
 <script src="/assets/auto-dir.js?v=1" defer></script>
@@ -459,7 +459,7 @@ function render(data) {
   // Your own self-planned report: the department, sent and "To" line says nothing you don't know.
   const ownReport = r.self_made && Number(r.admin_id) === Number(DR.user.id);
 
-  document.title = r.admin_name + " · " + DR.dayLabel(r.report_date, true) + " — Activity Report";
+  document.title = (r.title ? r.title + " · " : "") + r.admin_name + " · " + DR.dayLabel(r.report_date, true) + " — Activity Report";
   document.getElementById("report").innerHTML = `
     <div class="report-head">
       <div class="section-head report-title">
@@ -467,6 +467,7 @@ function render(data) {
         <div class="report-title-side">${closeBtn || DR.sheetPill(r) + reviewReportBtn}</div>
         ${moreMenu}
       </div>
+      ${r.title ? `<p class="report-subject" dir="auto">${esc(r.title)}</p>` : ""}
       <p>Activity report for ${esc(DR.dayLabel(r.report_date, true))} · ${r.self_made ? (ownReport ? "your own report" : "their own report") : "planned by " + esc(r.created_by_name) + (r.template_name ? " from “" + esc(r.template_name) + "”" : "")}</p>
       ${ownReport ? "" : `<div class="report-meta">
         <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/></svg>

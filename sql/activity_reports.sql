@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS daily_reports (
   reviewer_admin_id INT              NULL,              -- before daily_report_reviewers; no longer read
   department_id     INT              NULL,
   template_id       INT              NULL,
+  title             VARCHAR(150)     NULL,              -- what it's for, given when it's planned
   report_date       DATE         NOT NULL,              -- the portal's day it was created on (a label)
   status            VARCHAR(10)  NOT NULL DEFAULT 'planned',  -- planned | submitted (sent) | reviewed
   started           TINYINT(1)   NOT NULL DEFAULT 0,    -- anything saved yet
@@ -33,6 +34,9 @@ CREATE TABLE IF NOT EXISTS daily_reports (
   KEY idx_reviewer (reviewer_admin_id, status),
   KEY idx_created_by (created_by)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Installs from before report titles:
+--   ALTER TABLE daily_reports ADD COLUMN title VARCHAR(150) NULL;
 
 -- Installs from before many reports a day had a unique key here. Swap it once:
 --   ALTER TABLE daily_reports DROP INDEX uq_person_day, ADD KEY idx_person_day (admin_id, report_date);

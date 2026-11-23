@@ -37,7 +37,7 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 <link rel="stylesheet" href="assets/shell.css?v=8" />
-<link rel="stylesheet" href="assets/activity-reports.css?v=7" />
+<link rel="stylesheet" href="assets/activity-reports.css?v=8" />
 <script src="assets/permissions.js?v=2"></script>
 <script src="assets/dismiss.js?v=2"></script>
 <script src="/assets/clarity.js" defer></script>
@@ -104,8 +104,8 @@ document.addEventListener("DOMContentLoaded", function () {
           </a>
         </div>
         <table class="table">
-          <thead><tr><th>Date</th><th>Progress</th><th>Status</th><th class="col-actions"><span class="sr-only">Actions</span></th></tr></thead>
-          <tbody id="mineRows"><tr><td colspan="4" class="empty-cell">Loading...</td></tr></tbody>
+          <thead><tr><th>Title</th><th>Date</th><th>Progress</th><th>Status</th><th class="col-actions"><span class="sr-only">Actions</span></th></tr></thead>
+          <tbody id="mineRows"><tr><td colspan="5" class="empty-cell">Loading...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -142,9 +142,9 @@ document.addEventListener("DOMContentLoaded", function () {
         <button class="pillsel" type="button" data-select="fAdmin" data-label="Employee" aria-haspopup="menu" aria-expanded="false"></button>
         <button class="pillsel" type="button" data-select="fStatus" data-label="Status" aria-haspopup="menu" aria-expanded="false"></button>
         <button class="link-btn" type="button" id="clearBtn" onclick="clearTeamFilters()" hidden>Reset</button>
-        <label class="team-search"><span class="sr-only">Search by name</span>
+        <label class="team-search"><span class="sr-only">Search by name or title</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-          <input type="search" id="teamSearch" placeholder="Search by name" autocomplete="off">
+          <input type="search" id="teamSearch" placeholder="Search by name or title" autocomplete="off">
         </label>
       </div>
 
@@ -173,9 +173,9 @@ document.addEventListener("DOMContentLoaded", function () {
         </div>
         <table class="table">
           <thead>
-            <tr><th>Employee</th><th>Date</th><th>Progress</th><th>Status</th><th class="col-actions"><span class="sr-only">Actions</span></th></tr>
+            <tr><th>Employee</th><th>Title</th><th>Date</th><th>Progress</th><th>Status</th><th class="col-actions"><span class="sr-only">Actions</span></th></tr>
           </thead>
-          <tbody id="teamRows"><tr><td colspan="5" class="empty-cell">Loading...</td></tr></tbody>
+          <tbody id="teamRows"><tr><td colspan="6" class="empty-cell">Loading...</td></tr></tbody>
         </table>
       </div>
       <div class="load-more"><button class="btn" type="button" id="teamMore" onclick="loadTeam(true)" hidden>Load more</button></div>
@@ -261,6 +261,11 @@ function statusCell(r) {
     ? `<div class="muted" style="font-size:12px;margin-top:4px">${Number(r.to_review)} activities</div>` : "");
 }
 
+/* Reports from before titles have none. */
+function titleCell(r) {
+  return r.title ? `<span class="row-title" dir="auto">${esc(r.title)}</span>` : `<span class="muted">Untitled</span>`;
+}
+
 /* ── My reports ─────────────────────────────────────────────────────────── */
 
 /* The Dashboard's donut and tiles, over every report in the list below. */
@@ -280,6 +285,7 @@ function created(r) {
 function mineRow(r) {
   return `
     <tr>
+      <td data-label="Title">${titleCell(r)}</td>
       <td data-label="Date"><a class="row-link" href="activity-report-details.html?id=${Number(r.id)}"><strong>${esc(DR.dayLabel(r.report_date))}</strong></a><small class="cell-sub">${esc(created(r))}</small></td>
       <td data-label="Progress">${DR.progress(r.activities_done, r.activities_total)}</td>
       <td data-label="Status">${statusCell(r)}</td>
@@ -297,7 +303,7 @@ async function loadMine() {
   try {
     const data = await DR.get("mine");
     if (!data.success) {
-      body.innerHTML = `<tr><td colspan="4" class="empty-cell">${esc(data.message || "Could not load your reports.")}</td></tr>`;
+      body.innerHTML = `<tr><td colspan="5" class="empty-cell">${esc(data.message || "Could not load your reports.")}</td></tr>`;
       return;
     }
     // My reports is always there for someone with no team view: it's the only view they have,
@@ -310,9 +316,9 @@ async function loadMine() {
     renderMineOverview(rows);
     body.innerHTML = rows.length
       ? rows.map(mineRow).join("")
-      : `<tr><td colspan="4" class="empty-cell">${canSelf ? "No reports yet. Create one, or wait for one to be requested from you." : "Your reports will show here once one has been requested from you."}</td></tr>`;
+      : `<tr><td colspan="5" class="empty-cell">${canSelf ? "No reports yet. Create one, or wait for one to be requested from you." : "Your reports will show here once one has been requested from you."}</td></tr>`;
   } catch (err) {
-    body.innerHTML = `<tr><td colspan="4" class="empty-cell">Connection error.</td></tr>`;
+    body.innerHTML = `<tr><td colspan="5" class="empty-cell">Connection error.</td></tr>`;
   }
 }
 
@@ -368,6 +374,7 @@ function teamRow(r) {
         <span class="row-avatar" aria-hidden="true">${esc(initials(r.admin_name))}</span>
         <span class="person-text"><a class="row-link" href="activity-report-details.html?id=${Number(r.id)}"><strong>${esc(r.admin_name)}</strong></a><small>${esc(role)}</small></span>
       </div></td>
+      <td data-label="Title">${titleCell(r)}</td>
       <td data-label="Date">${esc(DR.dayLabel(r.report_date))}<small class="cell-sub">${esc(by + (r.created_ts ? " · " + DR.timeLabel(r.created_ts) : ""))}</small></td>
       <td data-label="Progress">${DR.progress(r.activities_done, r.activities_total)}</td>
       <td data-label="Status">${DR.sheetPill(r)}</td>
@@ -375,14 +382,14 @@ function teamRow(r) {
     </tr>`;
 }
 
-/** Rows after the name search, which filters what's loaded without asking the server again. */
+/** Rows after the name or title search, which filters what's loaded without asking the server again. */
 function renderTeamRows() {
   const body = document.getElementById("teamRows");
   const q = document.getElementById("teamSearch").value.trim().toLowerCase();
-  const rows = q ? teamRows.filter(r => String(r.admin_name).toLowerCase().includes(q)) : teamRows;
+  const rows = q ? teamRows.filter(r => (r.admin_name + " " + (r.title || "")).toLowerCase().includes(q)) : teamRows;
   body.innerHTML = rows.length
     ? rows.map(teamRow).join("")
-    : `<tr><td colspan="5" class="empty-cell">${q ? `Nobody called “${esc(q)}” has a report here.`
+    : `<tr><td colspan="6" class="empty-cell">${q ? `No report here matches “${esc(q)}”.`
       : Object.keys(currentFilters()).length > 2 ? "Nothing matches these filters. Reset them, or pick other dates." : "No reports for these days."}</td></tr>`;
 }
 
@@ -563,13 +570,13 @@ async function loadTeam(more) {
     syncUrl();
     teamCursor = null;
     moreBtn.hidden = true;
-    body.innerHTML = `<tr><td colspan="5" class="empty-cell">Loading...</td></tr>`;
+    body.innerHTML = `<tr><td colspan="6" class="empty-cell">Loading...</td></tr>`;
   }
   try {
     const data = await DR.get("list", Object.assign(currentFilters(), more && teamCursor ? { cursor: teamCursor } : {}));
     if (!data.success) {
       if (more) return DR.notice(data.message || "Could not load more reports.", "error");
-      body.innerHTML = `<tr><td colspan="5" class="empty-cell">${esc(data.message || "Could not load reports.")}</td></tr>`;
+      body.innerHTML = `<tr><td colspan="6" class="empty-cell">${esc(data.message || "Could not load reports.")}</td></tr>`;
       renderStats(null);
       return;
     }
@@ -582,7 +589,7 @@ async function loadTeam(more) {
     renderTeamRows();
   } catch (err) {
     if (more) DR.notice("Connection error. Try Load more again.", "error");
-    else body.innerHTML = `<tr><td colspan="5" class="empty-cell">Connection error.</td></tr>`;
+    else body.innerHTML = `<tr><td colspan="6" class="empty-cell">Connection error.</td></tr>`;
   } finally {
     moreBtn.hidden = !teamCursor;
     moreBtn.disabled = false;

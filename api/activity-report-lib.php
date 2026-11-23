@@ -61,6 +61,7 @@ require_once __DIR__ . "/availability.php"; // portalTimezone()
 const DR_ACTIVITY_STATUSES = ["todo", "in_progress", "follow_up", "done"];
 const DR_CHALLENGE_PRIORITIES = ["low", "medium", "high"];
 const DR_MAX_ACTIVITIES = 30;
+const DR_MAX_TITLE = 150;
 const DR_LIST_PAGE_MAX = 100;
 
 /* Effective statuses, as the lists sort them (most in need of someone first). */
@@ -351,6 +352,7 @@ function drFetch(PDO $pdo, $where, array $params, $full = false, $orderLimit = "
             "department_name" => $row["department_name"],
             "template_id" => $row["template_id"] !== null ? (int) $row["template_id"] : null,
             "template_name" => $row["template_name"],
+            "title" => (string) ($row["title"] ?? ""),
             "report_date" => (string) $row["report_date"],
             "status" => (string) $row["status"],
             "started" => (bool) $row["started"],
@@ -512,7 +514,7 @@ function drSummary(PDO $pdo, array $p, array $r)
         "admin_position" => $r["admin_position"],
         "department_id" => $r["department_id"], "department_name" => $r["department_name"],
         "created_by" => $r["created_by"], "created_by_name" => $r["created_by_name"], "self_made" => $r["created_by"] === $r["admin_id"],
-        "template_name" => $r["template_name"],
+        "template_name" => $r["template_name"], "title" => $r["title"],
         "report_date" => $r["report_date"], "status" => $r["status"], "effective_status" => drEffectiveStatus($r),
         "to_review" => $toReview, "activities_total" => count($r["activities"]), "activities_done" => $done,
         "counts" => drCounts([$r]), "activity_counts" => drActivityCounts([$r]),
@@ -843,6 +845,19 @@ function drCheckDepartment(PDO $pdo, $departmentId)
     return $departmentId;
 }
 
+/** A report's title: optional, one line, up to DR_MAX_TITLE characters. Null when blank. */
+function drCleanTitle($title)
+{
+    if ($title !== null && !is_string($title)) {
+        throw new PortalWriteError("The title must be text.");
+    }
+    $title = trim(preg_replace('/\s+/u', ' ', (string) $title));
+    if (mb_strlen($title) > DR_MAX_TITLE) {
+        throw new PortalWriteError("Keep the title to " . DR_MAX_TITLE . " characters.");
+    }
+    return $title !== "" ? $title : null;
+}
+
 function drInsertActivities(PDO $pdo, $reportId, array $acts, $startOrder = 0)
 {
     $insert = $pdo->prepare("
@@ -885,6 +900,7 @@ function drPlan(PDO $pdo, array $p, array $in)
         throw new PortalWriteError("You can't plan this report.", 403);
     }
     $today = drToday($pdo);
+    $title = drCleanTitle($in["title"] ?? null);
     $acts = drCleanPlan($in["activities"] ?? [], $self);
     $started = count(array_filter($acts, function ($a) { return drHasProgress($a["progress"]); })) > 0;
     $deptId = drCheckDepartment($pdo, $in["department_id"] ?? null);
@@ -912,8 +928,8 @@ function drPlan(PDO $pdo, array $p, array $in)
     $pdo->beginTransaction();
     try {
         $insert = $pdo->prepare("
-            INSERT INTO daily_reports (admin_id, created_by, reviewer_admin_id, department_id, template_id, report_date, status, started, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, 'planned', ?, NOW())
+            INSERT INTO daily_reports (admin_id, created_by, reviewer_admin_id, department_id, template_id, title, report_date, status, started, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'planned', ?, NOW())
         ");
         foreach ($ids as $id) {
             $dept = $deptId;
@@ -921,7 +937,7 @@ function drPlan(PDO $pdo, array $p, array $in)
                 $deptOf->execute([$id]);
                 $dept = $deptOf->fetchColumn() ?: null;
             }
-            $insert->execute([$id, (int) $p["id"], $reviewerIds[0], $dept, $tplId, $today, $started ? 1 : 0]);
+            $insert->execute([$id, (int) $p["id"], $reviewerIds[0], $dept, $tplId, $title, $today, $started ? 1 : 0]);
             $rid = (int) $pdo->lastInsertId();
             drSetReviewers($pdo, $rid, $reviewerIds);
             drInsertActivities($pdo, $rid, $acts);
@@ -968,6 +984,8 @@ function drReplan(PDO $pdo, array $p, $id, array $in)
     $reviewerIds = $self ? drCheckReviewers($pdo, $in["reviewer_ids"] ?? [], (int) $p["id"]) : null;
     $deptId = drCheckDepartment($pdo, $in["department_id"] ?? null);
     $tplId = (int) ($in["template_id"] ?? 0) ?: null;
+    // Left out (older pages, the AI tools) keeps the title it has.
+    $title = array_key_exists("title", $in) ? drCleanTitle($in["title"]) : ($r["title"] !== "" ? $r["title"] : null);
 
     // Activities the author added themselves aren't the planner's to change:
     // they're left out of the comparison, never deleted, and kept after the plan.
@@ -1035,8 +1053,8 @@ function drReplan(PDO $pdo, array $p, $id, array $in)
         foreach (array_keys($own) as $k => $ownId) {
             $move->execute([count($acts) + $k, $ownId, $r["id"]]);
         }
-        $pdo->prepare("UPDATE daily_reports SET department_id = ?, template_id = ?, started = started OR ?, updated_at = NOW() WHERE id = ?")
-            ->execute([$deptId, $tplId, $started ? 1 : 0, $r["id"]]);
+        $pdo->prepare("UPDATE daily_reports SET department_id = ?, template_id = ?, title = ?, started = started OR ?, updated_at = NOW() WHERE id = ?")
+            ->execute([$deptId, $tplId, $title, $started ? 1 : 0, $r["id"]]);
         if ($reviewerIds !== null) {
             drSetReviewers($pdo, $r["id"], $reviewerIds);
         }
