@@ -546,10 +546,18 @@ body{padding:0}
     margin-bottom: 14px;
 }
 
+/* One height for the field and its button. The input drops the margin the
+   page-wide input rule gives it, which stretched the button below the field. */
+.dept-add input,
+.dept-add .add-admin-btn {
+    height: 44px;
+    margin: 0;
+}
+
 .dept-add input {
     flex: 1;
     min-width: 0;
-    padding: 11px 14px;
+    padding: 0 14px;
     border: 1px solid #dfe3ea;
     border-radius: 10px;
     font: inherit;
@@ -681,6 +689,7 @@ body{padding:0}
 
 @media (max-width: 700px) {
     .dept-add { flex-direction: column; }
+    .dept-add input { flex: none; }
     .dept-row { grid-template-columns: minmax(0, 1fr) auto; }
     .dept-count { grid-row: 2; padding-left: 10px; }
 }
