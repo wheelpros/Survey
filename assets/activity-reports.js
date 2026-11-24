@@ -136,11 +136,15 @@
   /*
    * The activity planner: what a creator writes for someone's day - title,
    * description and, for routine work, something to count ("calls"). Used by
-   * the plan page and the template editor.
+   * the plan page and the template editor. Counting is a Quantity switch;
+   * the number itself is entered with the activity's progress.
    *
    *   var p = DR.planner(box, { prefix: "plan", onChange: fn });
    *   p.set([{ title, description, count_unit, origin }]); p.get(); p.add(true);
    */
+  /* What a counted activity counts when the planner ticks Quantity. */
+  var QUANTITY_UNIT = "quantity";
+
   function planner(box, opts) {
     opts = opts || {};
     var prefix = opts.prefix || "p";
@@ -153,21 +157,31 @@
        since the page knows it's your own only once it has loaded). */
     function withProgress() { return typeof opts.progress === "function" ? !!opts.progress() : !!opts.progress; }
 
-    function progressFields(a, i, counted) {
-      return '<div class="progress-fields">'
-        + '<div><label class="field-label" for="' + prefix + "S" + i + '">Status</label>'
+    /* Your own report: what came of it under the description, then one line
+       with the status, the Quantity switch and, once it's on, how many. */
+    function outcomeField(a, i) {
+      return '<label class="field-label" for="' + prefix + "O" + i + '">Outcome <span class="optional">(optional)</span></label>'
+        + '<textarea class="textarea" data-voice id="' + prefix + "O" + i + '" data-field="outcome" maxlength="5000" dir="auto" placeholder="What came of it so far">' + esc(a.outcome || "") + "</textarea>";
+    }
+
+    function quantitySwitch(counted) {
+      return '<label class="check"><input type="checkbox" data-counted ' + (counted ? "checked" : "") + "> Quantity</label>";
+    }
+
+    function progressRow(a, i, counted) {
+      return '<div class="qty-row">'
+        + '<div class="qty-field"><label class="field-label" for="' + prefix + "S" + i + '">Status</label>'
         + '<select class="select" id="' + prefix + "S" + i + '" data-field="status">'
         + ACTIVITY_STATUS.map(function (s) {
             return '<option value="' + s[0] + '"' + ((a.status || "todo") === s[0] ? " selected" : "") + ">" + s[1] + "</option>";
           }).join("")
         + "</select></div>"
+        + quantitySwitch(counted)
         + (counted
-          ? '<div><label class="field-label" for="' + prefix + "N" + i + '">How many' + (a.count_unit ? " " + esc(a.count_unit) : "") + '</label>'
-            + '<input class="input" type="number" min="0" step="1" inputmode="numeric" id="' + prefix + "N" + i + '" data-field="count_value" value="' + (a.count_value == null ? "" : esc(a.count_value)) + '"></div>'
+          ? '<div class="qty-field"><label class="field-label" for="' + prefix + "N" + i + '">How many</label>'
+            + '<input class="input qty-input" type="number" min="0" step="1" inputmode="numeric" id="' + prefix + "N" + i + '" data-field="count_value" value="' + (a.count_value == null ? "" : esc(a.count_value)) + '"></div>'
           : "")
-        + "</div>"
-        + '<label class="field-label" for="' + prefix + "O" + i + '">Outcome <span class="optional">(optional)</span></label>'
-        + '<textarea class="textarea" data-voice id="' + prefix + "O" + i + '" data-field="outcome" maxlength="5000" dir="auto" placeholder="What came of it so far">' + esc(a.outcome || "") + "</textarea>";
+        + "</div>";
     }
 
     /* An activity the employee has worked on (or that was reviewed) is kept
@@ -204,10 +218,9 @@
           + '<div class="field-error" id="' + prefix + "E" + i + '"></div>'
           + '<label class="field-label" for="' + prefix + "D" + i + '">Description</label>'
           + '<textarea class="textarea" data-voice id="' + prefix + "D" + i + '" data-field="description" maxlength="2000" dir="auto" placeholder="What needs doing, and anything they should know">' + esc(a.description) + "</textarea>"
-          + '<div class="count-row"><label class="check"><input type="checkbox" data-counted ' + (counted ? "checked" : "") + '> Count this</label>'
-          + '<input class="input count-unit" data-field="count_unit" maxlength="30" placeholder="calls" aria-label="What to count" value="' + esc(a.count_unit || "") + '"' + (counted ? "" : " hidden") + ">"
-          + '<span class="hint">' + (counted ? (withProgress() ? "Say how many below." : "They enter how many with the outcome.") : "For routine work: calls, CVs, meetings.") + "</span></div>"
-          + (withProgress() ? progressFields(a, i, counted) : "")
+          + (withProgress()
+            ? outcomeField(a, i) + progressRow(a, i, counted)
+            : '<div class="qty-row">' + quantitySwitch(counted) + "</div>")
           + "</div>";
       }).join("");
       if (focusIndex != null) {
@@ -230,12 +243,11 @@
     box.addEventListener("change", function (e) {
       if (!e.target.hasAttribute("data-counted")) return;
       var i = Number(e.target.closest(".activity").dataset.index);
-      items[i].count_unit = e.target.checked ? (items[i].count_unit || "") : null;
+      // Activities from before keep the unit they were planned with ("calls").
+      items[i].count_unit = e.target.checked ? (items[i].count_unit || QUANTITY_UNIT) : null;
       render();
-      if (e.target.checked) {
-        var u = box.querySelector('[data-index="' + i + '"] .count-unit');
-        if (u) u.focus();
-      }
+      var how = e.target.checked && document.getElementById(prefix + "N" + i);
+      if (how) how.focus();
       changed();
     });
 
@@ -276,7 +288,7 @@
       /** Replaces the activities, keeping the ones already worked on (they can't go). */
       replace: function (list) { this.set(items.filter(function (a) { return a.locked; }).concat(list || [])); changed(); },
       count: function () { return items.filter(function (a) { return a.title.trim(); }).length; },
-      /** Flags cards with text but no title, or a count with no unit. */
+      /** Flags cards with text but no title. */
       validate: function () {
         var first = null;
         items.forEach(function (a, i) {
@@ -285,11 +297,6 @@
             el.classList.add("is-invalid");
             document.getElementById(prefix + "E" + i).textContent = "Give this activity a title.";
             if (!first) first = el;
-          } else if (a.title.trim() && a.count_unit != null && !String(a.count_unit).trim()) {
-            var u = box.querySelector('[data-index="' + i + '"] .count-unit');
-            u.classList.add("is-invalid");
-            document.getElementById(prefix + "E" + i).textContent = "Say what to count, for example calls.";
-            if (!first) first = u;
           }
         });
         if (first) {
