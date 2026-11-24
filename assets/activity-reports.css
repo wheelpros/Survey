@@ -246,7 +246,8 @@ body{background:#f6f7fb;color:var(--text);padding:0}
 .table tr.is-missing td{background:#fffbfa}
 .table .muted{color:var(--muted)}
 .table a.row-link{color:inherit;text-decoration:none}
-.table a.row-link:hover strong{text-decoration:underline}
+.table a.row-link:hover strong,.table a.row-link:hover .row-title{text-decoration:underline}
+.row-title.is-untitled{font-weight:600;color:var(--muted)}
 .empty-cell{padding:28px 18px;color:var(--muted);text-align:center}
 .progress{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
 .progress-bar{width:56px;height:6px;border-radius:6px;background:#eef1f5;overflow:hidden}

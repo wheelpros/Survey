@@ -83,7 +83,7 @@ document.addEventListener("DOMContentLoaded", function () {
     <div class="view-tabs" id="viewTabs" role="tablist" aria-label="Activity reports">
       <button class="view-tab" type="button" role="tab" id="tab-mine" aria-controls="view-mine" aria-selected="false" tabindex="-1" onclick="showTab('mine')" onkeydown="tabKeys(event)" hidden>My reports</button>
       <button class="view-tab" type="button" role="tab" id="tab-team" aria-controls="view-team" aria-selected="false" tabindex="-1" onclick="showTab('team')" onkeydown="tabKeys(event)" hidden>
-        Team reports <em class="tab-count" id="teamWaiting" title="Reports with activities waiting for your review" hidden></em>
+        Team reports
       </button>
       <button class="view-tab" type="button" role="tab" id="tab-templates" aria-controls="view-templates" aria-selected="false" tabindex="-1" onclick="showTab('templates')" onkeydown="tabKeys(event)" hidden>Templates</button>
     </div>
@@ -261,9 +261,10 @@ function statusCell(r) {
     ? `<div class="muted" style="font-size:12px;margin-top:4px">${Number(r.to_review)} activities</div>` : "");
 }
 
-/* Reports from before titles have none. */
+/* The title opens the report. Reports from before titles have none. */
 function titleCell(r) {
-  return r.title ? `<span class="row-title" dir="auto">${esc(r.title)}</span>` : `<span class="muted">Untitled</span>`;
+  const text = r.title ? `<span class="row-title" dir="auto">${esc(r.title)}</span>` : `<span class="row-title is-untitled">Untitled</span>`;
+  return `<a class="row-link" href="activity-report-details.html?id=${Number(r.id)}">${text}</a>`;
 }
 
 /* ── My reports ─────────────────────────────────────────────────────────── */
@@ -286,7 +287,7 @@ function mineRow(r) {
   return `
     <tr>
       <td data-label="Title">${titleCell(r)}</td>
-      <td data-label="Date"><a class="row-link" href="activity-report-details.html?id=${Number(r.id)}"><strong>${esc(DR.dayLabel(r.report_date))}</strong></a><small class="cell-sub">${esc(created(r))}</small></td>
+      <td data-label="Date"><strong>${esc(DR.dayLabel(r.report_date))}</strong><small class="cell-sub">${esc(created(r))}</small></td>
       <td data-label="Progress">${DR.progress(r.activities_done, r.activities_total)}</td>
       <td data-label="Status">${statusCell(r)}</td>
       <td class="col-actions">${DR.kebab("Actions for your report on " + DR.dayLabel(r.report_date, true), "mineMenu(this, " + Number(r.id) + ")")}</td>
@@ -372,7 +373,7 @@ function teamRow(r) {
     <tr>
       <td><div class="person-cell">
         <span class="row-avatar" aria-hidden="true">${esc(initials(r.admin_name))}</span>
-        <span class="person-text"><a class="row-link" href="activity-report-details.html?id=${Number(r.id)}"><strong>${esc(r.admin_name)}</strong></a><small>${esc(role)}</small></span>
+        <span class="person-text"><strong>${esc(r.admin_name)}</strong><small>${esc(role)}</small></span>
       </div></td>
       <td data-label="Title">${titleCell(r)}</td>
       <td data-label="Date">${esc(DR.dayLabel(r.report_date))}<small class="cell-sub">${esc(by + (r.created_ts ? " · " + DR.timeLabel(r.created_ts) : ""))}</small></td>
@@ -581,9 +582,6 @@ async function loadTeam(more) {
       return;
     }
     renderStats(data.stats);
-    const waiting = document.getElementById("teamWaiting");
-    waiting.hidden = !data.waiting_for_me;
-    waiting.textContent = data.waiting_for_me || "";
     teamRows = more ? teamRows.concat(data.items || []) : (data.items || []);
     teamCursor = data.next_cursor || null;
     renderTeamRows();
