@@ -161,7 +161,8 @@ body{background:#f6f7fb;color:var(--text);padding:0}
 .date-btn{padding:0 12px;border-radius:10px;font-weight:700}
 .date-btn svg{width:16px;height:16px;flex:none}
 .date-btn .caret,.pillsel svg{width:14px;height:14px;color:var(--muted);flex:none}
-.pillsel{padding:0 12px 0 14px;border-radius:999px}
+/* Every control in the bar shares one shape: the date button's. */
+.pillsel{padding:0 12px;border-radius:10px}
 .pillsel span{color:var(--muted)}
 .pillsel strong{font-weight:700;max-width:180px;overflow:hidden;text-overflow:ellipsis}
 .date-btn:hover,.pillsel:hover{border-color:#98a2b3}
