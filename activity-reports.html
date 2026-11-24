@@ -37,7 +37,7 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 <link rel="stylesheet" href="assets/shell.css?v=8" />
-<link rel="stylesheet" href="assets/activity-reports.css?v=10" />
+<link rel="stylesheet" href="assets/activity-reports.css?v=11" />
 <script src="assets/permissions.js?v=2"></script>
 <script src="assets/dismiss.js?v=2"></script>
 <script src="/assets/clarity.js" defer></script>
@@ -178,7 +178,7 @@ document.addEventListener("DOMContentLoaded", function () {
         </div>
         <table class="table">
           <thead>
-            <tr><th>Employee</th><th>Title</th><th>Date</th><th>Progress</th><th>Status</th><th class="col-actions"><span class="sr-only">Actions</span></th></tr>
+            <tr><th>Title</th><th>Employee</th><th>Date</th><th>Progress</th><th>Status</th><th class="col-actions"><span class="sr-only">Actions</span></th></tr>
           </thead>
           <tbody id="teamRows"><tr><td colspan="6" class="empty-cell">Loading...</td></tr></tbody>
         </table>
@@ -376,11 +376,11 @@ function teamRow(r) {
   const role = [r.admin_position, r.department_name].filter(Boolean).join(", ");
   return `
     <tr>
-      <td><div class="person-cell">
+      <td data-label="Title">${titleCell(r)}</td>
+      <td data-label="Employee"><div class="person-cell">
         <span class="row-avatar" aria-hidden="true">${esc(initials(r.admin_name))}</span>
         <span class="person-text"><strong>${esc(r.admin_name)}</strong><small>${esc(role)}</small></span>
       </div></td>
-      <td data-label="Title">${titleCell(r)}</td>
       <td data-label="Date">${esc(DR.dayLabel(r.report_date))}<small class="cell-sub">${esc(by + (r.created_ts ? " · " + DR.timeLabel(r.created_ts) : ""))}</small></td>
       <td data-label="Progress">${DR.progress(r.activities_done, r.activities_total)}</td>
       <td data-label="Status">${DR.sheetPill(r)}</td>

@@ -697,16 +697,16 @@ body:has(#demoRibbon) .edit-bar{bottom:80px}
   .stats button.stat:focus-visible{outline:2px solid var(--nav-active);outline-offset:-2px}
 }
 
-/* ── Team reports cards on phones: name, the title, then when and who planned it, then progress beside status ── */
+/* ── Team reports cards on phones: the title, the name, then when and who planned it, then progress beside status ── */
 @media(max-width:768px){
-  #view-team .table tr{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"who who" "title title" "when when" "progress status";align-items:center;gap:8px 12px}
+  #view-team .table tr{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"title title" "who who" "when when" "progress status";align-items:center;gap:8px 12px}
   #view-team .table td{padding:0}
-  #view-team .table td:nth-child(1){grid-area:who}
-  #view-team .table td:nth-child(2){grid-area:title;font-size:14px;font-weight:700}
+  #view-team .table td:nth-child(1){grid-area:title;font-size:15px;font-weight:700;padding-right:44px}
+  #view-team .table td:nth-child(2){grid-area:who}
   #view-team .table td:nth-child(3){grid-area:when;font-size:13px;color:#344054}
   #view-team .table td:nth-child(4){grid-area:progress}
   #view-team .table td:nth-child(5){grid-area:status;justify-self:end}
-  #view-team .table td:nth-child(2)::before,#view-team .table td:nth-child(3)::before,#view-team .table td:nth-child(4)::before,#view-team .table td:nth-child(5)::before{content:none}
+  #view-team .table td:nth-child(1)::before,#view-team .table td:nth-child(2)::before,#view-team .table td:nth-child(3)::before,#view-team .table td:nth-child(4)::before,#view-team .table td:nth-child(5)::before{content:none}
   #view-team .table td:nth-child(3) .cell-sub{display:inline;margin:0;font-size:13px}
   #view-team .table td:nth-child(3) .cell-sub::before{content:"\00b7";margin:0 6px;color:var(--muted)}
   #view-team .table td.empty-cell{grid-column:1 / -1}
