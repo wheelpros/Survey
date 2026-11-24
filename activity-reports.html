@@ -37,7 +37,7 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 <link rel="stylesheet" href="assets/shell.css?v=8" />
-<link rel="stylesheet" href="assets/activity-reports.css?v=9" />
+<link rel="stylesheet" href="assets/activity-reports.css?v=10" />
 <script src="assets/permissions.js?v=2"></script>
 <script src="assets/dismiss.js?v=2"></script>
 <script src="/assets/clarity.js" defer></script>
@@ -83,7 +83,7 @@ document.addEventListener("DOMContentLoaded", function () {
     <div class="view-tabs" id="viewTabs" role="tablist" aria-label="Activity reports">
       <button class="view-tab" type="button" role="tab" id="tab-mine" aria-controls="view-mine" aria-selected="false" tabindex="-1" onclick="showTab('mine')" onkeydown="tabKeys(event)" hidden>My reports</button>
       <button class="view-tab" type="button" role="tab" id="tab-team" aria-controls="view-team" aria-selected="false" tabindex="-1" onclick="showTab('team')" onkeydown="tabKeys(event)" hidden>
-        Team reports
+        Team reports <em class="tab-count" id="teamWaiting" title="Reports waiting for your review" hidden></em>
       </button>
       <button class="view-tab" type="button" role="tab" id="tab-templates" aria-controls="view-templates" aria-selected="false" tabindex="-1" onclick="showTab('templates')" onkeydown="tabKeys(event)" hidden>Templates</button>
     </div>
@@ -159,6 +159,11 @@ document.addEventListener("DOMContentLoaded", function () {
         </div>
       </div>
       <div class="bar-pop pop-menu" id="pillMenu" role="menu" hidden></div>
+
+      <div class="waiting-hint" id="waitingHint" role="status" hidden>
+        <span id="waitingHintText"></span>
+        <button class="link-btn" type="button" onclick="showWaiting()">Show them</button>
+      </div>
 
       <div class="panel">
         <div class="panel-head">
@@ -557,6 +562,35 @@ function renderStats(stats) {
   DR.overview(box, stats.activities, stats.reports, "Team activities by status");
 }
 
+/* The tab counts every report waiting for your review, whatever the filters.
+   When the filters hide some of them, say so and offer to show them all. */
+let waitingSince = null;
+
+function renderWaiting(data) {
+  const total = Number(data.waiting_for_me) || 0;
+  const hidden = total - (Number(data.waiting_here) || 0);
+  const badge = document.getElementById("teamWaiting");
+  badge.hidden = !total;
+  badge.textContent = total || "";
+  waitingSince = data.waiting_since || null;
+  const hint = document.getElementById("waitingHint");
+  hint.hidden = hidden <= 0 || !waitingSince;
+  document.getElementById("waitingHintText").textContent = hidden === 1
+    ? "1 report waiting for your review isn't in these filters."
+    : hidden + " reports waiting for your review aren't in these filters.";
+}
+
+function showWaiting() {
+  if (!waitingSince) return;
+  document.getElementById("fDept").value = "";
+  document.getElementById("fAdmin").value = "";
+  document.getElementById("fStatus").value = "awaiting";
+  document.getElementById("fFrom").value = waitingSince;
+  document.getElementById("fTo").value = DR.todayIso();
+  document.getElementById("teamSearch").value = "";
+  loadTeam();
+}
+
 /* One page of reports at a time; Load more asks for the next from the cursor. */
 let teamCursor = null;
 
@@ -582,6 +616,7 @@ async function loadTeam(more) {
       return;
     }
     renderStats(data.stats);
+    renderWaiting(data);
     teamRows = more ? teamRows.concat(data.items || []) : (data.items || []);
     teamCursor = data.next_cursor || null;
     renderTeamRows();

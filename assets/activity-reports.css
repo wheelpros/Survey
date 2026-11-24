@@ -152,6 +152,8 @@ body{background:#f6f7fb;color:var(--text);padding:0}
 .view-tab[hidden],.view[hidden]{display:none}
 .tab-count{font-style:normal;font-size:11px;font-weight:800;min-width:20px;padding:3px 6px;border-radius:9px;background:#fff7e6;color:#93560c;text-align:center}
 .tab-count[hidden]{display:none}
+.waiting-hint{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;margin:-6px 0 14px;padding:10px 14px;border-radius:12px;background:#fff7e6;color:#93560c;font-size:13px;font-weight:600}
+.waiting-hint[hidden]{display:none}
 
 /* ── Filters ── */
 /* Team reports filter bar: a date button with presets, then one pill per

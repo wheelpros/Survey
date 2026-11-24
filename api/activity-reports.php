@@ -217,6 +217,7 @@ try {
         $status = (string) ($_GET["status"] ?? "");
         $rows = [];
         $shown = [];
+        $waitingHere = 0;
         $stats = ["reports" => 0, "sent" => 0, "awaiting" => 0, "changes" => 0];
         foreach ($inRange as $r) {
             $s = drSummary($pdo, $p, $r);
@@ -226,6 +227,7 @@ try {
             if ($status === "" || $s["effective_status"] === $status) {
                 $rows[] = $s;
                 $shown[] = $r;
+                $waitingHere += drWaitsFor($r, $p["id"]) ? 1 : 0;
             }
         }
         // The donut follows every filter, status included.
@@ -237,6 +239,7 @@ try {
                 ?: strcmp($a["admin_name"], $b["admin_name"]);
         });
 
+        [$waitingCount, $waitingSince] = drWaitingForMeRange($pdo, $p);
         $limit = max(1, min(DR_LIST_PAGE_MAX, (int) ($_GET["limit"] ?? 50)));
         $start = max(0, (int) ($_GET["cursor"] ?? 0));
         $page = array_slice($rows, $start, $limit);
@@ -247,7 +250,12 @@ try {
             "total" => count($rows),
             "stats" => $stats,
             "count_totals" => drCounts($inRange),
-            "waiting_for_me" => drWaitingForMe($pdo, $p),
+            // The tab's count is every report waiting on you, whatever the
+            // filters; waiting_here is how many of them these filters show,
+            // so the page can offer the rest (from waiting_since) when it's fewer.
+            "waiting_for_me" => $waitingCount,
+            "waiting_since" => $waitingSince,
+            "waiting_here" => $waitingHere,
         ]);
     }
 
