@@ -37,7 +37,7 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 <link rel="stylesheet" href="assets/shell.css?v=8" />
-<link rel="stylesheet" href="assets/activity-reports.css?v=8" />
+<link rel="stylesheet" href="assets/activity-reports.css?v=11" />
 <script src="assets/permissions.js?v=2"></script>
 <script src="assets/dismiss.js?v=2"></script>
 <script src="/assets/clarity.js" defer></script>
@@ -83,7 +83,7 @@ document.addEventListener("DOMContentLoaded", function () {
     <div class="view-tabs" id="viewTabs" role="tablist" aria-label="Activity reports">
       <button class="view-tab" type="button" role="tab" id="tab-mine" aria-controls="view-mine" aria-selected="false" tabindex="-1" onclick="showTab('mine')" onkeydown="tabKeys(event)" hidden>My reports</button>
       <button class="view-tab" type="button" role="tab" id="tab-team" aria-controls="view-team" aria-selected="false" tabindex="-1" onclick="showTab('team')" onkeydown="tabKeys(event)" hidden>
-        Team reports <em class="tab-count" id="teamWaiting" title="Reports with activities waiting for your review" hidden></em>
+        Team reports <em class="tab-count" id="teamWaiting" title="Reports waiting for your review" hidden></em>
       </button>
       <button class="view-tab" type="button" role="tab" id="tab-templates" aria-controls="view-templates" aria-selected="false" tabindex="-1" onclick="showTab('templates')" onkeydown="tabKeys(event)" hidden>Templates</button>
     </div>
@@ -160,6 +160,11 @@ document.addEventListener("DOMContentLoaded", function () {
       </div>
       <div class="bar-pop pop-menu" id="pillMenu" role="menu" hidden></div>
 
+      <div class="waiting-hint" id="waitingHint" role="status" hidden>
+        <span id="waitingHintText"></span>
+        <button class="link-btn" type="button" onclick="showWaiting()">Show them</button>
+      </div>
+
       <div class="panel">
         <div class="panel-head">
           <div>
@@ -173,7 +178,7 @@ document.addEventListener("DOMContentLoaded", function () {
         </div>
         <table class="table">
           <thead>
-            <tr><th>Employee</th><th>Title</th><th>Date</th><th>Progress</th><th>Status</th><th class="col-actions"><span class="sr-only">Actions</span></th></tr>
+            <tr><th>Title</th><th>Employee</th><th>Date</th><th>Progress</th><th>Status</th><th class="col-actions"><span class="sr-only">Actions</span></th></tr>
           </thead>
           <tbody id="teamRows"><tr><td colspan="6" class="empty-cell">Loading...</td></tr></tbody>
         </table>
@@ -223,7 +228,7 @@ document.addEventListener("DOMContentLoaded", function () {
 <script src="assets/confirm.js?v=5"></script>
 <script src="assets/ui-utils.js?v=1"></script>
 <script src="assets/row-menu.js?v=1"></script>
-<script src="assets/activity-reports.js?v=6"></script>
+<script src="assets/activity-reports.js?v=7"></script>
 <script>
 /* Who gets what here:
      reports.create   - requests reports from their team (Request report, on
@@ -261,9 +266,10 @@ function statusCell(r) {
     ? `<div class="muted" style="font-size:12px;margin-top:4px">${Number(r.to_review)} activities</div>` : "");
 }
 
-/* Reports from before titles have none. */
+/* The title opens the report. Reports from before titles have none. */
 function titleCell(r) {
-  return r.title ? `<span class="row-title" dir="auto">${esc(r.title)}</span>` : `<span class="muted">Untitled</span>`;
+  const text = r.title ? `<span class="row-title" dir="auto">${esc(r.title)}</span>` : `<span class="row-title is-untitled">Untitled</span>`;
+  return `<a class="row-link" href="activity-report-details.html?id=${Number(r.id)}">${text}</a>`;
 }
 
 /* ── My reports ─────────────────────────────────────────────────────────── */
@@ -286,7 +292,7 @@ function mineRow(r) {
   return `
     <tr>
       <td data-label="Title">${titleCell(r)}</td>
-      <td data-label="Date"><a class="row-link" href="activity-report-details.html?id=${Number(r.id)}"><strong>${esc(DR.dayLabel(r.report_date))}</strong></a><small class="cell-sub">${esc(created(r))}</small></td>
+      <td data-label="Date"><strong>${esc(DR.dayLabel(r.report_date))}</strong><small class="cell-sub">${esc(created(r))}</small></td>
       <td data-label="Progress">${DR.progress(r.activities_done, r.activities_total)}</td>
       <td data-label="Status">${statusCell(r)}</td>
       <td class="col-actions">${DR.kebab("Actions for your report on " + DR.dayLabel(r.report_date, true), "mineMenu(this, " + Number(r.id) + ")")}</td>
@@ -370,11 +376,11 @@ function teamRow(r) {
   const role = [r.admin_position, r.department_name].filter(Boolean).join(", ");
   return `
     <tr>
-      <td><div class="person-cell">
-        <span class="row-avatar" aria-hidden="true">${esc(initials(r.admin_name))}</span>
-        <span class="person-text"><a class="row-link" href="activity-report-details.html?id=${Number(r.id)}"><strong>${esc(r.admin_name)}</strong></a><small>${esc(role)}</small></span>
-      </div></td>
       <td data-label="Title">${titleCell(r)}</td>
+      <td data-label="Employee"><div class="person-cell">
+        <span class="row-avatar" aria-hidden="true">${esc(initials(r.admin_name))}</span>
+        <span class="person-text"><strong>${esc(r.admin_name)}</strong><small>${esc(role)}</small></span>
+      </div></td>
       <td data-label="Date">${esc(DR.dayLabel(r.report_date))}<small class="cell-sub">${esc(by + (r.created_ts ? " · " + DR.timeLabel(r.created_ts) : ""))}</small></td>
       <td data-label="Progress">${DR.progress(r.activities_done, r.activities_total)}</td>
       <td data-label="Status">${DR.sheetPill(r)}</td>
@@ -556,6 +562,35 @@ function renderStats(stats) {
   DR.overview(box, stats.activities, stats.reports, "Team activities by status");
 }
 
+/* The tab counts every report waiting for your review, whatever the filters.
+   When the filters hide some of them, say so and offer to show them all. */
+let waitingSince = null;
+
+function renderWaiting(data) {
+  const total = Number(data.waiting_for_me) || 0;
+  const hidden = total - (Number(data.waiting_here) || 0);
+  const badge = document.getElementById("teamWaiting");
+  badge.hidden = !total;
+  badge.textContent = total || "";
+  waitingSince = data.waiting_since || null;
+  const hint = document.getElementById("waitingHint");
+  hint.hidden = hidden <= 0 || !waitingSince;
+  document.getElementById("waitingHintText").textContent = hidden === 1
+    ? "1 report waiting for your review isn't in these filters."
+    : hidden + " reports waiting for your review aren't in these filters.";
+}
+
+function showWaiting() {
+  if (!waitingSince) return;
+  document.getElementById("fDept").value = "";
+  document.getElementById("fAdmin").value = "";
+  document.getElementById("fStatus").value = "awaiting";
+  document.getElementById("fFrom").value = waitingSince;
+  document.getElementById("fTo").value = DR.todayIso();
+  document.getElementById("teamSearch").value = "";
+  loadTeam();
+}
+
 /* One page of reports at a time; Load more asks for the next from the cursor. */
 let teamCursor = null;
 
@@ -581,9 +616,7 @@ async function loadTeam(more) {
       return;
     }
     renderStats(data.stats);
-    const waiting = document.getElementById("teamWaiting");
-    waiting.hidden = !data.waiting_for_me;
-    waiting.textContent = data.waiting_for_me || "";
+    renderWaiting(data);
     teamRows = more ? teamRows.concat(data.items || []) : (data.items || []);
     teamCursor = data.next_cursor || null;
     renderTeamRows();

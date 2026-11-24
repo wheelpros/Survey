@@ -253,6 +253,19 @@ check("daily: ...and sends yesterday's report", $status === 200 && $r["success"]
     && (drReport($dina, $dinaReport)["report"]["status"] ?? "") === "submitted", json_encode($r));
 [, $r] = drGet($dina, "action=pending_count");
 check("daily: sent, it leaves her badge", ($r["pending"] ?? 9) === 0, json_encode($r));
+
+// The Team tab counts every report waiting on you; a list whose dates leave
+// some out says how many it shows and where the oldest is, so the page can offer them.
+$dinaReviewer = (int) (drReport($owner, $dinaReport)["report"]["reviewer_ids"][0] ?? 0);
+$reviewerToken = [1 => $owner, 41 => $mark, 42 => $hana, 43 => $dina, 44 => $vera][$dinaReviewer] ?? $owner;
+[, $r] = drGet($reviewerToken, "action=list&from=$drToday&to=$drToday");
+check("waiting: today's list leaves yesterday's report out of waiting_here",
+    ($r["waiting_for_me"] ?? 0) >= 1 && ($r["waiting_here"] ?? 9) < $r["waiting_for_me"] && ($r["waiting_since"] ?? "") <= day(-1),
+    json_encode(array_intersect_key($r, array_flip(["waiting_for_me", "waiting_here", "waiting_since"]))));
+[, $r] = drGet($reviewerToken, "action=list&from=" . ($r["waiting_since"] ?? $drToday) . "&to=$drToday&status=awaiting");
+check("waiting: Show them lists every one the tab counts", ($r["waiting_here"] ?? -1) === ($r["waiting_for_me"] ?? -2)
+    && in_array($dinaReport, array_column($r["items"] ?? [], "id"), true),
+    json_encode(array_intersect_key($r, array_flip(["waiting_for_me", "waiting_here", "waiting_since"]))));
 [$status, $r] = drPost($owner, ["action" => "delete", "id" => $dinaReport]);
 check("daily: a started report stays on record (F4)", $status === 422 && strpos($r["message"] ?? "", "Work has started") !== false, json_encode($r));
 

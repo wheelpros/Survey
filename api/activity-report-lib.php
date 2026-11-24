@@ -594,8 +594,14 @@ function drPendingCount(PDO $pdo, array $p)
 /** Reports addressed to $p with Done activities not reviewed yet. */
 function drWaitingForMe(PDO $pdo, array $p)
 {
+    return drWaitingForMeRange($pdo, $p)[0];
+}
+
+/** [how many reports wait for $p's review, the earliest one's date or null]. */
+function drWaitingForMeRange(PDO $pdo, array $p)
+{
     $stmt = $pdo->prepare("
-        SELECT COUNT(*) FROM daily_reports r
+        SELECT COUNT(*), MIN(r.report_date) FROM daily_reports r
         WHERE r.status <> 'reviewed'
           AND EXISTS (SELECT 1 FROM daily_report_reviewers v WHERE v.report_id = r.id AND v.admin_id = ?)
           AND EXISTS (
@@ -603,7 +609,22 @@ function drWaitingForMe(PDO $pdo, array $p)
             WHERE x.report_id = r.id AND x.status = 'done' AND (x.review_state IS NULL OR x.review_state <> 'approved'))
     ");
     $stmt->execute([(int) $p["id"]]);
-    return (int) $stmt->fetchColumn();
+    [$count, $since] = $stmt->fetch(PDO::FETCH_NUM);
+    return [(int) $count, $since];
+}
+
+/** The same test as drWaitingForMeRange(), on a report already fetched. */
+function drWaitsFor(array $r, $adminId)
+{
+    if ($r["status"] === "reviewed" || !in_array((int) $adminId, $r["reviewer_ids"], true)) {
+        return false;
+    }
+    foreach ($r["activities"] as $a) {
+        if (drAwaiting($a)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /**
