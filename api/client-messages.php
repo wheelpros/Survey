@@ -97,7 +97,7 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
 }
 
 if ($action === "read") {
-    markClientChatRead($pdo, $p, $accountId);
+    markClientChatRead($pdo, $p, $account);
     reply(true, "", ["unread" => clientMessageUnreadCount($pdo, $p)]);
 }
 

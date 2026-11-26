@@ -48,6 +48,9 @@ const EVENT_CLIENT_UPDATED        = "client.updated";
 const EVENT_CLIENT_TEAMMATE_REMOVED = "client.teammate_removed";
 const EVENT_CLIENT_OWNER_CHANGED = "client.owner_changed";
 const EVENT_CLIENT_ACCOUNTS_MERGED = "client.accounts_merged";
+// The Director opened a client's Messages chat to read it. Who and which
+// client only - a message's words never reach Tracking.
+const EVENT_CLIENT_CHAT_READ      = "client.chat_read";
 
 const EVENT_PROJECT_CREATED       = "project.created";
 const EVENT_PROJECT_UPDATED       = "project.updated";

@@ -219,6 +219,10 @@ body{padding:0}
 .msg.ours:not(.mine) .bubble{background:#eef0fb;border-color:#e0e4f6}
 .msg .who{font-size:11px;font-weight:700;color:var(--muted)}
 .seen{font-size:11px;font-weight:700;color:#98a2b3}
+/* The Director reading a client's chat: said once, above the messages, in place of the composer's job. */
+.read-only-note{display:flex;gap:10px;align-items:flex-start;padding:10px 20px;background:#fff8e6;border-bottom:1px solid #f3e3b5;color:#7a5a00;font-size:13px;line-height:1.45}
+.read-only-note svg{width:16px;height:16px;flex:none;margin-top:2px}
+.convo-tag{flex:none;font-size:10px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:#98a2b3}
 
 .placeholder{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--muted);text-align:center;padding:24px}
 .placeholder strong{color:var(--text);font-size:16px}
@@ -429,7 +433,10 @@ function logoutAdmin(){
 
    An account manager also has a Clients tab: one chat per client they
    manage, shared with everyone on the client's account and the client's
-   other account managers (?client=<client id>). */
+   other account managers (?client=<client id>). The Director's Clients tab
+   lists every client: those chats open read only (access "observer"), with
+   no box to write in and no read marker, and each opening is logged in
+   Tracking by the server. */
 
 const POLL_MS = 5000;
 const LIST_POLL_MS = 15000;
@@ -449,6 +456,7 @@ let clientChats = [];
 let openClient = null;    // the client whose chat is open, as the API returns them
 let clientPeople = [];    // the people on that client's account
 let clientSeen = [];      // how far each of them has read
+let clientAccess = "team"; // "observer": the Director reading, nothing to write with
 
 function esc(value){
   return String(value == null ? "" : value)
@@ -556,7 +564,8 @@ async function loadClientList(){
 
   clientsAvailable = data.available;
   document.getElementById("tabs").hidden = !clientsAvailable;
-  noticeIncoming(data.chats.filter(c => c.last && c.last.side === "client").map(c => c.last.id), true, "client_message");
+  // A chat the Director only reads never rings.
+  noticeIncoming(data.chats.filter(c => c.access !== "observer" && c.last && c.last.side === "client").map(c => c.last.id), true, "client_message");
 
   const changed = JSON.stringify(data.chats) !== JSON.stringify(clientChats);
   clientChats = data.chats;
@@ -571,12 +580,13 @@ function setMode(next){
   document.getElementById("newMessageBtn").hidden = mode === "client";
   document.getElementById("convoSearch").placeholder = mode === "client" ? "Search clients" : "Search people";
   document.getElementById("pageIntro").textContent = mode === "client"
-    ? "Your chats with the clients you manage."
+    ? (isDirector() ? "Every client's chat with their account managers." : "Your chats with the clients you manage.")
     : "Private chats with your team.";
   renderList();
 }
 
 const clientLabel = c => c.company_name || c.name;
+const isDirector = () => adminUser.role === "owner";
 
 function renderClientList(){
   const q = document.getElementById("convoSearch").value.trim().toLowerCase();
@@ -584,7 +594,9 @@ function renderClientList(){
   const list = document.getElementById("convoList");
 
   if(!clientChats.length){
-    list.innerHTML = `<div class="list-empty">You aren't the account manager of any client yet.</div>`;
+    list.innerHTML = isDirector()
+      ? `<div class="list-empty">There are no clients yet.</div>`
+      : `<div class="list-empty">You aren't the account manager of any client yet.</div>`;
     return;
   }
   if(!rows.length){
@@ -601,6 +613,7 @@ function renderClientList(){
         <span class="convo-top"><strong>${esc(clientLabel(c.client))}</strong><time>${c.last ? esc(timeAgo(c.last.created_ts)) : ""}</time></span>
         <span class="convo-preview">
           <span>${c.last ? esc(who + c.last.preview) : "No messages yet"}</span>
+          ${c.access === "observer" ? `<span class="convo-tag">Read only</span>` : ""}
           ${c.unread ? `<em class="unread-pill">${c.unread > 99 ? "99+" : c.unread}</em>` : ""}
         </span>
       </span>
@@ -668,7 +681,8 @@ async function openClientChat(clientId){
   closePicker();
   stopPolling();
 
-  const data = await api({ action: "client_thread", client: clientId }).catch(() => null);
+  // open=1: this is opening the chat, which the server logs for the Director (the polls never are).
+  const data = await api({ action: "client_thread", client: clientId, open: 1 }).catch(() => null);
   if(!data || !data.success){
     renderThreadError((data && data.message) || "Could not open this chat.");
     return;
@@ -676,6 +690,7 @@ async function openClientChat(clientId){
 
   openWith = null;
   openClient = data.client;
+  clientAccess = data.access;
   clientPeople = data.people;
   clientSeen = data.seen_by;
   messages = data.messages;
@@ -782,6 +797,7 @@ function renderThread(){
 
 function renderClientThread(){
   const c = openClient;
+  const observer = clientAccess === "observer";
   const people = clientPeople.map(p => p.name).join(", ");
 
   document.getElementById("thread").innerHTML = `
@@ -790,10 +806,12 @@ function renderClientThread(){
       ${avatar({ name: clientLabel(c), avatar_path: c.avatar_path }, true)}
       <div><strong>${esc(clientLabel(c))}</strong><span>${esc(people)}</span></div>
     </div>
+    ${observer ? `<div class="read-only-note" role="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg><span>You are reading this chat as the Director. You can't write here, and this visit is logged in Tracking.</span></div>` : ""}
     <div class="messages" id="messages">
       ${hasOlder ? `<button class="older-btn" type="button" onclick="loadOlder()">Show earlier messages</button>` : ""}
-      ${messages.length ? messagesHtml() : `<div class="placeholder"><span>No messages yet. Everyone on ${esc(clientLabel(c))}'s account will see what you write.</span></div>`}
+      ${messages.length ? messagesHtml() : `<div class="placeholder"><span>${observer ? "No messages yet." : `No messages yet. Everyone on ${esc(clientLabel(c))}'s account will see what you write.`}</span></div>`}
     </div>
+    ${observer ? "" : `
     <div class="send-error" id="sendError" hidden></div>
     <form class="composer" id="composer" onsubmit="event.preventDefault(); sendMessage();">
       <div class="composer-field">
@@ -801,7 +819,7 @@ function renderClientThread(){
         <span class="counter" id="counter" hidden></span>
       </div>
       <button class="create-btn" type="submit" id="sendBtn" disabled>Send</button>
-    </form>
+    </form>`}
   `;
 
   renderList();
@@ -847,6 +865,8 @@ function scrollToEnd(){
 
 async function markRead(){
   if(openClient){
+    // The Director reading keeps no marker: reading isn't answering.
+    if(clientAccess === "observer") return;
     const chat = clientChats.find(c => c.client.id === openClient.id);
     if(chat && chat.unread){
       chat.unread = 0;
@@ -935,7 +955,7 @@ async function poll(){
 
     const theirs = data.messages.filter(m => !m.mine && !messages.some(x => x.id === m.id));
     if(openClient){
-      noticeIncoming(theirs.filter(m => m.side === "client").map(m => m.id), true, "client_message");
+      if(clientAccess !== "observer") noticeIncoming(theirs.filter(m => m.side === "client").map(m => m.id), true, "client_message");
       // "Seen by" moves without a new message, so repaint when it does.
       if(JSON.stringify(data.seen_by) !== JSON.stringify(clientSeen)){
         clientSeen = data.seen_by;

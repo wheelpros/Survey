@@ -32,7 +32,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     if (!is_array($in) || ($in["read"] ?? null) !== true) {
         v1Error(422, "invalid_parameter", "Send read: true.");
     }
-    markClientChatRead($pdo, $p, $account["id"]);
+    markClientChatRead($pdo, $p, $account);
     v1Reply(200, ["marked" => true, "unread_count" => clientMessageUnreadCount($pdo, $p)]);
 }
 

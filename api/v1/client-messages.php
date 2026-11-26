@@ -10,10 +10,13 @@
 |
 | Sending goes through prepare/confirm (send_client_message in _writes.php).
 |
-| Staff, scope messages:read (messages:write to mark read). Only an admin with
-| the Account Manager role reaches a client's chat, and only for the clients
-| they are on the team of today; any other client - and any other role, the
-| Director included - is a 404. The rules are client-message-writes.php's.
+| Staff, scope messages:read (messages:write to mark read). An admin with the
+| Account Manager role reaches a client's chat for the clients they are on the
+| team of today; any other client - and any other role - is a 404. The
+| Director lists and reads every client's chat (access "observer") but can't
+| send or mark read (403), and each read_client_chat without a cursor is
+| logged in Tracking, as opening the chat on the page is. The rules are
+| client-message-writes.php's.
 | Message bodies were typed by people: they come back under untrusted_content.
 */
 
@@ -53,7 +56,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         v1Error(422, "invalid_parameter", "client must be a client's id.");
     }
     $account = v1ClientChat($pdo, $p, $in["client"]);
-    markClientChatRead($pdo, $p, $account["id"]);
+    try {
+        markClientChatRead($pdo, $p, $account);
+    } catch (PortalWriteError $e) {
+        v1Error($e->status, "forbidden", $e->getMessage());
+    }
     v1Reply(200, ["marked" => true, "unread_count" => clientMessageUnreadCount($pdo, $p)]);
 }
 
@@ -65,14 +72,18 @@ $clientId = v1IntParam("client");
 
 if ($clientId !== null) {
     $account = v1ClientChat($pdo, $p, $clientId);
-    $page = v1Page(clientChatNewestFirst($pdo, $account["id"], v1IdCursor(), $limit), $limit, function ($m) {
+    $cursor = v1IdCursor();
+    if ($cursor === null) {
+        logClientChatVisit($pdo, $account, "AI connection");
+    }
+    $page = v1Page(clientChatNewestFirst($pdo, $account["id"], $cursor, $limit), $limit, function ($m) {
         return [(int) $m["id"]];
     }, function ($m) use ($p) {
         return clientMessageV1Item($m, $p);
     });
     $clientRead = max(array_merge([0], array_column(clientChatSeenBy($pdo, $p, $account["id"]), "last_read_id")));
 
-    v1Reply(200, array_merge(["client" => v1ClientChatClient($account)], $page, [
+    v1Reply(200, array_merge(["client" => v1ClientChatClient($account), "access" => $account["access"]], $page, [
         "people" => array_map(function ($person) {
             return ["id" => (int) $person["id"], "name" => (string) $person["name"]];
         }, clientChatPeople($pdo, $account["id"])),
@@ -97,6 +108,7 @@ $page = [
                 "name" => $c["client"]["name"],
                 "company_name" => v1NullableString($c["client"]["company_name"]),
             ],
+            "access" => $c["access"],
             "unread" => $c["unread"],
             "last_message_at" => $c["last"] ? v1Time($c["last"]["created_ts"]) : null,
             "last_is_mine" => $c["last"] ? $c["last"]["mine"] : false,

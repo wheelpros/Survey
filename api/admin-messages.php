@@ -14,11 +14,14 @@
 |   POST {"action":"send","to":7,"body":"..."}
 |   POST {"action":"read","with":7}
 |
-| The Clients tab - account managers only, each client they manage
+| The Clients tab - account managers, each client they manage, and the
+| Director, who reads every client's chat without writing in it
 | (client-message-writes.php keeps the rules):
 |
 |   GET  ?action=client_list                           my client chats, latest first
-|   GET  ?action=client_thread&client=10[&after=|before=]
+|   GET  ?action=client_thread&client=10[&open=1|after=|before=]
+|        open=1 is the page opening the chat: a Director's visit is logged
+|        in Tracking then, never on the polls that follow
 |   POST {"action":"client_send","client":10,"body":"..."}
 |   POST {"action":"client_read","client":10}
 |
@@ -156,8 +159,8 @@ function myClientChat(PDO $pdo, array $p, $raw)
 
 if ($action === "client_list") {
     reply(true, "", [
-        // Only an account manager has client chats; the page hides the tab otherwise.
-        "available" => $p["role"] === "account_manager",
+        // Account managers and the Director have client chats; the page hides the tab otherwise.
+        "available" => $p["role"] === "account_manager" || isDirector($p),
         "chats" => clientChatsFor($pdo, $p),
     ]);
 }
@@ -165,9 +168,14 @@ if ($action === "client_list") {
 if ($action === "client_thread") {
     $account = myClientChat($pdo, $p, $_GET["client"] ?? 0);
     [$rows, $hasOlder] = clientChatMessages($pdo, $account["id"], (int) ($_GET["after"] ?? 0), (int) ($_GET["before"] ?? 0));
+    if (($_GET["open"] ?? "") === "1") {
+        logClientChatVisit($pdo, $account);
+    }
 
     reply(true, "", [
         "client" => clientChatPerson($account),
+        // "observer": the Director reading - the page shows no box to write in.
+        "access" => $account["access"],
         "people" => array_map(function ($person) {
             return ["id" => (int) $person["id"], "name" => (string) $person["name"]];
         }, clientChatPeople($pdo, $account["id"])),
@@ -297,7 +305,11 @@ if ($action === "read") {
 
 if ($action === "client_read") {
     $account = myClientChat($pdo, $p, $input["client"] ?? 0);
-    markClientChatRead($pdo, $p, $account["id"]);
+    try {
+        markClientChatRead($pdo, $p, $account);
+    } catch (PortalWriteError $e) {
+        reply(false, $e->getMessage(), [], $e->status);
+    }
     reply(true, "", ["client_unread" => clientMessageUnreadCount($pdo, $p)]);
 }
 

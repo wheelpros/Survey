@@ -5,7 +5,9 @@
 |
 |   1. A client account's chat: everyone on the account and its account
 |      managers read and write it; nobody else on the staff side does - not
-|      the Director, not a super admin or admin on the same client.
+|      a super admin or admin on the same client.
+|   1b. The Director reads every chat, never writes or marks read, and each
+|      opening is logged in Tracking without the words.
 |   2. No account manager yet: the client can't send.
 |   3. The chat belongs to the account: a new account manager reads the
 |      history, one taken off the team loses it.
@@ -83,7 +85,6 @@ check("client messages: Amy reads it", $status === 200 && count($r["messages"]) 
     && array_column($r["people"], "name") === ["Alice", "Tia"], "HTTP $status " . json_encode($r));
 
 foreach ([
-    "the Director" => $owner,
     "a super admin on the client's team" => $sa,
     "an admin on the client's team" => $seo,
     "another client's account manager" => $am2,
@@ -95,8 +96,51 @@ foreach ([
 }
 [, $r] = amGet("action=client_list", $sa);
 check("client messages: a super admin has no client chats", ($r["available"] ?? null) === false && ($r["chats"] ?? null) === [], json_encode($r));
+
+// ── 1b. The Director reads, and it is logged ───────────────────────────
+
+$chatReads = function () use ($pdo) {
+    return (int) one($pdo, "SELECT COUNT(*) AS n FROM admin_events WHERE action = 'client.chat_read'")["n"];
+};
+
 [, $r] = amGet("action=client_list", $owner);
-check("client messages: nor does the Director", ($r["chats"] ?? null) === [], json_encode($r));
+$acme = null;
+foreach ($r["chats"] ?? [] as $c) {
+    if ($c["client"]["id"] === 10) {
+        $acme = $c;
+    }
+}
+check("client messages: the Director lists every client's chat, read only", ($r["available"] ?? null) === true
+    && array_values(array_unique(array_column($r["chats"], "access"))) === ["observer"]
+    && count($r["chats"]) === count(allClientChatIds($pdo)) && $acme && $acme["unread"] === 0
+    && $acme["last"]["preview"] === "Hi Amy, can we move the launch?", json_encode($r));
+
+$before = $chatReads();
+[$status, $r] = amGet("action=client_thread&client=10&open=1", $owner);
+check("client messages: the Director opens Acme's chat", $status === 200 && ($r["access"] ?? null) === "observer"
+    && count($r["messages"]) === 1 && $r["messages"][0]["mine"] === false, "HTTP $status " . json_encode($r));
+$event = one($pdo, "SELECT actor_admin_id, client_id, target_label, summary FROM admin_events WHERE action = 'client.chat_read' ORDER BY id DESC LIMIT 1");
+check("client messages: the visit is in Tracking, who and which client", $chatReads() === $before + 1
+    && (int) $event["actor_admin_id"] === 1 && (int) $event["client_id"] === 10 && $event["target_label"] === "Acme Ltd"
+    && strpos($event["summary"], "launch") === false, json_encode($event));
+
+amGet("action=client_thread&client=10&after=" . $aliceMessage, $owner);
+amGet("action=client_thread&client=10", $owner);
+check("client messages: polling the open chat logs nothing more", $chatReads() === $before + 1);
+
+[$status, $r] = amPost($owner, ["action" => "client_send", "client" => 10, "body" => "Hello from the Director"]);
+check("client messages: the Director can't write in it", $status === 403 && strpos($r["message"], "as the Director") !== false,
+    "HTTP $status " . json_encode($r));
+[$status] = amPost($owner, ["action" => "client_read", "client" => 10]);
+check("client messages: nor mark it read", $status === 403, "HTTP $status");
+check("client messages: the Director leaves no read marker",
+    (int) one($pdo, "SELECT COUNT(*) AS n FROM client_message_reads WHERE reader_kind = 'admin' AND reader_id = 1")["n"] === 0);
+[, $r] = amGet("action=count", $owner);
+check("client messages: a chat the Director only reads isn't unread for them", ($r["client_unread"] ?? null) === 0, json_encode($r));
+[$status] = amGet("action=client_thread&client=999&open=1", $owner);
+check("client messages: an unknown client is not found for the Director too", $status === 404, "HTTP $status");
+[, $r] = amGet("action=client_thread&client=10", $am);
+check("client messages: Amy's own visit is not logged, and her chat stays hers", ($r["access"] ?? null) === "team" && $chatReads() === $before + 1, json_encode($r));
 
 [, $r] = cmGet("action=thread", "tok-bob");
 check("client messages: another client's chat is their own, empty", ($r["messages"] ?? null) === []
@@ -266,7 +310,20 @@ check("v1 client messages: Amy reads Acme's chat", $status === 200 && count($r["
     "HTTP $status " . json_encode($r));
 $fixtures["read_client_chat"] = $r["data"] ?? null;
 
-foreach (["the Director" => $owner, "a super admin on the team" => $sa, "another account manager" => $am2] as $who => $token) {
+[$status, $r] = get("client-messages.php?client=10&limit=2", $owner);
+check("v1 client messages: the Director reads Acme's chat, read only", $status === 200 && ($r["data"]["access"] ?? null) === "observer"
+    && count($r["data"]["items"]) === 2, "HTTP $status " . json_encode($r));
+$readsNow = $chatReads();
+get("client-messages.php?client=10&limit=2&cursor=" . urlencode($r["data"]["next_cursor"]), $owner);
+check("v1 client messages: the Director's visit is logged, the next page isn't", $readsNow === $before + 2 && $chatReads() === $readsNow);
+[$status] = post("api/v1/client-messages.php", $owner, ["client" => 10]);
+check("v1 client messages: the Director can't mark it read", $status === 403, "HTTP $status");
+refusedChange("v1 client messages: the Director can't write in it", $owner, "send_client_message", ["client" => 10, "body" => "Hi"], 403);
+[, $r] = get("client-messages.php", $owner);
+check("v1 client messages: the Director lists every client, read only", count($r["data"]["items"] ?? []) === count(allClientChatIds($pdo))
+    && ($r["data"]["items"][0]["access"] ?? null) === "observer", json_encode($r));
+
+foreach (["a super admin on the team" => $sa, "another account manager" => $am2] as $who => $token) {
     [$status] = get("client-messages.php?client=10", $token);
     check("v1 client messages: $who can't read it", $status === 404, "HTTP $status");
     refusedChange("v1 client messages: $who can't write in it", $token, "send_client_message", ["client" => 10, "body" => "Hi"], 404);

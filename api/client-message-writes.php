@@ -12,16 +12,19 @@
 | One chat per client account. On the client's side, everyone on the account
 | (the owner and the teammates they invited) reads and writes it. On the team's
 | side, only the admins with the Account Manager role who are on the client's
-| team today (admin_user_assignments). Nobody else reaches it - not the
-| Director, not a super admin or admin on the same client, not another client.
-| A chat that isn't the caller's is "not found", the same as a missing one.
+| team today (admin_user_assignments). The Director reads every client's chat
+| but can't write in it or move anyone's read marker, and each visit is
+| logged in Tracking (who opened which client's chat, never what it says).
+| Nobody else reaches it - not a super admin or admin on the same client, not
+| another client. A chat that isn't the caller's is "not found", the same as
+| a missing one.
 |
 | The chat belongs to the account, not to the people in it: a new account
 | manager reads the whole history, one taken off the team loses it at once.
 | A client with no account manager yet can read nothing new and can't write.
 |
-| Text only, like the staff chat. Nothing here writes to Tracking or to the
-| notifications inbox. The one other way out is the email: someone with a
+| Text only, like the staff chat. Nothing a message says reaches Tracking or
+| the notifications inbox. The one other way out is the email: someone with a
 | message from the other side still unread after 15 minutes is emailed once,
 | and not again until they have opened the chat (clientMessageEmailSweep()).
 |
@@ -32,6 +35,7 @@
 
 require_once __DIR__ . "/db.php";
 require_once __DIR__ . "/rate-limit.php";
+require_once __DIR__ . "/permissions.php";
 
 const CLIENT_MESSAGE_MAX_CHARS = 2000;
 const CLIENT_MESSAGE_PAGE_SIZE = 50;
@@ -41,6 +45,13 @@ const CLIENT_MESSAGE_SWEEP_EVERY = 60;       // seconds between email sweeps
 
 const CLIENT_CHAT_NOT_FOUND = "No client chat with that id among the clients you manage.";
 const CLIENT_CHAT_NO_MANAGER = "Your account manager hasn't been assigned yet. You can send messages once they have.";
+const CLIENT_CHAT_READ_ONLY = "You are reading this chat as the Director. You can't write here.";
+
+/* How the caller is in a chat (openClientChat()'s "access"):
+     client    someone on the account
+     team      one of its account managers
+     observer  the Director, reading - no sending, no read marker, logged */
+const CLIENT_CHAT_OBSERVER = "observer";
 
 /*
 |--------------------------------------------------------------------------
@@ -98,11 +109,19 @@ function managedClientIds(PDO $pdo, array $admin)
     return array_map("intval", $stmt->fetchAll(PDO::FETCH_COLUMN));
 }
 
+/** Every approved client account's id - the chats the Director can read. */
+function allClientChatIds(PDO $pdo)
+{
+    return array_map("intval", $pdo->query("
+        SELECT id FROM users WHERE approved = 1 AND account_owner_id IS NULL
+    ")->fetchAll(PDO::FETCH_COLUMN));
+}
+
 /**
  * The chat $p may open: the account's row, plus "side" - "client" for
- * someone on the account, "team" for one of its account managers. A client
- * always gets their own account's chat, whatever $accountId says. Throws
- * PortalWriteError 404 for anything else.
+ * someone on the account, "team" for the staff side - and "access" (see
+ * CLIENT_CHAT_OBSERVER). A client always gets their own account's chat,
+ * whatever $accountId says. Throws PortalWriteError 404 for anything else.
  */
 function openClientChat(PDO $pdo, array $p, $accountId = null)
 {
@@ -111,14 +130,41 @@ function openClientChat(PDO $pdo, array $p, $accountId = null)
         if (!$account) {
             throw new PortalWriteError("Your account can't use Messages right now.", 404);
         }
-        return $account + ["side" => "client"];
+        return $account + ["side" => "client", "access" => "client"];
     }
 
     $accountId = (int) $accountId;
-    if ($accountId <= 0 || !in_array($accountId, managedClientIds($pdo, $p), true)) {
-        throw new PortalWriteError(CLIENT_CHAT_NOT_FOUND, 404);
+    if ($accountId > 0 && in_array($accountId, managedClientIds($pdo, $p), true)) {
+        return clientChatAccount($pdo, $accountId) + ["side" => "team", "access" => "team"];
     }
-    return clientChatAccount($pdo, $accountId) + ["side" => "team"];
+    if ($accountId > 0 && isDirector($p) && ($account = clientChatAccount($pdo, $accountId))) {
+        return $account + ["side" => "team", "access" => CLIENT_CHAT_OBSERVER];
+    }
+    throw new PortalWriteError(CLIENT_CHAT_NOT_FOUND, 404);
+}
+
+/** Throws 403 unless $chat is one the caller writes in and keeps a read marker for. */
+function requireClientChatMember(array $chat)
+{
+    if (($chat["access"] ?? "") === CLIENT_CHAT_OBSERVER) {
+        throw new PortalWriteError(CLIENT_CHAT_READ_ONLY, 403);
+    }
+}
+
+/**
+ * Records in Tracking that the Director opened $chat to read it: who, and
+ * which client - never a word of the chat. Only for an observer's visit;
+ * the people in the chat are not logged.
+ */
+function logClientChatVisit(PDO $pdo, array $chat, $where = "Messages")
+{
+    if (($chat["access"] ?? "") !== CLIENT_CHAT_OBSERVER) {
+        return;
+    }
+    require_once __DIR__ . "/events.php";
+    $label = trim((string) $chat["company_name"]) !== "" ? (string) $chat["company_name"] : (string) $chat["name"];
+    logEvent($pdo, EVENT_CLIENT_CHAT_READ, "user", (int) $chat["id"], $label,
+        "Read " . $label . "'s client chat as the Director (" . $where . ")", (int) $chat["id"]);
 }
 
 /** The sender kind of the other side: what counts as unread for $p. */
@@ -286,36 +332,42 @@ function clientMessageLatestIncoming(PDO $pdo, array $p)
 }
 
 /**
- * An account manager's client chats: every client they manage, the latest
+ * An admin's client chats: every client they manage - and for the Director,
+ * every client, the ones they only read marked "observer" - the latest
  * message first, then the quiet ones by name.
  */
 function clientChatsFor(PDO $pdo, array $admin)
 {
     $ids = managedClientIds($pdo, $admin);
-    if (!$ids) {
+    $observed = isDirector($admin) ? array_values(array_diff(allClientChatIds($pdo), $ids)) : [];
+    $all = array_merge($ids, $observed);
+    if (!$all) {
         return [];
     }
 
-    $marks = implode(",", array_fill(0, count($ids), "?"));
+    $marks = implode(",", array_fill(0, count($all), "?"));
     $accounts = $pdo->prepare("SELECT id, name, company_name, profile_image FROM users WHERE id IN ($marks)");
-    $accounts->execute($ids);
+    $accounts->execute($all);
 
     $latest = $pdo->prepare(clientMessageSelect() . "
         WHERE m.id IN (SELECT MAX(id) FROM client_messages WHERE user_id IN ($marks) GROUP BY user_id)
     ");
-    $latest->execute($ids);
+    $latest->execute($all);
     $lastByAccount = [];
     foreach ($latest->fetchAll(PDO::FETCH_ASSOC) as $m) {
         $lastByAccount[(int) $m["user_id"]] = $m;
     }
 
+    // Only a chat the admin is in counts as unread: an observer never reads it "for" anyone.
     $unread = clientUnreadIn($pdo, $admin, $ids);
+    $observing = array_flip($observed);
 
-    $chats = array_map(function ($a) use ($admin, $lastByAccount, $unread) {
+    $chats = array_map(function ($a) use ($admin, $lastByAccount, $unread, $observing) {
         $id = (int) $a["id"];
         $last = $lastByAccount[$id] ?? null;
         return [
             "client" => clientChatPerson($a),
+            "access" => isset($observing[$id]) ? CLIENT_CHAT_OBSERVER : "team",
             "unread" => $unread[$id] ?? 0,
             "last"   => $last ? clientChatPreview($last, $admin) : null,
         ];
@@ -382,6 +434,7 @@ function checkClientMessage(PDO $pdo, array $p, array $account, $rawBody)
     if (mb_strlen($body) > CLIENT_MESSAGE_MAX_CHARS) {
         throw new PortalWriteError("A message can be up to " . CLIENT_MESSAGE_MAX_CHARS . " characters.", 400);
     }
+    requireClientChatMember($account);
     if ($p["kind"] === "user" && !clientChatManagers($pdo, $account["id"])) {
         throw new PortalWriteError(CLIENT_CHAT_NO_MANAGER, 409);
     }
@@ -411,13 +464,18 @@ function sendClientMessage(PDO $pdo, array $p, array $account, $rawBody)
     return clientMessageById($pdo, $messageId);
 }
 
-/** Marks $p's side of the chat read up to its latest message. Returns the new marker. */
-function markClientChatRead(PDO $pdo, array $p, $accountId)
+/**
+ * Marks $p's side of $chat (openClientChat()) read up to its latest message.
+ * Returns the new marker. Throws 403 for an observer, whose reading must not
+ * look like an account manager's.
+ */
+function markClientChatRead(PDO $pdo, array $p, array $chat)
 {
+    requireClientChatMember($chat);
     $stmt = $pdo->prepare("SELECT COALESCE(MAX(id), 0) FROM client_messages WHERE user_id = ?");
-    $stmt->execute([(int) $accountId]);
+    $stmt->execute([(int) $chat["id"]]);
     $latest = (int) $stmt->fetchColumn();
-    moveClientReadMarker($pdo, $p, $accountId, $latest);
+    moveClientReadMarker($pdo, $p, $chat["id"], $latest);
     return $latest;
 }
 
