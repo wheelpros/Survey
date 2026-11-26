@@ -1,4 +1,5 @@
-/* Editing and deleting your own message (assets/message-edits.js), on both Messages pages. */
+/* Editing and deleting your own message (assets/message-edits.js), and the
+   portal's own notes in a client chat - on both Messages pages. */
 
 .bubble.deleted{font-style:italic;color:#98a2b3;background:#f7f8fa;border-color:#eaecf0}
 .msg.mine .bubble.deleted{background:#f7f8fa;border-color:#eaecf0;color:#98a2b3}
@@ -22,3 +23,6 @@
 .edit-buttons .edit-save{background:var(--nav-active);border-color:var(--nav-active);color:#fff}
 .edit-error{font-size:12px;color:var(--brand)}
 .edit-error[hidden]{display:none}
+
+/* A note from the portal in a client chat - an account manager joining or leaving. */
+.system-note{align-self:center;max-width:80%;margin:8px 0;padding:5px 12px;border-radius:12px;background:#f2f4f7;color:var(--muted);font-size:12px;font-weight:700;text-align:center}

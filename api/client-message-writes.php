@@ -59,6 +59,9 @@ const CLIENT_CHAT_READ_ONLY = "You are reading this chat as the Director. You ca
      observer  the Director, reading - no sending, no read marker, logged */
 const CLIENT_CHAT_OBSERVER = "observer";
 
+// sender_kind of a note the portal writes into a chat (the handover), not a person.
+const CLIENT_MESSAGE_SYSTEM = "system";
+
 /*
 |--------------------------------------------------------------------------
 | Who is in a chat
@@ -281,10 +284,13 @@ function isOwnClientMessage(array $m, array $p)
     return $m["sender_kind"] === ($p["kind"] === "user" ? "user" : "admin") && (int) $m["sender_id"] === (int) $p["id"];
 }
 
-/** One message as the pages show it. A deleted one keeps its place, without its words. */
+/**
+ * One message as the pages show it. A deleted one keeps its place, without
+ * its words. "side" is client, team, or system - a note the portal wrote.
+ */
 function clientMessageRow(array $m, array $p)
 {
-    $side = $m["sender_kind"] === "user" ? "client" : "team";
+    $side = $m["sender_kind"] === "user" ? "client" : ($m["sender_kind"] === CLIENT_MESSAGE_SYSTEM ? "system" : "team");
     $name = (string) ($m["live_name"] ?? "") !== "" ? (string) $m["live_name"] : (string) $m["sender_name"];
     $mine = isOwnClientMessage($m, $p);
     $edits = messageEditFields($m, $mine);
@@ -356,7 +362,7 @@ function clientMessageV1Item(array $m, array $p)
         "id" => $row["id"],
         "side" => $row["side"],
         "mine" => $row["mine"],
-        "from" => $row["sender"]["name"],
+        "from" => $row["side"] === "system" ? null : $row["sender"]["name"],
         "created_at" => gmdate("Y-m-d\\TH:i:s\\Z", $row["created_ts"]),
         "edited" => $row["edited"],
         "deleted" => $row["deleted"],
@@ -616,6 +622,47 @@ function moveClientReadMarker(PDO $pdo, array $p, $accountId, $messageId)
         INSERT INTO client_message_reads (user_id, reader_kind, reader_id, last_read_id) VALUES (?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE last_read_id = GREATEST(last_read_id, VALUES(last_read_id))
     ")->execute([(int) $accountId, $p["kind"], (int) $p["id"], (int) $messageId]);
+}
+
+/*
+|--------------------------------------------------------------------------
+| Notes from the portal: the handover
+|--------------------------------------------------------------------------
+|
+| When an account manager joins or leaves a client's team, the chat says so
+| in a line of its own (sender_kind 'system'), so the client knows who they
+| are talking to now and a new account manager sees where they came in.
+| Nobody sent it: it is never unread, never emailed, never "Seen", and
+| nobody can edit or delete it.
+|
+*/
+
+/** Writes a note from the portal into the account's chat. Nothing for an account that has no chat. */
+function postClientChatNote(PDO $pdo, $accountId, $body)
+{
+    if (!clientChatAccount($pdo, $accountId)) {
+        return;
+    }
+    $pdo->prepare("INSERT INTO client_messages (user_id, sender_kind, sender_id, sender_name, body) VALUES (?, ?, 0, '', ?)")
+        ->execute([(int) $accountId, CLIENT_MESSAGE_SYSTEM, mb_substr((string) $body, 0, CLIENT_MESSAGE_MAX_CHARS)]);
+}
+
+/**
+ * The handover note for $admin (an admins row with id and name) being added
+ * to ($added) or taken off a client's team - only when they are someone who
+ * answers clients (clientChatWriterIds()). Never fails the team change.
+ */
+function noteClientManagerChange(PDO $pdo, $accountId, array $admin, $added)
+{
+    try {
+        ensureClientMessageTables($pdo);
+        if (!in_array((int) $admin["id"], clientChatWriterIds($pdo), true)) {
+            return;
+        }
+        postClientChatNote($pdo, $accountId, $admin["name"] . ($added ? " is now your account manager" : " is no longer your account manager"));
+    } catch (Throwable $e) {
+        error_log("client chat handover note failed: " . $e->getMessage());
+    }
 }
 
 /*

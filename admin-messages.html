@@ -610,7 +610,7 @@ function renderClientList(){
   }
 
   list.innerHTML = rows.map(c => {
-    const who = c.last ? (c.last.mine ? "You: " : c.last.sender + ": ") : "";
+    const who = !c.last || c.last.side === "system" ? "" : c.last.mine ? "You: " : c.last.sender + ": ";
     return `
     <button type="button" class="convo${c.unread ? " unread" : ""}${openClient && openClient.id === c.client.id ? " active" : ""}" onclick="openClientChat(${c.client.id})">
       ${avatar({ name: clientLabel(c.client), avatar_path: c.client.avatar_path })}
@@ -761,6 +761,8 @@ function messagesHtml(){
     const day = dayLabel(m.created_ts);
     const sep = day !== lastDay ? `<div class="day">${esc(day)}</div>` : "";
     lastDay = day;
+    // A note from the portal (an account manager joining or leaving): nobody's message.
+    if(m.side === "system") return sep + `<div class="system-note" data-id="${m.id}">${esc(m.body)}</div>`;
     // A client chat has several people on each side: name each run of theirs.
     const ours = openClient && m.side === "team";
     const prev = messages[i - 1];

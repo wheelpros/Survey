@@ -2,6 +2,7 @@
 
 require_once "db.php";
 require_once "events.php";
+require_once "client-message-writes.php"; // the handover note in the client's chat
 require_once "team-scope.php"; // teamPoolFor()
 
 header("Content-Type: application/json; charset=UTF-8");
@@ -258,6 +259,7 @@ try {
         if (!$isMember) {
             $pdo->prepare("INSERT INTO admin_user_assignments (admin_id, user_id) VALUES (?, ?)")
                 ->execute([$targetId, $userId]);
+            noteClientManagerChange($pdo, $userId, $target, true);
         }
 
         $message = $target["name"] . " added to the team.";
@@ -269,6 +271,9 @@ try {
 
         $pdo->prepare("DELETE FROM admin_user_assignments WHERE admin_id = ? AND user_id = ?")
             ->execute([$targetId, $userId]);
+        if ($isMember) {
+            noteClientManagerChange($pdo, $userId, $target, false);
+        }
 
         $message = $target["name"] . " removed from the team.";
 

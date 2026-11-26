@@ -19,6 +19,7 @@
 |   5. The email for a message left unread for 15 minutes: once, then
 |      quiet until the chat is opened.
 |   6. Through api/v1 (the MCP), for the client and for the account manager.
+|   6b. The handover note when an account manager joins or leaves a team.
 |   7. Nothing in Tracking's Changes or the notifications inbox.
 */
 
@@ -494,6 +495,51 @@ check("v1 client messages: Amy marks it read", $status === 200 && $r["data"]["ma
 $fixtures["mark_client_chat_read"] = $r["data"] ?? null;
 [$status] = post("api/v1/client-messages.php", $am2, ["client" => 10]);
 check("v1 client messages: marking read needs the chat to be yours", $status === 404, "HTTP $status");
+
+// ── 6b. The handover note ──────────────────────────────────────────────
+
+$notes = function () use ($pdo) {
+    return array_column($pdo->query("SELECT body FROM client_messages WHERE user_id = 10 AND sender_kind = 'system' ORDER BY id")->fetchAll(), "body");
+};
+[, $aliceBefore] = cmGet("action=count", $alice);
+[, $amyBefore] = amGet("action=count", $am);
+
+[$status] = post("api/client-team.php", $owner, ["user_id" => 10, "action" => "add", "admin_id" => 4]);
+check("handover: adding an account manager says so in the chat", $status === 200 && $notes() === ["Andy is now your account manager"],
+    "HTTP $status " . json_encode($notes()));
+[, $r] = cmGet("action=thread", $alice);
+$note = end($r["messages"]);
+check("handover: the client sees it as a note from the portal", $note["side"] === "system" && $note["mine"] === false
+    && $note["body"] === "Andy is now your account manager" && $note["editable_for"] === 0, json_encode($note));
+[, $r] = cmGet("action=count", $alice);
+check("handover: it isn't unread for the client", $r["unread"] === $aliceBefore["unread"], json_encode($r));
+[, $r] = amGet("action=count", $am);
+check("handover: nor for the account managers", $r["client_unread"] === $amyBefore["client_unread"], json_encode($r));
+[$status] = amPost($am, ["action" => "client_edit", "client" => 10, "id" => $note["id"], "body" => "x"]);
+check("handover: nobody can edit it", $status === 403, "HTTP $status");
+[, $r] = get("client-messages.php?client=10&limit=1", $am);
+check("v1 handover: api/v1 shows it as system, from nobody", ($r["data"]["items"][0]["side"] ?? null) === "system"
+    && $r["data"]["items"][0]["from"] === null, json_encode($r));
+
+[$status] = post("api/client-team.php", $owner, ["user_id" => 10, "action" => "remove", "admin_id" => 4]);
+check("handover: taking one off says so too", $status === 200
+    && $notes() === ["Andy is now your account manager", "Andy is no longer your account manager"], "HTTP $status " . json_encode($notes()));
+post("api/client-team.php", $owner, ["user_id" => 10, "action" => "remove", "admin_id" => 4]);
+check("handover: removing someone who isn't there writes nothing", count($notes()) === 2, json_encode($notes()));
+
+$pdo->exec("DELETE FROM admin_user_assignments WHERE admin_id = 5 AND user_id = 10");
+post("api/client-team.php", $owner, ["user_id" => 10, "action" => "add", "admin_id" => 5]);
+check("handover: an admin who doesn't answer clients joining isn't announced", count($notes()) === 2, json_encode($notes()));
+
+// Everything a person sent is read, so only the notes are left.
+cmPost($alice, ["action" => "read"]);
+cmPost($tia, ["action" => "read"]);
+amPost($am, ["action" => "client_read", "client" => 10]);
+$sent = [];
+$pdo->exec("UPDATE client_messages SET created_at = NOW() - INTERVAL 20 MINUTE");
+clientMessageEmailSweep($pdo, $record);
+check("handover: notes never send the unread email", $sent === [], json_encode($sent));
+$pdo->exec("DELETE FROM client_messages WHERE sender_kind = 'system'");
 
 // ── 7. Private ─────────────────────────────────────────────────────────
 

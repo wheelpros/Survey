@@ -456,6 +456,8 @@ function messagesHtml(){
       const day = dayLabel(m.created_ts);
       const sep = day !== lastDay ? `<div class="day">${esc(day)}</div>` : "";
       lastDay = day;
+      // A note from the portal (an account manager joining or leaving): nobody's message.
+      if(m.side === "system") return sep + `<div class="system-note" data-id="${m.id}">${esc(m.body)}</div>`;
       const ours = m.side === "client";
       // A name over a run of messages from the same person, unless it's me.
       const prev = messages[i - 1];
