@@ -2,7 +2,7 @@
 
 /*
 |--------------------------------------------------------------------------
-| Messages: direct chats between admins
+| Messages: direct chats between admins, and an account manager's client chats
 |--------------------------------------------------------------------------
 |
 | Backs admin-messages.html and the sidebar badge (assets/messages-badge.js).
@@ -13,6 +13,14 @@
 |   GET  ?action=people                        who I can start a chat with
 |   POST {"action":"send","to":7,"body":"..."}
 |   POST {"action":"read","with":7}
+|
+| The Clients tab - account managers only, each client they manage
+| (client-message-writes.php keeps the rules):
+|
+|   GET  ?action=client_list                           my client chats, latest first
+|   GET  ?action=client_thread&client=10[&after=|before=]
+|   POST {"action":"client_send","client":10,"body":"..."}
+|   POST {"action":"client_read","client":10}
 |
 | Private: every lookup is scoped to a conversation the caller is one of the
 | two people in. Anyone else - the Director included - gets "not found", so
@@ -45,6 +53,7 @@ require_once "db.php";
 require_once "auth.php";
 requirePage($pdo, "messages"); // "Open X" in Settings > Permissions
 require_once "message-writes.php";
+require_once "client-message-writes.php";
 
 function reply($success, $message = "", $extra = [], $status = 200)
 {
@@ -69,6 +78,7 @@ if ($p["kind"] !== "admin" || $p["via"] !== "session") {
 // DDL commits implicitly, so before any transaction below.
 ensureAdminColumns($pdo);
 ensureAdminMessageTables($pdo);
+ensureClientMessageTables($pdo);
 
 $me = (int) $p["id"];
 $input = json_decode(file_get_contents("php://input"), true) ?: [];
@@ -115,7 +125,59 @@ if ($action === "count") {
     ");
     $stmt->execute(["me1" => $me, "me2" => $me, "me3" => $me]);
 
-    reply(true, "", ["unread" => $unread, "latest_id" => (int) $stmt->fetchColumn()]);
+    // Client chats count toward the same badge, but their ids are another
+    // table's, so the sound keeps a mark of its own for them.
+    $clientUnread = clientMessageUnreadCount($pdo, $p);
+    runClientMessageSweep($pdo);
+
+    reply(true, "", [
+        "unread" => $unread + $clientUnread,
+        "latest_id" => (int) $stmt->fetchColumn(),
+        "client_unread" => $clientUnread,
+        "client_latest_id" => clientMessageLatestIncoming($pdo, $p),
+    ]);
+}
+
+/*
+|--------------------------------------------------------------------------
+| Client chats (account managers)
+|--------------------------------------------------------------------------
+*/
+
+/** The ?client= / {"client":} account, opened as mine or answered 404. */
+function myClientChat(PDO $pdo, array $p, $raw)
+{
+    try {
+        return openClientChat($pdo, $p, (int) $raw);
+    } catch (PortalWriteError $e) {
+        reply(false, $e->getMessage(), [], $e->status);
+    }
+}
+
+if ($action === "client_list") {
+    reply(true, "", [
+        // Only an account manager has client chats; the page hides the tab otherwise.
+        "available" => $p["role"] === "account_manager",
+        "chats" => clientChatsFor($pdo, $p),
+    ]);
+}
+
+if ($action === "client_thread") {
+    $account = myClientChat($pdo, $p, $_GET["client"] ?? 0);
+    [$rows, $hasOlder] = clientChatMessages($pdo, $account["id"], (int) ($_GET["after"] ?? 0), (int) ($_GET["before"] ?? 0));
+
+    reply(true, "", [
+        "client" => clientChatPerson($account),
+        "people" => array_map(function ($person) {
+            return ["id" => (int) $person["id"], "name" => (string) $person["name"]];
+        }, clientChatPeople($pdo, $account["id"])),
+        "managers" => array_map("clientChatManagerRow", clientChatManagers($pdo, $account["id"])),
+        "messages" => array_map(function ($m) use ($p) {
+            return clientMessageRow($m, $p);
+        }, $rows),
+        "has_older" => $hasOlder,
+        "seen_by" => clientChatSeenBy($pdo, $p, $account["id"]),
+    ]);
 }
 
 if ($action === "people") {
@@ -231,6 +293,22 @@ if ($action === "read") {
     }
 
     reply(true);
+}
+
+if ($action === "client_read") {
+    $account = myClientChat($pdo, $p, $input["client"] ?? 0);
+    markClientChatRead($pdo, $p, $account["id"]);
+    reply(true, "", ["client_unread" => clientMessageUnreadCount($pdo, $p)]);
+}
+
+if ($action === "client_send") {
+    $account = myClientChat($pdo, $p, $input["client"] ?? 0);
+    try {
+        $row = sendClientMessage($pdo, $p, $account, $input["body"] ?? "");
+    } catch (PortalWriteError $e) {
+        reply(false, $e->getMessage(), [], $e->status);
+    }
+    reply(true, "", ["message_row" => clientMessageRow($row, $p)]);
 }
 
 if ($action === "send") {

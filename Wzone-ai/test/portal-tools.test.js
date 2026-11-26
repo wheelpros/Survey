@@ -53,6 +53,7 @@ function fakePortal({ scopes, v1 } = {}) {
       "projects.php": q.has("teammates") ? "list_phase_teammates" : q.has("mine") ? "list_my_phases" : q.has("tasks") ? "get_dashboard" : q.has("id") ? "get_project" : "list_projects",
       "notifications.php": "list_my_notifications",
       "messages.php": q.has("people") ? "list_message_people" : q.has("with") ? "read_chat" : "list_messages",
+      "client-messages.php": q.has("client") ? "read_client_chat" : "list_client_chats",
       "announcements.php": "get_announcement",
       "events.php": "get_tracking",
       "ai-activity.php": "get_ai_activity",
@@ -114,7 +115,7 @@ describe("private server: per-person tools", () => {
     const c = await connect();
     const staff = (t) => !t.scope.startsWith("self:");
     expect(await toolNames(c)).toEqual(
-      ["whoami", "confirm_change", "mark_notifications_read", "mark_chat_read",
+      ["whoami", "confirm_change", "mark_notifications_read", "mark_chat_read", "mark_client_chat_read",
        ...READ_TOOLS.filter(staff).map((t) => t.name), ...WRITE_TOOLS.filter(staff).map((t) => t.name)].sort()
     );
     expect((await c.listResourceTemplates()).resourceTemplates.map((r) => r.uriTemplate).sort())
@@ -125,7 +126,7 @@ describe("private server: per-person tools", () => {
     expect(tools.every((t) => t.outputSchema)).toBe(true);
     // Only the tools that actually change something are not read-only.
     expect(tools.filter((t) => t.annotations?.readOnlyHint !== true).map((t) => t.name).sort())
-      .toEqual(["confirm_change", "mark_chat_read", "mark_notifications_read"]);
+      .toEqual(["confirm_change", "mark_chat_read", "mark_client_chat_read", "mark_notifications_read"]);
     await c.close();
   });
 
@@ -170,6 +171,7 @@ describe("private server: per-person tools", () => {
     await c.callTool({ name: "get_dashboard", arguments: {} });
     await c.callTool({ name: "get_tracking", arguments: { area: "project", actor_id: 4, from: "2026-10-01", q: "logo" } });
     await c.callTool({ name: "get_ai_activity", arguments: { person_kind: "client", person_id: 10, result: "refused" } });
+    await c.callTool({ name: "read_client_chat", arguments: { client: 10, limit: 5 } });
 
     const calls = v1Calls(upstream).map(({ url }) => `${url.pathname.replace("/api/v1/", "")}?${url.searchParams}`);
     expect(calls).toEqual([
@@ -183,6 +185,7 @@ describe("private server: per-person tools", () => {
       "projects.php?tasks=1",
       "events.php?actor_id=4&area=project&from=2026-10-01&q=logo",
       "ai-activity.php?person_kind=client&person_id=10&result=refused",
+      "client-messages.php?client=10&limit=5",
     ]);
     const { init } = v1Calls(upstream)[0];
     expect(init.headers["X-MCP-Tool"]).toBe("get_client_team");

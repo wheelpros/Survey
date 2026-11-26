@@ -35,7 +35,8 @@ const INSTRUCTIONS = [
   "It can do exactly what that person's portal permissions allow, and follows them as they",
   "change; start with whoami if unsure what that is. If a tool the person expects is missing,",
   "their role doesn't allow it - the Director changes that in Settings. The portal's pages map",
-  "to tools: Dashboard is get_dashboard, Messages is list_messages / read_chat / send_message,",
+  "to tools: Dashboard is get_dashboard, Messages is list_messages / read_chat / send_message",
+  "(and list_client_chats for an account manager's clients),",
   "Tracking is get_tracking and get_ai_activity, Forms is list_forms (client forms), and its",
   "Team Forms section is list_team_forms / get_team_form - forms admins send each other,",
   "sent with send_team_form and answered with answer_team_form. Activity Reports is",
@@ -49,8 +50,10 @@ const INSTRUCTIONS = [
   "Changes take two steps: a tool such as propose_meeting or submit_my_form only prepares",
   "the change and returns a summary - show it to the person, and call confirm_change only",
   "once they have said yes. Never confirm on their behalf.",
-  "Staff messages (list_messages, read_chat, send_message) are private chats between two admins:",
-  "send only what the person asked you to say.",
+  "Staff messages (list_messages, read_chat, send_message) are private chats between two admins.",
+  "An account manager also has one chat per client they manage (list_client_chats, read_client_chat,",
+  "send_client_message), and a client has one with their account manager (my_messages, send_my_message).",
+  "Send only what the person asked you to say.",
   UNTRUSTED_NOTE,
 ].join(" ");
 

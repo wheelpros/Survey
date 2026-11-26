@@ -550,6 +550,32 @@ export const READ_TOOLS = [
     query: () => ({ people: 1 }),
   },
 
+  // ── Client messages (the Clients tab of Messages: account managers only) ──
+  {
+    name: "list_client_chats",
+    scope: "messages:read",
+    title: "Messages: my client chats",
+    description:
+      "The Clients tab of the portal's Messages page: one chat per client you are the account manager of, the latest " +
+      "first, each with its last message and how many you haven't read. Empty for any other role - only account " +
+      "managers have client chats. Everyone on the client's account reads the chat, and so do its other account " +
+      "managers; nobody else, the Director included. Open one with read_client_chat, write with send_client_message.",
+    input: { ...paging },
+    output: S.clientChats,
+    path: "client-messages.php",
+  },
+  {
+    name: "read_client_chat",
+    scope: "messages:read",
+    title: "Messages: read a client chat",
+    description:
+      "Every message in one client's chat, newest first, page by page. Reading does not clear the unread count - " +
+      "use mark_client_chat_read for that. Reply with send_client_message.",
+    input: { client: recordId("The client's id - from list_client_chats"), ...paging },
+    output: S.clientChat,
+    path: "client-messages.php",
+  },
+
   // ── Tracking (the Director's) ───────────────────────────────────────────
   {
     name: "get_tracking",
@@ -738,6 +764,18 @@ export const READ_TOOLS = [
     input: {},
     output: S.myTeam,
     path: "me/team.php",
+  },
+  {
+    name: "my_messages",
+    scope: "self:read",
+    title: "My messages",
+    description:
+      "Your chat with your account manager - the portal's Messages page - newest first, page by page. Everyone on " +
+      "your account shares it. can_send is false until an account manager is assigned. Reading does not clear the " +
+      "unread count - use mark_my_messages_read. Write with send_my_message.",
+    input: { ...paging },
+    output: S.myMessages,
+    path: "me/messages.php",
   },
   {
     name: "my_notifications",
