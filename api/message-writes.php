@@ -19,6 +19,7 @@
 */
 
 require_once __DIR__ . "/events.php";
+require_once __DIR__ . "/message-edits.php";
 
 const MESSAGE_MAX_CHARS = 2000;
 const MESSAGE_PAGE_SIZE = 50;
@@ -73,8 +74,9 @@ function messageUnreadCount(PDO $pdo, $me)
         SELECT COUNT(*)
         FROM admin_conversations c
         JOIN admin_messages m ON m.conversation_id = c.id
-        WHERE (c.admin_low = :me1 AND m.id > c.low_last_read_id AND m.sender_id <> :me2)
-           OR (c.admin_high = :me3 AND m.id > c.high_last_read_id AND m.sender_id <> :me4)
+        WHERE m.deleted_at IS NULL AND (
+              (c.admin_low = :me1 AND m.id > c.low_last_read_id AND m.sender_id <> :me2)
+           OR (c.admin_high = :me3 AND m.id > c.high_last_read_id AND m.sender_id <> :me4))
     ");
     $me = (int) $me;
     $stmt->execute(["me1" => $me, "me2" => $me, "me3" => $me, "me4" => $me]);
@@ -181,8 +183,52 @@ function sendMessage(PDO $pdo, $me, $otherId, $rawBody)
         throw new PortalWriteError("Could not send the message.", 500);
     }
 
-    $stmt = $pdo->prepare("SELECT *, UNIX_TIMESTAMP(created_at) AS created_ts FROM admin_messages WHERE id = ?");
+    $stmt = $pdo->prepare(staffMessageSelect() . " WHERE m.id = ?");
     $stmt->execute([$messageId]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+/** The SELECT a staff message read shares: the row, its time, and its edits. */
+function staffMessageSelect()
+{
+    return "SELECT m.id, m.conversation_id, m.sender_id, m.body, m.created_at,
+                   UNIX_TIMESTAMP(m.created_at) AS created_ts, " . messageEditColumns("m") . "
+            FROM admin_messages m";
+}
+
+/** Messages of a conversation up to $upToId edited or deleted since $since - for a poll. */
+function staffMessagesChanged(PDO $pdo, $conversationId, $upToId, $since)
+{
+    [$clause, $params] = messageChangedClause($since);
+    $stmt = $pdo->prepare(staffMessageSelect() . " WHERE m.conversation_id = ? AND m.id <= ? AND $clause ORDER BY m.id ASC LIMIT 200");
+    $stmt->execute(array_merge([(int) $conversationId, (int) $upToId], $params));
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Edits ($rawBody a string) or deletes ($rawBody null) my own message $id,
+ * within MESSAGE_EDIT_WINDOW of sending (message-edits.php). Returns the
+ * stored row. A message in a conversation I'm not in is "not found".
+ */
+function changeStaffMessage(PDO $pdo, $me, $id, $rawBody)
+{
+    $stmt = $pdo->prepare(staffMessageSelect() . "
+        JOIN admin_conversations c ON c.id = m.conversation_id
+        WHERE m.id = ? AND (c.admin_low = ? OR c.admin_high = ?)
+    ");
+    $stmt->execute([(int) $id, (int) $me, (int) $me]);
+    $m = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$m) {
+        throw new PortalWriteError("No message with that id in your chats.", 404);
+    }
+    checkMessageChange($m, (int) $m["sender_id"] === (int) $me);
+
+    $body = $rawBody === null ? null : checkEditedBody($rawBody, MESSAGE_MAX_CHARS);
+    if ($body === null || $body !== (string) $m["body"]) {
+        applyMessageChange($pdo, "admin_messages", $m["id"], $body);
+    }
+    $stmt = $pdo->prepare(staffMessageSelect() . " WHERE m.id = ?");
+    $stmt->execute([(int) $m["id"]]);
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 

@@ -24,6 +24,8 @@ const outputs = [
   ["mark_notifications_read", markedRead],
   ["mark_my_notifications_read", markedRead],
   ["mark_chat_read", markedConversationRead],
+  ["mark_client_chat_read", markedConversationRead],
+  ["mark_my_messages_read", markedConversationRead],
 ];
 
 describe("api/v1 contract", () => {

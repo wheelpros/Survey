@@ -14,9 +14,10 @@
 // stateless (see ../server.js), so the confirmation is a token instead -
 // the same reasoning as the public server's inquiry submission.
 //
-// Marking read (mark_notifications_read and mark_chat_read for
-// staff, mark_my_notifications_read for a client) skips this: it only ever
-// moves the person's own read markers.
+// Marking read (mark_notifications_read, mark_chat_read and
+// mark_client_chat_read for staff, mark_my_notifications_read and
+// mark_my_messages_read for a client) skips this: it only ever moves the
+// person's own read markers.
 
 import { z } from "zod";
 
@@ -440,6 +441,21 @@ export const WRITE_TOOLS = [
       "Write what the person asked you to say - it goes out under their name." + TWO_STEP,
     input: {
       to: recordId("The admin's id - from list_messages or list_message_people"),
+      body: z.string().min(1).max(2000).describe("The message, as it will appear"),
+    },
+  },
+  {
+    name: "send_client_message",
+    scope: "messages:write",
+    title: "Messages: write to a client",
+    description:
+      "Sends a message from you in a client's chat on the portal's Messages page (read it first with " +
+      "read_client_chat). Only for clients you answer (list_client_chats, access 'team'); the Director can't write " +
+      "where the client has an account manager. Everyone on the client's account sees it, " +
+      "and so do its other account managers; they may be emailed if it stays unread. Write what the person asked you " +
+      "to say - it goes out under their name." + TWO_STEP,
+    input: {
+      client: recordId("The client's id - from list_client_chats"),
       body: z.string().min(1).max(2000).describe("The message, as it will appear"),
     },
   },
@@ -914,6 +930,17 @@ export const WRITE_TOOLS = [
   },
 
   // ── A client's own account (self:write) ───────────────────────────────
+  {
+    name: "send_my_message",
+    scope: "self:write",
+    title: "Message my account manager",
+    description:
+      "Sends your account manager a message from you, in your account's chat on the portal's Messages page. " +
+      "Everyone on your account sees it. Until an account manager is assigned it goes to the Director, who answers " +
+      "in the meantime (my_messages says so). Write what the person asked you to say - it goes out under their name." +
+      TWO_STEP,
+    input: { body: z.string().min(1).max(2000).describe("The message, as it will appear") },
+  },
   // A client's team (self:write, account owner only)
   {
     name: "invite_teammate",
@@ -1104,6 +1131,53 @@ export function registerWriteTools(server, { auth, requestId, scopes }) {
           tool: "mark_chat_read",
           path: "messages.php",
           body: { with: other },
+          schema: z.object(S.markedConversationRead),
+        })
+    );
+  }
+
+  // Marking a client chat read moves only your own read marker.
+  if (scopes.includes("messages:write")) {
+    server.registerTool(
+      "mark_client_chat_read",
+      {
+        title: "Messages: mark a client chat read",
+        description:
+          "Marks a client's chat read for you, up to the latest message, and clears its unread count. Not for the " +
+          "Director on a chat they only read (access 'observer').",
+        inputSchema: { client: recordId("The client's id - from list_client_chats") },
+        outputSchema: S.markedConversationRead,
+        annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      },
+      async ({ client }) =>
+        portalCall({
+          auth,
+          requestId,
+          tool: "mark_client_chat_read",
+          path: "client-messages.php",
+          body: { client },
+          schema: z.object(S.markedConversationRead),
+        })
+    );
+  }
+
+  if (scopes.includes("self:write")) {
+    server.registerTool(
+      "mark_my_messages_read",
+      {
+        title: "Mark my messages read",
+        description: "Marks your chat with your account manager read for you, up to the latest message. They see your side as Seen.",
+        inputSchema: {},
+        outputSchema: S.markedConversationRead,
+        annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      },
+      async () =>
+        portalCall({
+          auth,
+          requestId,
+          tool: "mark_my_messages_read",
+          path: "me/messages.php",
+          body: { read: true },
           schema: z.object(S.markedConversationRead),
         })
     );

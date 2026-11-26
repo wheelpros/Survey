@@ -197,6 +197,7 @@ $closes = [
     ["pages.content", "api/admin-content.php", ["content.create"]],
     ["pages.projects", "api/projects.php", ["projects.create"]],
     ["inquiries.read", "api/admin-inquiries.php", ["inquiries.write"]],
+    ["pages.messages", "api/admin-messages.php?action=client_list", ["messages.clients"]],
     ["pages.notifications", "api/announcements.php?action=recipients", ["announcements.send"]],
     ["pages.daily_reports", "api/activity-reports.php?action=pending_count", ["reports.self"]],
 ];

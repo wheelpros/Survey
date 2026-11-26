@@ -9,6 +9,7 @@
 |      not another admin, not a client, not an AI token.
 |   3. Unread counts, the read marker, and paging (after= for polling,
 |      before= for older messages).
+|   4. Editing and deleting your own message, for 5 minutes.
 */
 
 function msgGet($query, $token)
@@ -201,3 +202,54 @@ refusedChange("v1 messages: a client can't send", "tok-client", "send_message", 
 
 check("v1 messages: still nothing in the notifications inbox",
     (int) one($pdo, "SELECT COUNT(*) AS n FROM notifications WHERE body LIKE '%assistant%' OR title LIKE '%assistant%'")["n"] === 0);
+
+// ── 4. Editing and deleting your own message, for 5 minutes ────────────
+
+[, $r] = msgGet("action=thread&with=3", $sa);
+$since = $r["clock"] ?? 0;
+[$status, $r] = msgPost($sa, ["action" => "send", "to" => 3, "body" => "Meeting at 3pm"]);
+$typo = $r["message_row"]["id"] ?? 0;
+check("messages: a new message of mine can still be changed", $status === 200 && $r["message_row"]["editable_for"] > 0
+    && $r["message_row"]["edited"] === false && $r["message_row"]["deleted"] === false, json_encode($r));
+
+[$status, $r] = msgPost($am, ["action" => "edit", "id" => $typo, "body" => "Hacked"]);
+check("messages: the other person can't edit it", $status === 403, "HTTP $status " . json_encode($r));
+[$status] = msgPost($am2, ["action" => "edit", "id" => $typo, "body" => "Hacked"]);
+check("messages: someone outside the chat can't find it", $status === 404, "HTTP $status");
+[$status, $r] = msgPost($sa, ["action" => "edit", "id" => $typo, "body" => "  Meeting at 4pm  "]);
+check("messages: Sam edits his", $status === 200 && $r["message_row"]["body"] === "Meeting at 4pm" && $r["message_row"]["edited"] === true,
+    "HTTP $status " . json_encode($r));
+[$status] = msgPost($sa, ["action" => "edit", "id" => $typo, "body" => "   "]);
+check("messages: an edit can't empty it", $status === 400, "HTTP $status");
+
+[, $r] = msgGet("action=thread&with=2&after=$typo&since=$since", $am);
+check("messages: Amy's next poll picks up the edit", ($r["changed"][0]["id"] ?? 0) === $typo && $r["changed"][0]["body"] === "Meeting at 4pm"
+    && $r["changed"][0]["edited"] === true && $r["changed"][0]["editable_for"] === 0, json_encode($r));
+[, $r] = msgGet("action=thread&with=2&after=$typo&since=" . ($r["clock"] + 5), $am);
+check("messages: and a poll after it doesn't repeat it", ($r["changed"] ?? null) === [], json_encode($r));
+
+[, $before] = msgGet("action=count", $am);
+[$status, $r] = msgPost($sa, ["action" => "delete", "id" => $typo]);
+check("messages: Sam deletes it", $status === 200 && $r["message_row"]["deleted"] === true && $r["message_row"]["body"] === "", "HTTP $status " . json_encode($r));
+check("messages: the words are gone from the database", one($pdo, "SELECT body FROM admin_messages WHERE id = ?", [$typo])["body"] === "");
+[, $r] = msgGet("action=thread&with=2", $am);
+$row = array_values(array_filter($r["messages"], function ($m) use ($typo) { return $m["id"] === $typo; }))[0] ?? [];
+check("messages: Amy sees it deleted, without its words", ($row["deleted"] ?? null) === true && $row["body"] === "", json_encode($row));
+[, $after] = msgGet("action=count", $am);
+check("messages: a deleted message isn't unread", $after["unread"] === $before["unread"] - 1, json_encode([$before, $after]));
+[$status] = msgPost($sa, ["action" => "edit", "id" => $typo, "body" => "Back"]);
+check("messages: a deleted message can't be edited", $status === 409, "HTTP $status");
+[, $r] = get("messages.php?with=3&limit=1", $sa);
+check("v1 messages: read_chat shows it deleted, body null", ($r["data"]["items"][0]["deleted"] ?? null) === true
+    && $r["data"]["items"][0]["untrusted_content"]["body"] === null, json_encode($r));
+
+msgPost($sa, ["action" => "send", "to" => 3, "body" => "Old news"]);
+$old = (int) one($pdo, "SELECT MAX(id) AS id FROM admin_messages")["id"];
+$pdo->exec("UPDATE admin_messages SET created_at = NOW() - INTERVAL 6 MINUTE WHERE id = $old");
+[$status, $r] = msgPost($sa, ["action" => "edit", "id" => $old, "body" => "New news"]);
+check("messages: after 5 minutes it can't be edited", $status === 409 && strpos($r["message"], "5 minutes") !== false, "HTTP $status " . json_encode($r));
+[$status] = msgPost($sa, ["action" => "delete", "id" => $old]);
+check("messages: nor deleted", $status === 409, "HTTP $status");
+[, $r] = msgGet("action=thread&with=3", $sa);
+check("messages: and the page is told so", end($r["messages"])["editable_for"] === 0, json_encode(end($r["messages"])));
+msgPost($am, ["action" => "read", "with" => 2]);

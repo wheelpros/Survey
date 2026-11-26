@@ -103,6 +103,10 @@ const PERMISSIONS = [
     // The key keeps its old name: it is stored in role settings.
     "calendar.use"       => ["area" => "calendar", "label" => "Open Appointments and book meetings", "roles" => ["super_admin", "account_manager"]],
     "pages.messages"     => ["area" => "messages", "label" => "Open Messages", "roles" => ALL_ADMIN_ROLES],
+    // Reading and writing the Messages chat of each client they are on the
+    // team of (client-message-writes.php). The Director reads every client's
+    // chat without it, and answers one only while it has nobody holding it.
+    "messages.clients"   => ["area" => "messages", "label" => "Write to clients in Messages", "roles" => ["account_manager"]],
 
     "pages.notifications" => ["area" => "notifications", "label" => "Open Notifications", "roles" => ALL_ADMIN_ROLES],
     "announcements.send" => ["area" => "notifications", "label" => "Send announcements", "roles" => []],

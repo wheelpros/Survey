@@ -99,10 +99,9 @@ if (isset($_GET["with"])) {
     }
 
     $stmt = $pdo->prepare("
-        SELECT id, sender_id, body, created_at, UNIX_TIMESTAMP(created_at) AS created_ts
-        FROM admin_messages
-        WHERE conversation_id = ?" . ($after !== null ? " AND id < ?" : "") . "
-        ORDER BY id DESC
+        " . staffMessageSelect() . "
+        WHERE m.conversation_id = ?" . ($after !== null ? " AND m.id < ?" : "") . "
+        ORDER BY m.id DESC
         LIMIT " . ($limit + 1)
     );
     $stmt->execute($after !== null ? [(int) $conversation["id"], $after] : [(int) $conversation["id"]]);
@@ -110,11 +109,14 @@ if (isset($_GET["with"])) {
     $page = v1Page($stmt->fetchAll(), $limit, function ($m) {
         return [(int) $m["id"]];
     }, function ($m) use ($me) {
+        $deleted = $m["deleted_at"] !== null;
         return [
             "id" => (int) $m["id"],
             "mine" => (int) $m["sender_id"] === $me,
             "created_at" => v1Time($m["created_ts"]),
-            "untrusted_content" => ["body" => (string) $m["body"]],
+            "edited" => !$deleted && $m["edited_at"] !== null,
+            "deleted" => $deleted,
+            "untrusted_content" => ["body" => $deleted ? null : (string) $m["body"]],
         ];
     });
 
@@ -132,8 +134,9 @@ $stmt = $pdo->prepare("
     SELECT c.*,
            IF(c.admin_low = :me1, c.admin_high, c.admin_low) AS other_id,
            m.body AS last_body, m.sender_id AS last_sender_id, UNIX_TIMESTAMP(m.created_at) AS last_ts,
+           m.deleted_at AS last_deleted_at,
            (SELECT COUNT(*) FROM admin_messages u
-             WHERE u.conversation_id = c.id AND u.sender_id <> :me2
+             WHERE u.conversation_id = c.id AND u.sender_id <> :me2 AND u.deleted_at IS NULL
                AND u.id > IF(c.admin_low = :me3, c.low_last_read_id, c.high_last_read_id)) AS unread
     FROM admin_conversations c
     JOIN admin_messages m ON m.id = c.last_message_id
@@ -150,7 +153,7 @@ $stmt->execute($params);
 $page = v1Page($stmt->fetchAll(), $limit, function ($c) {
     return [(int) $c["last_message_id"]];
 }, function ($c) use ($pdo, $me) {
-    $body = (string) $c["last_body"];
+    $body = $c["last_deleted_at"] !== null ? "Message deleted" : (string) $c["last_body"];
     return [
         "with" => messagePerson(messageAdmin($pdo, $c["other_id"])),
         "unread" => (int) $c["unread"],

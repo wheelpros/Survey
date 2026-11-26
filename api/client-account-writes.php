@@ -32,6 +32,8 @@ const CLIENT_PERSON_REFERENCES = [
     ["appointments", "requested_by_id", null],
     ["appointments", "responded_by_id", null],
     ["client_invites", "invited_by", null],
+    ["client_messages", "sender_id", "sender_kind"],
+    ["client_message_reads", "reader_id", "reader_kind"],
 ];
 
 function clientTableExists(PDO $pdo, $table)
@@ -225,6 +227,15 @@ function mergeClientAccounts(PDO $pdo, array $admin, $sourceId, $targetId)
                 SET t.note = CONCAT(t.note, '\n\n', s.note)
                 WHERE t.user_id = ?
             ")->execute([$sourceId, $targetId]);
+        }
+
+        // A staff member's read marker in both chats: the target's stands.
+        if (clientTableExists($pdo, "client_message_reads")) {
+            $pdo->prepare("
+                DELETE s FROM client_message_reads s
+                JOIN client_message_reads t ON t.reader_kind = s.reader_kind AND t.reader_id = s.reader_id AND t.user_id = ?
+                WHERE s.user_id = ?
+            ")->execute([$targetId, $sourceId]);
         }
 
         foreach (["admin_user_assignments" => "admin_id", "client_admin_notes" => "admin_id", "user_source_files" => "file_id"] as $table => $key) {

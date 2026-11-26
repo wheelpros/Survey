@@ -1,0 +1,28 @@
+/* Editing and deleting your own message (assets/message-edits.js), and the
+   portal's own notes in a client chat - on both Messages pages. */
+
+.bubble.deleted{font-style:italic;color:#98a2b3;background:#f7f8fa;border-color:#eaecf0}
+.msg.mine .bubble.deleted{background:#f7f8fa;border-color:#eaecf0;color:#98a2b3}
+.msg .edited{font-size:11px;color:#98a2b3}
+
+/* The links sit under your own message; on a mouse they show on hover or focus. */
+.msg-actions{display:inline-flex;gap:10px}
+.msg-actions button{border:0;background:none;padding:2px 0;font:inherit;font-size:11px;font-weight:700;color:var(--muted);cursor:pointer}
+.msg-actions button:hover,.msg-actions button:focus-visible{color:var(--text);text-decoration:underline}
+.msg-actions button.danger:hover,.msg-actions button.danger:focus-visible{color:var(--brand)}
+@media (hover:hover){
+  .msg .msg-actions{opacity:0;transition:opacity .12s}
+  .msg:hover .msg-actions,.msg:focus-within .msg-actions{opacity:1}
+}
+
+.edit-box{display:flex;flex-direction:column;gap:6px;width:min(520px,70vw)}
+.edit-box textarea{width:100%;min-height:42px;max-height:160px;resize:vertical;border:1px solid #dfe3ea;border-radius:10px;padding:9px 12px;font:inherit;font-size:14px;line-height:1.45;background:#fff;color:var(--text)}
+.edit-box textarea:focus{outline:2px solid var(--nav-active);outline-offset:1px}
+.edit-buttons{display:flex;gap:8px;justify-content:flex-end}
+.edit-buttons button{border:1px solid #dfe3ea;background:#fff;border-radius:9px;padding:6px 12px;font:inherit;font-size:12px;font-weight:700;color:var(--text);cursor:pointer}
+.edit-buttons .edit-save{background:var(--nav-active);border-color:var(--nav-active);color:#fff}
+.edit-error{font-size:12px;color:var(--brand)}
+.edit-error[hidden]{display:none}
+
+/* A note from the portal in a client chat - an account manager joining or leaving. */
+.system-note{align-self:center;max-width:80%;margin:8px 0;padding:5px 12px;border-radius:12px;background:#f2f4f7;color:var(--muted);font-size:12px;font-weight:700;text-align:center}

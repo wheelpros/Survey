@@ -56,6 +56,14 @@ $pdo->prepare("UPDATE project_tasks SET description = ? WHERE id = 601")
 $pdo->prepare("UPDATE survey_uploaded_files SET original_name = ? WHERE response_id = 200")
     ->execute(["logo" . xssMarker("survey_uploaded_files.original_name") . ".png"]);
 
+// A client chat: Alice writes to Amy, her teammate Tia's name is a payload too.
+$pdo->prepare("INSERT INTO users (id, name, email, approved, account_owner_id) VALUES (30, ?, 'tia@acme.test', 1, 10)")
+    ->execute(["Tia " . xssMarker("users.name.teammate")]);
+$pdo->prepare("INSERT INTO client_messages (user_id, sender_kind, sender_id, sender_name, body) VALUES (10, 'user', 10, 'Alice', ?)")
+    ->execute(["Hi Amy " . xssMarker("client_messages.body") . " javascript:(window.__xss=window.__xss||[]).push('client_messages.href') https://example.test/ok"]);
+$pdo->prepare("INSERT INTO client_messages (user_id, sender_kind, sender_id, sender_name, body) VALUES (10, 'user', 30, 'Tia', 'Hello from Tia')")
+    ->execute();
+
 // Bob signs in to see his project.
 $pdo->exec("UPDATE users SET session_token = 'tok-bob' WHERE id = 11");
 

@@ -33,5 +33,12 @@ CREATE TABLE IF NOT EXISTS admin_messages (
   sender_id       INT       NOT NULL,
   body            TEXT      NOT NULL,
   created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  edited_at       TIMESTAMP     NULL DEFAULT NULL,
+  deleted_at      TIMESTAMP     NULL DEFAULT NULL,
   KEY idx_conversation (conversation_id, id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Edit and delete (a sender's own message, for 5 minutes - api/message-edits.php).
+-- For a table made before them; ensureMessageEditColumns() does this lazily.
+-- ALTER TABLE admin_messages ADD COLUMN edited_at TIMESTAMP NULL DEFAULT NULL;
+-- ALTER TABLE admin_messages ADD COLUMN deleted_at TIMESTAMP NULL DEFAULT NULL;

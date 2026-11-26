@@ -26,7 +26,7 @@ $before = [
     "account_manager" => array_merge($everyone, [
         "clients.details", "clients.edit", "forms.review", "content.view_all", "content.create",
         "content.publish", "projects.create", "projects.be_manager", "tasks.write", "tasks.edit_any", "tasks.see_drafts",
-        "calendar.use", "reports.self", "reports.review",
+        "calendar.use", "reports.self", "reports.review", "messages.clients",
     ]),
     "seo_admin" => $everyone,
 ];

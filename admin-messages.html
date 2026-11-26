@@ -154,6 +154,7 @@ body{padding:0}
 .create-btn{flex:none;display:inline-flex;align-items:center;gap:8px;background:var(--nav-active);color:#fff;border:none;padding:11px 18px;border-radius:10px;font:inherit;font-size:13px;font-weight:800;cursor:pointer}
 .create-btn:hover{background:#282c52}
 .create-btn:disabled{opacity:.45;cursor:not-allowed}
+.create-btn[hidden]{display:none}
 .create-btn svg{width:16px;height:16px}
 
 .chat{display:grid;grid-template-columns:320px minmax(0,1fr);background:#fff;border-radius:20px;box-shadow:0 14px 35px rgba(0,0,0,.06);overflow:hidden;height:calc(100vh - 190px);min-height:460px}
@@ -205,6 +206,23 @@ body{padding:0}
 .counter.over{color:var(--brand);font-weight:700}
 .composer-note{padding:14px 20px;border-top:1px solid #eef1f5;color:var(--muted);font-size:13px;background:#fff}
 .send-error{padding:0 20px 10px;color:var(--brand);font-size:13px;background:#fff}
+
+/* Team chats and, for an account manager, client chats. */
+.tabs{display:flex;gap:4px;padding:12px 16px 0}
+.tabs[hidden]{display:none}
+.tab{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;height:34px;border:1px solid #dfe3ea;background:#fff;border-radius:9px;font:inherit;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer}
+.tab[aria-selected="true"]{background:var(--nav-active);border-color:var(--nav-active);color:#fff}
+.tab .unread-pill{min-width:18px;height:18px;font-size:10px}
+.tab .unread-pill[hidden]{display:none}
+/* In a client chat the team's side is ours: on the left, a colleague's lighter than mine. */
+.msg.ours{align-self:flex-start;align-items:flex-start}
+.msg.ours:not(.mine) .bubble{background:#eef0fb;border-color:#e0e4f6}
+.msg .who{font-size:11px;font-weight:700;color:var(--muted)}
+.seen{font-size:11px;font-weight:700;color:#98a2b3}
+/* The Director reading a client's chat: said once, above the messages, in place of the composer's job. */
+.read-only-note{display:flex;gap:10px;align-items:flex-start;padding:10px 20px;background:#fff8e6;border-bottom:1px solid #f3e3b5;color:#7a5a00;font-size:13px;line-height:1.45}
+.read-only-note svg{width:16px;height:16px;flex:none;margin-top:2px}
+.convo-tag{flex:none;font-size:10px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:#98a2b3}
 
 .placeholder{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--muted);text-align:center;padding:24px}
 .placeholder strong{color:var(--text);font-size:16px}
@@ -291,6 +309,7 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 <link rel="stylesheet" href="assets/shell.css?v=8" />
+<link rel="stylesheet" href="assets/message-edits.css?v=1" />
 <!-- Before the page script, which asks it to ring. -->
 <script src="assets/alert-sound.js?v=2"></script>
 <script src="assets/permissions.js?v=2"></script>
@@ -330,7 +349,7 @@ document.addEventListener("DOMContentLoaded", function () {
     <div class="page-head">
       <div class="page-title">
         <h1>Messages</h1>
-        <p>Private chats with your team.</p>
+        <p id="pageIntro">Private chats with your team.</p>
       </div>
       <button class="create-btn" type="button" id="newMessageBtn" onclick="openPicker()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -340,6 +359,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
     <div class="chat" id="chat">
       <section class="convos" aria-label="Conversations">
+        <div class="tabs" id="tabs" role="tablist" aria-label="Chats" hidden>
+          <button class="tab" type="button" role="tab" id="tabTeam" aria-selected="true" onclick="setMode('team')">Team <em class="unread-pill" id="teamPill" hidden></em></button>
+          <button class="tab" type="button" role="tab" id="tabClients" aria-selected="false" onclick="setMode('client')">Clients <em class="unread-pill" id="clientPill" hidden></em></button>
+        </div>
         <div class="convos-head">
           <input type="search" id="convoSearch" placeholder="Search people" aria-label="Search conversations" oninput="renderList()">
         </div>
@@ -390,6 +413,8 @@ document.addEventListener("DOMContentLoaded", function () {
   </div>
 </div>
 
+<script src="assets/message-edits.js?v=1"></script>
+<script src="assets/confirm.js?v=1"></script>
 <script>
 const adminToken = localStorage.getItem("admin_token");
 const adminUser = JSON.parse(localStorage.getItem("admin_user") || "{}");
@@ -407,7 +432,14 @@ function logoutAdmin(){
 /* ── Messages ───────────────────────────────────────────────────────────────
    api/admin-messages.php holds the chats; this page lists them and keeps the
    open one fresh by asking for anything newer every few seconds while the
-   tab is visible. The open chat lives in the URL (?with=<admin id>). */
+   tab is visible. The open chat lives in the URL (?with=<admin id>).
+
+   An account manager also has a Clients tab: one chat per client they
+   manage, shared with everyone on the client's account and the client's
+   other account managers (?client=<client id>). The Director's Clients tab
+   lists every client: those chats open read only (access "observer"), with
+   no box to write in and no read marker, and each opening is logged in
+   Tracking by the server. */
 
 const POLL_MS = 5000;
 const LIST_POLL_MS = 15000;
@@ -420,6 +452,16 @@ let messages = [];        // the open thread, oldest first
 let hasOlder = false;
 let pollTimer = null;
 let sending = false;
+let clock = 0;            // the server's time at the last thread reply: the next poll's since=
+
+let mode = "team";        // which list shows: "team" or "client"
+let clientsAvailable = false;
+let clientChats = [];
+let openClient = null;    // the client whose chat is open, as the API returns them
+let clientPeople = [];    // the people on that client's account
+let clientSeen = [];      // how far each of them has read
+let clientAccess = "team"; // "observer": the Director reading, nothing to write with
+let clientManagers = [];  // the open client's account managers - none: the Director answers
 
 function esc(value){
   return String(value == null ? "" : value)
@@ -444,7 +486,7 @@ function timeAgo(seconds){
   return new Date(seconds * 1000).toLocaleDateString(undefined, {day:"numeric", month:"short"});
 }
 
-const clock = s => new Date(s * 1000).toLocaleTimeString(undefined, {hour:"numeric", minute:"2-digit"});
+const timeOf = s => new Date(s * 1000).toLocaleTimeString(undefined, {hour:"numeric", minute:"2-digit"});
 
 function dayLabel(seconds){
   const d = new Date(seconds * 1000);
@@ -481,9 +523,19 @@ async function api(params, body){
 function paintBadge(){
   const badge = document.getElementById("msgBadge");
   if(!badge) return;
-  const n = conversations.reduce((sum, c) => sum + c.unread, 0);
+  const team = conversations.reduce((sum, c) => sum + c.unread, 0);
+  const clients = clientChats.reduce((sum, c) => sum + c.unread, 0);
+  const n = team + clients;
+  paintPill("teamPill", team);
+  paintPill("clientPill", clients);
   badge.textContent = n > 9 ? "9+" : String(n);
   badge.hidden = n <= 0;
+}
+
+function paintPill(id, n){
+  const pill = document.getElementById(id);
+  pill.textContent = n > 99 ? "99+" : String(n);
+  pill.hidden = n <= 0;
 }
 
 /* ── The list ── */
@@ -506,11 +558,76 @@ async function loadList(){
   // (and any focus on them) when nothing has changed.
   const changed = JSON.stringify(fresh) !== JSON.stringify(conversations);
   conversations = fresh;
-  if(changed || !document.querySelector("#convoList .convo")) renderList();
+  if(mode === "team" && (changed || !document.querySelector("#convoList .convo"))) renderList();
+  paintBadge();
+  loadClientList();
+}
+
+async function loadClientList(){
+  const data = await api({ action: "client_list" }).catch(() => null);
+  if(!data || !data.success) return;
+
+  clientsAvailable = data.available;
+  document.getElementById("tabs").hidden = !clientsAvailable;
+  // A chat the Director only reads never rings.
+  noticeIncoming(data.chats.filter(c => c.access !== "observer" && c.last && c.last.side === "client").map(c => c.last.id), true, "client_message");
+
+  const changed = JSON.stringify(data.chats) !== JSON.stringify(clientChats);
+  clientChats = data.chats;
+  if(mode === "client" && (changed || !document.querySelector("#convoList .convo"))) renderList();
   paintBadge();
 }
 
+function setMode(next){
+  mode = next;
+  document.getElementById("tabTeam").setAttribute("aria-selected", String(mode === "team"));
+  document.getElementById("tabClients").setAttribute("aria-selected", String(mode === "client"));
+  document.getElementById("newMessageBtn").hidden = mode === "client";
+  document.getElementById("convoSearch").placeholder = mode === "client" ? "Search clients" : "Search people";
+  document.getElementById("pageIntro").textContent = mode === "client"
+    ? (isDirector() ? "Every client's chat with their account managers." : "Your chats with the clients you manage.")
+    : "Private chats with your team.";
+  renderList();
+}
+
+const clientLabel = c => c.company_name || c.name;
+const isDirector = () => adminUser.role === "owner";
+
+function renderClientList(){
+  const q = document.getElementById("convoSearch").value.trim().toLowerCase();
+  const rows = clientChats.filter(c => !q || [c.client.name, c.client.company_name].some(f => (f || "").toLowerCase().includes(q)));
+  const list = document.getElementById("convoList");
+
+  if(!clientChats.length){
+    list.innerHTML = isDirector()
+      ? `<div class="list-empty">There are no clients yet.</div>`
+      : `<div class="list-empty">You aren't the account manager of any client yet.</div>`;
+    return;
+  }
+  if(!rows.length){
+    list.innerHTML = `<div class="list-empty">No client matches "${esc(q)}".</div>`;
+    return;
+  }
+
+  list.innerHTML = rows.map(c => {
+    const who = !c.last || c.last.side === "system" ? "" : c.last.mine ? "You: " : c.last.sender + ": ";
+    return `
+    <button type="button" class="convo${c.unread ? " unread" : ""}${openClient && openClient.id === c.client.id ? " active" : ""}" onclick="openClientChat(${c.client.id})">
+      ${avatar({ name: clientLabel(c.client), avatar_path: c.client.avatar_path })}
+      <span class="convo-meta">
+        <span class="convo-top"><strong>${esc(clientLabel(c.client))}</strong><time>${c.last ? esc(timeAgo(c.last.created_ts)) : ""}</time></span>
+        <span class="convo-preview">
+          <span>${c.last ? esc(who + c.last.preview) : "No messages yet"}</span>
+          ${c.access === "observer" ? `<span class="convo-tag">Read only</span>` : ""}
+          ${c.unread ? `<em class="unread-pill">${c.unread > 99 ? "99+" : c.unread}</em>` : ""}
+        </span>
+      </span>
+    </button>`;
+  }).join("");
+}
+
 function renderList(){
+  if(mode === "client") return renderClientList();
   const q = document.getElementById("convoSearch").value.trim().toLowerCase();
   const rows = conversations.filter(c => !q || c.with.name.toLowerCase().includes(q));
   const list = document.getElementById("convoList");
@@ -551,10 +668,15 @@ async function openChat(adminId){
   }
 
   openWith = data.with;
+  openClient = null;
+  WzMessageEdits.end();
   messages = data.messages;
+  WzMessageEdits.track(messages);
+  clock = data.clock;
   hasOlder = data.has_older;
   noticeIncoming(messages.filter(m => !m.mine).map(m => m.id), false);
   history.replaceState(null, "", "?with=" + adminId);
+  if(mode !== "team") setMode("team");
   document.getElementById("chat").classList.add("open");
 
   renderThread();
@@ -563,9 +685,50 @@ async function openChat(adminId){
   startPolling();
 }
 
+async function openClientChat(clientId){
+  closePicker();
+  stopPolling();
+
+  // open=1: this is opening the chat, which the server logs for the Director (the polls never are).
+  const data = await api({ action: "client_thread", client: clientId, open: 1 }).catch(() => null);
+  if(!data || !data.success){
+    renderThreadError((data && data.message) || "Could not open this chat.");
+    return;
+  }
+
+  openWith = null;
+  openClient = data.client;
+  clientAccess = data.access;
+  clientManagers = data.managers;
+  clientPeople = data.people;
+  clientSeen = data.seen_by;
+  WzMessageEdits.end();
+  messages = data.messages;
+  WzMessageEdits.track(messages);
+  clock = data.clock;
+  hasOlder = data.has_older;
+  noticeIncoming(messages.filter(m => m.side === "client").map(m => m.id), false, "client_message");
+  history.replaceState(null, "", "?client=" + clientId);
+  if(mode !== "client") setMode("client");
+  document.getElementById("chat").classList.add("open");
+
+  renderThread();
+  scrollToEnd();
+  markRead();
+  startPolling();
+}
+
+/* The open chat's page of messages, for whichever kind it is. */
+function threadParams(extra){
+  return openClient
+    ? Object.assign({ action: "client_thread", client: openClient.id }, extra)
+    : Object.assign({ action: "thread", with: openWith.id }, extra);
+}
+
 function closeChat(){
   stopPolling();
   openWith = null;
+  openClient = null;
   messages = [];
   history.replaceState(null, "", location.pathname);
   document.getElementById("chat").classList.remove("open");
@@ -583,21 +746,40 @@ function renderThreadError(message){
     <div class="placeholder"><strong>${esc(message)}</strong></div>`;
 }
 
+/* In a client chat: who at the client has read the team's last message. */
+function clientSeenLine(){
+  const ours = messages.filter(m => m.side === "team");
+  const last = ours[ours.length - 1];
+  if(!last) return { id: 0, names: [] };
+  return { id: last.id, names: clientSeen.filter(s => s.last_read_id >= last.id).map(s => s.name) };
+}
+
 function messagesHtml(){
   let lastDay = "";
-  return messages.map(m => {
+  const seen = openClient ? clientSeenLine() : { id: 0, names: [] };
+  return messages.map((m, i) => {
     const day = dayLabel(m.created_ts);
     const sep = day !== lastDay ? `<div class="day">${esc(day)}</div>` : "";
     lastDay = day;
+    // A note from the portal (an account manager joining or leaving): nobody's message.
+    if(m.side === "system") return sep + `<div class="system-note" data-id="${m.id}">${esc(m.body)}</div>`;
+    // A client chat has several people on each side: name each run of theirs.
+    const ours = openClient && m.side === "team";
+    const prev = messages[i - 1];
+    const showName = openClient && !m.mine && (!prev || prev.sender.id !== m.sender.id || prev.side !== m.side || sep);
     return sep + `
-      <div class="msg${m.mine ? " mine" : ""}" data-id="${m.id}">
-        <div class="bubble">${linkify(m.body)}</div>
-        <time title="${esc(new Date(m.created_ts * 1000).toLocaleString())}">${esc(clock(m.created_ts))}</time>
+      <div class="msg${m.mine ? " mine" : ""}${ours ? " ours" : ""}" data-id="${m.id}">
+        ${showName ? `<span class="who">${esc(m.sender.name)}</span>` : ""}
+        ${WzMessageEdits.bubble(m, linkify)}
+        <span><time title="${esc(new Date(m.created_ts * 1000).toLocaleString())}">${esc(timeOf(m.created_ts))}</time>${WzMessageEdits.meta(m)}</span>
+        ${WzMessageEdits.actions(m)}
+        ${seen.id === m.id && seen.names.length ? `<span class="seen">Seen by ${esc(seen.names.join(", "))}</span>` : ""}
       </div>`;
   }).join("");
 }
 
 function renderThread(){
+  if(openClient) return renderClientThread();
   const p = openWith;
   const canSend = !p.removed && p.active;
 
@@ -628,11 +810,53 @@ function renderThread(){
   if(input && window.innerWidth > 768) input.focus();
 }
 
+function renderClientThread(){
+  const c = openClient;
+  const observer = clientAccess === "observer";
+  const people = clientPeople.map(p => p.name).join(", ");
+
+  document.getElementById("thread").innerHTML = `
+    <div class="thread-head">
+      <button class="back-btn" type="button" onclick="closeChat()" aria-label="Back to chats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+      ${avatar({ name: clientLabel(c), avatar_path: c.avatar_path }, true)}
+      <div><strong>${esc(clientLabel(c))}</strong><span>${esc(people)}</span></div>
+    </div>
+    ${observer ? `<div class="read-only-note" role="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg><span>You are reading this chat as the Director. You can't write here, and this visit is logged in Tracking.</span></div>`
+      : !clientManagers.length ? `<div class="read-only-note" role="note"><span>${esc(clientLabel(c))} has no account manager yet, so their messages come to you as the Director until one is assigned.</span></div>` : ""}
+    <div class="messages" id="messages">
+      ${hasOlder ? `<button class="older-btn" type="button" onclick="loadOlder()">Show earlier messages</button>` : ""}
+      ${messages.length ? messagesHtml() : `<div class="placeholder"><span>${observer ? "No messages yet." : `No messages yet. Everyone on ${esc(clientLabel(c))}'s account will see what you write.`}</span></div>`}
+    </div>
+    ${observer ? "" : `
+    <div class="send-error" id="sendError" hidden></div>
+    <form class="composer" id="composer" onsubmit="event.preventDefault(); sendMessage();">
+      <div class="composer-field">
+        <textarea id="composerInput" rows="1" dir="auto" placeholder="Message ${esc(clientLabel(c))}" aria-label="Message" oninput="onType()" onkeydown="onKey(event)"></textarea>
+        <span class="counter" id="counter" hidden></span>
+      </div>
+      <button class="create-btn" type="submit" id="sendBtn" disabled>Send</button>
+    </form>`}
+  `;
+
+  renderList();
+  const input = document.getElementById("composerInput");
+  if(input && window.innerWidth > 768) input.focus();
+}
+
+/* Redraws the open chat's messages, keeping a half-typed edit. */
+function paintMessages(){
+  const box = document.getElementById("messages");
+  if(!box) return;
+  WzMessageEdits.keepDraft();
+  box.innerHTML = (hasOlder ? `<button class="older-btn" type="button" onclick="loadOlder()">Show earlier messages</button>` : "") + messagesHtml();
+}
+
 function appendMessages(rows){
   if(!rows.length) return;
   const known = new Set(messages.map(m => m.id));
   const fresh = rows.filter(m => !known.has(m.id));
   if(!fresh.length) return;
+  WzMessageEdits.track(fresh);
 
   const box = document.getElementById("messages");
   const nearBottom = box && box.scrollHeight - box.scrollTop - box.clientHeight < 80;
@@ -640,22 +864,23 @@ function appendMessages(rows){
   messages = messages.concat(fresh);
   if(box){
     // Re-rendering only the list keeps whatever is half-typed in the composer.
-    box.innerHTML = (hasOlder ? `<button class="older-btn" type="button" onclick="loadOlder()">Show earlier messages</button>` : "") + messagesHtml();
+    paintMessages();
   }
   if(nearBottom || fresh.some(m => m.mine)) scrollToEnd();
 }
 
 async function loadOlder(){
-  if(!openWith || !messages.length) return;
+  if((!openWith && !openClient) || !messages.length) return;
   const box = document.getElementById("messages");
   const fromBottom = box.scrollHeight - box.scrollTop;
 
-  const data = await api({ action: "thread", with: openWith.id, before: messages[0].id }).catch(() => null);
+  const data = await api(threadParams({ before: messages[0].id })).catch(() => null);
   if(!data || !data.success) return;
 
+  WzMessageEdits.track(data.messages);
   messages = data.messages.concat(messages);
   hasOlder = data.has_older;
-  box.innerHTML = (hasOlder ? `<button class="older-btn" type="button" onclick="loadOlder()">Show earlier messages</button>` : "") + messagesHtml();
+  paintMessages();
   box.scrollTop = box.scrollHeight - fromBottom;   // stay on the message being read
 }
 
@@ -665,6 +890,18 @@ function scrollToEnd(){
 }
 
 async function markRead(){
+  if(openClient){
+    // The Director reading keeps no marker: reading isn't answering.
+    if(clientAccess === "observer") return;
+    const chat = clientChats.find(c => c.client.id === openClient.id);
+    if(chat && chat.unread){
+      chat.unread = 0;
+      renderList();
+      paintBadge();
+    }
+    api(null, { action: "client_read", client: openClient.id }).catch(() => {});
+    return;
+  }
   if(!openWith) return;
   const convo = conversations.find(c => c.with.id === openWith.id);
   if(convo && convo.unread){
@@ -705,14 +942,16 @@ async function sendMessage(){
   const input = document.getElementById("composerInput");
   const error = document.getElementById("sendError");
   const body = input.value.trim();
-  if(!openWith || sending || !body || input.value.length > MAX_CHARS) return;
+  if((!openWith && !openClient) || sending || !body || input.value.length > MAX_CHARS) return;
 
   sending = true;
   document.getElementById("sendBtn").disabled = true;
   error.hidden = true;
 
   try{
-    const data = await api(null, { action: "send", to: openWith.id, body });
+    const data = await api(null, openClient
+      ? { action: "client_send", client: openClient.id, body }
+      : { action: "send", to: openWith.id, body });
     if(!data.success) throw new Error(data.message || "Could not send the message.");
 
     input.value = "";
@@ -730,20 +969,96 @@ async function sendMessage(){
   }
 }
 
+/* ── Changing your own message (assets/message-edits.js) ── */
+
+function startEdit(id){
+  const m = messages.find(x => x.id === id);
+  if(!m || !WzMessageEdits.begin(m)) return;
+  paintMessages();
+  WzMessageEdits.focusEditor();
+}
+
+function cancelEdit(){
+  WzMessageEdits.end();
+  paintMessages();
+}
+
+/* The edit or delete call for whichever kind of chat is open. */
+function changeParams(kind, id, body){
+  return openClient
+    ? Object.assign({ action: "client_" + kind, client: openClient.id, id }, body === undefined ? {} : { body })
+    : Object.assign({ action: kind, id }, body === undefined ? {} : { body });
+}
+
+async function saveEdit(id){
+  const body = WzMessageEdits.draft().trim();
+  if(!body){
+    WzMessageEdits.showError("A message can't be empty. Delete it instead.");
+    return;
+  }
+  if(body.length > MAX_CHARS){
+    WzMessageEdits.showError("A message can be up to " + MAX_CHARS + " characters.");
+    return;
+  }
+  const data = await api(null, changeParams("edit", id, body)).catch(() => null);
+  if(!data || !data.success){
+    WzMessageEdits.showError((data && data.message) || "Could not save the change.");
+    return;
+  }
+  WzMessageEdits.end();
+  WzMessageEdits.merge(messages, [data.message_row]);
+  paintMessages();
+  loadList();
+}
+
+async function deleteOwnMessage(id){
+  if(!(await WzMessageEdits.askDelete())) return;
+  const data = await api(null, changeParams("delete", id)).catch(() => null);
+  if(!data || !data.success){
+    alert((data && data.message) || "Could not delete the message.");
+    return;
+  }
+  WzMessageEdits.merge(messages, [data.message_row]);
+  paintMessages();
+  loadList();
+}
+
+// The Edit and Delete links go when the 5 minutes are up.
+setInterval(() => { if((openWith || openClient) && WzMessageEdits.expired()) paintMessages(); }, 10000);
+
 /* ── Keeping the open chat fresh ── */
 
 async function poll(){
-  if(!openWith || document.hidden) return;
+  if((!openWith && !openClient) || document.hidden) return;
   const last = messages.length ? messages[messages.length - 1].id : 0;
 
   try{
-    const data = last
-      ? await api({ action: "thread", with: openWith.id, after: last })
-      : await api({ action: "thread", with: openWith.id });
+    const data = await api(threadParams(last ? { after: last, since: clock } : {}));
     if(!data.success) return;
+    clock = data.clock;
+    // Edits and deletes since the last poll, in place.
+    if(WzMessageEdits.merge(messages, data.changed)) paintMessages();
 
     const theirs = data.messages.filter(m => !m.mine && !messages.some(x => x.id === m.id));
-    noticeIncoming(theirs.map(m => m.id), true);
+    if(openClient && (data.access !== clientAccess || data.managers.length !== clientManagers.length)){
+      // An account manager was assigned or taken off: the Director goes between
+      // answering and reading only. Redraw the whole chat for it.
+      clientAccess = data.access;
+      clientManagers = data.managers;
+      messages = messages.concat(data.messages.filter(m => !messages.some(x => x.id === m.id)));
+      renderThread();
+      return;
+    }
+    if(openClient){
+      if(clientAccess !== "observer") noticeIncoming(theirs.filter(m => m.side === "client").map(m => m.id), true, "client_message");
+      // "Seen by" moves without a new message, so repaint when it does.
+      if(JSON.stringify(data.seen_by) !== JSON.stringify(clientSeen)){
+        clientSeen = data.seen_by;
+        if(!theirs.length) paintMessages();
+      }
+    }else{
+      noticeIncoming(theirs.map(m => m.id), true);
+    }
     if(!messages.length && data.messages.length){
       messages = [];
       document.getElementById("messages").innerHTML = "";
@@ -787,10 +1102,11 @@ setInterval(loadList, LIST_POLL_MS);
    first look at the list and every chat opened just set the mark, nothing
    rings for them. */
 
-/* ids: incoming message ids just seen. ring=false only moves the mark. */
-function noticeIncoming(ids, ring){
+/* ids: incoming message ids just seen. ring=false only moves the mark.
+   Client chats keep their own ids, so their own mark (kind). */
+function noticeIncoming(ids, ring, kind){
   if(!window.WzAlertSound) return;
-  WzAlertSound.notice("message", ids.length ? Math.max(...ids) : 0, ring);
+  WzAlertSound.notice(kind || "message", ids.length ? Math.max(...ids) : 0, ring);
 }
 
 /* ── Starting a chat ── */
@@ -891,13 +1207,16 @@ document.addEventListener("keydown", event => {
 
 (async function start(){
   await loadList();
-  const withId = Number(new URLSearchParams(location.search).get("with"));
-  if(withId) openChat(withId);
+  const params = new URLSearchParams(location.search);
+  const withId = Number(params.get("with"));
+  const clientId = Number(params.get("client"));
+  if(clientId) openClientChat(clientId);
+  else if(withId) openChat(withId);
 })();
 </script>
 
 <script src="assets/notifications.js?v=2"></script>
-<script src="assets/messages-badge.js?v=2" data-page-polls></script>
+<script src="assets/messages-badge.js?v=3" data-page-polls></script>
 <script src="assets/shell.js?v=6"></script>
 <script src="assets/sources-lock.js?v=1"></script>
 <script src="assets/role-nav.js?v=7"></script>
