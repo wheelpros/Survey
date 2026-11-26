@@ -450,7 +450,8 @@ export const WRITE_TOOLS = [
     title: "Messages: write to a client",
     description:
       "Sends a message from you in a client's chat on the portal's Messages page (read it first with " +
-      "read_client_chat). Only for clients you are the account manager of. Everyone on the client's account sees it, " +
+      "read_client_chat). Only for clients you answer (list_client_chats, access 'team'); the Director can't write " +
+      "where the client has an account manager. Everyone on the client's account sees it, " +
       "and so do its other account managers; they may be emailed if it stays unread. Write what the person asked you " +
       "to say - it goes out under their name." + TWO_STEP,
     input: {
@@ -935,8 +936,9 @@ export const WRITE_TOOLS = [
     title: "Message my account manager",
     description:
       "Sends your account manager a message from you, in your account's chat on the portal's Messages page. " +
-      "Everyone on your account sees it. Not possible until an account manager is assigned (my_messages says so " +
-      "with can_send). Write what the person asked you to say - it goes out under their name." + TWO_STEP,
+      "Everyone on your account sees it. Until an account manager is assigned it goes to the Director, who answers " +
+      "in the meantime (my_messages says so). Write what the person asked you to say - it goes out under their name." +
+      TWO_STEP,
     input: { body: z.string().min(1).max(2000).describe("The message, as it will appear") },
   },
   // A client's team (self:write, account owner only)
@@ -1140,7 +1142,9 @@ export function registerWriteTools(server, { auth, requestId, scopes }) {
       "mark_client_chat_read",
       {
         title: "Messages: mark a client chat read",
-        description: "Marks a client's chat read for you, up to the latest message, and clears its unread count.",
+        description:
+          "Marks a client's chat read for you, up to the latest message, and clears its unread count. Not for the " +
+          "Director on a chat they only read (access 'observer').",
         inputSchema: { client: recordId("The client's id - from list_client_chats") },
         outputSchema: S.markedConversationRead,
         annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },

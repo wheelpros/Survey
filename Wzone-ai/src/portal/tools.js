@@ -550,16 +550,18 @@ export const READ_TOOLS = [
     query: () => ({ people: 1 }),
   },
 
-  // ── Client messages (the Clients tab of Messages: account managers only) ──
+  // ── Client messages (the Clients tab of Messages) ──
   {
     name: "list_client_chats",
     scope: "messages:read",
     title: "Messages: my client chats",
     description:
-      "The Clients tab of the portal's Messages page: one chat per client you are the account manager of, the latest " +
-      "first, each with its last message and how many you haven't read. Empty for any other role - only account " +
-      "managers have client chats. Everyone on the client's account reads the chat, and so do its other account " +
-      "managers; nobody else, the Director included. Open one with read_client_chat, write with send_client_message.",
+      "The Clients tab of the portal's Messages page: one chat per client you answer, the latest first, each with its " +
+      "last message and how many you haven't read. You answer a client when you are on their team and hold 'Write " +
+      "to clients in Messages' (Account Managers by default); empty otherwise. The Director sees every client: " +
+      "access 'observer' chats are read only for them (and logged in Tracking when read), and access 'team' ones " +
+      "are clients with no account manager, which the Director answers until one is assigned. Open one with " +
+      "read_client_chat, write with send_client_message.",
     input: { ...paging },
     output: S.clientChats,
     path: "client-messages.php",
@@ -570,7 +572,10 @@ export const READ_TOOLS = [
     title: "Messages: read a client chat",
     description:
       "Every message in one client's chat, newest first, page by page. Reading does not clear the unread count - " +
-      "use mark_client_chat_read for that. Reply with send_client_message.",
+      "use mark_client_chat_read for that. Reply with send_client_message. side 'system' rows are notes from the " +
+      "portal (an account manager joining or leaving); deleted messages keep their place with a null body; edited " +
+      "ones say so. For the Director on a client with an account manager, access is 'observer': read only, and " +
+      "each read without a cursor is recorded in Tracking (who and which client, never the words).",
     input: { client: recordId("The client's id - from list_client_chats"), ...paging },
     output: S.clientChat,
     path: "client-messages.php",
@@ -771,8 +776,10 @@ export const READ_TOOLS = [
     title: "My messages",
     description:
       "Your chat with your account manager - the portal's Messages page - newest first, page by page. Everyone on " +
-      "your account shares it. can_send is false until an account manager is assigned. Reading does not clear the " +
-      "unread count - use mark_my_messages_read. Write with send_my_message.",
+      "your account shares it. Until an account manager is assigned, answered_by_director names the Director, who " +
+      "answers in the meantime. side 'system' rows are notes from the portal (an account manager joining or " +
+      "leaving); deleted messages keep their place with a null body. Reading does not clear the unread count - use " +
+      "mark_my_messages_read. Write with send_my_message.",
     input: { ...paging },
     output: S.myMessages,
     path: "me/messages.php",

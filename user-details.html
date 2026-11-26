@@ -76,6 +76,23 @@ td{padding:15px 24px;border-top:1px solid #eef1f5;font-size:13px;vertical-align:
 td a{color:var(--nav-active);font-weight:700}
 .empty{padding:26px;text-align:center;color:var(--muted);font-size:13px}
 
+/* Messages: the last few lines of the client's chat, for whoever can open it. */
+.chat-preview{list-style:none;padding:8px 28px}
+.chat-preview li{display:flex;gap:12px;align-items:baseline;padding:10px 0;border-bottom:1px solid #f2f4f7;font-size:14px}
+.chat-preview li:last-child{border-bottom:0}
+.chat-preview .who{flex:none;min-width:110px;font-size:12px;font-weight:700;color:var(--muted)}
+.chat-preview .what{flex:1;min-width:0;white-space:pre-wrap;word-break:break-word;line-height:1.45}
+.chat-preview .what.quiet{font-style:italic;color:#98a2b3}
+.chat-preview time{flex:none;font-size:12px;color:#98a2b3}
+.chat-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 28px;border-top:1px solid #eef1f5;font-size:13px;color:var(--muted)}
+.chat-open{display:inline-flex;align-items:center;gap:6px;background:var(--nav-active,#1b1e3a);color:#fff;text-decoration:none;border-radius:9px;padding:9px 16px;font-size:13px;font-weight:700}
+@media(max-width:768px){
+  .chat-preview{padding:8px 18px}
+  .chat-preview li{flex-wrap:wrap;gap:4px 10px}
+  .chat-preview .what{flex-basis:100%;order:3}
+  .chat-foot{padding:14px 18px;flex-wrap:wrap}
+}
+
 .badge{display:inline-block;padding:6px 12px;border-radius:20px;font-size:11px;font-weight:800}
 .approved{background:#e8faef;color:#20a95a}
 .pending{background:#fff3e5;color:#d97706}
@@ -1587,6 +1604,56 @@ async function removeClientPerson(button){
   if(data.success) window.location.reload();
 }
 
+/* ── Messages ──────────────────────────────────────────────────────────────
+   The client's chat (api/admin-messages.php?action=client_preview): its last
+   three messages and a way into it. Only for staff who can open that chat -
+   anyone else gets a 404 and the section never appears. For the Director
+   reading a client with an account manager it is read only, and showing it
+   is logged in Tracking like opening the chat. */
+
+let chatState = null;     // null: not loaded, or nothing to show
+
+function chatPanel(){
+  if(!chatState) return "";
+  const rows = chatState.messages;
+  const observer = chatState.access === "observer";
+  const line = m => {
+    if(m.side === "system") return `<li><span class="who">Portal</span><span class="what quiet" dir="auto">${esc(m.body)}</span></li>`;
+    const who = m.mine ? "You" : m.sender.name + (m.side === "client" ? "" : " (team)");
+    return `<li>
+      <span class="who" dir="auto">${esc(who)}</span>
+      <span class="what${m.deleted ? " quiet" : ""}" dir="auto">${m.deleted ? "Message deleted" : esc(m.body)}</span>
+      <time>${formatDate(m.created_at)}</time>
+    </li>`;
+  };
+  return `
+    <div class="panel" id="chatPanel">
+      <div class="panel-head">
+        <h2>Messages ${chatState.unread ? `<span class="badge neutral">${chatState.unread} unread</span>` : ""}</h2>
+        <p>${observer ? "This client's chat with their account manager. You can read it, not write in it." : "Your chat with this client. Everyone on their account sees it."}</p>
+      </div>
+      ${rows.length ? `<ul class="chat-preview">${rows.map(line).join("")}</ul>` : `<div class="empty">No messages yet.</div>`}
+      <div class="chat-foot">
+        <span>${rows.length ? "The latest " + (rows.length === 1 ? "message" : rows.length + " messages") + "." : ""}</span>
+        <a class="chat-open" href="admin-messages.html?client=${encodeURIComponent(userId)}">Open chat</a>
+      </div>
+    </div>`;
+}
+
+async function loadChatPreview(){
+  try{
+    const res = await fetch("api/admin-messages.php?action=client_preview&client=" + encodeURIComponent(userId), {
+      headers:{ Authorization: "Bearer " + adminToken }
+    });
+    const data = await res.json();
+    chatState = res.ok && data.success ? data : null;
+  }catch(error){
+    chatState = null;
+  }
+  const slot = document.getElementById("chatPanelSlot");
+  if(slot) slot.innerHTML = chatPanel();
+}
+
 // null until the first load; { error } when it could not be loaded.
 let teamState = null;
 let teamBusy = false;
@@ -1893,7 +1960,7 @@ function render(data){
   }
 
   // The calendar sits right under the Team, the people who run it.
-  paint(header + details + clientPeoplePanel(data) + teamPanel() + appointments + surveys + responses + files + content);
+  paint(header + details + clientPeoplePanel(data) + teamPanel() + `<div id="chatPanelSlot">${chatPanel()}</div>` + appointments + surveys + responses + files + content);
 
   initCalendar(data.appointments || [], data.content || [], data.phases || []);
 }
@@ -1933,11 +2000,13 @@ async function loadUser(){
     // Straight from the database, so a draft from before is no longer in play.
     noteDraft = null;
     teamState = null;
+    chatState = null;
     render(data);
 
-    // Only an approved client has the Team panel to fill.
+    // Only an approved client has the Team panel to fill, and a chat.
     if(Number(data.user.approved) === 1){
       loadTeam();
+      loadChatPreview();
     }
 
   }catch(error){

@@ -20,6 +20,7 @@
 |      quiet until the chat is opened.
 |   6. Through api/v1 (the MCP), for the client and for the account manager.
 |   6b. The handover note when an account manager joins or leaves a team.
+|   6c. The Messages section of the client's profile (client_preview).
 |   7. Nothing in Tracking's Changes or the notifications inbox.
 */
 
@@ -540,6 +541,24 @@ $pdo->exec("UPDATE client_messages SET created_at = NOW() - INTERVAL 20 MINUTE")
 clientMessageEmailSweep($pdo, $record);
 check("handover: notes never send the unread email", $sent === [], json_encode($sent));
 $pdo->exec("DELETE FROM client_messages WHERE sender_kind = 'system'");
+
+// ── 6c. The client's profile ───────────────────────────────────────────
+
+[$status, $r] = amGet("action=client_preview&client=10", $am);
+$newest = one($pdo, "SELECT MAX(id) AS id FROM client_messages WHERE user_id = 10")["id"];
+check("profile: Amy gets the last 3 messages of Acme's chat", $status === 200 && $r["access"] === "team"
+    && count($r["messages"]) === 3 && end($r["messages"])["id"] === (int) $newest && is_int($r["unread"]), "HTTP $status " . json_encode($r));
+$visits = $chatReads();
+[$status, $r] = amGet("action=client_preview&client=10", $owner);
+$event = one($pdo, "SELECT summary FROM admin_events WHERE action = 'client.chat_read' ORDER BY id DESC LIMIT 1");
+check("profile: the Director sees them read only, and it is logged like a visit", $status === 200 && $r["access"] === "observer"
+    && $r["unread"] === 0 && $chatReads() === $visits + 1 && strpos($event["summary"], "client profile") !== false, "HTTP $status " . json_encode([$r, $event]));
+foreach (["an admin who can't open the chat" => $seo, "another client's account manager" => $am2] as $who => $token) {
+    [$status] = amGet("action=client_preview&client=10", $token);
+    check("profile: $who gets no Messages section", $status === 404, "HTTP $status");
+}
+[$status] = amGet("action=client_preview&client=10", $alice);
+check("profile: a client is refused", $status === 403, "HTTP $status");
 
 // ── 7. Private ─────────────────────────────────────────────────────────
 

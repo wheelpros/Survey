@@ -29,6 +29,8 @@
 |   POST {"action":"client_edit","client":10,"id":5,"body":"..."}
 |   POST {"action":"client_delete","client":10,"id":5}
 |   POST {"action":"client_read","client":10}
+|   GET  ?action=client_preview&client=10   the last 3 messages, for the client's
+|        profile (user-details.html); a 404 there hides the section
 |
 | Both kinds of thread reply carry "clock"; a poll sends it back as since=
 | and gets "changed": the messages edited or deleted since (message-edits.php).
@@ -201,6 +203,23 @@ if ($action === "client_thread") {
         "clock" => $clock,
         "has_older" => $hasOlder,
         "seen_by" => clientChatSeenBy($pdo, $p, $account["id"]),
+    ]);
+}
+
+if ($action === "client_preview") {
+    $account = myClientChat($pdo, $p, $_GET["client"] ?? 0);
+    [$rows] = clientChatMessages($pdo, $account["id"], 0, 0, 3);
+    // Showing the Director a client's words is a visit like opening the chat.
+    if ($rows) {
+        logClientChatVisit($pdo, $account, "client profile");
+    }
+    $unread = clientUnreadIn($pdo, $p, $account["access"] === CLIENT_CHAT_OBSERVER ? [] : [(int) $account["id"]]);
+    reply(true, "", [
+        "access" => $account["access"],
+        "unread" => $unread[(int) $account["id"]] ?? 0,
+        "messages" => array_map(function ($m) use ($p) {
+            return clientMessageRow($m, $p);
+        }, $rows),
     ]);
 }
 

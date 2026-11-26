@@ -52,6 +52,8 @@ const PAGES = [
     { label: "survey.html (U-04)", as: "tok-client", url: "survey.html?id=102", shows: "logoZ" },
     { label: "messages.html, the client's chat", as: "tok-client", url: "messages.html", shows: "Hi Amy" },
     { label: "admin-messages.html, an account manager's client chat", as: "tok-am", url: "admin-messages.html?client=10", shows: "Hi Amy" },
+    { label: "admin-messages.html, the Director reading a client chat", as: "tok-owner", url: "admin-messages.html?client=10", shows: "Hi Amy" },
+    { label: "user-details.html, the client's Messages section", as: "tok-am", url: "user-details.html?id=10", shows: "Hi Amy" },
 ];
 
 /*

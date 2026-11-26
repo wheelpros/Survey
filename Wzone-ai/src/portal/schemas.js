@@ -695,7 +695,9 @@ export const conversation = {
       id,
       mine: z.boolean().describe("You sent it"),
       created_at: utcTime,
-      untrusted_content: untrusted({ body: text }),
+      edited: z.boolean().optional().describe("Its sender changed it after sending"),
+      deleted: z.boolean().optional().describe("Its sender deleted it: the body is null"),
+      untrusted_content: untrusted({ body: maybe.describe("null when deleted") }),
     })
   ),
   their_last_read_id: id.describe("The last of your messages they have seen; 0 for none"),
@@ -712,17 +714,31 @@ export const markedConversationRead = {
 
 const clientMessage = z.object({
   id,
-  side: z.enum(["client", "team"]).describe("client: someone on the client's account; team: one of its account managers"),
+  side: z
+    .enum(["client", "team", "system"])
+    .describe(
+      "client: someone on the client's account; team: one of its account managers (or the Director while it has none); " +
+        "system: a note from the portal, e.g. an account manager joining or leaving"
+    ),
   mine: z.boolean().describe("You sent it"),
-  from: text.describe("Who sent it"),
+  from: maybe.describe("Who sent it; null for a system note"),
   created_at: utcTime,
-  untrusted_content: untrusted({ body: text }),
+  edited: z.boolean().optional().describe("Its sender changed it after sending"),
+  deleted: z.boolean().optional().describe("Its sender deleted it: the body is null"),
+  untrusted_content: untrusted({ body: maybe.describe("null when deleted") }),
 });
+
+const clientChatAccess = z
+  .enum(["team", "observer"])
+  .describe(
+    "team: you answer this client; observer: the Director reading - can't send or mark read, and each read is logged in Tracking"
+  );
 
 export const clientChats = {
   ...page(
     z.object({
       client: clientRef,
+      access: clientChatAccess.optional(),
       unread: id.describe("Messages from the client you haven't read"),
       last_message_at: utcTime.nullable().describe("null: no messages yet"),
       last_is_mine: z.boolean(),
@@ -735,6 +751,7 @@ export const clientChats = {
 
 export const clientChat = {
   client: clientRef,
+  access: clientChatAccess.optional(),
   ...page(clientMessage),
   people: z.array(z.object({ id, name: text })).describe("Everyone on the client's account, who all read this chat"),
   client_last_read_id: id.describe("The newest message anyone at the client has seen; 0 for none"),
@@ -742,7 +759,12 @@ export const clientChat = {
 
 export const myMessages = {
   account_managers: z.array(z.object({ id, name: text, position: maybe })),
-  can_send: z.boolean().describe("false until an account manager is assigned"),
+  answered_by_director: z
+    .object({ id, name: text })
+    .nullable()
+    .optional()
+    .describe("With no account manager assigned yet, the Director who answers in the meantime; null otherwise"),
+  can_send: z.boolean().describe("false only when there is nobody to write to"),
   ...page(clientMessage),
   unread_count: id.describe("Messages from your account manager you haven't read"),
   team_last_read_id: id.describe("The newest message your account manager has seen; 0 for none"),
