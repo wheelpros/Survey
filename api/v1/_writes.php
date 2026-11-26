@@ -3286,10 +3286,13 @@ function v1WriteHandlers()
                 ensureClientMessageTables($pdo);
                 $account = openClientChat($pdo, $p);
                 $body = checkClientMessage($pdo, $p, $account, $body);
-                $names = array_column(clientChatManagers($pdo, $account["id"]), "name");
+                $managers = clientChatManagers($pdo, $account["id"]);
+                $names = array_column($managers ?: clientChatTeam($pdo, $account["id"]), "name");
+                $to = $managers ? "your account manager (" . implode(", ", $names) . ")"
+                    : implode(", ", $names) . ", the Director, who answers until your account manager is assigned,";
                 return [
                     "args" => ["body" => $body],
-                    "summary" => "Send your account manager (" . implode(", ", $names) . ") a message from you: " . quoteFor($body)
+                    "summary" => "Send " . $to . " a message from you: " . quoteFor($body)
                         . ". Everyone on your account sees it in Messages.",
                     "preview" => ["account_managers" => $names, "untrusted_content" => ["body" => $body]],
                 ];

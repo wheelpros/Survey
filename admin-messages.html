@@ -457,6 +457,7 @@ let openClient = null;    // the client whose chat is open, as the API returns t
 let clientPeople = [];    // the people on that client's account
 let clientSeen = [];      // how far each of them has read
 let clientAccess = "team"; // "observer": the Director reading, nothing to write with
+let clientManagers = [];  // the open client's account managers - none: the Director answers
 
 function esc(value){
   return String(value == null ? "" : value)
@@ -691,6 +692,7 @@ async function openClientChat(clientId){
   openWith = null;
   openClient = data.client;
   clientAccess = data.access;
+  clientManagers = data.managers;
   clientPeople = data.people;
   clientSeen = data.seen_by;
   messages = data.messages;
@@ -806,7 +808,8 @@ function renderClientThread(){
       ${avatar({ name: clientLabel(c), avatar_path: c.avatar_path }, true)}
       <div><strong>${esc(clientLabel(c))}</strong><span>${esc(people)}</span></div>
     </div>
-    ${observer ? `<div class="read-only-note" role="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg><span>You are reading this chat as the Director. You can't write here, and this visit is logged in Tracking.</span></div>` : ""}
+    ${observer ? `<div class="read-only-note" role="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg><span>You are reading this chat as the Director. You can't write here, and this visit is logged in Tracking.</span></div>`
+      : !clientManagers.length ? `<div class="read-only-note" role="note"><span>${esc(clientLabel(c))} has no account manager yet, so their messages come to you as the Director until one is assigned.</span></div>` : ""}
     <div class="messages" id="messages">
       ${hasOlder ? `<button class="older-btn" type="button" onclick="loadOlder()">Show earlier messages</button>` : ""}
       ${messages.length ? messagesHtml() : `<div class="placeholder"><span>${observer ? "No messages yet." : `No messages yet. Everyone on ${esc(clientLabel(c))}'s account will see what you write.`}</span></div>`}
@@ -954,6 +957,15 @@ async function poll(){
     if(!data.success) return;
 
     const theirs = data.messages.filter(m => !m.mine && !messages.some(x => x.id === m.id));
+    if(openClient && (data.access !== clientAccess || data.managers.length !== clientManagers.length)){
+      // An account manager was assigned or taken off: the Director goes between
+      // answering and reading only. Redraw the whole chat for it.
+      clientAccess = data.access;
+      clientManagers = data.managers;
+      messages = messages.concat(data.messages.filter(m => !messages.some(x => x.id === m.id)));
+      renderThread();
+      return;
+    }
     if(openClient){
       if(clientAccess !== "observer") noticeIncoming(theirs.filter(m => m.side === "client").map(m => m.id), true, "client_message");
       // "Seen by" moves without a new message, so repaint when it does.

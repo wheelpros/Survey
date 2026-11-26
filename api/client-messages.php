@@ -78,12 +78,14 @@ if ($action === "count") {
 
 if ($action === "thread") {
     $managers = clientChatManagers($pdo, $accountId);
+    $director = $managers ? null : clientChatDirector($pdo);
     [$rows, $hasOlder] = clientChatMessages($pdo, $accountId, (int) ($_GET["after"] ?? 0), (int) ($_GET["before"] ?? 0));
 
     reply(true, "", [
         "managers" => array_map("clientChatManagerRow", $managers),
-        // No account manager yet: the history stays readable, the box to write in goes.
-        "can_send" => (bool) $managers,
+        // No account manager yet: the Director answers until one is assigned.
+        "director" => $director ? clientChatManagerRow($director) : null,
+        "can_send" => $managers || $director,
         "messages" => array_map(function ($m) use ($p) {
             return clientMessageRow($m, $p);
         }, $rows),

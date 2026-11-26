@@ -21,7 +21,10 @@
 |
 | The chat belongs to the account, not to the people in it: a new account
 | manager reads the whole history, one taken off the team loses it at once.
-| A client with no account manager yet can read nothing new and can't write.
+| A client with no account manager still writes: the Director is the team
+| side of that chat until one is assigned - reads and writes it, has it in
+| their unread count, gets its email - and goes back to reading only once
+| an account manager is there (clientChatTeam(), unmanagedClientIds()).
 |
 | Text only, like the staff chat. Nothing a message says reaches Tracking or
 | the notifications inbox. The one other way out is the email: someone with a
@@ -72,6 +75,24 @@ function clientChatAccount(PDO $pdo, $accountId)
     return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
 }
 
+/**
+ * Every admin who can be on the team side of a client chat they are
+ * assigned to: the active account managers.
+ */
+function clientChatWriterIds(PDO $pdo)
+{
+    return array_map("intval", $pdo->query("
+        SELECT id FROM admins WHERE role = 'account_manager' AND (active IS NULL OR active = 1)
+    ")->fetchAll(PDO::FETCH_COLUMN));
+}
+
+/** "a.id IN (...)" for the writers above, or a clause nothing matches. */
+function clientChatWriterClause(PDO $pdo, $column = "a.id")
+{
+    $ids = clientChatWriterIds($pdo);
+    return $ids ? "$column IN (" . implode(",", $ids) . ")" : "1 = 0";
+}
+
 /** The active account managers on the account's team, by name. */
 function clientChatManagers(PDO $pdo, $accountId)
 {
@@ -79,12 +100,51 @@ function clientChatManagers(PDO $pdo, $accountId)
         SELECT a.id, a.name, a.email, a.position, a.avatar_path
         FROM admin_user_assignments aua
         JOIN admins a ON a.id = aua.admin_id
-        WHERE aua.user_id = ? AND a.role = 'account_manager' AND (a.active IS NULL OR a.active = 1)
+        WHERE aua.user_id = ? AND " . clientChatWriterClause($pdo) . "
         GROUP BY a.id, a.name, a.email, a.position, a.avatar_path
         ORDER BY a.name, a.id
     ");
     $stmt->execute([(int) $accountId]);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/** The Director while their account is active: who answers a client with no account manager. */
+function clientChatDirector(PDO $pdo)
+{
+    $row = $pdo->query("
+        SELECT id, name, email, position, avatar_path FROM admins
+        WHERE role = 'owner' AND (active IS NULL OR active = 1)
+        ORDER BY id LIMIT 1
+    ")->fetch(PDO::FETCH_ASSOC);
+    return $row ?: null;
+}
+
+/**
+ * The team side of an account's chat today: its account managers, or the
+ * Director while it has none - so a client is never left with nobody to
+ * write to. Who is emailed, and whose reading counts as "Seen".
+ */
+function clientChatTeam(PDO $pdo, $accountId)
+{
+    $managers = clientChatManagers($pdo, $accountId);
+    if ($managers) {
+        return $managers;
+    }
+    $director = clientChatDirector($pdo);
+    return $director ? [$director] : [];
+}
+
+/** Approved accounts without an account manager: the Director is their team side. */
+function unmanagedClientIds(PDO $pdo)
+{
+    return array_map("intval", $pdo->query("
+        SELECT u.id FROM users u
+        WHERE u.approved = 1 AND u.account_owner_id IS NULL
+          AND NOT EXISTS (
+              SELECT 1 FROM admin_user_assignments aua JOIN admins a ON a.id = aua.admin_id
+              WHERE aua.user_id = u.id AND " . clientChatWriterClause($pdo) . "
+          )
+    ")->fetchAll(PDO::FETCH_COLUMN));
 }
 
 /** Everyone on the client's side who can sign in: the owner and teammates. */
@@ -93,10 +153,20 @@ function clientChatPeople(PDO $pdo, $accountId)
     return clientAccountPeople($pdo, $accountId);
 }
 
-/** The accounts this admin is an account manager of - none for any other role. */
+/**
+ * The accounts whose chat this admin is on the team side of: the ones they
+ * are account manager of, and for the Director the ones with no account
+ * manager. None for anyone else.
+ */
 function managedClientIds(PDO $pdo, array $admin)
 {
-    if (($admin["kind"] ?? "") !== "admin" || ($admin["role"] ?? "") !== "account_manager") {
+    if (($admin["kind"] ?? "") !== "admin") {
+        return [];
+    }
+    if (isDirector($admin)) {
+        return unmanagedClientIds($pdo);
+    }
+    if (!in_array((int) $admin["id"], clientChatWriterIds($pdo), true)) {
         return [];
     }
     $stmt = $pdo->prepare("
@@ -273,7 +343,7 @@ function clientMessageById(PDO $pdo, $id)
  */
 function clientChatSeenBy(PDO $pdo, array $p, $accountId)
 {
-    $people = $p["kind"] === "user" ? clientChatManagers($pdo, $accountId) : clientChatPeople($pdo, $accountId);
+    $people = $p["kind"] === "user" ? clientChatTeam($pdo, $accountId) : clientChatPeople($pdo, $accountId);
     $kind = clientChatOtherKind($p);
 
     $stmt = $pdo->prepare("SELECT reader_id, last_read_id FROM client_message_reads WHERE user_id = ? AND reader_kind = ?");
@@ -435,7 +505,7 @@ function checkClientMessage(PDO $pdo, array $p, array $account, $rawBody)
         throw new PortalWriteError("A message can be up to " . CLIENT_MESSAGE_MAX_CHARS . " characters.", 400);
     }
     requireClientChatMember($account);
-    if ($p["kind"] === "user" && !clientChatManagers($pdo, $account["id"])) {
+    if ($p["kind"] === "user" && !clientChatTeam($pdo, $account["id"])) {
         throw new PortalWriteError(CLIENT_CHAT_NO_MANAGER, 409);
     }
     return $body;
@@ -533,7 +603,8 @@ function clientMessageEmailSweep(PDO $pdo, ?callable $send = null)
         foreach (clientChatPeople($pdo, $accountId) as $person) {
             $emailed += emailClientChatReader($pdo, $account, "user", $person, $send);
         }
-        foreach (clientChatManagers($pdo, $accountId) as $manager) {
+        // The account managers, or the Director while there are none.
+        foreach (clientChatTeam($pdo, $accountId) as $manager) {
             $emailed += emailClientChatReader($pdo, $account, "admin", $manager, $send);
         }
     }

@@ -101,6 +101,8 @@ body{background:#f7f8fc;color:var(--text)}
 .counter{font-size:11px;color:#98a2b3;text-align:right}
 .counter.over{color:var(--brand);font-weight:700}
 .composer-note{padding:14px 20px;border-top:1px solid #eef1f5;color:var(--muted);font-size:13px;background:#fff}
+/* No account manager yet: who the messages go to in the meantime. */
+.stand-in{padding:10px 20px;border-top:1px solid #f3e3b5;background:#fff8e6;color:#7a5a00;font-size:13px;line-height:1.45}
 .send-error{padding:0 20px 10px;color:var(--brand);font-size:13px;background:#fff}
 .send-error[hidden]{display:none}
 
@@ -298,12 +300,14 @@ setAvatarImage(user);
 /* ── Messages ───────────────────────────────────────────────────────────────
    api/client-messages.php holds the account's chat with its account
    managers. This page shows it and keeps it fresh by asking for anything
-   newer every few seconds while the tab is visible. */
+   newer every few seconds while the tab is visible. With no account manager
+   assigned yet, the Director answers (data.director) until one is. */
 
 const POLL_MS = 5000;
 const MAX_CHARS = 2000;
 
 let managers = [];
+let director = null;      // who answers while no account manager is assigned
 let canSend = false;
 let messages = [];        // oldest first
 let hasOlder = false;
@@ -373,6 +377,7 @@ async function load(){
     return;
   }
   managers = data.managers;
+  director = data.director;
   canSend = data.can_send;
   messages = data.messages;
   hasOlder = data.has_older;
@@ -405,8 +410,9 @@ function renderComposer(){
     slot.innerHTML = `<div class="composer-note">Your account manager hasn't been assigned yet. You can send messages once they have.</div>`;
     return;
   }
-  const who = managers.length === 1 ? managers[0].name : "your account managers";
+  const who = managers.length === 1 ? managers[0].name : managers.length ? "your account managers" : director.name;
   slot.innerHTML = `
+    ${!managers.length && director ? `<div class="stand-in" role="note">Your account manager hasn't been assigned yet. Your messages go to <bdi>${esc(director.name)}</bdi>, the Director, until they are.</div>` : ""}
     <div class="send-error" id="sendError" hidden></div>
     <form class="composer" id="composer" onsubmit="event.preventDefault(); sendMessage();">
       <div class="composer-field">
@@ -430,7 +436,7 @@ function seenMark(){
 function messagesHtml(){
   if(!messages.length){
     return canSend
-      ? `<div class="placeholder"><strong>No messages yet</strong><span>Ask your account manager anything - everyone on your account will see it.</span></div>`
+      ? `<div class="placeholder"><strong>No messages yet</strong><span>${managers.length ? "Ask your account manager anything" : "Ask anything"} - everyone on your account will see it.</span></div>`
       : `<div class="placeholder"><span>No messages yet.</span></div>`;
   }
   const seen = seenMark();
@@ -559,8 +565,9 @@ async function poll(){
 
     const before = JSON.stringify([seenBy, managers, canSend]);
     seenBy = data.seen_by;
-    if(JSON.stringify(data.managers) !== JSON.stringify(managers) || data.can_send !== canSend){
+    if(JSON.stringify(data.managers) !== JSON.stringify(managers) || data.can_send !== canSend || JSON.stringify(data.director) !== JSON.stringify(director)){
       managers = data.managers;
+      director = data.director;
       canSend = data.can_send;
       renderHead();
       renderComposer();

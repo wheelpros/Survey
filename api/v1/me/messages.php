@@ -5,9 +5,9 @@
 | POST me/messages.php {"read": true}   mark_my_messages_read
 |
 | The client's own chat with their account managers - messages.html. Newest
-| first, page by page, with the account managers and whether a message can
-| be sent at all (not before an account manager is assigned). Sending goes
-| through prepare/confirm (send_my_message in ../_writes.php).
+| first, page by page, with the account managers. With none assigned yet,
+| answered_by_director names the Director, who answers until one is.
+| Sending goes through prepare/confirm (send_my_message in ../_writes.php).
 |
 | The account comes from the token: a client only ever reaches their own
 | account's chat. The rules are client-message-writes.php's. Message bodies
@@ -47,13 +47,15 @@ $page = v1Page(clientChatNewestFirst($pdo, $account["id"], v1IdCursor(), $limit)
 });
 
 $managers = clientChatManagers($pdo, $account["id"]);
+$director = $managers ? null : clientChatDirector($pdo);
 $teamRead = max(array_merge([0], array_column(clientChatSeenBy($pdo, $p, $account["id"]), "last_read_id")));
 
 v1Reply(200, array_merge([
     "account_managers" => array_map(function ($a) {
         return ["id" => (int) $a["id"], "name" => (string) $a["name"], "position" => v1NullableString($a["position"] ?? null)];
     }, $managers),
-    "can_send" => (bool) $managers,
+    "answered_by_director" => $director ? ["id" => (int) $director["id"], "name" => (string) $director["name"]] : null,
+    "can_send" => $managers || $director,
 ], $page, [
     "unread_count" => clientMessageUnreadCount($pdo, $p),
     // The newest message an account manager has seen; yours up to it show as Seen.
