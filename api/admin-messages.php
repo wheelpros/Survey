@@ -14,7 +14,8 @@
 |   POST {"action":"send","to":7,"body":"..."}
 |   POST {"action":"read","with":7}
 |
-| The Clients tab - account managers, each client they manage, and the
+| The Clients tab - whoever holds "Write to clients in Messages", for each
+| client they are on the team of, and the
 | Director, who reads every client's chat without writing in it
 | (client-message-writes.php keeps the rules):
 |
@@ -159,8 +160,8 @@ function myClientChat(PDO $pdo, array $p, $raw)
 
 if ($action === "client_list") {
     reply(true, "", [
-        // Account managers and the Director have client chats; the page hides the tab otherwise.
-        "available" => $p["role"] === "account_manager" || isDirector($p),
+        // Whoever may write to clients, and the Director; the page hides the tab otherwise.
+        "available" => isDirector($p) || can($p, CLIENT_CHAT_PERMISSION, $pdo),
         "chats" => clientChatsFor($pdo, $p),
     ]);
 }

@@ -11,8 +11,10 @@
 |
 | One chat per client account. On the client's side, everyone on the account
 | (the owner and the teammates they invited) reads and writes it. On the team's
-| side, only the admins with the Account Manager role who are on the client's
-| team today (admin_user_assignments). The Director reads every client's chat
+| side, the admins on the client's team today (admin_user_assignments) who
+| hold "Write to clients in Messages" (messages.clients - Account Managers
+| unless the Director changes it in Settings > Permissions); this file calls
+| them the account managers. The Director reads every client's chat
 | but can't write in it or move anyone's read marker, and each visit is
 | logged in Tracking (who opened which client's chat, never what it says).
 | Nobody else reaches it - not a super admin or admin on the same client, not
@@ -75,15 +77,25 @@ function clientChatAccount(PDO $pdo, $accountId)
     return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
 }
 
+const CLIENT_CHAT_PERMISSION = "messages.clients";
+
 /**
  * Every admin who can be on the team side of a client chat they are
- * assigned to: the active account managers.
+ * assigned to: the active admins holding messages.clients. Never the
+ * Director, who holds every permission and has their own way in.
  */
 function clientChatWriterIds(PDO $pdo)
 {
-    return array_map("intval", $pdo->query("
-        SELECT id FROM admins WHERE role = 'account_manager' AND (active IS NULL OR active = 1)
-    ")->fetchAll(PDO::FETCH_COLUMN));
+    $admins = $pdo->query("
+        SELECT id, role FROM admins WHERE role <> 'owner' AND (active IS NULL OR active = 1)
+    ")->fetchAll(PDO::FETCH_ASSOC);
+    $ids = [];
+    foreach ($admins as $admin) {
+        if (can(["kind" => "admin", "id" => (int) $admin["id"], "role" => $admin["role"]], CLIENT_CHAT_PERMISSION, $pdo)) {
+            $ids[] = (int) $admin["id"];
+        }
+    }
+    return $ids;
 }
 
 /** "a.id IN (...)" for the writers above, or a clause nothing matches. */

@@ -12,6 +12,7 @@
 |      writes, has it unread, is emailed - until one is assigned.
 |   3. The chat belongs to the account: a new account manager reads the
 |      history, one taken off the team loses it.
+|   3b. "Write to clients in Messages" decides who is on the team side.
 |   4. Unread, Seen, and the staff badge counting client chats.
 |   5. The email for a message left unread for 15 minutes: once, then
 |      quiet until the chat is opened.
@@ -244,6 +245,40 @@ $pdo->exec("UPDATE admins SET active = 0 WHERE id = 3");
 check("client messages: a switched-off account manager leaves the chat to the Director", ($r["managers"] ?? null) === []
     && ($r["director"]["name"] ?? null) === "Olivia" && $r["can_send"] === true, json_encode($r));
 $pdo->exec("UPDATE admins SET active = 1 WHERE id = 3");
+
+// ── 3b. Write to clients in Messages ───────────────────────────────────
+
+$pdo->exec("INSERT INTO role_permissions (role, permission, allowed) VALUES ('super_admin', 'messages.clients', 1)");
+[, $r] = amGet("action=client_list", $sa);
+check("client messages: given the permission, a super admin has a Clients tab with their client", ($r["available"] ?? null) === true
+    && array_column(array_column($r["chats"], "client"), "id") === [10, 13] && $r["chats"][0]["access"] === "team", json_encode($r));
+[$status, $r] = amGet("action=client_thread&client=10", $sa);
+check("client messages: and reads it", $status === 200 && $r["access"] === "team" && count($r["messages"]) === 1, "HTTP $status");
+[$status, $r] = amPost($sa, ["action" => "client_send", "client" => 10, "body" => "Sam here, covering for Amy."]);
+check("client messages: and writes in it", $status === 200 && $r["message_row"]["side"] === "team", "HTTP $status " . json_encode($r));
+$pdo->exec("DELETE FROM client_messages WHERE id = " . (int) ($r["message_row"]["id"] ?? 0));
+[, $r] = cmGet("action=thread", $alice);
+check("client messages: Alice sees Sam among her account team", array_column($r["managers"], "name") === ["Amy", "Sam"], json_encode($r));
+[$status] = amGet("action=client_thread&client=11", $sa);
+check("client messages: a client they aren't assigned to is still not found", $status === 404, "HTTP $status");
+[$status] = amGet("action=client_thread&client=10", $seo);
+check("client messages: an admin without it, on the same client, is still not found", $status === 404, "HTTP $status");
+
+$pdo->exec("INSERT INTO admin_permission_overrides (admin_id, permission, allowed) VALUES (5, 'messages.clients', 1)");
+[$status] = amGet("action=client_thread&client=10", $seo);
+check("client messages: given to one admin, it opens the chat for them", $status === 200, "HTTP $status");
+$pdo->exec("DELETE FROM admin_permission_overrides WHERE admin_id = 5 AND permission = 'messages.clients'");
+
+$pdo->exec("INSERT INTO role_permissions (role, permission, allowed) VALUES ('account_manager', 'messages.clients', 0)");
+[$status] = amGet("action=client_thread&client=10", $am);
+check("client messages: taken from Account Managers, Amy loses the chat", $status === 404, "HTTP $status");
+[, $r] = amGet("action=client_list", $am);
+check("client messages: and the Clients tab", ($r["available"] ?? null) === false && $r["chats"] === [], json_encode($r));
+[, $r] = cmGet("action=thread", "tok-bob");
+check("client messages: Beta, with only Andy, falls to the Director", $r["managers"] === [] && ($r["director"]["name"] ?? null) === "Olivia", json_encode($r));
+$pdo->exec("DELETE FROM role_permissions WHERE permission = 'messages.clients'");
+[$status] = amGet("action=client_thread&client=10", $am);
+check("client messages: back to the default, Amy has it again", $status === 200, "HTTP $status");
 
 // ── 4. Unread, Seen, the badge ─────────────────────────────────────────
 

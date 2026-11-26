@@ -10,9 +10,10 @@
 |
 | Sending goes through prepare/confirm (send_client_message in _writes.php).
 |
-| Staff, scope messages:read (messages:write to mark read). An admin with the
-| Account Manager role reaches a client's chat for the clients they are on the
-| team of today; any other client - and any other role - is a 404. The
+| Staff, scope messages:read (messages:write to mark read). An admin holding
+| "Write to clients in Messages" (messages.clients, Account Managers by
+| default) reaches a client's chat for the clients they are on the team of
+| today; any other client - and anyone else - is a 404. The
 | Director lists and reads every client's chat (access "observer") but can't
 | send or mark read (403), and each read_client_chat without a cursor is
 | logged in Tracking, as opening the chat on the page is. The rules are
