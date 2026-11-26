@@ -12,6 +12,8 @@
 |   GET  ?action=count                         my unread total and newest incoming id, for the badge
 |   GET  ?action=people                        who I can start a chat with
 |   POST {"action":"send","to":7,"body":"..."}
+|   POST {"action":"edit","id":5,"body":"..."}   my own message, for 5 minutes
+|   POST {"action":"delete","id":5}              likewise
 |   POST {"action":"read","with":7}
 |
 | The Clients tab - whoever holds "Write to clients in Messages", for each
@@ -24,7 +26,12 @@
 |        open=1 is the page opening the chat: a Director's visit is logged
 |        in Tracking then, never on the polls that follow
 |   POST {"action":"client_send","client":10,"body":"..."}
+|   POST {"action":"client_edit","client":10,"id":5,"body":"..."}
+|   POST {"action":"client_delete","client":10,"id":5}
 |   POST {"action":"client_read","client":10}
+|
+| Both kinds of thread reply carry "clock"; a poll sends it back as since=
+| and gets "changed": the messages edited or deleted since (message-edits.php).
 |
 | Private: every lookup is scoped to a conversation the caller is one of the
 | two people in. Anyone else - the Director included - gets "not found", so
@@ -90,14 +97,16 @@ $action = $_GET["action"] ?? $input["action"] ?? "";
 
 function messageRow(array $m, $me)
 {
+    $mine = (int) $m["sender_id"] === $me;
+    $edits = messageEditFields($m, $mine);
     return [
         "id"         => (int) $m["id"],
         "sender_id"  => (int) $m["sender_id"],
-        "mine"       => (int) $m["sender_id"] === $me,
-        "body"       => (string) $m["body"],
+        "mine"       => $mine,
+        "body"       => $edits["deleted"] ? "" : (string) $m["body"],
         "created_at" => (string) $m["created_at"],
         "created_ts" => (int) $m["created_ts"],
-    ];
+    ] + $edits;
 }
 
 /** The ?with= / {"with":} admin id, checked. */
@@ -168,7 +177,13 @@ if ($action === "client_list") {
 
 if ($action === "client_thread") {
     $account = myClientChat($pdo, $p, $_GET["client"] ?? 0);
-    [$rows, $hasOlder] = clientChatMessages($pdo, $account["id"], (int) ($_GET["after"] ?? 0), (int) ($_GET["before"] ?? 0));
+    $clock = messageClock($pdo);
+    $after = (int) ($_GET["after"] ?? 0);
+    [$rows, $hasOlder] = clientChatMessages($pdo, $account["id"], $after, (int) ($_GET["before"] ?? 0));
+    $changed = $after > 0 && (int) ($_GET["since"] ?? 0) > 0 ? clientChatChanged($pdo, $account["id"], $after, (int) $_GET["since"]) : [];
+    $row = function ($m) use ($p) {
+        return clientMessageRow($m, $p);
+    };
     if (($_GET["open"] ?? "") === "1") {
         logClientChatVisit($pdo, $account);
     }
@@ -181,9 +196,9 @@ if ($action === "client_thread") {
             return ["id" => (int) $person["id"], "name" => (string) $person["name"]];
         }, clientChatPeople($pdo, $account["id"])),
         "managers" => array_map("clientChatManagerRow", clientChatManagers($pdo, $account["id"])),
-        "messages" => array_map(function ($m) use ($p) {
-            return clientMessageRow($m, $p);
-        }, $rows),
+        "messages" => array_map($row, $rows),
+        "changed" => array_map($row, $changed),
+        "clock" => $clock,
         "has_older" => $hasOlder,
         "seen_by" => clientChatSeenBy($pdo, $p, $account["id"]),
     ]);
@@ -197,10 +212,10 @@ if ($action === "list") {
     $stmt = $pdo->prepare("
         SELECT c.*,
                IF(c.admin_low = :me1, c.admin_high, c.admin_low) AS other_id,
-               m.body AS last_body, m.sender_id AS last_sender_id,
+               m.body AS last_body, m.sender_id AS last_sender_id, m.deleted_at AS last_deleted_at,
                UNIX_TIMESTAMP(m.created_at) AS last_ts,
                (SELECT COUNT(*) FROM admin_messages u
-                 WHERE u.conversation_id = c.id AND u.sender_id <> :me2
+                 WHERE u.conversation_id = c.id AND u.sender_id <> :me2 AND u.deleted_at IS NULL
                    AND u.id > IF(c.admin_low = :me3, c.low_last_read_id, c.high_last_read_id)) AS unread
         FROM admin_conversations c
         LEFT JOIN admin_messages m ON m.id = c.last_message_id
@@ -210,7 +225,7 @@ if ($action === "list") {
     $stmt->execute(["me1" => $me, "me2" => $me, "me3" => $me, "me4" => $me, "me5" => $me]);
 
     $conversations = array_map(function ($c) use ($pdo, $me) {
-        $body = (string) ($c["last_body"] ?? "");
+        $body = $c["last_deleted_at"] !== null ? "Message deleted" : (string) ($c["last_body"] ?? "");
         return [
             "id"       => (int) $c["id"],
             "with"     => messageAdmin($pdo, $c["other_id"]),
@@ -239,36 +254,38 @@ if ($action === "thread") {
         if ($other["removed"]) {
             reply(false, "That person isn't on the team.", [], 404);
         }
-        reply(true, "", ["with" => $other, "messages" => [], "has_older" => false]);
+        reply(true, "", ["with" => $other, "messages" => [], "changed" => [], "clock" => messageClock($pdo), "has_older" => false]);
     }
 
+    $clock = messageClock($pdo);
     $after = (int) ($_GET["after"] ?? 0);
     $before = (int) ($_GET["before"] ?? 0);
 
     if ($after > 0) {
         // Polling: everything new since the last message on screen, oldest first.
-        $stmt = $pdo->prepare("
-            SELECT *, UNIX_TIMESTAMP(created_at) AS created_ts FROM admin_messages
-            WHERE conversation_id = ? AND id > ?
-            ORDER BY id ASC
+        $stmt = $pdo->prepare(staffMessageSelect() . "
+            WHERE m.conversation_id = ? AND m.id > ?
+            ORDER BY m.id ASC
             LIMIT 200
         ");
         $stmt->execute([(int) $conversation["id"], $after]);
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $hasOlder = null;
+        $since = (int) ($_GET["since"] ?? 0);
+        $changed = $since > 0 ? staffMessagesChanged($pdo, $conversation["id"], $after, $since) : [];
     } else {
         // The latest page, or the page before $before - newest first, then turned
         // round so the page can append in reading order.
-        $stmt = $pdo->prepare("
-            SELECT *, UNIX_TIMESTAMP(created_at) AS created_ts FROM admin_messages
-            WHERE conversation_id = ?" . ($before > 0 ? " AND id < ?" : "") . "
-            ORDER BY id DESC
+        $stmt = $pdo->prepare(staffMessageSelect() . "
+            WHERE m.conversation_id = ?" . ($before > 0 ? " AND m.id < ?" : "") . "
+            ORDER BY m.id DESC
             LIMIT " . (MESSAGE_PAGE_SIZE + 1)
         );
         $stmt->execute($before > 0 ? [(int) $conversation["id"], $before] : [(int) $conversation["id"]]);
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $hasOlder = count($rows) > MESSAGE_PAGE_SIZE;
         $rows = array_reverse(array_slice($rows, 0, MESSAGE_PAGE_SIZE));
+        $changed = [];
     }
 
     $theirRead = theirReadId($conversation, $me);
@@ -278,6 +295,10 @@ if ($action === "thread") {
         "messages" => array_map(function ($m) use ($me) {
             return messageRow($m, $me);
         }, $rows),
+        "changed" => array_map(function ($m) use ($me) {
+            return messageRow($m, $me);
+        }, $changed),
+        "clock" => $clock,
         "has_older" => $hasOlder,
         // The last of my messages they have seen - the page marks it "Seen".
         "their_last_read_id" => $theirRead,
@@ -322,6 +343,25 @@ if ($action === "client_send") {
         reply(false, $e->getMessage(), [], $e->status);
     }
     reply(true, "", ["message_row" => clientMessageRow($row, $p)]);
+}
+
+if ($action === "client_edit" || $action === "client_delete") {
+    $account = myClientChat($pdo, $p, $input["client"] ?? 0);
+    try {
+        $row = changeClientMessage($pdo, $p, $account, $input["id"] ?? 0, $action === "client_edit" ? (string) ($input["body"] ?? "") : null);
+    } catch (PortalWriteError $e) {
+        reply(false, $e->getMessage(), [], $e->status);
+    }
+    reply(true, "", ["message_row" => clientMessageRow($row, $p)]);
+}
+
+if ($action === "edit" || $action === "delete") {
+    try {
+        $row = changeStaffMessage($pdo, $me, $input["id"] ?? 0, $action === "edit" ? (string) ($input["body"] ?? "") : null);
+    } catch (PortalWriteError $e) {
+        reply(false, $e->getMessage(), [], $e->status);
+    }
+    reply(true, "", ["message_row" => messageRow($row, $me)]);
 }
 
 if ($action === "send") {

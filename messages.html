@@ -177,6 +177,7 @@ body{background:#f7f8fc;color:var(--text)}
 })();
 </script>
 <link rel="stylesheet" href="assets/shell.css?v=8" />
+<link rel="stylesheet" href="assets/message-edits.css?v=1" />
 <script src="/assets/clarity.js" defer></script>
 <script src="/assets/auto-dir.js?v=1" defer></script>
 </head>
@@ -268,6 +269,8 @@ body{background:#f7f8fc;color:var(--text)}
 
 </div>
 
+<script src="assets/message-edits.js?v=1"></script>
+<script src="assets/confirm.js?v=1"></script>
 <script>
 const token = localStorage.getItem("portal_token");
 
@@ -301,7 +304,11 @@ setAvatarImage(user);
    api/client-messages.php holds the account's chat with its account
    managers. This page shows it and keeps it fresh by asking for anything
    newer every few seconds while the tab is visible. With no account manager
-   assigned yet, the Director answers (data.director) until one is. */
+   assigned yet, the Director answers (data.director) until one is.
+
+   Your own message can be edited or deleted for 5 minutes
+   (assets/message-edits.js); each poll also brings the messages edited or
+   deleted since the last one (since=clock). */
 
 const POLL_MS = 5000;
 const MAX_CHARS = 2000;
@@ -315,6 +322,7 @@ let seenBy = [];
 let sending = false;
 let pollTimer = null;
 let loaded = false;
+let clock = 0;            // the server's time at the last thread reply: the next poll's since=
 
 function esc(value){
   return String(value == null ? "" : value)
@@ -329,7 +337,7 @@ function linkify(text){
     url => `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`);
 }
 
-const clock = s => new Date(s * 1000).toLocaleTimeString(undefined, {hour:"numeric", minute:"2-digit"});
+const timeOf = s => new Date(s * 1000).toLocaleTimeString(undefined, {hour:"numeric", minute:"2-digit"});
 
 function dayLabel(seconds){
   const d = new Date(seconds * 1000);
@@ -380,6 +388,8 @@ async function load(){
   director = data.director;
   canSend = data.can_send;
   messages = data.messages;
+  WzMessageEdits.track(messages);
+  clock = data.clock;
   hasOlder = data.has_older;
   seenBy = data.seen_by;
   loaded = true;
@@ -453,14 +463,16 @@ function messagesHtml(){
       return sep + `
         <div class="msg${ours ? " ours" : ""}${m.mine ? " mine" : ""}" data-id="${m.id}">
           ${showName ? `<span class="who">${esc(m.sender.name)}</span>` : ""}
-          <div class="bubble" dir="auto">${linkify(m.body)}</div>
-          <time title="${esc(new Date(m.created_ts * 1000).toLocaleString())}">${esc(clock(m.created_ts))}</time>
+          ${WzMessageEdits.bubble(m, linkify)}
+          <span><time title="${esc(new Date(m.created_ts * 1000).toLocaleString())}">${esc(timeOf(m.created_ts))}</time>${WzMessageEdits.meta(m)}</span>
+          ${WzMessageEdits.actions(m)}
           ${seen.id === m.id ? `<span class="seen">Seen</span>` : ""}
         </div>`;
     }).join("");
 }
 
 function renderMessages(){
+  WzMessageEdits.keepDraft();
   document.getElementById("messages").innerHTML = messagesHtml();
 }
 
@@ -468,6 +480,7 @@ function appendMessages(rows){
   const known = new Set(messages.map(m => m.id));
   const fresh = rows.filter(m => !known.has(m.id));
   if(!fresh.length) return false;
+  WzMessageEdits.track(fresh);
 
   const box = document.getElementById("messages");
   const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
@@ -485,6 +498,7 @@ async function loadOlder(){
   const data = await api({ action: "thread", before: messages[0].id }).catch(() => null);
   if(!data || !data.success) return;
 
+  WzMessageEdits.track(data.messages);
   messages = data.messages.concat(messages);
   hasOlder = data.has_older;
   renderMessages();
@@ -553,6 +567,54 @@ async function sendMessage(){
   }
 }
 
+/* ── Changing your own message ── */
+
+function startEdit(id){
+  const m = messages.find(x => x.id === id);
+  if(!m || !WzMessageEdits.begin(m)) return;
+  renderMessages();
+  WzMessageEdits.focusEditor();
+}
+
+function cancelEdit(){
+  WzMessageEdits.end();
+  renderMessages();
+}
+
+async function saveEdit(id){
+  const body = WzMessageEdits.draft().trim();
+  if(!body){
+    WzMessageEdits.showError("A message can't be empty. Delete it instead.");
+    return;
+  }
+  if(body.length > MAX_CHARS){
+    WzMessageEdits.showError("A message can be up to " + MAX_CHARS + " characters.");
+    return;
+  }
+  const data = await api(null, { action: "edit", id, body }).catch(() => null);
+  if(!data || !data.success){
+    WzMessageEdits.showError((data && data.message) || "Could not save the change.");
+    return;
+  }
+  WzMessageEdits.end();
+  WzMessageEdits.merge(messages, [data.message_row]);
+  renderMessages();
+}
+
+async function deleteOwnMessage(id){
+  if(!(await WzMessageEdits.askDelete())) return;
+  const data = await api(null, { action: "delete", id }).catch(() => null);
+  if(!data || !data.success){
+    alert((data && data.message) || "Could not delete the message.");
+    return;
+  }
+  WzMessageEdits.merge(messages, [data.message_row]);
+  renderMessages();
+}
+
+// The Edit and Delete links go when the 5 minutes are up.
+setInterval(() => { if(loaded && WzMessageEdits.expired()) renderMessages(); }, 10000);
+
 /* ── Keeping the chat fresh ── */
 
 async function poll(){
@@ -560,8 +622,10 @@ async function poll(){
   const last = messages.length ? messages[messages.length - 1].id : 0;
 
   try{
-    const data = await api(last ? { action: "thread", after: last } : { action: "thread" });
+    const data = await api(last ? { action: "thread", after: last, since: clock } : { action: "thread" });
     if(!data.success) return;
+    clock = data.clock;
+    const edited = WzMessageEdits.merge(messages, data.changed);
 
     const before = JSON.stringify([seenBy, managers, canSend]);
     seenBy = data.seen_by;
@@ -573,7 +637,7 @@ async function poll(){
       renderComposer();
     }
     const added = appendMessages(data.messages);
-    if(!added && before !== JSON.stringify([seenBy, managers, canSend])) renderMessages();
+    if(!added && (edited || before !== JSON.stringify([seenBy, managers, canSend]))) renderMessages();
     if(data.messages.some(m => !m.mine)) markRead();
   }catch(err){
     // Try again on the next tick.

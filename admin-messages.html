@@ -309,6 +309,7 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 <link rel="stylesheet" href="assets/shell.css?v=8" />
+<link rel="stylesheet" href="assets/message-edits.css?v=1" />
 <!-- Before the page script, which asks it to ring. -->
 <script src="assets/alert-sound.js?v=2"></script>
 <script src="assets/permissions.js?v=2"></script>
@@ -412,6 +413,8 @@ document.addEventListener("DOMContentLoaded", function () {
   </div>
 </div>
 
+<script src="assets/message-edits.js?v=1"></script>
+<script src="assets/confirm.js?v=1"></script>
 <script>
 const adminToken = localStorage.getItem("admin_token");
 const adminUser = JSON.parse(localStorage.getItem("admin_user") || "{}");
@@ -449,6 +452,7 @@ let messages = [];        // the open thread, oldest first
 let hasOlder = false;
 let pollTimer = null;
 let sending = false;
+let clock = 0;            // the server's time at the last thread reply: the next poll's since=
 
 let mode = "team";        // which list shows: "team" or "client"
 let clientsAvailable = false;
@@ -482,7 +486,7 @@ function timeAgo(seconds){
   return new Date(seconds * 1000).toLocaleDateString(undefined, {day:"numeric", month:"short"});
 }
 
-const clock = s => new Date(s * 1000).toLocaleTimeString(undefined, {hour:"numeric", minute:"2-digit"});
+const timeOf = s => new Date(s * 1000).toLocaleTimeString(undefined, {hour:"numeric", minute:"2-digit"});
 
 function dayLabel(seconds){
   const d = new Date(seconds * 1000);
@@ -665,7 +669,10 @@ async function openChat(adminId){
 
   openWith = data.with;
   openClient = null;
+  WzMessageEdits.end();
   messages = data.messages;
+  WzMessageEdits.track(messages);
+  clock = data.clock;
   hasOlder = data.has_older;
   noticeIncoming(messages.filter(m => !m.mine).map(m => m.id), false);
   history.replaceState(null, "", "?with=" + adminId);
@@ -695,7 +702,10 @@ async function openClientChat(clientId){
   clientManagers = data.managers;
   clientPeople = data.people;
   clientSeen = data.seen_by;
+  WzMessageEdits.end();
   messages = data.messages;
+  WzMessageEdits.track(messages);
+  clock = data.clock;
   hasOlder = data.has_older;
   noticeIncoming(messages.filter(m => m.side === "client").map(m => m.id), false, "client_message");
   history.replaceState(null, "", "?client=" + clientId);
@@ -758,8 +768,9 @@ function messagesHtml(){
     return sep + `
       <div class="msg${m.mine ? " mine" : ""}${ours ? " ours" : ""}" data-id="${m.id}">
         ${showName ? `<span class="who">${esc(m.sender.name)}</span>` : ""}
-        <div class="bubble" dir="auto">${linkify(m.body)}</div>
-        <time title="${esc(new Date(m.created_ts * 1000).toLocaleString())}">${esc(clock(m.created_ts))}</time>
+        ${WzMessageEdits.bubble(m, linkify)}
+        <span><time title="${esc(new Date(m.created_ts * 1000).toLocaleString())}">${esc(timeOf(m.created_ts))}</time>${WzMessageEdits.meta(m)}</span>
+        ${WzMessageEdits.actions(m)}
         ${seen.id === m.id && seen.names.length ? `<span class="seen">Seen by ${esc(seen.names.join(", "))}</span>` : ""}
       </div>`;
   }).join("");
@@ -830,11 +841,20 @@ function renderClientThread(){
   if(input && window.innerWidth > 768) input.focus();
 }
 
+/* Redraws the open chat's messages, keeping a half-typed edit. */
+function paintMessages(){
+  const box = document.getElementById("messages");
+  if(!box) return;
+  WzMessageEdits.keepDraft();
+  box.innerHTML = (hasOlder ? `<button class="older-btn" type="button" onclick="loadOlder()">Show earlier messages</button>` : "") + messagesHtml();
+}
+
 function appendMessages(rows){
   if(!rows.length) return;
   const known = new Set(messages.map(m => m.id));
   const fresh = rows.filter(m => !known.has(m.id));
   if(!fresh.length) return;
+  WzMessageEdits.track(fresh);
 
   const box = document.getElementById("messages");
   const nearBottom = box && box.scrollHeight - box.scrollTop - box.clientHeight < 80;
@@ -842,7 +862,7 @@ function appendMessages(rows){
   messages = messages.concat(fresh);
   if(box){
     // Re-rendering only the list keeps whatever is half-typed in the composer.
-    box.innerHTML = (hasOlder ? `<button class="older-btn" type="button" onclick="loadOlder()">Show earlier messages</button>` : "") + messagesHtml();
+    paintMessages();
   }
   if(nearBottom || fresh.some(m => m.mine)) scrollToEnd();
 }
@@ -855,9 +875,10 @@ async function loadOlder(){
   const data = await api(threadParams({ before: messages[0].id })).catch(() => null);
   if(!data || !data.success) return;
 
+  WzMessageEdits.track(data.messages);
   messages = data.messages.concat(messages);
   hasOlder = data.has_older;
-  box.innerHTML = (hasOlder ? `<button class="older-btn" type="button" onclick="loadOlder()">Show earlier messages</button>` : "") + messagesHtml();
+  paintMessages();
   box.scrollTop = box.scrollHeight - fromBottom;   // stay on the message being read
 }
 
@@ -946,6 +967,63 @@ async function sendMessage(){
   }
 }
 
+/* ── Changing your own message (assets/message-edits.js) ── */
+
+function startEdit(id){
+  const m = messages.find(x => x.id === id);
+  if(!m || !WzMessageEdits.begin(m)) return;
+  paintMessages();
+  WzMessageEdits.focusEditor();
+}
+
+function cancelEdit(){
+  WzMessageEdits.end();
+  paintMessages();
+}
+
+/* The edit or delete call for whichever kind of chat is open. */
+function changeParams(kind, id, body){
+  return openClient
+    ? Object.assign({ action: "client_" + kind, client: openClient.id, id }, body === undefined ? {} : { body })
+    : Object.assign({ action: kind, id }, body === undefined ? {} : { body });
+}
+
+async function saveEdit(id){
+  const body = WzMessageEdits.draft().trim();
+  if(!body){
+    WzMessageEdits.showError("A message can't be empty. Delete it instead.");
+    return;
+  }
+  if(body.length > MAX_CHARS){
+    WzMessageEdits.showError("A message can be up to " + MAX_CHARS + " characters.");
+    return;
+  }
+  const data = await api(null, changeParams("edit", id, body)).catch(() => null);
+  if(!data || !data.success){
+    WzMessageEdits.showError((data && data.message) || "Could not save the change.");
+    return;
+  }
+  WzMessageEdits.end();
+  WzMessageEdits.merge(messages, [data.message_row]);
+  paintMessages();
+  loadList();
+}
+
+async function deleteOwnMessage(id){
+  if(!(await WzMessageEdits.askDelete())) return;
+  const data = await api(null, changeParams("delete", id)).catch(() => null);
+  if(!data || !data.success){
+    alert((data && data.message) || "Could not delete the message.");
+    return;
+  }
+  WzMessageEdits.merge(messages, [data.message_row]);
+  paintMessages();
+  loadList();
+}
+
+// The Edit and Delete links go when the 5 minutes are up.
+setInterval(() => { if((openWith || openClient) && WzMessageEdits.expired()) paintMessages(); }, 10000);
+
 /* ── Keeping the open chat fresh ── */
 
 async function poll(){
@@ -953,8 +1031,11 @@ async function poll(){
   const last = messages.length ? messages[messages.length - 1].id : 0;
 
   try{
-    const data = await api(threadParams(last ? { after: last } : {}));
+    const data = await api(threadParams(last ? { after: last, since: clock } : {}));
     if(!data.success) return;
+    clock = data.clock;
+    // Edits and deletes since the last poll, in place.
+    if(WzMessageEdits.merge(messages, data.changed)) paintMessages();
 
     const theirs = data.messages.filter(m => !m.mine && !messages.some(x => x.id === m.id));
     if(openClient && (data.access !== clientAccess || data.managers.length !== clientManagers.length)){
@@ -971,7 +1052,7 @@ async function poll(){
       // "Seen by" moves without a new message, so repaint when it does.
       if(JSON.stringify(data.seen_by) !== JSON.stringify(clientSeen)){
         clientSeen = data.seen_by;
-        if(!theirs.length) document.getElementById("messages").innerHTML = (hasOlder ? `<button class="older-btn" type="button" onclick="loadOlder()">Show earlier messages</button>` : "") + messagesHtml();
+        if(!theirs.length) paintMessages();
       }
     }else{
       noticeIncoming(theirs.map(m => m.id), true);

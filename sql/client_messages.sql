@@ -25,6 +25,8 @@ CREATE TABLE IF NOT EXISTS client_messages (
   sender_name VARCHAR(190) NOT NULL DEFAULT '',
   body        TEXT        NOT NULL,
   created_at  TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  edited_at   TIMESTAMP       NULL DEFAULT NULL,
+  deleted_at  TIMESTAMP       NULL DEFAULT NULL,
   KEY idx_account (user_id, id),
   KEY idx_created (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -45,3 +47,8 @@ CREATE TABLE IF NOT EXISTS client_message_jobs (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 INSERT IGNORE INTO client_message_jobs (name) VALUES ('email_sweep');
+
+-- Edit and delete (a sender's own message, for 5 minutes - api/message-edits.php).
+-- For a table made before them; ensureMessageEditColumns() does this lazily.
+-- ALTER TABLE client_messages ADD COLUMN edited_at TIMESTAMP NULL DEFAULT NULL;
+-- ALTER TABLE client_messages ADD COLUMN deleted_at TIMESTAMP NULL DEFAULT NULL;

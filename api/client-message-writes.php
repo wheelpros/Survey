@@ -41,6 +41,7 @@
 require_once __DIR__ . "/db.php";
 require_once __DIR__ . "/rate-limit.php";
 require_once __DIR__ . "/permissions.php";
+require_once __DIR__ . "/message-edits.php";
 
 const CLIENT_MESSAGE_MAX_CHARS = 2000;
 const CLIENT_MESSAGE_PAGE_SIZE = 50;
@@ -266,7 +267,7 @@ function clientMessageSelect()
 {
     return "
         SELECT m.id, m.user_id, m.sender_kind, m.sender_id, m.sender_name, m.body, m.created_at,
-               UNIX_TIMESTAMP(m.created_at) AS created_ts,
+               UNIX_TIMESTAMP(m.created_at) AS created_ts, " . messageEditColumns("m") . ",
                COALESCE(a.name, u.name) AS live_name
         FROM client_messages m
         LEFT JOIN admins a ON m.sender_kind = 'admin' AND a.id = m.sender_id
@@ -274,21 +275,29 @@ function clientMessageSelect()
     ";
 }
 
-/** One message as the pages show it. */
+/** Whether $p sent message row $m. */
+function isOwnClientMessage(array $m, array $p)
+{
+    return $m["sender_kind"] === ($p["kind"] === "user" ? "user" : "admin") && (int) $m["sender_id"] === (int) $p["id"];
+}
+
+/** One message as the pages show it. A deleted one keeps its place, without its words. */
 function clientMessageRow(array $m, array $p)
 {
     $side = $m["sender_kind"] === "user" ? "client" : "team";
     $name = (string) ($m["live_name"] ?? "") !== "" ? (string) $m["live_name"] : (string) $m["sender_name"];
+    $mine = isOwnClientMessage($m, $p);
+    $edits = messageEditFields($m, $mine);
 
     return [
         "id"         => (int) $m["id"],
         "side"       => $side,
-        "mine"       => $m["sender_kind"] === ($p["kind"] === "user" ? "user" : "admin") && (int) $m["sender_id"] === (int) $p["id"],
+        "mine"       => $mine,
         "sender"     => ["id" => (int) $m["sender_id"], "name" => $name !== "" ? $name : ($side === "team" ? "Account manager" : "Teammate")],
-        "body"       => (string) $m["body"],
+        "body"       => $edits["deleted"] ? "" : (string) $m["body"],
         "created_at" => (string) $m["created_at"],
         "created_ts" => (int) $m["created_ts"],
-    ];
+    ] + $edits;
 }
 
 /**
@@ -316,6 +325,18 @@ function clientChatMessages(PDO $pdo, $accountId, $after = 0, $before = 0, $limi
     return [array_reverse(array_slice($rows, 0, (int) $limit)), count($rows) > $limit];
 }
 
+/**
+ * Messages up to $upToId edited or deleted since $since (a messageClock()
+ * value) - what a poll needs besides the new ones.
+ */
+function clientChatChanged(PDO $pdo, $accountId, $upToId, $since)
+{
+    [$clause, $params] = messageChangedClause($since);
+    $stmt = $pdo->prepare(clientMessageSelect() . " WHERE m.user_id = ? AND m.id <= ? AND $clause ORDER BY m.id ASC LIMIT 200");
+    $stmt->execute(array_merge([(int) $accountId, (int) $upToId], $params));
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
 /** Newest first, up to $limit + 1 rows older than $beforeId (null: from the latest) - api/v1's paging. */
 function clientChatNewestFirst(PDO $pdo, $accountId, $beforeId, $limit)
 {
@@ -337,7 +358,9 @@ function clientMessageV1Item(array $m, array $p)
         "mine" => $row["mine"],
         "from" => $row["sender"]["name"],
         "created_at" => gmdate("Y-m-d\\TH:i:s\\Z", $row["created_ts"]),
-        "untrusted_content" => ["body" => $row["body"]],
+        "edited" => $row["edited"],
+        "deleted" => $row["deleted"],
+        "untrusted_content" => ["body" => $row["deleted"] ? null : $row["body"]],
     ];
 }
 
@@ -378,7 +401,7 @@ function clientUnreadIn(PDO $pdo, array $p, array $accountIds)
         SELECT m.user_id, COUNT(*) AS n
         FROM client_messages m
         LEFT JOIN client_message_reads r ON r.user_id = m.user_id AND r.reader_kind = ? AND r.reader_id = ?
-        WHERE m.user_id IN ($marks) AND m.sender_kind = ? AND m.id > COALESCE(r.last_read_id, 0)
+        WHERE m.user_id IN ($marks) AND m.sender_kind = ? AND m.id > COALESCE(r.last_read_id, 0) AND m.deleted_at IS NULL
         GROUP BY m.user_id
     ");
     $stmt->execute(array_merge([$p["kind"], (int) $p["id"]], array_map("intval", $accountIds), [clientChatOtherKind($p)]));
@@ -478,7 +501,7 @@ function clientChatPerson(array $a)
 function clientChatPreview(array $m, array $p)
 {
     $row = clientMessageRow($m, $p);
-    $body = $row["body"];
+    $body = $row["deleted"] ? "Message deleted" : $row["body"];
     return [
         "id"         => $row["id"],
         "mine"       => $row["mine"],
@@ -547,6 +570,31 @@ function sendClientMessage(PDO $pdo, array $p, array $account, $rawBody)
 }
 
 /**
+ * Edits ($rawBody a string) or deletes ($rawBody null) $p's own message $id
+ * in $chat, within MESSAGE_EDIT_WINDOW of sending (message-edits.php).
+ * Returns the stored row. Throws PortalWriteError: 404 for a message not in
+ * this chat, 403 for someone else's, 409 when too late or already deleted.
+ */
+function changeClientMessage(PDO $pdo, array $p, array $chat, $id, $rawBody)
+{
+    requireClientChatMember($chat);
+    $stmt = $pdo->prepare(clientMessageSelect() . " WHERE m.id = ? AND m.user_id = ?");
+    $stmt->execute([(int) $id, (int) $chat["id"]]);
+    $m = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$m) {
+        throw new PortalWriteError("No message with that id in this chat.", 404);
+    }
+    checkMessageChange($m, isOwnClientMessage($m, $p));
+
+    $body = $rawBody === null ? null : checkEditedBody($rawBody, CLIENT_MESSAGE_MAX_CHARS);
+    if ($body !== null && $body === (string) $m["body"]) {
+        return $m;
+    }
+    applyMessageChange($pdo, "client_messages", $m["id"], $body);
+    return clientMessageById($pdo, $m["id"]);
+}
+
+/**
  * Marks $p's side of $chat (openClientChat()) read up to its latest message.
  * Returns the new marker. Throws 403 for an observer, whose reading must not
  * look like an account manager's.
@@ -603,6 +651,7 @@ function clientMessageEmailSweep(PDO $pdo, ?callable $send = null)
         SELECT DISTINCT user_id FROM client_messages
         WHERE created_at >= NOW() - INTERVAL " . CLIENT_MESSAGE_EMAIL_WINDOW_DAYS . " DAY
           AND created_at <= NOW() - INTERVAL " . CLIENT_MESSAGE_EMAIL_AFTER . " SECOND
+          AND deleted_at IS NULL
     ");
     $stmt->execute();
 
@@ -643,7 +692,7 @@ function emailClientChatReader(PDO $pdo, array $account, $kind, array $person, c
         SELECT COUNT(*) AS unread, MAX(id) AS newest,
                SUM(created_at <= NOW() - INTERVAL " . CLIENT_MESSAGE_EMAIL_AFTER . " SECOND) AS due
         FROM client_messages
-        WHERE user_id = ? AND sender_kind = ? AND id > ?
+        WHERE user_id = ? AND sender_kind = ? AND id > ? AND deleted_at IS NULL
     ");
     $stmt->execute([$accountId, $otherKind, $lastRead]);
     $unread = $stmt->fetch(PDO::FETCH_ASSOC);

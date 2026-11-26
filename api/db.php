@@ -2488,12 +2488,42 @@ function ensureAdminMessageTables(PDO $pdo)
               sender_id       INT       NOT NULL,
               body            TEXT      NOT NULL,
               created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              edited_at       TIMESTAMP     NULL DEFAULT NULL,
+              deleted_at      TIMESTAMP     NULL DEFAULT NULL,
               KEY idx_conversation (conversation_id, id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
+        ensureMessageEditColumns($pdo, "admin_messages");
     } catch (PDOException $e) {
         // Read-only DB user: run sql/admin_messages.sql by hand. Until then
         // the Messages page says it can't load.
+    }
+}
+
+/*
+| A message can be edited or deleted by its sender for a few minutes
+| (api/message-edits.php): when, if ever, each happened. Added to tables made
+| before that existed; the CREATE TABLEs above and below carry them already.
+*/
+const MESSAGE_EDIT_COLUMNS = [
+    "edited_at"  => "TIMESTAMP NULL DEFAULT NULL",
+    "deleted_at" => "TIMESTAMP NULL DEFAULT NULL",
+];
+
+function ensureMessageEditColumns(PDO $pdo, $table)
+{
+    $stmt = $pdo->prepare("
+        SELECT COLUMN_NAME
+        FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
+    ");
+    $stmt->execute([$table]);
+    $existing = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+    foreach (MESSAGE_EDIT_COLUMNS as $column => $type) {
+        if (!in_array($column, $existing, true)) {
+            $pdo->exec("ALTER TABLE `$table` ADD COLUMN `$column` $type");
+        }
     }
 }
 
@@ -2523,6 +2553,8 @@ function ensureClientMessageTables(PDO $pdo)
               sender_name VARCHAR(190) NOT NULL DEFAULT '',
               body        TEXT        NOT NULL,
               created_at  TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              edited_at   TIMESTAMP       NULL DEFAULT NULL,
+              deleted_at  TIMESTAMP       NULL DEFAULT NULL,
               KEY idx_account (user_id, id),
               KEY idx_created (created_at)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
@@ -2545,6 +2577,7 @@ function ensureClientMessageTables(PDO $pdo)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
         $pdo->exec("INSERT IGNORE INTO client_message_jobs (name) VALUES ('email_sweep')");
+        ensureMessageEditColumns($pdo, "client_messages");
     } catch (PDOException $e) {
         // Read-only DB user: run sql/client_messages.sql by hand.
     }

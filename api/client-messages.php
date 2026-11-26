@@ -7,10 +7,16 @@
 |
 | Backs messages.html and the client sidebar badge (assets/messages-badge.js).
 |
-|   GET  ?action=thread[&after=|before=]   the chat, its account managers, who has read what
+|   GET  ?action=thread[&after=|before=][&since=]  the chat, its account managers, who has read what
 |   GET  ?action=count                     my unread total and newest incoming id, for the badge
 |   POST {"action":"send","body":"..."}
+|   POST {"action":"edit","id":5,"body":"..."}   my own message, for 5 minutes
+|   POST {"action":"delete","id":5}              likewise
 |   POST {"action":"read"}
+|
+| A thread reply carries "clock", the server's time; a poll sends it back as
+| since= and gets "changed" - the messages edited or deleted since - along
+| with the new ones (message-edits.php).
 |
 | A client on a browser session only, and only their own account's chat - the
 | account comes from the session, never from the request. Staff open the same
@@ -79,16 +85,22 @@ if ($action === "count") {
 if ($action === "thread") {
     $managers = clientChatManagers($pdo, $accountId);
     $director = $managers ? null : clientChatDirector($pdo);
-    [$rows, $hasOlder] = clientChatMessages($pdo, $accountId, (int) ($_GET["after"] ?? 0), (int) ($_GET["before"] ?? 0));
+    $clock = messageClock($pdo);
+    $after = (int) ($_GET["after"] ?? 0);
+    [$rows, $hasOlder] = clientChatMessages($pdo, $accountId, $after, (int) ($_GET["before"] ?? 0));
+    $changed = $after > 0 && (int) ($_GET["since"] ?? 0) > 0 ? clientChatChanged($pdo, $accountId, $after, (int) $_GET["since"]) : [];
+    $row = function ($m) use ($p) {
+        return clientMessageRow($m, $p);
+    };
 
     reply(true, "", [
         "managers" => array_map("clientChatManagerRow", $managers),
         // No account manager yet: the Director answers until one is assigned.
         "director" => $director ? clientChatManagerRow($director) : null,
         "can_send" => $managers || $director,
-        "messages" => array_map(function ($m) use ($p) {
-            return clientMessageRow($m, $p);
-        }, $rows),
+        "messages" => array_map($row, $rows),
+        "changed" => array_map($row, $changed),
+        "clock" => $clock,
         "has_older" => $hasOlder,
         "seen_by" => clientChatSeenBy($pdo, $p, $accountId),
     ]);
@@ -101,6 +113,15 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
 if ($action === "read") {
     markClientChatRead($pdo, $p, $account);
     reply(true, "", ["unread" => clientMessageUnreadCount($pdo, $p)]);
+}
+
+if ($action === "edit" || $action === "delete") {
+    try {
+        $row = changeClientMessage($pdo, $p, $account, $input["id"] ?? 0, $action === "edit" ? (string) ($input["body"] ?? "") : null);
+    } catch (PortalWriteError $e) {
+        reply(false, $e->getMessage(), [], $e->status);
+    }
+    reply(true, "", ["message_row" => clientMessageRow($row, $p)]);
 }
 
 if ($action === "send") {

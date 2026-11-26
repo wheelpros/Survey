@@ -14,6 +14,8 @@
 |      history, one taken off the team loses it.
 |   3b. "Write to clients in Messages" decides who is on the team side.
 |   4. Unread, Seen, and the staff badge counting client chats.
+|   4b. Editing and deleting your own message, for 5 minutes, seen by
+|      everyone on their next poll.
 |   5. The email for a message left unread for 15 minutes: once, then
 |      quiet until the chat is opened.
 |   6. Through api/v1 (the MCP), for the client and for the account manager.
@@ -312,6 +314,56 @@ check("client messages: Alice sees Amy has read hers", ($r["seen_by"][0]["last_r
 
 [, $r] = cmGet("action=thread&after=" . $aliceMessage, $tia);
 check("client messages: after= returns only newer ones", array_column($r["messages"], "id") === [$amyMessage], json_encode($r));
+
+// ── 4b. Edit and delete ────────────────────────────────────────────────
+
+[, $r] = cmGet("action=thread", $tia);
+$since = $r["clock"];
+[, $r] = cmPost($alice, ["action" => "send", "body" => "Can we mvoe it?"]);
+$typo = $r["message_row"]["id"] ?? 0;
+[$status, $r] = cmPost($tia, ["action" => "edit", "id" => $typo, "body" => "Hacked"]);
+check("client messages: a teammate can't edit Alice's message", $status === 403, "HTTP $status " . json_encode($r));
+[$status] = amPost($am, ["action" => "client_edit", "client" => 10, "id" => $typo, "body" => "Hacked"]);
+check("client messages: nor can her account manager", $status === 403, "HTTP $status");
+[$status] = amPost($owner, ["action" => "client_delete", "client" => 10, "id" => $typo]);
+check("client messages: nor the Director reading it", $status === 403, "HTTP $status");
+[$status] = cmPost("tok-bob", ["action" => "delete", "id" => $typo]);
+check("client messages: another client doesn't find it", $status === 404, "HTTP $status");
+[$status, $r] = cmPost($alice, ["action" => "edit", "id" => $typo, "body" => "Can we move it?"]);
+check("client messages: Alice fixes her typo", $status === 200 && $r["message_row"]["body"] === "Can we move it?"
+    && $r["message_row"]["edited"] === true && $r["message_row"]["editable_for"] > 0, "HTTP $status " . json_encode($r));
+[, $r] = cmGet("action=thread&after=$typo&since=$since", $tia);
+check("client messages: Tia's next poll brings the edit", array_column($r["changed"], "id") === [$typo]
+    && $r["changed"][0]["body"] === "Can we move it?" && $r["changed"][0]["edited"] === true, json_encode($r));
+
+[, $before] = amGet("action=count", $am);
+$since = $r["clock"];
+[$status, $r] = cmPost($alice, ["action" => "delete", "id" => $typo]);
+check("client messages: Alice deletes it", $status === 200 && $r["message_row"]["deleted"] === true && $r["message_row"]["body"] === "",
+    "HTTP $status " . json_encode($r));
+[, $r] = amGet("action=client_thread&client=10&after=" . ($typo - 1) . "&since=$since", $am);
+check("client messages: Amy sees \"Message deleted\", never the words", ($r["messages"][0]["deleted"] ?? null) === true
+    && $r["messages"][0]["body"] === "" && strpos(json_encode($r), "move it") === false, json_encode($r));
+[, $after] = amGet("action=count", $am);
+check("client messages: and it no longer counts as unread", $after["client_unread"] === $before["client_unread"] - 1, json_encode([$before, $after]));
+[, $r] = amGet("action=client_list", $am);
+check("client messages: the chat list says it was deleted", ($r["chats"][0]["last"]["preview"] ?? "") === "Message deleted", json_encode($r));
+[$status] = cmPost($alice, ["action" => "edit", "id" => $typo, "body" => "Back again"]);
+check("client messages: a deleted message stays deleted", $status === 409, "HTTP $status");
+[, $r] = get("client-messages.php?client=10&limit=1", $am);
+check("v1 client messages: read_client_chat shows it deleted, body null", ($r["data"]["items"][0]["deleted"] ?? null) === true
+    && $r["data"]["items"][0]["untrusted_content"]["body"] === null, json_encode($r));
+
+[, $r] = amPost($am, ["action" => "client_send", "client" => 10, "body" => "Noted."]);
+$late = $r["message_row"]["id"] ?? 0;
+$pdo->exec("UPDATE client_messages SET created_at = NOW() - INTERVAL 6 MINUTE WHERE id = $late");
+[$status, $r] = amPost($am, ["action" => "client_edit", "client" => 10, "id" => $late, "body" => "Noted!"]);
+check("client messages: after 5 minutes Amy can't edit hers", $status === 409 && strpos($r["message"], "5 minutes") !== false, "HTTP $status " . json_encode($r));
+[$status] = amPost($am, ["action" => "client_delete", "client" => 10, "id" => $late]);
+check("client messages: nor delete it", $status === 409, "HTTP $status");
+
+// Out of the sweeps below.
+$pdo->exec("DELETE FROM client_messages WHERE id IN ($typo, $late)");
 
 // ── 5. The email for a message left unread ─────────────────────────────
 
